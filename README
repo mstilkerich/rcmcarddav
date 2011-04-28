@@ -1,0 +1,4 @@
+This is a simple CardDAV client implementation.
+Just copy config.user@example.com.inc.php to config.<YOURLOGINCREDENTIAL>.inc.php and edit its content.
+
+Benjamin Schieder <blindcoder@scavenger.homeip.net>
