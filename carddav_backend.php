@@ -89,7 +89,6 @@ class carddav_backend extends rcube_addressbook
 		if (preg_match("/^EMAIL.*?:(.*)$/", $line, $match)) { $emails[] = $match[1]; }
 
 		if (preg_match("/^END:VCARD$/", $line)){
-			$name = $surname." ".$firstname;
 			if ($emails[0]){
 				foreach ($emails as $email){
 					$addresses[] = array('ID' => $ID, 'name' => $name, 'firstname' => $firstname, 'surname' => $surname, 'email' => $email);
@@ -297,7 +296,7 @@ class carddav_backend extends rcube_addressbook
 	if (!$vcf)
 		return false;
 	$vcfnew = preg_replace("/\nFN:.*?\r\n/", "\nFN:".$save_cols['name']."\r\n", $vcf);
-	$vcfnew = preg_replace("/\nN:[^;]*;[^;]*/", "\nN:".$save_cols['surname'].";".$save_cols['firstname']."", $vcfnew);
+	$vcfnew = preg_replace("/\nN:[^;]*;[^;]*/", "\nN:".$save_cols['surname'].";".$save_cols['firstname'], $vcfnew);
 	if (strlen($mail) < 1){
 		$vcfnew = preg_replace("/\nEND:VCARD/", "\nEMAIL;TYPE=HOME:".$save_cols['email']."\r\nEND:VCARD", $vcfnew);
 	} else {
