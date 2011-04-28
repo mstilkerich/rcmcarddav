@@ -105,7 +105,7 @@ class carddav_backend extends rcube_addressbook
 	}
 	foreach($this->array_sort($addresses, "name") as $a){
 		if (strlen($filter) > 0){
-			if (preg_match("/$filter/", $a["name"]." ".$a["email"])){
+			if (preg_match("/$filter/i", $a["name"]." ".$a["email"])){
 			$a['ID'] = $a['ID']."+delim+".$a['email'];
 			$a['ID'] = preg_replace("/@/", "+at+", $a['ID']);
 			$a['ID'] = preg_replace("/\./", "+dot+", $a['ID']);
