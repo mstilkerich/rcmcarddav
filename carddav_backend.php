@@ -17,6 +17,30 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
+
+$carddav_error_message = "";
+function myErrorHandler($errno, $errstr, $errfile, $errline)
+{{{
+	global $carddav_error_message;
+	write_log("carddav", "blubb");
+	if (!(error_reporting() & $errno)) {
+		// This error code is not included in error_reporting
+		return;
+	}
+	switch ($errno) {
+		case E_WARNING:
+			$carddav_error_message = $errstr;
+			break;
+
+		default:
+			$carddav_error_message = "Unknown error type: [$errno] $errstr";
+			break;
+	}
+
+	/* Also execute PHP internal error handler */
+	return false;
+}}}
+
 class carddav_backend extends rcube_addressbook
 {
   public $primary_key = 'email';
@@ -133,12 +157,12 @@ class carddav_backend extends rcube_addressbook
 
   public function cdfopen($caller, $url, $mode, $use_include_path, $context)
   {{{
-	ob_flush();
-	ob_start();
+	global $carddav_error_message;
+	$old_error_handler = set_error_handler("myErrorHandler");
 	$fd = fopen($url, $mode, $use_include_path, $context);
-	$s = ob_get_clean();
-	if (strlen($s) > 0) {
-		write_log("carddav", "$caller: fopen_error: $s");
+	restore_error_handler();
+	if (!$fd){
+		write_log("carddav", "$caller: fopen error: $carddav_error_message");
 		return false;
 	}
 	return $fd;
