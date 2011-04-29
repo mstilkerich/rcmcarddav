@@ -117,10 +117,10 @@ class carddav_backend extends rcube_addressbook
 	foreach($this->array_sort($addresses, "name") as $a){
 		if (strlen($filter) > 0){
 			if (preg_match("/$filter/i", $a["name"]." ".$a["email"])){
-			$a['ID'] = $a['ID']."+delim+".$a['email'];
-			$a['ID'] = preg_replace("/@/", "+at+", $a['ID']);
-			$a['ID'] = preg_replace("/\./", "+dot+", $a['ID']);
-			$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname'], 'email' => $a['email']));
+				$a['ID'] = $a['ID']."+delim+".$a['email'];
+				$a['ID'] = preg_replace("/@/", "+at+", $a['ID']);
+				$a['ID'] = preg_replace("/\./", "+dot+", $a['ID']);
+				$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname'], 'email' => $a['email']));
 			}
 		} else {
 			$a['ID'] = $a['ID']."+delim+".$a['email'];
@@ -160,7 +160,6 @@ class carddav_backend extends rcube_addressbook
 	);
 
 	$context = stream_context_create($optsLISTVCF);
-	$ID = $name = $firstname = $surname = $email = NULL;
 	$fd = $this->cdfopen("list_records", $carddav['url'], "r", false, $context);
 	if (!$fd) { return false; }
 	$replyheader = stream_get_meta_data($fd);
@@ -176,11 +175,7 @@ class carddav_backend extends rcube_addressbook
 	if (!$this->list_records()){
 		return false;
 	}
-	if($this->result->first()){
-		return $this->result;
-	} else {
-		return false;
-	}
+	return $this->result;
   }}}
 
   public function count()
