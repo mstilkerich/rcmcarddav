@@ -25,7 +25,7 @@ class carddav extends rcube_plugin
 {
   public $task = 'addressbook|mail|settings';
   private $abook_id = "CardDAV";
-  
+
   public function init()
   {{{
     $this->add_hook('addressbooks_list', array($this, 'address_sources'));
@@ -35,7 +35,6 @@ class carddav extends rcube_plugin
     $this->add_hook('preferences_save', array($this, 'cd_save'));
     $this->add_hook('preferences_sections_list',array($this, 'cd_preferences_section'));
 
-    
     // use this address book for autocompletion queries
     // (maybe this should be configurable by the user?)
     $config = rcmail::get_instance()->config;
@@ -45,7 +44,7 @@ class carddav extends rcube_plugin
       $config->set('autocomplete_addressbooks', $sources);
     }
   }}}
-  
+
   public function address_sources($p)
   {{{
     $abook = new carddav_backend;
@@ -60,16 +59,16 @@ class carddav extends rcube_plugin
       );
     return $p;
   }}}
-  
+
   public function get_address_book($p)
   {{{
     if ($p['id'] === $this->abook_id) {
       $p['instance'] = new carddav_backend;
     }
-    
+
     return $p;
   }}}
- 
+
   // user preferences
   function cd_preferences($args) {
     if($args['section'] == 'cd_preferences') {
@@ -77,7 +76,7 @@ class carddav extends rcube_plugin
       $rcmail = rcmail::get_instance();
 
       $prefs = $rcmail->config->get('carddav', array());
-      
+
       // check box for username
       $use_carddav = $prefs['use_carddav'];
       $checkbox = new html_checkbox(array('name' => '_cd_use_carddav', 'value' => 1));
@@ -86,12 +85,12 @@ class carddav extends rcube_plugin
       $input = new html_inputfield(array('name' => '_cd_username', 'type' => 'text', 'autocomplete' => 'off', 'value' => $prefs['username']));
       $content_username = $input->show();
       // input box for username
-      $input = new html_inputfield(array('name' => '_cd_password', 'type' => 'text', 'autocomplete' => 'off', 'value' => $prefs['password']));
+      $input = new html_inputfield(array('name' => '_cd_password', 'type' => 'password', 'autocomplete' => 'off', 'value' => $prefs['password']));
       $content_password = $input->show();
       // input box for URL
       $input = new html_inputfield(array('name' => '_cd_url', 'type' => 'text', 'autocomplete' => 'off', 'value' => $prefs['url'], 'size'=>'40'));
       $content_url = $input->show();
-      
+
       $args['blocks']['cd_preferences'] =  array(
         'options' => array(
                            array('title'=> Q($this->gettext('cd_use_carddav')), 'content' => $content_use_carddav), 
@@ -101,9 +100,7 @@ class carddav extends rcube_plugin
                           ),
         'name'    => Q($this->gettext('cd_title'))
         );
-
     } 
-
     return($args);
   }
 
@@ -130,7 +127,4 @@ class carddav extends rcube_plugin
     $args['prefs']['carddav'] = $prefs;
     return($args);
   }
-
-
- 
 }
