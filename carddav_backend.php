@@ -22,7 +22,6 @@ $carddav_error_message = "";
 function myErrorHandler($errno, $errstr, $errfile, $errline)
 {{{
 	global $carddav_error_message;
-	write_log("carddav", "blubb");
 	if (!(error_reporting() & $errno)) {
 		// This error code is not included in error_reporting
 		return;
@@ -138,21 +137,25 @@ class carddav_backend extends rcube_addressbook
 			}
 		}
 	}
+	$x = 0;
 	foreach($this->array_sort($addresses, "name") as $a){
 		if (strlen($filter) > 0){
 			if (preg_match("/$filter/i", $a["name"]." ".$a["email"])){
+				$x++;
 				$a['ID'] = $a['ID']."+delim+".$a['email'];
 				$a['ID'] = preg_replace("/@/", "+at+", $a['ID']);
 				$a['ID'] = preg_replace("/\./", "+dot+", $a['ID']);
 				$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname'], 'email' => $a['email']));
 			}
 		} else {
+			$x++;
 			$a['ID'] = $a['ID']."+delim+".$a['email'];
 			$a['ID'] = preg_replace("/@/", "+at+", $a['ID']);
 			$a['ID'] = preg_replace("/\./", "+dot+", $a['ID']);
 			$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname'], 'email' => $a['email']));
 		}
 	}
+	return $x;
   }}}
 
   public function cdfopen($caller, $url, $mode, $use_include_path, $context)
@@ -189,8 +192,12 @@ class carddav_backend extends rcube_addressbook
 	$replyheader = stream_get_meta_data($fd);
 	$reply = stream_get_contents($fd);
 	$reply = preg_replace("/\r\n[ \t]/","",$reply);
-	$this->addvcards($reply);
-	return $this->result;
+	$records = $this->addvcards($reply);
+	if ($records > 0){
+		return $this->result;
+	} else {
+		return false;
+	}
   }}}
 
   public function search($fields, $value, $strict=false, $select=true, $nocount=false, $required=array())
