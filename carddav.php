@@ -88,7 +88,7 @@ class carddav extends rcube_plugin
 	$input = new html_inputfield(array('name' => '_cd_username', 'type' => 'text', 'autocomplete' => 'off', 'value' => $prefs['username']));
 	$content_username = $input->show();
 
-	// input box for username
+	// input box for password
 	$input = new html_inputfield(array('name' => '_cd_password', 'type' => 'password', 'autocomplete' => 'off', 'value' => $prefs['password']));
 	$content_password = $input->show();
 
