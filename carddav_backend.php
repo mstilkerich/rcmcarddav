@@ -116,14 +116,14 @@ class carddav_backend extends rcube_addressbook
 	$emails = array();
 	$ID = $name = $firstname = $surname = $email = NULL;
 	$filter = $this->get_search_set();
-	foreach (explode("\r\n", $reply) as $line){
+	foreach (explode("\n", $reply) as $line){
+		$line = preg_replace("/[\r\n]*$/", "", $line);
 		$line = htmlspecialchars_decode($line);
 		if (preg_match("/^FN:(.*)$/", $line, $match)) { $name = $match[1]; }
 		if (preg_match("/^N:(.*?);([^;]*)/", $line, $match)) { $surname = $match[1]; $firstname = $match[2]; }
-		if (preg_match("/^UID:(.*)$/", $line, $match)) { $ID = $match[1]; }
+		if (preg_match("/<href>.*\/([^\/]*)\.vcf.*<\/href>/", $line, $match)) { $ID = $match[1]; }
 		if (preg_match("/^EMAIL.*?:(.*)$/", $line, $match)) { $emails[] = $match[1]; }
-
-		if (preg_match("/^END:VCARD$/", $line)){
+		if (preg_match("/<\/response>/", $line)){
 			if ($emails[0]){
 				foreach ($emails as $email){
 					$addresses[] = array('ID' => $ID, 'name' => $name, 'firstname' => $firstname, 'surname' => $surname, 'email' => $email);
