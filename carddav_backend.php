@@ -158,14 +158,49 @@ class carddav_backend extends rcube_addressbook
 	return $x;
   }}}
 
-  public function cdfopen($caller, $url, $mode, $use_include_path, $context)
+  public function cdfopen($caller, $url, $mode, $use_include_path, $opts)
   {{{
 	global $carddav_error_message;
+	$context = stream_context_create($opts);
+
 	$old_error_handler = set_error_handler("myErrorHandler");
 	$fd = fopen($url, $mode, $use_include_path, $context);
 	restore_error_handler();
-	if (!$fd){
+	if (!$fd) {
+		/* Try harder */
 		write_log("carddav", "$caller: fopen error: $carddav_error_message");
+		write_log("carddav", "(using method 'array')");
+		if (is_array($opts['http']['header'])){
+			$a = "";
+			foreach ($opts['http']['header'] as $key => $value){
+				$a .= ($a ? "\r\n" : "") . $value;
+			}
+			$opts['http']['header'] = $a;
+			$context = stream_context_create($opts);
+			$old_error_handler = set_error_handler("myErrorHandler");
+			$fd = fopen($url, "r", false, $context);
+			restore_error_handler();
+			if (!$fd){
+				write_log("carddav", "$caller: fopen error: $carddav_error_message");
+				write_log("carddav", "(using method 'string')");
+			}
+		}
+		if (!$fd){
+			 /* Try even harder */
+			$old = ini_set('user_agent', 'PHP-SOAP/' . PHP_VERSION . "\r\n".$opts['http']['header']);
+			$opts['http']['header'] = "";
+			$context = stream_context_create($opts);
+			$old_error_handler = set_error_handler("myErrorHandler");
+			$fd = fopen($url, "r", false, $context);
+			restore_error_handler();
+			ini_set('user_agent', $old);
+			if (!$fd){
+				write_log("carddav", "$caller: fopen error: $carddav_error_message");
+				write_log("carddav", "(using method 'user-agent')");
+			}
+		}
+	}
+	if (!$fd){
 		return false;
 	}
 	return $fd;
@@ -178,7 +213,7 @@ class carddav_backend extends rcube_addressbook
 	$auth = base64_encode($carddav['username'].":".$carddav['password']);
 	$addresses = array();
 	$this->result = $this->count();
-	$optsLISTVCF = array(
+	$opts = array(
 		'http'=>array(
 			'method'=>"REPORT",
 			'header'=>array("Authorization: Basic $auth", "Depth: infinite", "Content-type: text/xml"),
@@ -186,8 +221,7 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	$context = stream_context_create($optsLISTVCF);
-	$fd = $this->cdfopen("list_records", $carddav['url'], "r", false, $context);
+	$fd = $this->cdfopen("list_records", $carddav['url'], "r", false, $opts);
 	if (!$fd) { return false; }
 	$replyheader = stream_get_meta_data($fd);
 	$reply = stream_get_contents($fd);
@@ -225,7 +259,7 @@ class carddav_backend extends rcube_addressbook
 	$carddav = $rcmail->config->get('carddav', array());
 	$auth = base64_encode($carddav['username'].":".$carddav['password']);
 	$this->result = $this->count();
-	$optsGETVCF = array(
+	$opts = array(
 		'http'=>array(
 			'method'=>"GET",
 			'header'=>"Authorization: Basic $auth"
@@ -236,10 +270,8 @@ class carddav_backend extends rcube_addressbook
 	$mail = $record[1];
 	$mail = preg_replace("/\+at\+/", "@", $mail);
 	$mail = preg_replace("/\+dot\+/", ".", $mail);
-	$context = stream_context_create($optsGETVCF);
-	$fd = $this->cdfopen("get_record_from_carddav", $carddav['url']."/$id.vcf", "r", false, $context);
-	if (!$fd)
-		return false;
+	$fd = $this->cdfopen("get_record_from_carddav", $carddav['url']."/$id.vcf", "r", false, $opts);
+	if (!$fd) { return false; }
 	$replyheader = stream_get_meta_data($fd);
 	$reply = stream_get_contents($fd);
 	$reply = preg_replace("/\r\n[ \t]/","",$reply);
@@ -278,17 +310,15 @@ class carddav_backend extends rcube_addressbook
 	$carddav = $rcmail->config->get('carddav', array());
 	$auth = base64_encode($carddav['username'].":".$carddav['password']);
 	$this->result = $this->count();
-	$optsGETVCF = array(
+	$opts = array(
 		'http'=>array(
 			'method'=>"PUT",
 			'header'=>"Authorization: Basic $auth",
 			'content'=>$vcf
 		)
 	);
-	$context = stream_context_create($optsGETVCF);
-	$fd = $this->cdfopen("put_record_to_carddav", $carddav['url']."/$id.vcf", "r", false, $context);
-	if (!$fd)
-		return false;
+	$fd = $this->cdfopen("put_record_to_carddav", $carddav['url']."/$id.vcf", "r", false, $opts);
+	if (!$fd) { return false; }
 	$replyheader = stream_get_meta_data($fd);
 	$reply = stream_get_contents($fd);
 	fclose($fd);
@@ -301,16 +331,15 @@ class carddav_backend extends rcube_addressbook
 	$carddav = $rcmail->config->get('carddav', array());
 	$auth = base64_encode($carddav['username'].":".$carddav['password']);
 	$this->result = $this->count();
-	$optsGETVCF = array(
+	$opts = array(
 		'http'=>array(
 			'method'=>"DELETE",
 			'header'=>"Authorization: Basic $auth"
 		)
 	);
 	$context = stream_context_create($optsGETVCF);
-	$fd = $this->cdfopen("delete_record_from_carddav", $carddav['url']."/$id.vcf", "r", false, $context);
-	if (!$fd)
-		return false;
+	$fd = $this->cdfopen("delete_record_from_carddav", $carddav['url']."/$id.vcf", "r", false, $opts);
+	if (!$fd) { return false; }
 	$replyheader = stream_get_meta_data($fd);
 	$reply = stream_get_contents($fd);
 	fclose($fd);
