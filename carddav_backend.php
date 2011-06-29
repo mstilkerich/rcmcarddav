@@ -147,16 +147,16 @@ class carddav_backend extends rcube_addressbook
 		if (strlen($filter) > 0){
 			if (preg_match("/$filter/i", $a["name"]." ".$a["email"])){
 				$x++;
-				$a['ID'] = $a['ID']."+delim+".$a['email'];
-				$a['ID'] = preg_replace("/@/", "+at+", $a['ID']);
-				$a['ID'] = preg_replace("/\./", "+dot+", $a['ID']);
+				$a['ID'] = $a['ID']."_rcmcddelim_".$a['email'];
+				$a['ID'] = preg_replace("/@/", "_rcmcdat_", $a['ID']);
+				$a['ID'] = preg_replace("/\./", "_rcmcddot_", $a['ID']);
 				$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname'], 'email' => $a['email']));
 			}
 		} else {
 			$x++;
-			$a['ID'] = $a['ID']."+delim+".$a['email'];
-			$a['ID'] = preg_replace("/@/", "+at+", $a['ID']);
-			$a['ID'] = preg_replace("/\./", "+dot+", $a['ID']);
+			$a['ID'] = $a['ID']."_rcmcddelim_".$a['email'];
+			$a['ID'] = preg_replace("/@/", "_rcmcdat_", $a['ID']);
+			$a['ID'] = preg_replace("/\./", "_rcmcddot_", $a['ID']);
 			$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname'], 'email' => $a['email']));
 		}
 	}
@@ -270,11 +270,12 @@ class carddav_backend extends rcube_addressbook
 			'header'=>"Authorization: Basic $auth"
 		)
 	);
-	$record = explode("+delim+", $uid);
+	write_log("carddav", "Getting id '$uid'");
+	$record = explode("_rcmcddelim_", $uid);
 	$id = $record[0];
 	$mail = $record[1];
-	$mail = preg_replace("/\+at\+/", "@", $mail);
-	$mail = preg_replace("/\+dot\+/", ".", $mail);
+	$mail = preg_replace("/_rcmcdat_/", "@", $mail);
+	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
 	$fd = $this->cdfopen("get_record_from_carddav", $carddav['url']."/$id.vcf", "r", false, $opts);
 	if (!$fd) { return false; }
 	$replyheader = stream_get_meta_data($fd);
@@ -293,11 +294,11 @@ class carddav_backend extends rcube_addressbook
 	$vcf = $this->get_record_from_carddav($uid);
 	if (!$vcf)
 		return false;
-	$record = explode("+delim+", $uid);
+	$record = explode("_rcmcddelim_", $uid);
 	$id = $record[0];
 	$mail = $record[1];
-	$mail = preg_replace("/\+at\+/", "@", $mail);
-	$mail = preg_replace("/\+dot\+/", ".", $mail);
+	$mail = preg_replace("/_rcmcdat_/", "@", $mail);
+	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
 	foreach (explode("\r\n", $vcf) as $line){
 		if (preg_match("/^FN:(.*)$/", $line, $match)) { $name = $match[1]; }
 		if (preg_match("/^N:(.*?);([^;]*)/", $line, $match)) { $surname = $match[1]; $firstname = $match[2]; }
@@ -358,11 +359,11 @@ class carddav_backend extends rcube_addressbook
 
   public function update($oid, $save_cols)
   {{{
-	$record = explode("+delim+", $oid);
+	$record = explode("_rcmcddelim_", $oid);
 	$id = $record[0];
 	$mail = $record[1];
-	$mail = preg_replace("/\+at\+/", "@", $mail);
-	$mail = preg_replace("/\+dot\+/", ".", $mail);
+	$mail = preg_replace("/_rcmcdat_/", "@", $mail);
+	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
 
 	$vcf = $this->get_record_from_carddav($oid);
 	if (!$vcf)
@@ -399,14 +400,14 @@ class carddav_backend extends rcube_addressbook
 		}
 	} else {
 		$id = $this->guid();
-		while ($this->get_record_from_carddav($id."+delim+")){
+		while ($this->get_record_from_carddav($id."_rcmcddelim_")){
 			$id = $this->guid();
 		}
 	}
 
 	if ($update){
 		$vcf = $this->get_record_from_carddav($id);
-		$record = explode("+delim+", $id);
+		$record = explode("_rcmcddelim_", $id);
 		$vcf = preg_replace("/END:VCARD/", "EMAIL;TYPE=HOME:".$save_data['email']."\r\nEND:VCARD", $vcf);
 		return $this->put_record_to_carddav($record[0], $vcf);
 	} else {
@@ -418,9 +419,9 @@ class carddav_backend extends rcube_addressbook
 			"UID:$id\r\n".
 			"END:VCARD\r\n";
 		if ($this->put_record_to_carddav($id, $vcf)){
-			$ID = $id."+delim+".$save_data['email'];
-			$ID = preg_replace("/@/", "+at+", $ID);
-			$ID = preg_replace("/\./", "+dot+", $ID);
+			$ID = $id."_rcmcddelim_".$save_data['email'];
+			$ID = preg_replace("/@/", "_rcmcdat_", $ID);
+			$ID = preg_replace("/\./", "_rcmcddot_", $ID);
 			$save_data["ID"] = $ID;
 			return $save_data;
 		} else {
@@ -434,11 +435,11 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$ids = explode(",", $ids);
 	foreach ($ids as $uid){
-		$record = explode("+delim+", $uid);
+		$record = explode("_rcmcddelim_", $uid);
 		$id = $record[0];
 		$mail = $record[1];
-		$mail = preg_replace("/\+at\+/", "@", $mail);
-		$mail = preg_replace("/\+dot\+/", ".", $mail);
+		$mail = preg_replace("/_rcmcdat_/", "@", $mail);
+		$mail = preg_replace("/_rcmcddot_/", ".", $mail);
 		$vcf = $this->get_record_from_carddav($uid);
 		$vcfnew = preg_replace("/EMAIL[^\r]*".$mail."[^\r]*\r\n/", "", $vcf);
 		if (!preg_match("/\nEMAIL/", $vcfnew)){
