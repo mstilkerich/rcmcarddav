@@ -54,6 +54,11 @@ class carddav_backend extends rcube_addressbook
 	$this->ready = true;
   }}}
 
+  public function get_name()
+  {{{
+	return "CardDAV";
+  }}}
+
   public function set_search_set($filter)
   {{{
 	$this->filter = $filter;
