@@ -77,6 +77,15 @@ class carddav extends rcube_plugin
 	$this->add_texts('localization/', false);
 	$rcmail = rcmail::get_instance();
 	
+	if (version_compare(PHP_VERSION, '5.3.0') < 0) {
+		$args['blocks']['cd_preferences'] = array(
+			'options' => array(
+				array('title'=> Q($this->gettext('cd_php_too_old')), 'content' => PHP_VERSION)
+			),
+			'name' => Q($this->gettext('cd_title'))
+		);
+		return $args;
+	}
 	$prefs = $rcmail->config->get('carddav', array());
 	
 	// check box for username
