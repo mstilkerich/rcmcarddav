@@ -170,7 +170,7 @@ class carddav_backend extends rcube_addressbook
 	$rcmail = rcmail::get_instance();
 	$carddav = $rcmail->config->get('carddav', array());
 	$auth = base64_encode($carddav['username'].":".$carddav['password']);
-	if (is_array($opts['htt']['header'])){
+	if (is_array($opts['http']['header'])){
 		$opts['http']['header'][] = "Authorization: Basic $auth";
 	} else {
 		$opts['http']['header'] = "Authorization: Basic $auth";
