@@ -166,10 +166,19 @@ class carddav_backend extends rcube_addressbook
   public function cdfopen($caller, $url, $mode, $use_include_path, $opts)
   {{{
 	global $carddav_error_message;
+
+	$rcmail = rcmail::get_instance();
+	$carddav = $rcmail->config->get('carddav', array());
+	$auth = base64_encode($carddav['username'].":".$carddav['password']);
+	if (is_array($opts['htt']['header'])){
+		$opts['http']['header'][] = "Authorization: Basic $auth";
+	} else {
+		$opts['http']['header'] = "Authorization: Basic $auth";
+	}
 	$context = stream_context_create($opts);
 
 	$old_error_handler = set_error_handler("myErrorHandler");
-	$fd = fopen($url, $mode, $use_include_path, $context);
+	$fd = fopen($carddav['url'].$url, $mode, $use_include_path, $context);
 	restore_error_handler();
 	if (!$fd) {
 		/* Try harder */
@@ -213,20 +222,17 @@ class carddav_backend extends rcube_addressbook
 
   public function list_records($cols=null, $subset=0)
   {{{
-	$rcmail = rcmail::get_instance();
-	$carddav = $rcmail->config->get('carddav', array());
-	$auth = base64_encode($carddav['username'].":".$carddav['password']);
 	$addresses = array();
 	$this->result = $this->count();
 	$opts = array(
 		'http'=>array(
 			'method'=>"REPORT",
-			'header'=>array("Authorization: Basic $auth", "Depth: infinite", "Content-type: text/xml"),
+			'header'=>array("Depth: infinite", "Content-type: text/xml"),
 			'content'=>'<?xml version="1.0" encoding="utf-8" ?> <C:addressbook-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <D:prop> <D:getetag/> <C:address-data> <C:prop name="UID"/> <C:prop name="NICKNAME"/> <C:prop name="N"/> <C:prop name="EMAIL"/> <C:prop name="FN"/> </C:address-data> </D:prop> </C:addressbook-query>'
 		)
 	);
 
-	$fd = $this->cdfopen("list_records", $carddav['url'], "r", false, $opts);
+	$fd = $this->cdfopen("list_records", "", "r", false, $opts);
 	if (!$fd) { return false; }
 	$replyheader = stream_get_meta_data($fd);
 	$reply = stream_get_contents($fd);
@@ -260,23 +266,18 @@ class carddav_backend extends rcube_addressbook
 
   public function get_record_from_carddav($uid)
   {{{
-	$rcmail = rcmail::get_instance();
-	$carddav = $rcmail->config->get('carddav', array());
-	$auth = base64_encode($carddav['username'].":".$carddav['password']);
 	$this->result = $this->count();
 	$opts = array(
 		'http'=>array(
 			'method'=>"GET",
-			'header'=>"Authorization: Basic $auth"
 		)
 	);
-	write_log("carddav", "Getting id '$uid'");
 	$record = explode("_rcmcddelim_", $uid);
 	$id = $record[0];
 	$mail = $record[1];
 	$mail = preg_replace("/_rcmcdat_/", "@", $mail);
 	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
-	$fd = $this->cdfopen("get_record_from_carddav", $carddav['url']."/$id.vcf", "r", false, $opts);
+	$fd = $this->cdfopen("get_record_from_carddav", "/$id.vcf", "r", false, $opts);
 	if (!$fd) { return false; }
 	$replyheader = stream_get_meta_data($fd);
 	$reply = stream_get_contents($fd);
@@ -312,18 +313,14 @@ class carddav_backend extends rcube_addressbook
 
   public function put_record_to_carddav($id, $vcf)
   {{{
-	$rcmail = rcmail::get_instance();
-	$carddav = $rcmail->config->get('carddav', array());
-	$auth = base64_encode($carddav['username'].":".$carddav['password']);
 	$this->result = $this->count();
 	$opts = array(
 		'http'=>array(
 			'method'=>"PUT",
-			'header'=>"Authorization: Basic $auth",
 			'content'=>$vcf
 		)
 	);
-	$fd = $this->cdfopen("put_record_to_carddav", $carddav['url']."/$id.vcf", "r", false, $opts);
+	$fd = $this->cdfopen("put_record_to_carddav", "/$id.vcf", "r", false, $opts);
 	if (!$fd) { return false; }
 	$replyheader = stream_get_meta_data($fd);
 	$reply = stream_get_contents($fd);
@@ -333,18 +330,14 @@ class carddav_backend extends rcube_addressbook
 
   public function delete_record_from_carddav($id, $vcf)
   {{{
-	$rcmail = rcmail::get_instance();
-	$carddav = $rcmail->config->get('carddav', array());
-	$auth = base64_encode($carddav['username'].":".$carddav['password']);
 	$this->result = $this->count();
 	$opts = array(
 		'http'=>array(
 			'method'=>"DELETE",
-			'header'=>"Authorization: Basic $auth"
 		)
 	);
 	$context = stream_context_create($optsGETVCF);
-	$fd = $this->cdfopen("delete_record_from_carddav", $carddav['url']."/$id.vcf", "r", false, $opts);
+	$fd = $this->cdfopen("delete_record_from_carddav", "/$id.vcf", "r", false, $opts);
 	if (!$fd) { return false; }
 	$replyheader = stream_get_meta_data($fd);
 	$reply = stream_get_contents($fd);
