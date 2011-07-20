@@ -117,6 +117,7 @@ class sasl_client_class
 	var $driver;
 	var $drivers=array(
 		"Digest"   => array("digest_sasl_client_class",   "digest_sasl_client.php"   ),
+		"digest"   => array("digest_sasl_client_class",   "digest_sasl_client.php" ),
 		"CRAM-MD5" => array("cram_md5_sasl_client_class", "cram_md5_sasl_client.php" ),
 		"LOGIN"    => array("login_sasl_client_class",    "login_sasl_client.php"    ),
 		"NTLM"     => array("ntlm_sasl_client_class",     "ntlm_sasl_client.php"     ),
