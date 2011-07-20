@@ -220,15 +220,25 @@ class carddav_backend extends rcube_addressbook
 	return "";
   }}}
 
+  public function create_filter()
+  {{{
+# This is just a stub to satisfy Apples CalenderServer
+# We should really use this more but for now we filter client side (in $this->addvcards)
+	return "<C:filter/>";
+  }}}
+
   public function list_records($cols=null, $subset=0)
   {{{
 	$addresses = array();
 	$this->result = $this->count();
+	$xmlquery = '<?xml version="1.0" encoding="utf-8" ?'.'> <C:addressbook-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <D:prop> <D:getetag/> <C:address-data> <C:prop name="UID"/> <C:prop name="NICKNAME"/> <C:prop name="N"/> <C:prop name="EMAIL"/> <C:prop name="FN"/> </C:address-data> </D:prop> ';
+	$xmlquery .= $this->create_filter();
+	$xmlquery .= ' </C:addressbook-query>';
 	$opts = array(
 		'http'=>array(
 			'method'=>"REPORT",
 			'header'=>array("Depth: infinite", "Content-Type: text/xml; charset=\"utf-8\""),
-			'content'=>'<?xml version="1.0" encoding="utf-8" ?> <C:addressbook-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <D:prop> <D:getetag/> <C:address-data> <C:prop name="UID"/> <C:prop name="NICKNAME"/> <C:prop name="N"/> <C:prop name="EMAIL"/> <C:prop name="FN"/> </C:address-data> </D:prop> </C:addressbook-query>'
+			'content'=> $xmlquery
 		)
 	);
 
