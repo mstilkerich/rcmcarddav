@@ -51,6 +51,9 @@ class carddav_backend extends rcube_addressbook
   private $filter;
   private $result;
 
+  private $DEBUG = false;	# set to true for basic debugging
+  private $DEBUG_HTTP = false;	# set to true for debugging raw http stream
+
   public function __construct()
   {{{
 	$this->ready = true;
@@ -126,6 +129,9 @@ class carddav_backend extends rcube_addressbook
 	foreach (explode("\n", $reply) as $line){
 		$line = preg_replace("/[\r\n]*$/", "", $line);
 		$line = htmlspecialchars_decode($line);
+		if ($this->DEBUG){
+			if (preg_match("/^(.*?):(.*$)/", $line)) { write_log("carddav", "DEBUG addvcards: $line"); }
+		}
 		if (preg_match("/^FN:(.*)$/", $line, $match)) { $name = $match[1]; }
 		if (preg_match("/^N:(.*?);([^;]*)/", $line, $match)) { $surname = $match[1]; $firstname = $match[2]; }
 		if (preg_match("/<href>.*\/([^\/]*)\.vcf.*<\/href>/", $line, $match)) { $ID = $match[1]; }
@@ -204,6 +210,9 @@ class carddav_backend extends rcube_addressbook
 					$reply["status"] = $http->response_status;
 					$reply["headers"] = $headers;
 					$reply["body"] = $body;
+					if ($this->DEBUG_HTTP){
+						write_log("carddav", "DEBUG_HTTP cdfopen success: ".var_export($reply, true));
+					}
 					return $reply;
 				} else {
 					write_log("carddav", "cdfopen: Could not read reply body: ".$error);
@@ -216,6 +225,9 @@ class carddav_backend extends rcube_addressbook
 		}
 	} else {
 		write_log("carddav", "cdfopen: Could not open: ".$error);
+	}
+	if ($this->DEBUG_HTTP){
+		write_log("carddav", "DEBUG_HTTP cdfopen failed: ".var_export($http, true));
 	}
 	return "";
   }}}
