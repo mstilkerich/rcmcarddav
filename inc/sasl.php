@@ -123,6 +123,7 @@ class sasl_client_class
 		"NTLM"     => array("ntlm_sasl_client_class",     "ntlm_sasl_client.php"     ),
 		"PLAIN"    => array("plain_sasl_client_class",    "plain_sasl_client.php"    ),
 		"Basic"    => array("basic_sasl_client_class",    "basic_sasl_client.php"    )
+		"basic"    => array("basic_sasl_client_class",    "basic_sasl_client.php"    )
 	);
 	var $credentials=array();
 
