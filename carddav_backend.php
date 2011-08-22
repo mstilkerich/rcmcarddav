@@ -202,6 +202,9 @@ class carddav_backend extends rcube_addressbook
 	$error = $http->Open($arguments);
 	if ($error == ""){
 		$error=$http->SendRequest($arguments);
+		if ($this->DEBUG_HTTP){
+			write_log("carddav", "DEBUG_HTTP cdfopen SendRequest: ".var_export($http, true));
+		}
 		if ($error == ""){
 			$error=$http->ReadReplyHeaders($headers);
 			if ($error == ""){
