@@ -46,8 +46,9 @@ class carddav_backend extends rcube_addressbook
 {
   public $primary_key = 'email';
   public $readonly = false;
-  public $groups = false;
+  public $groups = true;
 
+  private $group;
   private $filter;
   private $result;
 
@@ -57,6 +58,7 @@ class carddav_backend extends rcube_addressbook
   public function __construct()
   {{{
 	$this->ready = true;
+	$this->group = $_COOKIE["_cd_set_group"];
   }}}
 
   public function get_name()
@@ -80,9 +82,72 @@ class carddav_backend extends rcube_addressbook
 	$this->filter = null;
   }}}
 
+  public function set_group($gid)
+  {{{
+	$this->group = $gid;
+	setcookie("_cd_set_group", $gid);
+  }}}
+
   public function list_groups($search = null)
   {{{
-	return null;
+	$xmlquery = '<?xml version="1.0" encoding="utf-8" ?'.'> <a:propfind xmlns:a="DAV:"> <a:allprop/> </a:propfind>';
+
+	$opts = array(
+		'http'=>array(
+			'method'=>"PROPFIND",
+			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\""),
+			'content'=> $xmlquery
+		)
+	);
+
+	$reply = $this->cdfopen("list_groups", "", "r", false, $opts);
+	$reply = $reply["body"];
+
+	global $colls;
+	$colls = array();
+	$name = "";
+	$path = "";
+	$isab = false;
+	$ctag = "";
+function startElement($parser, $n, $attrs) {{{
+	global $name; global $path; global $isab; global $ctag;
+
+	if ($n == "URN:IETF:PARAMS:XML:NS:CARDDAV:ADDRESSBOOK"){
+		$isab = true;
+	}
+	if (strlen($n)>0){ $ctag .= "||$n";}
+}}}
+function endElement($parser, $n) {{{
+	global $name; global $path; global $isab; global $ctag;
+	global $colls;
+
+	$ctag = preg_replace("/\|\|$n$/", "", $ctag);
+	if ($n == "DAV::RESPONSE"){
+		if ($isab){
+			$c["ID"] = $path;
+			$c["name"] = $name;
+			$colls[] = $c;
+		}
+		$name = $path = "";
+		$isab = false;
+	}
+}}}
+function characterData($parser, $data) {{{
+	global $name; global $path; global $isab; global $ctag;
+	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::HREF"){
+		$path = $data;
+	}
+	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::DISPLAYNAME"){
+		$name = $data;
+	}
+}}}
+	$xml_parser = xml_parser_create_ns();
+	xml_set_element_handler($xml_parser, "startElement", "endElement");
+	xml_set_character_data_handler($xml_parser, "characterData");
+	xml_parse($xml_parser, $reply, true);
+	xml_parser_free($xml_parser);
+
+	return $colls;
   }}}
 
   public function array_sort($array, $on, $order=SORT_ASC)
@@ -185,7 +250,12 @@ class carddav_backend extends rcube_addressbook
 	$http->follow_redirect=1;
 	$http->redirection_limit=5;
 	$http->prefer_curl=1;
-	$url = $carddav['url'].$url;
+	if ($caller == "list_groups"){
+		$url = $carddav['url'].$url;
+	} else {
+		preg_match("/^(http.?:\/\/[^\/]*)\//", $carddav['url'], $match);
+		$url = $match[1].$this->group.$url;
+	}
 	$url = preg_replace("/:\/\//", "://".urlencode($carddav['username']).":".urlencode($carddav['password'])."@", $url);
 	$error = $http->GetRequestArguments($url,$arguments);
 	$arguments["RequestMethod"] = $opts['http']['method'];
