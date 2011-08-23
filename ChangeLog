@@ -1,5 +1,9 @@
-Changes from 0.4.1 to 0.4.1:
- * use PHP HTTY Client class for the whole HTTP layer handling. This speeds up processing from taking 15s to being "snappy".
+Changes from 0.4.1 to 0.4.2:
+ * add some debug entries
+ * fix FS#7 - case-insensitive Authentication headers (Basic vs. basic, Digest vs. digest)
+
+Changes from 0.4.0 to 0.4.1:
+ * use PHP HTTP Client class for the whole HTTP layer handling. This speeds up processing from taking 15s to being "snappy".
 
 Changes from 0.3.1 to 0.4.0:
  * check if PHP_VERSION >= 5.3.0 and display an error message in the preferences tab if too old.
