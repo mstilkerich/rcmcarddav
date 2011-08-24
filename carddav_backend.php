@@ -20,6 +20,7 @@
 
 require("inc/http.php");
 require("inc/sasl.php");
+require("inc/vcard.php");
 $carddav_error_message = "";
 function myErrorHandler($errno, $errstr, $errfile, $errline)
 {{{
@@ -42,6 +43,86 @@ function myErrorHandler($errno, $errstr, $errfile, $errline)
 	return false;
 }}}
 
+function startElement_addvcards($parser, $n, $attrs) {{{
+	global $ctag;
+
+	$n = str_replace("SYNC-", "", $n);
+	if (strlen($n)>0){ $ctag .= "||$n";}
+#if ($this->DEBUG){
+#write_log("carddav", "ctag is now: $ctag");
+#}
+}}}
+function endElement_addvcards($parser, $n) {{{
+	global $ctag;
+	global $vcards;
+	global $cur_vcard;
+
+	$n = str_replace("SYNC-", "", $n);
+	$ctag = preg_replace(";\|\|$n$;", "", $ctag);
+#if ($this->DEBUG){
+#write_log("carddav", "ctag is now: $ctag");
+#}
+	if ($n == "DAV::RESPONSE"){
+		$vcards[] = $cur_vcard;
+		$cur_vcard = array();
+	}
+}}}
+function characterData_addvcards($parser, $data) {{{
+	global $ctag; global $cur_vcard;
+	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::HREF"){
+		$cur_vcard['href'] = $data;
+	}
+	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||URN:IETF:PARAMS:XML:NS:CARDDAV:ADDRESS-DATA"){
+		$cur_vcard['vcf'] .= $data;
+	}
+	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETETAG"){
+		$cur_vcard['etag'] .= $data;
+	}
+	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETCONTENTTYPE"){
+		$cur_vcard['content-type'] = $data;
+	}
+#if ($this->DEBUG){
+#write_log("carddav", "data is: $data");
+#}
+}}}
+
+function startElement_listgroups($parser, $n, $attrs) {{{
+	global $name; global $path; global $isab; global $ctag;
+
+	if ($n == "URN:IETF:PARAMS:XML:NS:CARDDAV:ADDRESSBOOK"){
+		$isab = true;
+	}
+	if (strlen($n)>0){ $ctag .= "||$n";}
+}}}
+function endElement_listgroups($parser, $n) {{{
+	global $name; global $path; global $isab; global $ctag;
+	global $colls;
+
+	$rcmail = rcmail::get_instance();
+	$carddav = $rcmail->config->get('carddav', array());
+
+	$ctag = preg_replace(";\|\|$n$;", "", $ctag);
+	if ($n == "DAV::RESPONSE"){
+		if ($isab || $carddav['lax_resource_checking']){
+			$c["ID"] = $path;
+			$c["name"] = $name;
+			$colls[] = $c;
+		}
+		$name = "Unnamed";
+		$path = "";
+		$isab = false;
+	}
+}}}
+function characterData_listgroups($parser, $data) {{{
+	global $name; global $path; global $isab; global $ctag;
+	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::HREF"){
+		$path = $data;
+	}
+
+	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::DISPLAYNAME"){
+		$name = $data;
+	}
+}}}
 class carddav_backend extends rcube_addressbook
 {
   public $primary_key = 'email';
@@ -49,7 +130,7 @@ class carddav_backend extends rcube_addressbook
   public $groups = true;
 
   private $group;
-  private $filter;
+  private $filter = "";
   private $result;
 
   private $DEBUG = false;	# set to true for basic debugging
@@ -105,45 +186,13 @@ class carddav_backend extends rcube_addressbook
 
 	global $colls;
 	$colls = array();
-	$name = "";
+	$name = "Unnamed";
 	$path = "";
 	$isab = false;
 	$ctag = "";
-function startElement($parser, $n, $attrs) {{{
-	global $name; global $path; global $isab; global $ctag;
-
-	if ($n == "URN:IETF:PARAMS:XML:NS:CARDDAV:ADDRESSBOOK"){
-		$isab = true;
-	}
-	if (strlen($n)>0){ $ctag .= "||$n";}
-}}}
-function endElement($parser, $n) {{{
-	global $name; global $path; global $isab; global $ctag;
-	global $colls;
-
-	$ctag = preg_replace("/\|\|$n$/", "", $ctag);
-	if ($n == "DAV::RESPONSE"){
-		if ($isab){
-			$c["ID"] = $path;
-			$c["name"] = $name;
-			$colls[] = $c;
-		}
-		$name = $path = "";
-		$isab = false;
-	}
-}}}
-function characterData($parser, $data) {{{
-	global $name; global $path; global $isab; global $ctag;
-	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::HREF"){
-		$path = $data;
-	}
-	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::DISPLAYNAME"){
-		$name = $data;
-	}
-}}}
 	$xml_parser = xml_parser_create_ns();
-	xml_set_element_handler($xml_parser, "startElement", "endElement");
-	xml_set_character_data_handler($xml_parser, "characterData");
+	xml_set_element_handler($xml_parser, "startElement_listgroups", "endElement_listgroups");
+	xml_set_character_data_handler($xml_parser, "characterData_listgroups");
 	xml_parse($xml_parser, $reply, true);
 	xml_parser_free($xml_parser);
 
@@ -191,28 +240,44 @@ function characterData($parser, $data) {{{
 	$emails = array();
 	$ID = $name = $firstname = $surname = $email = NULL;
 	$filter = $this->get_search_set();
-	foreach (explode("\n", $reply) as $line){
-		$line = preg_replace("/[\r\n]*$/", "", $line);
-		$line = htmlspecialchars_decode($line);
-		if ($this->DEBUG){
-			if (preg_match("/^(.*?):(.*$)/", $line)) { write_log("carddav", "DEBUG addvcards: $line"); }
+	$ctag = "";
+	global $vcards;
+	$vcards = array();
+	$cur_vcard = array();
+	$xml_parser = xml_parser_create_ns();
+	xml_set_element_handler($xml_parser, "startElement_addvcards", "endElement_addvcards");
+	xml_set_character_data_handler($xml_parser, "characterData_addvcards");
+	xml_parse($xml_parser, $reply, true);
+	xml_parser_free($xml_parser);
+	foreach ($vcards as $vcard){
+		$vcf = new VCard;
+		$vcf->parse(explode("\n", $vcard['vcf'])) || write_log("carddav", "Couldn't parse vcard ".$vcard['vcf']);
+		$name = $vcf->getProperty("FN")->getComponents();
+		$name = $name[0];
+		$N = $vcf->getProperty("N")->getComponents();
+		$surname = $N[0];
+		$firstname = $N[1];
+		$ID = $vcard['href'];
+		if ($this->group){
+			$ID = preg_replace(";^".$this->group.";", "", $ID);
 		}
-		if (preg_match("/^FN:(.*)$/", $line, $match)) { $name = $match[1]; }
-		if (preg_match("/^N:(.*?);([^;]*)/", $line, $match)) { $surname = $match[1]; $firstname = $match[2]; }
-		if (preg_match("/<href>.*\/([^\/]*)\.vcf.*<\/href>/", $line, $match)) { $ID = $match[1]; }
-		if (preg_match("/^EMAIL.*?:(.*)$/", $line, $match)) { $emails[] = $match[1]; }
-		if (preg_match("/<\/response>/", $line)){
-			if ($emails[0]){
-				foreach ($emails as $email){
-					$addresses[] = array('ID' => $ID, 'name' => $name, 'firstname' => $firstname, 'surname' => $surname, 'email' => $email);
-				}
-				$emails = array();
-				$ID = $name = $firstname = $surname = $email = NULL;
-			} else {
-				$addresses[] = array('ID' => $ID, 'name' => $name, 'firstname' => $firstname, 'surname' => $surname, 'email' => $email);
-				$emails = array();
-				$ID = $name = $firstname = $surname = $email = NULL;
+		$e = $vcf->getProperties("EMAIL");
+		if ($e){
+			foreach ($e as $f){
+				$f = $f->getComponents();
+				$emails[] = $f[0];
 			}
+		}
+		if ($emails[0]){
+			foreach ($emails as $email){
+				$addresses[] = array('ID' => $ID, 'name' => $name, 'firstname' => $firstname, 'surname' => $surname, 'email' => $email);
+			}
+			$emails = array();
+			$ID = $name = $firstname = $surname = $email = NULL;
+		} else {
+			$addresses[] = array('ID' => $ID, 'name' => $name, 'firstname' => $firstname, 'surname' => $surname, 'email' => $email);
+			$emails = array();
+			$ID = $name = $firstname = $surname = $email = NULL;
 		}
 	}
 	$x = 0;
@@ -266,7 +331,7 @@ function characterData($parser, $data) {{{
 			$arguments["Headers"][$h[0]] = $h[1];
 		}
 	} else {
-		$h = explode($opts['http']['header']);
+		$h = explode(": ", $opts['http']['header']);
 		$arguments["Headers"][$h[0]] = $h[1];
 	}
 	$error = $http->Open($arguments);
@@ -319,6 +384,10 @@ function characterData($parser, $data) {{{
 	$xmlquery = '<?xml version="1.0" encoding="utf-8" ?'.'> <C:addressbook-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <D:prop> <D:getetag/> <C:address-data> <C:prop name="UID"/> <C:prop name="NICKNAME"/> <C:prop name="N"/> <C:prop name="EMAIL"/> <C:prop name="FN"/> </C:address-data> </D:prop> ';
 	$xmlquery .= $this->create_filter();
 	$xmlquery .= ' </C:addressbook-query>';
+
+	$xmlquery = '<?xml version="1.0" encoding="utf-8" ?'.'> <D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <D:sync-token></D:sync-token> <D:prop> <D:getcontenttype/> <D:getetag/>  <C:address-data> <C:prop name="UID"/> <C:prop name="NICKNAME"/> <C:prop name="N"/> <C:prop name="EMAIL"/> <C:prop name="FN"/> </C:address-data> </D:prop> ';
+	$xmlquery .= $this->create_filter();
+	$xmlquery .= ' </D:sync-collection>';
 	$opts = array(
 		'http'=>array(
 			'method'=>"REPORT",
@@ -368,10 +437,12 @@ function characterData($parser, $data) {{{
 	);
 	$record = explode("_rcmcddelim_", $uid);
 	$id = $record[0];
+	$id = preg_replace("/_rcmcdat_/", "@", $id);
+	$id = preg_replace("/_rcmcddot_/", ".", $id);
 	$mail = $record[1];
 	$mail = preg_replace("/_rcmcdat_/", "@", $mail);
 	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
-	$reply = $this->cdfopen("get_record_from_carddav", "/$id.vcf", "r", false, $opts);
+	$reply = $this->cdfopen("get_record_from_carddav", "/$id", "r", false, $opts);
 	if (!strlen($reply["body"])) { return false; }
 	if ($reply["status"] == 404){
 		write_log("carddav", "Request for VCF '$uid' which doesn't exits on the server.");
@@ -387,6 +458,8 @@ function characterData($parser, $data) {{{
 		return false;
 	$record = explode("_rcmcddelim_", $uid);
 	$id = $record[0];
+	$id = preg_replace("/_rcmcdat_/", "@", $id);
+	$id = preg_replace("/_rcmcddot_/", ".", $id);
 	$mail = $record[1];
 	$mail = preg_replace("/_rcmcdat_/", "@", $mail);
 	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
@@ -403,6 +476,8 @@ function characterData($parser, $data) {{{
 
   public function put_record_to_carddav($id, $vcf)
   {{{
+	$id = preg_replace("/_rcmcdat_/", "@", $id);
+	$id = preg_replace("/_rcmcddot_/", ".", $id);
 	$this->result = $this->count();
 	$opts = array(
 		'http'=>array(
@@ -411,12 +486,12 @@ function characterData($parser, $data) {{{
 			'header'=>"Content-Type: text/vcard"
 		)
 	);
-	$reply = $this->cdfopen("put_record_to_carddav", "/$id.vcf", "r", false, $opts);
+	$reply = $this->cdfopen("put_record_to_carddav", "/$id", "r", false, $opts);
 	if ($reply["status"] >= 200 && $reply["status"] < 300) { return true; }
 	return true;
   }}}
 
-  public function delete_record_from_carddav($id, $vcf)
+  public function delete_record_from_carddav($id, $vcf = "")
   {{{
 	$this->result = $this->count();
 	$opts = array(
@@ -424,8 +499,7 @@ function characterData($parser, $data) {{{
 			'method'=>"DELETE",
 		)
 	);
-	$context = stream_context_create($optsGETVCF);
-	$reply = $this->cdfopen("delete_record_from_carddav", "/$id.vcf", "r", false, $opts);
+	$reply = $this->cdfopen("delete_record_from_carddav", "/$id", "r", false, $opts);
 	if ($reply["status"] == 204){
 		return true;
 	}
@@ -436,6 +510,8 @@ function characterData($parser, $data) {{{
   {{{
 	$record = explode("_rcmcddelim_", $oid);
 	$id = $record[0];
+	$id = preg_replace("/_rcmcdat_/", "@", $id);
+	$id = preg_replace("/_rcmcddot_/", ".", $id);
 	$mail = $record[1];
 	$mail = preg_replace("/_rcmcdat_/", "@", $mail);
 	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
@@ -465,18 +541,14 @@ function characterData($parser, $data) {{{
 	$id = false;
 	$f = false;
 	if ($this->result->first()){
-		foreach ($this->result->iterate() as $record){
+		$this->result->seek(0);
+		while($record = $this->result->iterate()){
 			if ($record['firstname'] == $save_data['firstname'] &&
 			$record['surname'] == $save_data['surname'] &&
 			$record['name'] == $save_data['name']){
 				$id = $record["ID"];
 				$update = true;
 			}
-		}
-	} else {
-		$id = $this->guid();
-		while ($this->get_record_from_carddav($id."_rcmcddelim_")){
-			$id = $this->guid();
 		}
 	}
 
@@ -486,6 +558,10 @@ function characterData($parser, $data) {{{
 		$vcf = preg_replace("/END:VCARD/", "EMAIL;TYPE=HOME:".$save_data['email']."\r\nEND:VCARD", $vcf);
 		return $this->put_record_to_carddav($record[0], $vcf);
 	} else {
+		$id = $this->guid().".vcf";
+		while ($this->get_record_from_carddav($id."_rcmcddelim_")){
+			$id = $this->guid();
+		}
 		$vcf = "BEGIN:VCARD\r\n".
 			"VERSION:3.0\r\n".
 			"FN:".$save_data['name']."\r\n".
@@ -512,6 +588,8 @@ function characterData($parser, $data) {{{
 	foreach ($ids as $uid){
 		$record = explode("_rcmcddelim_", $uid);
 		$id = $record[0];
+		$id = preg_replace("/_rcmcdat_/", "@", $id);
+		$id = preg_replace("/_rcmcddot_/", ".", $id);
 		$mail = $record[1];
 		$mail = preg_replace("/_rcmcdat_/", "@", $mail);
 		$mail = preg_replace("/_rcmcddot_/", ".", $mail);

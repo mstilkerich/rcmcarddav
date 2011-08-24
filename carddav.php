@@ -105,6 +105,11 @@ class carddav extends rcube_plugin
 	$size = isset($prefs['url']) ? strlen($prefs['url']) : 40;
 	$input = new html_inputfield(array('name' => '_cd_url', 'type' => 'text', 'autocomplete' => 'off', 'value' => $prefs['url'], 'size' => $size < 40 ? 40 : $size));
 	$content_url = $input->show();
+
+	// input box for lax resource checking
+	$lax_resource_checking = $prefs['lax_resource_checking'];
+	$checkbox = new html_checkbox(array('name' => '_cd_lax_resource_checking', 'value' => 1));
+	$content_lax_resource_checking = $checkbox->show($prefs['lax_resource_checking']?1:0);
 	
 	$args['blocks']['cd_preferences'] = array(
 		'options' => array(
@@ -112,6 +117,7 @@ class carddav extends rcube_plugin
 			array('title'=> Q($this->gettext('cd_username')), 'content' => $content_username), 
 			array('title'=> Q($this->gettext('cd_password')), 'content' => $content_password),
 			array('title'=> Q($this->gettext('cd_url')), 'content' => $content_url),
+			array('title'=> Q($this->gettext('cd_lax_resource_checking')), 'content' => $content_lax_resource_checking),
 		),
 		'name' => Q($this->gettext('cd_title'))
 	);
@@ -141,7 +147,8 @@ class carddav extends rcube_plugin
 		'use_carddav' => isset($_POST['_cd_use_carddav']) ? 1 : 0,
 		'username' => get_input_value('_cd_username', RCUBE_INPUT_POST),
 		'password' => get_input_value('_cd_password', RCUBE_INPUT_POST),
-		'url' => get_input_value('_cd_url', RCUBE_INPUT_POST)
+		'url' => get_input_value('_cd_url', RCUBE_INPUT_POST),
+		'lax_resource_checking' => isset($_POST['_cd_lax_resource_checking']) ? 1 : 0
 	);
 	$args['prefs']['carddav'] = $prefs;
 	return($args);
