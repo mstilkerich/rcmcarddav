@@ -252,11 +252,17 @@ class carddav_backend extends rcube_addressbook
 	foreach ($vcards as $vcard){
 		$vcf = new VCard;
 		$vcf->parse(explode("\n", $vcard['vcf'])) || write_log("carddav", "Couldn't parse vcard ".$vcard['vcf']);
-		$name = $vcf->getProperty("FN")->getComponents();
-		$name = $name[0];
-		$N = $vcf->getProperty("N")->getComponents();
-		$surname = $N[0];
-		$firstname = $N[1];
+		$property = $vcf->getProperty("FN");
+		if ($property){
+			$name = $property->getComponents();
+			$name = $name[0];
+		}
+		$property = $vcf->getProperty("N");
+		if ($property){
+			$N = $property->getComponents();
+			$surname = $N[0];
+			$firstname = $N[1];
+		}
 		$ID = $vcard['href'];
 		if ($this->group){
 			$ID = preg_replace(";^".$this->group.";", "", $ID);
