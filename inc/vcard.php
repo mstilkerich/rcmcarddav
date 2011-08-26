@@ -139,6 +139,11 @@ class VCardProperty
                 $tmp = strtoupper($tmp[0]);
                 $tmp = split_quoted_string(";", $tmp);
                 $this->name = $tmp[0];
+		$tmp = split_quoted_string(".", $this->name, 2);
+		if (count($tmp) == 2){		# XXX ignore prefixes for RCMCardDAV
+						# XXX see http://tools.ietf.org/html/draft-ietf-vcarddav-carddav-10#section-10.4.2
+			$this->name = $tmp[1];
+		}
                 $this->params = array();
                 for ($i = 1; $i < count($tmp); $i++) {
                     $this->_parseParam($tmp[$i]);

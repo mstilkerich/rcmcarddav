@@ -452,8 +452,8 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$f = array();
 	if (is_array($fields)){
-		foreach ($fields as $key => $value){
-			$f["keys"][] = $value;
+		foreach ($fields as $k => $v){
+			$f["keys"][] = $v;
 		}
 	} else {
 		$f["keys"][] = $fields;
@@ -502,8 +502,8 @@ class carddav_backend extends rcube_addressbook
 
   public function get_record($uid, $assoc=false)
   {{{
-	$vcf = $this->get_record_from_carddav($uid);
-	if (!$vcf)
+	$vcard = $this->get_record_from_carddav($uid);
+	if (!$vcard)
 		return false;
 	$record = explode("_rcmcddelim_", $uid);
 	$id = $record[0];
@@ -512,13 +512,26 @@ class carddav_backend extends rcube_addressbook
 	$mail = $record[1];
 	$mail = preg_replace("/_rcmcdat_/", "@", $mail);
 	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
-	foreach (explode("\r\n", $vcf) as $line){
-		if (preg_match("/^FN:(.*)$/", $line, $match)) { $name = $match[1]; }
-		if (preg_match("/^N:(.*?);([^;]*)/", $line, $match)) { $surname = $match[1]; $firstname = $match[2]; }
-		if (preg_match("/^EMAIL.*?:(.*)$/", $line, $match)) { $email = ($match[1] == $mail ? $mail : $email); }
-		if (preg_match("/^UID:(.*)$/", $line, $match)) { $ID = $match[1]; }
+	$vcf = new VCard;
+	$vcf->parse(explode("\n", $vcard)) || write_log("carddav", "Couldn't parse vcard ".$vcard);
+	write_log("carddav", var_export($vcf, true));
+	$property = $vcf->getProperty("FN");
+	if ($property){
+		$name = $property->getComponents();
+		$name = $name[0];
 	}
-	$this->result->add(array('ID' => $uid, 'name' => $name, 'surname' => $surname, 'firstname' => $firstname, 'email' => $email));
+	$property = $vcf->getProperty("N");
+	if ($property){
+		$N = $property->getComponents();
+		$surname = $N[0];
+		$firstname = $N[1];
+	}
+	$propfind = $vcf->getProperty("UID");
+	if ($property){
+		$UID = $property->getComponents();
+		$uid = $UID[0];
+	}
+	$this->result->add(array('ID' => $uid, 'name' => $name, 'surname' => $surname, 'firstname' => $firstname, 'email' => $mail));
 	$sql_arr = $assoc && $this->result ? $this->result->first() : null;
 	return $assoc && $sql_arr ? $sql_arr : $this->result;
   }}}
