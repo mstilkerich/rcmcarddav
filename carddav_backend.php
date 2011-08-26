@@ -21,27 +21,6 @@
 require("inc/http.php");
 require("inc/sasl.php");
 require("inc/vcard.php");
-$carddav_error_message = "";
-function myErrorHandler($errno, $errstr, $errfile, $errline)
-{{{
-	global $carddav_error_message;
-	if (!(error_reporting() & $errno)) {
-		// This error code is not included in error_reporting
-		return;
-	}
-	switch ($errno) {
-		case E_WARNING:
-			$carddav_error_message = $errstr;
-			break;
-
-		default:
-			$carddav_error_message = "Unknown error type: [$errno] $errstr";
-			break;
-	}
-
-	/* Also execute PHP internal error handler */
-	return false;
-}}}
 
 function startElement_addvcards($parser, $n, $attrs) {{{
 	global $ctag;
@@ -127,12 +106,12 @@ function characterData_listgroups($parser, $data) {{{
 }}}
 class carddav_backend extends rcube_addressbook
 {
-  public $primary_key = 'email';
+  public $primary_key = 'ID';
   public $readonly = false;
   public $groups = true;
 
   private $group;
-  private $filter = "";
+  private $filter = array();
   private $result;
 
   private $DEBUG = false;	# set to true for basic debugging
@@ -349,19 +328,18 @@ class carddav_backend extends rcube_addressbook
 	}
 	$x = 0;
 	foreach($this->array_sort($addresses, "name") as $a){
-		if (strlen($filter) > 0){
-			if (preg_match("/$filter/i", $a["name"]." ".$a["email"])){
-				$x++;
-				$a['ID'] = $a['ID']."_rcmcddelim_".$a['email'];
-				$a['ID'] = preg_replace("/@/", "_rcmcdat_", $a['ID']);
-				$a['ID'] = preg_replace("/\./", "_rcmcddot_", $a['ID']);
-				$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname'], 'email' => $a['email']));
+		$a['ID'] = $a['ID']."_rcmcddelim_".$a['email'];
+		$a['ID'] = preg_replace("/@/", "_rcmcdat_", $a['ID']);
+		$a['ID'] = preg_replace("/\./", "_rcmcddot_", $a['ID']);
+		if (strlen($filter["value"]) > 0){
+			foreach ($filter["keys"] as $key => $value){
+				if (preg_match(";".$filter["value"].";i", $a[$value])){
+					$x++;
+					$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname'], 'email' => $a['email']));
+				}
 			}
 		} else {
 			$x++;
-			$a['ID'] = $a['ID']."_rcmcddelim_".$a['email'];
-			$a['ID'] = preg_replace("/@/", "_rcmcdat_", $a['ID']);
-			$a['ID'] = preg_replace("/\./", "_rcmcddot_", $a['ID']);
 			$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname'], 'email' => $a['email']));
 		}
 	}
@@ -370,8 +348,6 @@ class carddav_backend extends rcube_addressbook
 
   public function cdfopen($caller, $url, $mode, $use_include_path, $opts)
   {{{
-	global $carddav_error_message;
-
 	$rcmail = rcmail::get_instance();
 	$carddav = $rcmail->config->get('carddav', array());
 
@@ -448,9 +424,6 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$addresses = array();
 	$this->result = $this->count();
-	$xmlquery = '<?xml version="1.0" encoding="utf-8" ?'.'> <C:addressbook-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <D:prop> <D:getetag/> <C:address-data> <C:prop name="UID"/> <C:prop name="NICKNAME"/> <C:prop name="N"/> <C:prop name="EMAIL"/> <C:prop name="FN"/> </C:address-data> </D:prop> ';
-	$xmlquery .= $this->create_filter();
-	$xmlquery .= ' </C:addressbook-query>';
 
 	$xmlquery = '<?xml version="1.0" encoding="utf-8" ?'.'> <D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <D:sync-token></D:sync-token> <D:prop> <D:getcontenttype/> <D:getetag/>  <C:address-data> <C:prop name="UID"/> <C:prop name="NICKNAME"/> <C:prop name="N"/> <C:prop name="EMAIL"/> <C:prop name="FN"/> </C:address-data> </D:prop> ';
 	$xmlquery .= $this->create_filter();
@@ -477,7 +450,16 @@ class carddav_backend extends rcube_addressbook
 
   public function search($fields, $value, $strict=false, $select=true, $nocount=false, $required=array())
   {{{
-	$this->set_search_set($value);
+	$f = array();
+	if (is_array($fields)){
+		foreach ($fields as $key => $value){
+			$f["keys"][] = $value;
+		}
+	} else {
+		$f["keys"][] = $fields;
+	}
+	$f["value"] = $value;
+	$this->set_search_set($f);
 	if (!$this->list_records()){
 		return false;
 	}
@@ -640,8 +622,9 @@ class carddav_backend extends rcube_addressbook
 			$ID = $id."_rcmcddelim_".$save_data['email'];
 			$ID = preg_replace("/@/", "_rcmcdat_", $ID);
 			$ID = preg_replace("/\./", "_rcmcddot_", $ID);
+			$ID = preg_replace(";^/;", "", $ID);
 			$save_data["ID"] = $ID;
-			return $save_data;
+			return $ID;
 		} else {
 			return false;
 		}
