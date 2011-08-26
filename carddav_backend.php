@@ -425,7 +425,7 @@ class carddav_backend extends rcube_addressbook
 	$addresses = array();
 	$this->result = $this->count();
 
-	$xmlquery = '<?xml version="1.0" encoding="utf-8" ?'.'> <D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <D:sync-token></D:sync-token> <D:prop> <D:getcontenttype/> <D:getetag/>  <C:address-data> <C:prop name="UID"/> <C:prop name="NICKNAME"/> <C:prop name="N"/> <C:prop name="EMAIL"/> <C:prop name="FN"/> </C:address-data> </D:prop> ';
+	$xmlquery = '<?xml version="1.0" encoding="utf-8" ?'.'> <D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <D:sync-token></D:sync-token> <D:prop> <D:getcontenttype/> <D:getetag/> <D:allprop/> <C:address-data> <C:allprop/> </C:address-data> </D:prop> ';
 	$xmlquery .= $this->create_filter();
 	$xmlquery .= ' </D:sync-collection>';
 	$opts = array(
