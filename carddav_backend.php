@@ -104,6 +104,8 @@ function endElement_listgroups($parser, $n) {{{
 	$ctag = preg_replace(";\|\|$n$;", "", $ctag);
 	if ($n == "DAV::RESPONSE"){
 		if ($isab || $carddav['lax_resource_checking']){
+			$path = preg_replace(";/;", "_rcmcdslash_", $path);
+			$path = preg_replace(";\\.;", "_rcmcddot_", $path);
 			$c["ID"] = $path;
 			$c["name"] = $name;
 			$colls[] = $c;
@@ -165,8 +167,11 @@ class carddav_backend extends rcube_addressbook
 
   public function set_group($gid)
   {{{
+	$gid = str_replace("_rcmcdslash_", "/", $gid);
+	$gid = str_replace("_rcmcddot_", ".", $gid);
 	$this->group = $gid;
 	setcookie("_cd_set_group", $gid);
+	return $gid;
   }}}
 
   public function list_groups($search = null)
@@ -197,6 +202,62 @@ class carddav_backend extends rcube_addressbook
 	xml_parser_free($xml_parser);
 
 	return $colls;
+  }}}
+
+  public function create_group($name)
+  {{{
+	$result = false;
+
+	$xmlquery = '<?xml version="1.0" encoding="utf-8" ?'.'> <D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <D:set> <D:prop> <D:resourcetype> <D:collection/> <C:addressbook/> </D:resourcetype> <D:displayname>'.$name.'</D:displayname> </D:prop> </D:set> </D:mkcol>';
+	$opts = array(
+		'http'=>array(
+			'method'=>"MKCOL",
+			'header'=>array("Content-Type: text/xml; charset=\"utf-8\""),
+			'content'=> $xmlquery
+		)
+	);
+	$reply = $this->cdfopen("create_group", "/$name", "r", false, $opts);
+	if ($reply["status"] == 201){
+		$rcmail = rcmail::get_instance();
+		$carddav = $rcmail->config->get('carddav', array());
+
+		$ID = $carddav['url']."/$name";
+		$ID = preg_replace(";^http.?://[^/]*;", "", $ID);
+		$ID = preg_replace(";//;", "/", $ID);
+		$ID = preg_replace(";/;", "_rcmcdslash_", $ID);
+		$ID = preg_replace(";\\.;", "_rcmcddot_", $ID);
+		$result = array();
+		$result["id"] = $ID;
+		$result["name"] = $name;
+	}
+
+	return $result;
+  }}}
+
+  public function delete_group($gid)
+  {{{
+	$result = false;
+
+	$opts = array(
+		'http'=>array(
+			'method'=>"DELETE",
+		)
+	);
+	$gid = str_replace("_rcmcdslash_", "/", $gid);
+	$gid = str_replace("_rcmcddot_", ".", $gid);
+	$gid = preg_replace(";/$;", "", $gid);
+	$gid = preg_replace(";^.*/;", "", $gid);
+	$reply = $this->cdfopen("delete_group", "/$gid", "r", false, $opts);
+	if ($reply["status"] == 204){
+		$result = true;
+	}
+
+	return $result;
+  }}}
+
+  public function rename_group($gid, $newname)
+  {{{
+	return;
   }}}
 
   public function array_sort($array, $on, $order=SORT_ASC)
@@ -321,7 +382,7 @@ class carddav_backend extends rcube_addressbook
 	$http->follow_redirect=1;
 	$http->redirection_limit=5;
 	$http->prefer_curl=1;
-	if ($caller == "list_groups"){
+	if ($caller == "list_groups" || $caller == "create_group" || $caller == "delete_group"){
 		$url = $carddav['url'].$url;
 	} else {
 		preg_match("/^(http.?:\/\/[^\/]*)\//", $carddav['url'], $match);
@@ -608,23 +669,6 @@ class carddav_backend extends rcube_addressbook
 		}
 	}
 	return false;
-  }}}
-
-  function create_group($name)
-  {{{
-	$result = false;
-
-	return $result;
-  }}}
-
-  function delete_group($gid)
-  {{{
-	return false;
-  }}}
-
-  function rename_group($gid, $newname)
-  {{{
-	return $newname;
   }}}
 
   function add_to_group($group_id, $ids)
