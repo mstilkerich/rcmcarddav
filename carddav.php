@@ -86,31 +86,48 @@ class carddav extends rcube_plugin
 		);
 		return $args;
 	}
+
 	$prefs = $rcmail->config->get('carddav', array());
+	$read_only = false;
 	
-	// check box for username
+	if (file_exists("plugins/carddav/config.inc.php")){
+		require("plugins/carddav/config.inc.php");
+	}
 	$use_carddav = $prefs['use_carddav'];
-	$checkbox = new html_checkbox(array('name' => '_cd_use_carddav', 'value' => 1));
-	$content_use_carddav = $checkbox->show($prefs['use_carddav']?1:0);
-
-	// input box for username
-	$input = new html_inputfield(array('name' => '_cd_username', 'type' => 'text', 'autocomplete' => 'off', 'value' => $prefs['username']));
-	$content_username = $input->show();
-
-	// input box for password
-	$input = new html_inputfield(array('name' => '_cd_password', 'type' => 'password', 'autocomplete' => 'off', 'value' => $prefs['password']));
-	$content_password = $input->show();
-
-	// input box for URL
-	$size = isset($prefs['url']) ? strlen($prefs['url']) : 40;
-	$input = new html_inputfield(array('name' => '_cd_url', 'type' => 'text', 'autocomplete' => 'off', 'value' => $prefs['url'], 'size' => $size < 40 ? 40 : $size));
-	$content_url = $input->show();
-
-	// input box for lax resource checking
+	$username = $prefs['username'];
+	$password = $prefs['password'];
+	$url = $prefs['url'];
 	$lax_resource_checking = $prefs['lax_resource_checking'];
-	$checkbox = new html_checkbox(array('name' => '_cd_lax_resource_checking', 'value' => 1));
-	$content_lax_resource_checking = $checkbox->show($prefs['lax_resource_checking']?1:0);
-	
+
+	if ($read_only){
+		$content_use_carddav = $use_carddav ? "Enabled" : "Disabled";
+		$content_username = $username;
+		$content_password = "***";
+		$content_url = $url;
+		$content_lax_resource_checking = $lax_resource_checking ? "Enabled" : "Disabled";
+	} else {
+		// check box for username
+		$checkbox = new html_checkbox(array('name' => '_cd_use_carddav', 'value' => 1));
+		$content_use_carddav = $checkbox->show($use_carddav?1:0);
+
+		// input box for username
+		$input = new html_inputfield(array('name' => '_cd_username', 'type' => 'text', 'autocomplete' => 'off', 'value' => $username));
+		$content_username = $input->show();
+
+		// input box for password
+		$input = new html_inputfield(array('name' => '_cd_password', 'type' => 'password', 'autocomplete' => 'off', 'value' => $password));
+		$content_password = $input->show();
+
+		// input box for URL
+		$size = isset($prefs['url']) ? strlen($url) : 40;
+		$input = new html_inputfield(array('name' => '_cd_url', 'type' => 'text', 'autocomplete' => 'off', 'value' => $prefs['url'], 'size' => $size < 40 ? 40 : $size));
+		$content_url = $input->show();
+
+		// input box for lax resource checking
+		$checkbox = new html_checkbox(array('name' => '_cd_lax_resource_checking', 'value' => 1));
+		$content_lax_resource_checking = $checkbox->show($lax_resource_checking?1:0);
+	}
+
 	$args['blocks']['cd_preferences'] = array(
 		'options' => array(
 			array('title'=> Q($this->gettext('cd_use_carddav')), 'content' => $content_use_carddav), 
