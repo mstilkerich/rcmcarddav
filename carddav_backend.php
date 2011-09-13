@@ -148,6 +148,7 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$gid = str_replace("_rcmcdslash_", "/", $gid);
 	$gid = str_replace("_rcmcddot_", ".", $gid);
+	$gid = str_replace(" ", "%20", $gid);
 	$this->group = $gid;
 	setcookie("_cd_set_group", $gid);
 	return $gid;
@@ -514,7 +515,6 @@ class carddav_backend extends rcube_addressbook
 	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
 	$vcf = new VCard;
 	$vcf->parse(explode("\n", $vcard)) || write_log("carddav", "Couldn't parse vcard ".$vcard);
-	write_log("carddav", var_export($vcf, true));
 	$property = $vcf->getProperty("FN");
 	if ($property){
 		$name = $property->getComponents();
