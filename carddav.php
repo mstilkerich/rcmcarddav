@@ -88,41 +88,51 @@ class carddav extends rcube_plugin
 	}
 
 	$prefs = $rcmail->config->get('carddav', array());
-	$read_only = false;
 	
-	if (file_exists("plugins/carddav/config.inc.php")){
-		require("plugins/carddav/config.inc.php");
-	}
 	$use_carddav = $prefs['use_carddav'];
 	$username = $prefs['username'];
 	$password = $prefs['password'];
 	$url = $prefs['url'];
 	$lax_resource_checking = $prefs['lax_resource_checking'];
 
-	if ($read_only){
+	if (file_exists("plugins/carddav/config.inc.php")){
+		require("plugins/carddav/config.inc.php");
+	}
+
+	$dont_override = $rcmail->config->get('dont_override', array());
+
+	if (in_array('carddav_use_carddav', $dont_override)) {
 		$content_use_carddav = $use_carddav ? "Enabled" : "Disabled";
-		$content_username = $username;
-		$content_password = "***";
-		$content_url = $url;
-		$content_lax_resource_checking = $lax_resource_checking ? "Enabled" : "Disabled";
 	} else {
-		// check box for username
+		// check box for activating
 		$checkbox = new html_checkbox(array('name' => '_cd_use_carddav', 'value' => 1));
 		$content_use_carddav = $checkbox->show($use_carddav?1:0);
-
+	}
+	if (in_array('carddav_username', $dont_override)){
+		$content_username = $username;
+	} else {
 		// input box for username
 		$input = new html_inputfield(array('name' => '_cd_username', 'type' => 'text', 'autocomplete' => 'off', 'value' => $username));
 		$content_username = $input->show();
-
+	}
+	if (in_array('carddav_password', $dont_override)){
+		$content_password = "***";
+	} else {
 		// input box for password
 		$input = new html_inputfield(array('name' => '_cd_password', 'type' => 'password', 'autocomplete' => 'off', 'value' => $password));
 		$content_password = $input->show();
-
+	}
+	if (in_array('carddav_url', $dont_override)){
+		$content_url = str_replace("%u", "$username", $url);
+	} else {
 		// input box for URL
 		$size = isset($prefs['url']) ? strlen($url) : 40;
 		$input = new html_inputfield(array('name' => '_cd_url', 'type' => 'text', 'autocomplete' => 'off', 'value' => $prefs['url'], 'size' => $size < 40 ? 40 : $size));
 		$content_url = $input->show();
-
+	}
+	if (in_array('carddav_lax_resource_checking', $dont_override)){
+		$content_lax_resource_checking = $lax_resource_checking ? "Enabled" : "Disabled";
+	} else {
 		// input box for lax resource checking
 		$checkbox = new html_checkbox(array('name' => '_cd_lax_resource_checking', 'value' => 1));
 		$content_lax_resource_checking = $checkbox->show($lax_resource_checking?1:0);

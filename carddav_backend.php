@@ -196,7 +196,7 @@ class carddav_backend extends rcube_addressbook
 			'content'=> $xmlquery
 		)
 	);
-	$reply = $this->cdfopen("create_group", "/$name", "r", false, $opts);
+	$reply = $this->cdfopen("create_group", "/".preg_replace(";[^A-Za-z0-9_-];", "_", $name), "r", false, $opts);
 	if ($reply["status"] == 201){
 		$rcmail = rcmail::get_instance();
 		$carddav = $rcmail->config->get('carddav', array());
