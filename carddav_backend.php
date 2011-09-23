@@ -22,6 +22,39 @@ require("inc/http.php");
 require("inc/sasl.php");
 require("inc/vcard.php");
 
+function carddavconfig(){
+	$rcmail = rcmail::get_instance();
+	$prefs = $rcmail->config->get('carddav', array());
+	$dont_override = $rcmail->config->get('dont_override', array());
+
+	// Set some defaults
+	$use_carddav = false;
+	$username = "";
+	$password = "";
+	$url = "";
+	$lax_resource_checking = false;
+
+	if (file_exists("plugins/carddav/config.inc.php")){
+		require("plugins/carddav/config.inc.php");
+	}
+
+	$retval = array();
+	$retval['use_carddav'] = $use_carddav;
+	$retval['username'] = $username;
+	$retval['password'] = $password;
+	$retval['url'] = str_replace("%u", $username, $url);
+	$retval['lax_resource_checking'] = $lax_resource_checking;
+
+	foreach ($retval as $key => $value){
+		if (!in_array("carddav_$key", $dont_override)){
+			if (in_array($key, $prefs)){
+				$retval[$key] = $prefs[$key];
+			}
+		}
+	}
+	return $retval;
+}
+
 function startElement_addvcards($parser, $n, $attrs) {{{
 	global $ctag;
 
@@ -77,8 +110,7 @@ function endElement_listgroups($parser, $n) {{{
 	global $name; global $path; global $isab; global $ctag;
 	global $colls;
 
-	$rcmail = rcmail::get_instance();
-	$carddav = $rcmail->config->get('carddav', array());
+	$carddav = carddavconfig();
 
 	$ctag = preg_replace(";\|\|$n$;", "", $ctag);
 	if ($n == "DAV::RESPONSE"){
@@ -198,8 +230,7 @@ class carddav_backend extends rcube_addressbook
 	);
 	$reply = $this->cdfopen("create_group", "/".preg_replace(";[^A-Za-z0-9_-];", "_", $name), "r", false, $opts);
 	if ($reply["status"] == 201){
-		$rcmail = rcmail::get_instance();
-		$carddav = $rcmail->config->get('carddav', array());
+		$carddav = carddavconfig();
 
 		$ID = $carddav['url']."/$name";
 		$ID = preg_replace(";^http.?://[^/]*;", "", $ID);
@@ -349,8 +380,7 @@ class carddav_backend extends rcube_addressbook
 
   public function cdfopen($caller, $url, $mode, $use_include_path, $opts)
   {{{
-	$rcmail = rcmail::get_instance();
-	$carddav = $rcmail->config->get('carddav', array());
+	$carddav = carddavconfig();
 
 	$http=new http_class;
 	$http->timeout=10;

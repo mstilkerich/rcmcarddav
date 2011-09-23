@@ -1,24 +1,23 @@
 <?
-$use_config = false; // Set to true to enable this config file
+// If you want some values read-only, add a "carddav_*" parameter to $rcmail_config['dont_override'] in config/main.inc.php
 
-if ($use_config){
-	// Enable CardDAV backend
-	$prefs['use_carddav'] = true;
-	// Use roundcubemail username
-	$prefs['username'] = $_SESSION['username'];
-	// Use roundcubemail password
-	$prefs['password'] = $rcmail->decrypt($_SESSION['password']);
-	// URL to backend, use %u as substitute for the username specified above
-	//                 use %p as substitute for the password specified above
-	$prefs['url'] = "https://ical.example.org/caldav.php/%u/";
-	// Lax Resource Checking, see Settings page for help
-	$prefs['lax_resource_checking'] = false;
+// Enable CardDAV backend
+$use_carddav = true;
+// For read-only: $rcmail_config['dont_override'][] = "carddav_use_carddav";
 
-	/* ------------------------------------------------------------ */
-	/* --------- Normally no need to edit below this line --------- */
-	/* ------------------------------------------------------------ */
+// Use roundcubemail username
+$username = $_SESSION['username'];
+// For read-only: $rcmail_config['dont_override'][] = "carddav_username";
 
-	$prefs['url'] = str_replace("%u", $prefs['username'], $prefs['url']);
-	$prefs['url'] = str_replace("%p", $prefs['password'], $prefs['url']);
-	$read_only = true;
-}
+// Use roundcubemail password
+$password = $rcmail->decrypt($_SESSION['password']);
+// For read-only: $rcmail_config['dont_override'][] = "carddav_password";
+
+// URL to backend, use %u as substitute for the username specified above
+//                 use %p as substitute for the password specified above
+$url = "https://ical.example.org/caldav.php/%u/";
+// For read-only: $rcmail_config['dont_override'][] = "carddav_url";
+
+// Lax Resource Checking, see Settings page for help
+$lax_resource_checking = false;
+// For read-only: $rcmail_config['dont_override'][] = "carddav_lax_resource_checking"
