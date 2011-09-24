@@ -22,7 +22,7 @@ require("inc/http.php");
 require("inc/sasl.php");
 require("inc/vcard.php");
 
-function carddavconfig(){
+function carddavconfig(){{{
 	$rcmail = rcmail::get_instance();
 	$prefs = $rcmail->config->get('carddav', array());
 	$dont_override = $rcmail->config->get('dont_override', array());
@@ -53,7 +53,7 @@ function carddavconfig(){
 		}
 	}
 	return $retval;
-}
+}}}
 
 function startElement_addvcards($parser, $n, $attrs) {{{
 	global $ctag;
