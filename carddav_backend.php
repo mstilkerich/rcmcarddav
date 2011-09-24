@@ -198,7 +198,7 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	$reply = $this->cdfopen("list_groups", "", "r", false, $opts);
+	$reply = $this->cdfopen("list_groups", "", $opts);
 	$reply = $reply["body"];
 
 	global $colls;
@@ -228,7 +228,7 @@ class carddav_backend extends rcube_addressbook
 			'content'=> $xmlquery
 		)
 	);
-	$reply = $this->cdfopen("create_group", "/".preg_replace(";[^A-Za-z0-9_-];", "_", $name), "r", false, $opts);
+	$reply = $this->cdfopen("create_group", "/".preg_replace(";[^A-Za-z0-9_-];", "_", $name), $opts);
 	if ($reply["status"] == 201){
 		$carddav = carddavconfig();
 
@@ -258,7 +258,7 @@ class carddav_backend extends rcube_addressbook
 	$gid = str_replace("_rcmcddot_", ".", $gid);
 	$gid = preg_replace(";/$;", "", $gid);
 	$gid = preg_replace(";^.*/;", "", $gid);
-	$reply = $this->cdfopen("delete_group", "/$gid", "r", false, $opts);
+	$reply = $this->cdfopen("delete_group", "/$gid", $opts);
 	if ($reply["status"] == 204){
 		$result = true;
 	}
@@ -378,7 +378,7 @@ class carddav_backend extends rcube_addressbook
 	return $x;
   }}}
 
-  public function cdfopen($caller, $url, $mode, $use_include_path, $opts)
+  public function cdfopen($caller, $url, $opts)
   {{{
 	$carddav = carddavconfig();
 
@@ -392,8 +392,11 @@ class carddav_backend extends rcube_addressbook
 	if ($caller == "list_groups" || $caller == "create_group" || $caller == "delete_group"){
 		$url = $carddav['url'].$url;
 	} else {
-		preg_match("/^(http.?:\/\/[^\/]*)\//", $carddav['url'], $match);
+		preg_match(";^(http.?://[^/]*)/;", $carddav['url'], $match);
 		$url = $match[1].$this->group.$url;
+	}
+	if ($this->DEBUG){
+		write_log("carddav", "DEBUG cdfopen: $caller requesting $url");
 	}
 	$url = preg_replace("/:\/\//", "://".urlencode($carddav['username']).":".urlencode($carddav['password'])."@", $url);
 	$error = $http->GetRequestArguments($url,$arguments);
@@ -467,7 +470,7 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	$reply = $this->cdfopen("list_records", "", "r", false, $opts);
+	$reply = $this->cdfopen("list_records", "", $opts);
 	$reply = $reply["body"];
 	if (!strlen($reply)) { return false; }
 	$reply = preg_replace("/\r\n[ \t]/","",$reply);
@@ -522,7 +525,7 @@ class carddav_backend extends rcube_addressbook
 	$mail = $record[1];
 	$mail = preg_replace("/_rcmcdat_/", "@", $mail);
 	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
-	$reply = $this->cdfopen("get_record_from_carddav", "/$id", "r", false, $opts);
+	$reply = $this->cdfopen("get_record_from_carddav", "/$id", $opts);
 	if (!strlen($reply["body"])) { return false; }
 	if ($reply["status"] == 404){
 		write_log("carddav", "Request for VCF '$uid' which doesn't exits on the server.");
@@ -578,7 +581,7 @@ class carddav_backend extends rcube_addressbook
 			'header'=>"Content-Type: text/vcard"
 		)
 	);
-	$reply = $this->cdfopen("put_record_to_carddav", "/$id", "r", false, $opts);
+	$reply = $this->cdfopen("put_record_to_carddav", "/$id", $opts);
 	if ($reply["status"] >= 200 && $reply["status"] < 300) { return true; }
 	return true;
   }}}
@@ -591,7 +594,7 @@ class carddav_backend extends rcube_addressbook
 			'method'=>"DELETE",
 		)
 	);
-	$reply = $this->cdfopen("delete_record_from_carddav", "/$id", "r", false, $opts);
+	$reply = $this->cdfopen("delete_record_from_carddav", "/$id", $opts);
 	if ($reply["status"] == 204){
 		return true;
 	}
