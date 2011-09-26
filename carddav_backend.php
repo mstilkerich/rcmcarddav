@@ -143,7 +143,7 @@ class carddav_backend extends rcube_addressbook
   public $groups = true;
 
   private $group;
-  private $filter = array();
+  private $filter;
   private $result;
 
   private $DEBUG = false;	# set to true for basic debugging
@@ -174,6 +174,15 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$this->result = null;
 	$this->filter = null;
+  }}}
+
+  public function get_group($gid)
+  {{{
+	$gid = $this->group ;
+	$gid = str_replace("/", "_rcmcdslash_", $gid);
+	$gid = str_replace(".", "_rcmcddot_", $gid);
+	$gid = str_replace("%20", " ", $gid);
+	return $gid;
   }}}
 
   public function set_group($gid)
@@ -365,7 +374,13 @@ class carddav_backend extends rcube_addressbook
 		$a['ID'] = preg_replace("/\./", "_rcmcddot_", $a['ID']);
 		if (strlen($filter["value"]) > 0){
 			foreach ($filter["keys"] as $key => $value){
+				if ($this->DEBUG){
+					write_log("carddav", "Checking ".$a[$value]." against ".$filter["value"]);
+				}
 				if (preg_match(";".$filter["value"].";i", $a[$value])){
+					if ($this->DEBUG){
+						write_log("carddav", "MATCH!");
+					}
 					$x++;
 					$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname'], 'email' => $a['email']));
 				}
@@ -470,11 +485,23 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	$reply = $this->cdfopen("list_records", "", $opts);
-	$reply = $reply["body"];
-	if (!strlen($reply)) { return false; }
-	$reply = preg_replace("/\r\n[ \t]/","",$reply);
-	$records = $this->addvcards($reply);
+	$records = 0;
+	if ($this->filter){
+		$colls = $this->list_groups();
+	} else {
+		$colls = array(ID => $this->get_group());
+	}
+	foreach ($colls as $key => $value){
+		if ($this->filter){
+			$this->set_group($value["ID"]);
+		}
+		$reply = $this->cdfopen("list_records", "", $opts);
+		$reply = $reply["body"];
+		if (strlen($reply)) {
+			$reply = preg_replace("/\r\n[ \t]/","",$reply);
+			$records += $this->addvcards($reply);
+		}
+	}
 	if ($records > 0){
 		return $this->result;
 	} else {
