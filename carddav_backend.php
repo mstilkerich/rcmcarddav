@@ -332,6 +332,16 @@ class carddav_backend extends rcube_addressbook
 	xml_parser_free($xml_parser);
 	foreach ($vcards as $vcard){
 		$vcf = new VCard;
+		if (!preg_match(";BEGIN;", $vcard['vcf'])){
+# Seems like the server didn't give us the vcf data
+			$opts = array(
+				'http'=>array(
+					'method'=>"GET",
+				)
+			);
+			$reply = $this->cdfopen("addvcards", $vcard['href'], $opts);
+			$vcard['vcf'] = $reply['body'];
+		}
 		$vcf->parse(explode("\n", $vcard['vcf'])) || write_log("carddav", "Couldn't parse vcard ".$vcard['vcf']);
 		$property = $vcf->getProperty("FN");
 		if ($property){
@@ -408,6 +418,7 @@ class carddav_backend extends rcube_addressbook
 		$url = $carddav['url'].$url;
 	} else {
 		preg_match(";^(http.?://[^/]*)/;", $carddav['url'], $match);
+		$url = preg_replace(";".$this->group.";", "", $url);
 		$url = $match[1].$this->group.$url;
 	}
 	if ($this->DEBUG){
