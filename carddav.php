@@ -49,7 +49,7 @@ class carddav extends rcube_plugin
   {{{
     $abook = new carddav_backend;
     $rcmail = rcmail::get_instance();
-    $prefs = $rcmail->config->get('carddav', array());
+    $prefs = carddavconfig();
     if ($prefs['use_carddav'])
       $p['sources'][$this->abook_id] = array(
         'id' => $this->abook_id,
