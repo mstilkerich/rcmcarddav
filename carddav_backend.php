@@ -430,7 +430,9 @@ class carddav_backend extends rcube_addressbook
 	$url = preg_replace("/:\/\//", "://".urlencode($carddav['username']).":".urlencode($carddav['password'])."@", $url);
 	$error = $http->GetRequestArguments($url,$arguments);
 	$arguments["RequestMethod"] = $opts['http']['method'];
-	$arguments["Body"] = $opts['http']['content']."\r\n";
+	if (strlen($opts['http']['content']) > 0 && $opts['http']['method'] != "GET"){
+		$arguments["Body"] = $opts['http']['content']."\r\n";
+	}
 	if (is_array($opts['http']['header'])){
 		foreach ($opts['http']['header'] as $key => $value){
 			$h = explode(": ", $value);
