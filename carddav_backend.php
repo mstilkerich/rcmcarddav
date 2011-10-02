@@ -176,7 +176,7 @@ class carddav_backend extends rcube_addressbook
 	$this->filter = null;
   }}}
 
-  public function get_group($gid)
+  public function get_group()
   {{{
 	$gid = $this->group ;
 	$gid = str_replace("/", "_rcmcdslash_", $gid);
