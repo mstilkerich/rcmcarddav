@@ -342,7 +342,10 @@ class carddav_backend extends rcube_addressbook
 			$reply = $this->cdfopen("addvcards", $vcard['href'], $opts);
 			$vcard['vcf'] = $reply['body'];
 		}
-		$vcf->parse(explode("\n", $vcard['vcf'])) || write_log("carddav", "Couldn't parse vcard ".$vcard['vcf']);
+		if (!$vcf->parse(explode("\n", $vcard['vcf']))){
+			write_log("carddav", "Couldn't parse vcard ".$vcard['vcf']);
+			continue;
+		}
 		$property = $vcf->getProperty("FN");
 		if ($property){
 			$name = $property->getComponents();
