@@ -462,15 +462,19 @@ class carddav_backend extends rcube_addressbook
 					return $reply;
 				} else {
 					write_log("carddav", "cdfopen: Could not read reply body: ".$error);
+					return -1;
 				}
 			} else {
 				write_log("carddav", "cdfopen: Could not read reply header: ".$error);
+				return -1;
 			}
 		} else {
 			write_log("carddav", "cdfopen: Could not send request: ".$error);
+			return -1;
 		}
 	} else {
 		write_log("carddav", "cdfopen: Could not open: ".$error);
+		return -1;
 	}
 	if ($this->DEBUG_HTTP){
 		write_log("carddav", "DEBUG_HTTP cdfopen failed: ".var_export($http, true));
@@ -487,10 +491,36 @@ class carddav_backend extends rcube_addressbook
 
   public function list_records($cols=null, $subset=0)
   {{{
-	$addresses = array();
 	$this->result = $this->count();
 
-	$xmlquery = '<?xml version="1.0" encoding="utf-8" ?'.'> <D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <D:sync-token></D:sync-token> <D:prop> <D:getcontenttype/> <D:getetag/> <D:allprop/> <C:address-data> <C:allprop/> </C:address-data> </D:prop> ';
+	$records = 0;
+	$records += $this->list_records_sync_collection($cols, $subset);
+	if ($records < 0){ /* returned error -1 */
+		$records = $this->list_records_propfind_resourcetype($cols, $subset);
+	}
+
+	if ($records > 0){
+		return $this->result;
+	}
+
+	return false;
+  }}}
+
+  public function list_records_sync_collection($cols, $subset)
+  {{{
+	$records = 0;
+	$xmlquery =
+		'<?xml version="1.0" encoding="utf-8" ?'.'>
+			<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+			<D:sync-token></D:sync-token>
+			<D:prop>
+				<D:getcontenttype/>
+				<D:getetag/>
+				<D:allprop/>
+				<C:address-data>
+					<C:allprop/>
+				</C:address-data>
+			</D:prop> ';
 	$xmlquery .= $this->create_filter();
 	$xmlquery .= ' </D:sync-collection>';
 	$opts = array(
@@ -501,28 +531,97 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	$records = 0;
 	if ($this->filter){
 		$colls = $this->list_groups();
 	} else {
 		$colls = array(ID => $this->get_group());
 	}
+
 	foreach ($colls as $key => $value){
 		if ($this->filter){
 			$this->set_group($value["ID"]);
 		}
-		$reply = $this->cdfopen("list_records", "", $opts);
+		$reply = $this->cdfopen("list_records_sync_collection", "", $opts);
+		if ($reply == -1){ /* error occured, as opposed to "" which means empty reply */
+			return -1;
+		}
 		$reply = $reply["body"];
 		if (strlen($reply)) {
-			$reply = preg_replace("/\r\n[ \t]/","",$reply);
 			$records += $this->addvcards($reply);
 		}
 	}
-	if ($records > 0){
-		return $this->result;
+	return $records;
+  }}}
+
+  public function list_records_propfind_resourcetype($cols, $subset)
+  {{{
+	$records = 0;
+	$xmlquery =
+		'<?xml version="1.0" encoding="utf-8" ?'.'>
+			<a:propfind xmlns:a="DAV:">
+				<a:prop>
+					<a:resourcetype/>
+				</a:prop>
+			</a:propfind>';
+	$opts = array(
+		'http'=>array(
+			'method'=>"PROPFIND",
+			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\""),
+			'content'=> $xmlquery
+		)
+	);
+
+	$optsREPORT = array(
+		'http' => array(
+			'method'=>"REPORT",
+			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\"")
+		)
+	);
+	if ($this->filter){
+		$colls = $this->list_groups();
 	} else {
-		return false;
+		$colls = array(ID => $this->get_group());
 	}
+
+	foreach ($colls as $key => $value){
+		if ($this->filter){
+			$this->set_group($value["ID"]);
+		}
+		$reply = $this->cdfopen("list_records_propfind_resourcetype", "", $opts);
+		if ($reply == -1){ /* error occured, as opposed to "" which means empty reply */
+			return -1;
+		}
+		$reply = $reply["body"];
+		if (strlen($reply)) {
+			$xml_parser = xml_parser_create_ns();
+			global $vcards;
+			$vcards = array();
+			xml_set_element_handler($xml_parser, "startElement_addvcards", "endElement_addvcards");
+			xml_set_character_data_handler($xml_parser, "characterData_addvcards");
+			xml_parse($xml_parser, $reply, true);
+			xml_parser_free($xml_parser);
+			$xmlquery =
+				'<?xml version="1.0" encoding="utf-8" ?'.'>
+					<C:addressbook-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+						<D:prop>
+							<D:getetag/>
+							<C:address-data>
+								<C:allprop/>
+							</C:address-data>
+						</D:prop> ';
+			foreach ($vcards as $vcard){
+				if (strlen($vcard['href']) > 0){
+					$xmlquery .= "<D:href>".$vcard['href']."</D:href> ";
+				}
+			}
+			$xmlquery .= "</C:addressbook-multiget>";
+			$optsREPORT['http']['content'] = $xmlquery;
+			$reply = $this->cdfopen("list_records", "", $optsREPORT);
+			$reply = $reply["body"];
+			$records += $this->addvcards($reply);
+		}
+	}
+	return $records;
   }}}
 
   public function search($fields, $value, $strict=false, $select=true, $nocount=false, $required=array())
