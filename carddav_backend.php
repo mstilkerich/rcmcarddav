@@ -531,10 +531,10 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	if ($this->filter){
+	if ($this->filter && !$this->group){
 		$colls = $this->list_groups();
 	} else {
-		$colls = array(ID => $this->get_group());
+		$colls = array(0 => array(ID => $this->get_group()));
 	}
 
 	foreach ($colls as $key => $value){
@@ -577,10 +577,10 @@ class carddav_backend extends rcube_addressbook
 			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\"")
 		)
 	);
-	if ($this->filter){
+	if ($this->filter && !$this->group){
 		$colls = $this->list_groups();
 	} else {
-		$colls = array(ID => $this->get_group());
+		$colls = array(0 => array(ID => $this->get_group()));
 	}
 
 	foreach ($colls as $key => $value){
@@ -701,11 +701,12 @@ class carddav_backend extends rcube_addressbook
 		$surname = $N[0];
 		$firstname = $N[1];
 	}
-	$propfind = $vcf->getProperty("UID");
-	if ($property){
-		$UID = $property->getComponents();
-		$uid = $UID[0];
-	}
+	// Whoops, don't do this.
+	//$propfind = $vcf->getProperty("UID");
+	//if ($property){
+		//$UID = $property->getComponents();
+		//$uid = $UID[0];
+	//}
 	$this->result->add(array('ID' => $uid, 'name' => $name, 'surname' => $surname, 'firstname' => $firstname, 'email' => $mail));
 	$sql_arr = $assoc && $this->result ? $this->result->first() : null;
 	return $assoc && $sql_arr ? $sql_arr : $this->result;
