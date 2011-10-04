@@ -531,7 +531,7 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	if ($this->filter && !$this->group){
+	if (($this->filter && !$this->group) || rcmail::get_instance()->action == "autocomplete"){
 		$colls = $this->list_groups();
 	} else {
 		$colls = array(0 => array(ID => $this->get_group()));
@@ -577,7 +577,7 @@ class carddav_backend extends rcube_addressbook
 			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\"")
 		)
 	);
-	if ($this->filter && !$this->group){
+	if (($this->filter && !$this->group) || rcmail::get_instance()->action == "autocomplete"){
 		$colls = $this->list_groups();
 	} else {
 		$colls = array(0 => array(ID => $this->get_group()));
