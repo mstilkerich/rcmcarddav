@@ -145,6 +145,7 @@ class carddav_backend extends rcube_addressbook
   private $group;
   private $filter;
   private $result;
+  public $coltypes;
 
   private $DEBUG = false;	# set to true for basic debugging
   private $DEBUG_HTTP = false;	# set to true for debugging raw http stream
@@ -153,6 +154,38 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$this->ready = true;
 	$this->group = $_COOKIE["_cd_set_group"];
+	$this->coltypes = array(
+		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('name'), 'category' => 'main'),
+		'firstname'    => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('firstname'), 'category' => 'main'),
+		'surname'      => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('surname'), 'category' => 'main'),
+		'email'        => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('email'), 'subtypes' => array('home','work','other','internet'), 'category' => 'main'),
+		'middlename'   => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('middlename'), 'category' => 'main'),
+		'prefix'       => array('type' => 'text', 'size' => 8,  'maxlength' => 20, 'limit' => 1, 'label' => rcube_label('nameprefix'), 'category' => 'main'),
+		'suffix'       => array('type' => 'text', 'size' => 8,  'maxlength' => 20, 'limit' => 1, 'label' => rcube_label('namesuffix'), 'category' => 'main'),
+		'nickname'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('nickname'), 'category' => 'main'),
+		'jobtitle'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('jobtitle'), 'category' => 'main'),
+		'organization' => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('organization'), 'category' => 'main'),
+		'department'   => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('department'), 'category' => 'main'),
+		'gender'       => array('type' => 'select', 'limit' => 1, 'label' => rcube_label('gender'), 'options' => array('male' => rcube_label('male'), 'female' => rcube_label('female')), 'category' => 'personal'),
+		'maidenname'   => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('maidenname'), 'category' => 'personal'),
+		'phone'        => array('type' => 'text', 'size' => 40, 'maxlength' => 20, 'label' => rcube_label('phone'), 'subtypes' => array('home','home2','work','work2','mobile','main','homefax','workfax','car','pager','video','assistant','other'), 'category' => 'main'),
+		'address'      => array('type' => 'composite', 'label' => rcube_label('address'), 'subtypes' => array('home','work','other'), 'childs' => array(
+			'street'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('street'), 'category' => 'main'),
+			'locality'   => array('type' => 'text', 'size' => 28, 'maxlength' => 50, 'label' => rcube_label('locality'), 'category' => 'main'),
+			'zipcode'    => array('type' => 'text', 'size' => 8,  'maxlength' => 15, 'label' => rcube_label('zipcode'), 'category' => 'main'),
+			'region'     => array('type' => 'text', 'size' => 12, 'maxlength' => 50, 'label' => rcube_label('region'), 'category' => 'main'),
+			'country'    => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('country'), 'category' => 'main'),), 'category' => 'main'),
+		'birthday'     => array('type' => 'date', 'size' => 12, 'maxlength' => 16, 'label' => rcube_label('birthday'), 'limit' => 1, 'render_func' => 'rcmail_format_date_col', 'category' => 'personal'),
+		'anniversary'  => array('type' => 'date', 'size' => 12, 'maxlength' => 16, 'label' => rcube_label('anniversary'), 'limit' => 1, 'render_func' => 'rcmail_format_date_col', 'category' => 'personal'),
+		'website'      => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('website'), 'subtypes' => array('homepage','work','blog','profile','other'), 'category' => 'main'),
+		'im'           => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('instantmessenger'), 'subtypes' => array('aim','icq','msn','yahoo','jabber','skype','other'), 'category' => 'main'),
+		'notes'        => array('type' => 'textarea', 'size' => 40, 'rows' => 15, 'maxlength' => 500, 'label' => rcube_label('notes'), 'limit' => 1),
+		'photo'        => array('type' => 'image', 'limit' => 1, 'category' => 'main'),
+		'assistant'    => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('assistant'), 'category' => 'personal'),
+		'manager'      => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('manager'), 'category' => 'personal'),
+		'spouse'       => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('spouse'), 'category' => 'personal'),
+		// TODO: define fields for vcards like GEO, KEY
+	);
   }}}
 
   public function get_name()
@@ -361,30 +394,13 @@ class carddav_backend extends rcube_addressbook
 		if ($this->group){
 			$ID = preg_replace(";^".$this->group.";", "", $ID);
 		}
-		$e = $vcf->getProperties("EMAIL");
-		if ($e){
-			foreach ($e as $f){
-				$f = $f->getComponents();
-				$emails[] = $f[0];
-			}
-		}
-		if ($emails[0]){
-			foreach ($emails as $email){
-				$addresses[] = array('ID' => $ID, 'name' => $name, 'firstname' => $firstname, 'surname' => $surname, 'email' => $email);
-			}
-			$emails = array();
-			$ID = $name = $firstname = $surname = $email = NULL;
-		} else {
-			$addresses[] = array('ID' => $ID, 'name' => $name, 'firstname' => $firstname, 'surname' => $surname, 'email' => $email);
-			$emails = array();
-			$ID = $name = $firstname = $surname = $email = NULL;
-		}
+		$ID = preg_replace(";\.vcf$;", "", $ID);
+		$addresses[] = array('ID' => $ID, 'name' => $name, 'firstname' => $firstname, 'surname' => $surname);
+		$emails = array();
+		$ID = $name = $firstname = $surname = $email = NULL;
 	}
 	$x = 0;
 	foreach($this->array_sort($addresses, "name") as $a){
-		$a['ID'] = $a['ID']."_rcmcddelim_".$a['email'];
-		$a['ID'] = preg_replace("/@/", "_rcmcdat_", $a['ID']);
-		$a['ID'] = preg_replace("/\./", "_rcmcddot_", $a['ID']);
 		if (strlen($filter["value"]) > 0){
 			foreach ($filter["keys"] as $key => $value){
 				if ($this->DEBUG){
@@ -395,12 +411,12 @@ class carddav_backend extends rcube_addressbook
 						write_log("carddav", "MATCH!");
 					}
 					$x++;
-					$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname'], 'email' => $a['email']));
+					$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname']));
 				}
 			}
 		} else {
 			$x++;
-			$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname'], 'email' => $a['email']));
+			$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname']));
 		}
 	}
 	return $x;
@@ -660,14 +676,7 @@ class carddav_backend extends rcube_addressbook
 			'method'=>"GET",
 		)
 	);
-	$record = explode("_rcmcddelim_", $uid);
-	$id = $record[0];
-	$id = preg_replace("/_rcmcdat_/", "@", $id);
-	$id = preg_replace("/_rcmcddot_/", ".", $id);
-	$mail = $record[1];
-	$mail = preg_replace("/_rcmcdat_/", "@", $mail);
-	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
-	$reply = $this->cdfopen("get_record_from_carddav", "/$id", $opts);
+	$reply = $this->cdfopen("get_record_from_carddav", "/$uid.vcf", $opts);
 	if (!strlen($reply["body"])) { return false; }
 	if ($reply["status"] == 404){
 		write_log("carddav", "Request for VCF '$uid' which doesn't exits on the server.");
@@ -681,33 +690,62 @@ class carddav_backend extends rcube_addressbook
 	$vcard = $this->get_record_from_carddav($uid);
 	if (!$vcard)
 		return false;
-	$record = explode("_rcmcddelim_", $uid);
-	$id = $record[0];
-	$id = preg_replace("/_rcmcdat_/", "@", $id);
-	$id = preg_replace("/_rcmcddot_/", ".", $id);
-	$mail = $record[1];
-	$mail = preg_replace("/_rcmcdat_/", "@", $mail);
-	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
 	$vcf = new VCard;
-	$vcf->parse(explode("\n", $vcard)) || write_log("carddav", "Couldn't parse vcard ".$vcard);
+	if (!$vcf->parse(explode("\n", $vcard))){
+		write_log("carddav", "Couldn't parse vcard ".$vcard);
+		return false;
+	}
+
+/*'jobtitle'     => 
+'organization' => 
+'department'   => 
+'gender'       => 
+'maidenname'   => 
+'phone'        => 
+'address'      => 
+        'street'  
+        'locality'
+        'zipcode' 
+        'region'  
+        'country' 
+'birthday'     => 
+'anniversary'  => 
+'website'      => 
+'im'           => 
+'notes'        => 
+'photo'        => 
+'assistant'    => 
+'manager'      => 
+'spouse'       => 
+*/
 	$property = $vcf->getProperty("FN");
+	$retval = array('ID' => $uid);
 	if ($property){
-		$name = $property->getComponents();
-		$name = $name[0];
+		$FN = $property->getComponents();
+		$retval['nickname'] = $FN[0];
 	}
 	$property = $vcf->getProperty("N");
 	if ($property){
 		$N = $property->getComponents();
-		$surname = $N[0];
-		$firstname = $N[1];
+		$retval['surname'] = $N[0];
+		$retval['firstname'] = $N[1];
+		$retval['middlename'] = $N[2];
+		$retval['prefix'] = $N[3];
+		$retval['suffix'] = $N[4];
 	}
-	// Whoops, don't do this.
-	//$propfind = $vcf->getProperty("UID");
-	//if ($property){
-		//$UID = $property->getComponents();
-		//$uid = $UID[0];
-	//}
-	$this->result->add(array('ID' => $uid, 'name' => $name, 'surname' => $surname, 'firstname' => $firstname, 'email' => $mail));
+	$property = $vcf->getProperties("EMAIL");
+	if ($property){
+		foreach ($property as $key => $value){
+			$p = $value->getComponents();
+			$k = strtolower($value->params['TYPE'][0]);
+			if (in_array($k, $this->coltypes['email']['subtypes'])){
+				$retval['email:'.$k][] = $p[0];
+			} else {
+				$retval['email:other'][] = $p[0];
+			}
+		}
+	}
+	$this->result->add($retval);
 	$sql_arr = $assoc && $this->result ? $this->result->first() : null;
 	return $assoc && $sql_arr ? $sql_arr : $this->result;
   }}}
@@ -774,6 +812,8 @@ class carddav_backend extends rcube_addressbook
 
   public function insert($save_data, $check=false)
   {{{
+	    write_log("carddav", var_export($save_data, true));
+	    return false;
 	$this->search(null, $save_data['surname']);
 	$update = false;
 	$id = false;
