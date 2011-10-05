@@ -20,6 +20,7 @@
 $rcmail = rcmail::get_instance();
 $user = $rcmail->user;;
 require_once(dirname(__FILE__) . '/carddav_backend.php');
+define("CARDDAV_DB_VERSION", 1);
 
 class carddav extends rcube_plugin
 {
@@ -175,7 +176,8 @@ class carddav extends rcube_plugin
 		'username' => get_input_value('_cd_username', RCUBE_INPUT_POST),
 		'password' => get_input_value('_cd_password', RCUBE_INPUT_POST),
 		'url' => get_input_value('_cd_url', RCUBE_INPUT_POST),
-		'lax_resource_checking' => isset($_POST['_cd_lax_resource_checking']) ? 1 : 0
+		'lax_resource_checking' => isset($_POST['_cd_lax_resource_checking']) ? 1 : 0,
+		'db_version' => CARDDAV_DB_VERSION
 	);
 	$args['prefs']['carddav'] = $prefs;
 	return($args);
