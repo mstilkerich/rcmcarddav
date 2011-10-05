@@ -907,7 +907,7 @@ array (
 	$oid = preg_replace("/_rcmcddot_/", ".", $oid);
 	$id = preg_replace(";\.vcf$;", "", $oid);
 	$vcf = $this->create_vcard_from_save_data($id, $save_data);
-	write_log("carddav", "$oid: $vcf");
+
 	return $this->put_record_to_carddav($oid, $vcf);
   }}}
 
