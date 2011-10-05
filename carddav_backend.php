@@ -738,6 +738,21 @@ class carddav_backend extends rcube_addressbook
 			}
 		}
 	}
+
+	$property = $vcf->getProperties("ADR");
+	if ($property){
+		foreach ($property as $pkey => $pvalue){
+			$p = $pvalue->getComponents();
+			$k = strtolower($pvalue->params['TYPE'][0]);
+			// post office box; the extended address; the street address; the locality (e.g., city); the region (e.g., state or province); the postal code; the country name
+			$adr = array("pobox" => $p[0], "extended" => $p[1], "street" => $p[2], "locality" => $p[3], "region" => $p[4], "zipcode" => $p[5], "country" => $p[6]);
+			if (in_array($k, $this->coltypes['address']['subtypes'])){
+				$retval['address:'.$k][] = $adr;
+			} else {
+				$retval['address:other'][] = $adr;
+			}
+		}
+	}
 	$this->result->add($retval);
 	$sql_arr = $assoc && $this->result ? $this->result->first() : null;
 	return $assoc && $sql_arr ? $sql_arr : $this->result;
