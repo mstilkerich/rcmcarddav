@@ -147,7 +147,7 @@ class carddav_backend extends rcube_addressbook
   private $result;
   public $coltypes;
 
-  private $DEBUG = false;	# set to true for basic debugging
+  private $DEBUG = true;	# set to true for basic debugging
   private $DEBUG_HTTP = false;	# set to true for debugging raw http stream
 
   public function __construct()
@@ -391,7 +391,7 @@ class carddav_backend extends rcube_addressbook
 		if ($this->group){
 			$ID = preg_replace(";^".$this->group.";", "", $ID);
 		}
-		$ID = preg_replace(";\.vcf$;", "", $ID);
+		$ID = preg_replace(";\.;", "_rcmcddot_", $ID);
 		$addresses[] = array('ID' => $ID, 'name' => $name, 'firstname' => $firstname, 'surname' => $surname);
 		$emails = array();
 		$ID = $name = $firstname = $surname = $email = NULL;
@@ -673,7 +673,7 @@ class carddav_backend extends rcube_addressbook
 			'method'=>"GET",
 		)
 	);
-	$reply = $this->cdfopen("get_record_from_carddav", "/$uid.vcf", $opts);
+	$reply = $this->cdfopen("get_record_from_carddav", "$uid", $opts);
 	if (!strlen($reply["body"])) { return false; }
 	if ($reply["status"] == 404){
 		write_log("carddav", "Request for VCF '$uid' which doesn't exits on the server.");
@@ -682,30 +682,23 @@ class carddav_backend extends rcube_addressbook
 	return $reply["body"];
   }}}
 
-  public function get_record($uid, $assoc=false)
+  public function get_record($oid, $assoc_return=false)
   {{{
+	$uid = preg_replace(";_rcmcddot_;", ".", $oid);
 	$vcard = $this->get_record_from_carddav($uid);
 	if (!$vcard)
 		return false;
 	$vcf = new VCard;
+	$vcard = preg_replace(";\n ;", "", $vcard);
 	if (!$vcf->parse(explode("\n", $vcard))){
 		write_log("carddav", "Couldn't parse vcard ".$vcard);
 		return false;
 	}
 
-/*
-'phone'        => 
-'address'      => 
-        'street'  
-        'locality'
-        'zipcode' 
-        'region'  
-        'country' 
-*/
-	$assoc = array('FN' => 'nickname', 'TITLE' => 'jobtitle', 'ORG' => 'organization', 'BDAY' => 'birthday', 'URL' => 'website',
+	$assoc = array('FN' => 'nickname', 'TITLE' => 'jobtitle', 'ORG' => 'organization', 'BDAY' => 'birthday',
 		       'NOTE' => 'notes', 'PHOTO' => 'photo', 'X-ASSISTANT' => 'assistant', 'X-MANAGER' => 'manager', 'X-SPOUSE' => 'spouse',
 		       'X-GENDER' => 'gender');
-	$retval = array('ID' => $uid);
+	$retval = array('ID' => $oid);
 
 	foreach ($assoc as $key => $value){
 		$property = $vcf->getProperty($key);
@@ -714,6 +707,7 @@ class carddav_backend extends rcube_addressbook
 			$retval[$value] = $p[0];
 		}
 	}
+	$retval['photo'] = base64_decode($retval['photo']);
 	$property = $vcf->getProperty("N");
 	if ($property){
 		$N = $property->getComponents();
@@ -723,7 +717,7 @@ class carddav_backend extends rcube_addressbook
 		$retval['prefix'] = $N[3];
 		$retval['suffix'] = $N[4];
 	}
-	$assoc = array('EMAIL' => 'email', 'TEL' => 'phone');
+	$assoc = array('EMAIL' => 'email', 'TEL' => 'phone', 'URL' => 'website');
 	foreach ($assoc as $key => $value){
 		$property = $vcf->getProperties($key);
 		if ($property){
@@ -754,8 +748,8 @@ class carddav_backend extends rcube_addressbook
 		}
 	}
 	$this->result->add($retval);
-	$sql_arr = $assoc && $this->result ? $this->result->first() : null;
-	return $assoc && $sql_arr ? $sql_arr : $this->result;
+	$sql_arr = $assoc_return && $this->result ? $this->result->first() : null;
+	return $assoc_return && $sql_arr ? $sql_arr : $this->result;
   }}}
 
   public function put_record_to_carddav($id, $vcf)
@@ -783,34 +777,12 @@ class carddav_backend extends rcube_addressbook
 			'method'=>"DELETE",
 		)
 	);
-	$reply = $this->cdfopen("delete_record_from_carddav", "/$id", $opts);
+	$id = preg_replace(";_rcmcddot_;", ".", $id);
+	$reply = $this->cdfopen("delete_record_from_carddav", "$id", $opts);
 	if ($reply["status"] == 204){
 		return true;
 	}
 	return false;
-  }}}
-
-  public function update($oid, $save_cols)
-  {{{
-	$record = explode("_rcmcddelim_", $oid);
-	$id = $record[0];
-	$id = preg_replace("/_rcmcdat_/", "@", $id);
-	$id = preg_replace("/_rcmcddot_/", ".", $id);
-	$mail = $record[1];
-	$mail = preg_replace("/_rcmcdat_/", "@", $mail);
-	$mail = preg_replace("/_rcmcddot_/", ".", $mail);
-
-	$vcf = $this->get_record_from_carddav($oid);
-	if (!$vcf)
-		return false;
-	$vcfnew = preg_replace("/\nFN:.*?\r\n/", "\nFN:".$save_cols['name']."\r\n", $vcf);
-	$vcfnew = preg_replace("/\nN:[^;]*;[^;]*/", "\nN:".$save_cols['surname'].";".$save_cols['firstname'], $vcfnew);
-	if (strlen($mail) < 1){
-		$vcfnew = preg_replace("/\nEND:VCARD/", "\nEMAIL;TYPE=HOME:".$save_cols['email']."\r\nEND:VCARD", $vcfnew);
-	} else {
-		$vcfnew = preg_replace("/\nEMAIL(;TYPE=[^:]*)?:$mail\r\n/", "\nEMAIL\\1:".$save_cols['email']."\r\n", $vcfnew);
-	}
-	return $this->put_record_to_carddav($id, $vcfnew);
   }}}
 
   public function guid()
@@ -818,75 +790,131 @@ class carddav_backend extends rcube_addressbook
 	return sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X', mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(16384, 20479), mt_rand(32768, 49151), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535));
   }}}
 
-  public function insert($save_data, $check=false)
+  public function create_vcard_from_save_data($id, $save_data)
   {{{
-	    write_log("carddav", var_export($save_data, true));
-	    return false;
-	$this->search(null, $save_data['surname']);
-	$update = false;
-	$id = false;
-	$f = false;
-	if ($this->result->first()){
-		$this->result->seek(0);
-		while($record = $this->result->iterate()){
-			if ($record['firstname'] == $save_data['firstname'] &&
-			$record['surname'] == $save_data['surname'] &&
-			$record['name'] == $save_data['name']){
-				$id = $record["ID"];
-				$update = true;
+	    /* {{{
+array (
+  'name' => 'Test Account',
+  'firstname' => 'Test',
+  'surname' => 'Account',
+  'email:home' =>
+  array (
+    0 => 'home@test.test',
+    1 => 'home2@test.test',
+  ),
+  'email:work' =>
+  array (
+    0 => 'work@test.test',
+  ),
+  'email:other' =>
+  array (
+    0 => 'other@test.test',
+  ),
+  'email:internet' =>
+  array (
+    0 => 'internet@test.test',
+  ),
+  'middlename' => 'Testy',
+  'prefix' => 'Herr',
+  'suffix' => 'BLAH',
+  'nickname' => 'Testy',
+  'jobtitle' => 'Tester',
+  'organization' => 'Test Company',
+  'gender' => 'male',
+  'phone:home' =>
+  array (
+    0 => '+491234567890',
+    1 => '+501234567890',
+  ),
+  'phone:home2' =>
+  array (
+    0 => '+381234567890',
+  ),
+  'address:home' =>
+  array (
+    0 =>
+    array (
+      'street' => 'street',
+      'locality' => 'city',
+      'zipcode' => 'postal',
+      'region' => 'subregion',
+      'country' => 'country',
+    ),
+  ),
+  'birthday' => '01.01.1970',
+  'anniversary' => '01.08.1995',
+  'website:homepage' =>
+  array (
+    0 => 'Website',
+  ),
+  'notes' => 'Just some short short notes.',
+  'photo' => <binary data>,
+  'assistant' => 'Assistent to Mr. Account',
+  'manager' => 'Superior Officer',
+  'spouse' => 'Misses Account',
+)
+}}} */
+	$vcf = "BEGIN:VCARD\r\n".
+		"VERSION:3.0\r\n".
+		"UID:$id\r\n".
+	$vcf .= "N:".$save_data['surname'].";".$save_data['firstname'].";".$save_data['middlename'].";".$save_data['prefix'].";".$save_data['suffix']."\r\n";
+	$assoc = array('FN' => 'nickname', 'TITLE' => 'jobtitle', 'ORG' => 'organization', 'BDAY' => 'birthday',
+		       'NOTE' => 'notes', 'X-ASSISTANT' => 'assistant', 'X-MANAGER' => 'manager', 'X-SPOUSE' => 'spouse',
+		       'X-GENDER' => 'gender', 'X-ANNIVERSARY' => 'anniversary');
+	foreach ($assoc as $key => $value){
+		$vcf .= $key.":".$save_data[$value]."\r\n";
+	}
+	$assoc = array('EMAIL' => 'email', 'URL' => 'website');
+	foreach ($assoc as $key => $value){
+		foreach ($this->coltypes[$value]['subtypes'] AS $ckey => $cvalue){
+			foreach($save_data[$value.':'.$cvalue] AS $ekey => $evalue){
+				$vcf .= $key.";TYPE=".strtoupper($cvalue).":".$evalue."\r\n";
 			}
 		}
 	}
 
-	if ($update){
-		$vcf = $this->get_record_from_carddav($id);
-		$record = explode("_rcmcddelim_", $id);
-		$vcf = preg_replace("/END:VCARD/", "EMAIL;TYPE=HOME:".$save_data['email']."\r\nEND:VCARD", $vcf);
-		return $this->put_record_to_carddav($record[0], $vcf);
-	} else {
-		$id = $this->guid().".vcf";
-		while ($this->get_record_from_carddav($id."_rcmcddelim_")){
-			$id = $this->guid();
+	foreach ($this->coltypes['address']['subtypes'] AS $key => $value){
+		if (in_array('address:'.$value, $save_data)){
+			foreach($save_data['address:'.$value] AS $akey => $avalue){
+				$vcf .= "ADR;TYPE=".strtoupper($value).":;;".$avalue['street'].";".$avalue['locality'].";".$avalue['region'].";".$avalue['zipcode'].";".$avalue['country']."\r\n";
+			}
 		}
-		$vcf = "BEGIN:VCARD\r\n".
-			"VERSION:3.0\r\n".
-			"FN:".$save_data['name']."\r\n".
-			"N:".$save_data['surname'].";".$save_data['firstname'].";;;\r\n".
-			"EMAIL;TYPE=HOME:".$save_data['email']."\r\n".
-			"UID:$id\r\n".
-			"END:VCARD\r\n";
-		if ($this->put_record_to_carddav($id, $vcf)){
-			$ID = $id."_rcmcddelim_".$save_data['email'];
-			$ID = preg_replace("/@/", "_rcmcdat_", $ID);
-			$ID = preg_replace("/\./", "_rcmcddot_", $ID);
-			$ID = preg_replace(";^/;", "", $ID);
-			$save_data["ID"] = $ID;
-			return $ID;
-		} else {
-			return false;
-		}
+	}
+
+	$vcf .= "PHOTO;ENCODING=b:".base64_encode($save_data['photo'])."\r\n";
+	$vcf .= "END:VCARD\r\n";
+
+	return $vcf;
+  }}}
+
+  public function insert($save_data, $check=false)
+  {{{
+	$id = $this->guid();
+	while ($this->get_record_from_carddav($id.".vcf")){
+		$id = $this->guid();
+	}
+
+	$vcf = $this->create_vcard_from_save_data($id, $save_data);
+
+	if ($this->put_record_to_carddav($id, $vcf)){
+		return $id;
 	}
 	return false;
   }}}
 
+  public function update($oid, $save_data)
+  {{{
+	$oid = preg_replace("/_rcmcddot_/", ".", $oid);
+	$id = preg_replace(";\.vcf$;", "", $oid);
+	$vcf = $this->create_vcard_from_save_data($id, $save_data);
+	write_log("carddav", "$oid: $vcf");
+	return $this->put_record_to_carddav($oid, $vcf);
+  }}}
+
   public function delete($ids)
   {{{
-	$ids = explode(",", $ids);
 	foreach ($ids as $uid){
-		$record = explode("_rcmcddelim_", $uid);
-		$id = $record[0];
-		$id = preg_replace("/_rcmcdat_/", "@", $id);
-		$id = preg_replace("/_rcmcddot_/", ".", $id);
-		$mail = $record[1];
-		$mail = preg_replace("/_rcmcdat_/", "@", $mail);
-		$mail = preg_replace("/_rcmcddot_/", ".", $mail);
-		$vcf = $this->get_record_from_carddav($uid);
-		$vcfnew = preg_replace("/EMAIL[^\r]*".$mail."[^\r]*\r\n/", "", $vcf);
-		if (!preg_match("/\nEMAIL/", $vcfnew)){
-			return $this->delete_record_from_carddav($id);
-		} else {
-			return $this->put_record_to_carddav($id, $vcfnew);
-		}
+		return $this->delete_record_from_carddav($uid);
 	}
 	return false;
   }}}
