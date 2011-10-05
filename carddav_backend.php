@@ -864,7 +864,7 @@ array (
 	foreach ($assoc as $key => $value){
 		$vcf .= $key.":".$save_data[$value]."\r\n";
 	}
-	$assoc = array('EMAIL' => 'email', 'URL' => 'website');
+	$assoc = array('EMAIL' => 'email', 'URL' => 'website', 'TEL' => 'phone');
 	foreach ($assoc as $key => $value){
 		foreach ($this->coltypes[$value]['subtypes'] AS $ckey => $cvalue){
 			foreach($save_data[$value.':'.$cvalue] AS $ekey => $evalue){
