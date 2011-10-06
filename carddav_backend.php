@@ -398,7 +398,7 @@ class carddav_backend extends rcube_addressbook
 			$ID = preg_replace(";^".$this->group.";", "", $ID);
 		}
 		$ID = preg_replace(";\.;", "_rcmcddot_", $ID);
-		$addresses[] = array('ID' => $ID, 'name' => $save_data['surname']." ".$save_data['firstname'], 'save_data' => $save_data);
+		$addresses[] = array('ID' => $ID, 'name' => $save_data['nickname'], 'save_data' => $save_data);
 		$ID = $name = null;
 	}
 	$x = 0;
@@ -519,8 +519,7 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$this->result = $this->count();
 
-	$records = 0;
-	$records += $this->list_records_sync_collection($cols, $subset);
+	$records = $this->list_records_sync_collection($cols, $subset);
 	if ($records < 0){ /* returned error -1 */
 		$records = $this->list_records_propfind_resourcetype($cols, $subset);
 	}
