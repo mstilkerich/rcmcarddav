@@ -147,7 +147,7 @@ class carddav_backend extends rcube_addressbook
   private $result;
   public $coltypes;
 
-  private $DEBUG = true;	# set to true for basic debugging
+  private $DEBUG = false;	# set to true for basic debugging
   private $DEBUG_HTTP = false;	# set to true for debugging raw http stream
 
   public function __construct()
@@ -192,7 +192,24 @@ class carddav_backend extends rcube_addressbook
 
   public function set_search_set($filter)
   {{{
-	$this->filter = $filter;
+	$newfilter = array('keys' => array(), 'value' => $filter['value']);
+	foreach ($filter['keys'] as $key => $value){
+		$xfilter = $value;
+		if (strstr($xfilter, "*"))
+			$xfilter = str_replace("*", ".*?", $value);
+		foreach($this->coltypes as $key => $value){
+			if (preg_match(";$xfilter;", $key)){
+				if ($this->coltypes[$key]['subtypes']){
+					foreach ($this->coltypes[$key]['subtypes'] AS $skey => $svalue){
+						$newfilter['keys'][] = "$key:$svalue";
+					}
+				} else {
+					$newfilter['keys'][] = $key;
+				}
+			}
+		}
+	}
+	$this->filter = $newfilter;
   }}}
 
   public function get_search_set()
@@ -348,8 +365,7 @@ class carddav_backend extends rcube_addressbook
   public function addvcards($reply)
   {{{
 	$addresses = array();
-	$emails = array();
-	$ID = $name = $firstname = $surname = $email = NULL;
+	$ID = $name = null;
 	$filter = $this->get_search_set();
 	$ctag = "";
 	global $vcards;
@@ -372,48 +388,45 @@ class carddav_backend extends rcube_addressbook
 			$reply = $this->cdfopen("addvcards", $vcard['href'], $opts);
 			$vcard['vcf'] = $reply['body'];
 		}
-		if (!$vcf->parse(explode("\n", $vcard['vcf']))){
+		$save_data = $this->create_save_data_from_vcard($vcard['vcf']);
+		if (!$save_data){
 			write_log("carddav", "Couldn't parse vcard ".$vcard['vcf']);
 			continue;
-		}
-		$property = $vcf->getProperty("FN");
-		if ($property){
-			$name = $property->getComponents();
-			$name = $name[0];
-		}
-		$property = $vcf->getProperty("N");
-		if ($property){
-			$N = $property->getComponents();
-			$surname = $N[0];
-			$firstname = $N[1];
 		}
 		$ID = $vcard['href'];
 		if ($this->group){
 			$ID = preg_replace(";^".$this->group.";", "", $ID);
 		}
 		$ID = preg_replace(";\.;", "_rcmcddot_", $ID);
-		$addresses[] = array('ID' => $ID, 'name' => $name, 'firstname' => $firstname, 'surname' => $surname);
-		$emails = array();
-		$ID = $name = $firstname = $surname = $email = NULL;
+		$addresses[] = array('ID' => $ID, 'name' => $save_data['surname']." ".$save_data['firstname'], 'save_data' => $save_data);
+		$ID = $name = null;
 	}
 	$x = 0;
 	foreach($this->array_sort($addresses, "name") as $a){
 		if (strlen($filter["value"]) > 0){
 			foreach ($filter["keys"] as $key => $value){
-				if ($this->DEBUG){
-					write_log("carddav", "Checking ".$a[$value]." against ".$filter["value"]);
-				}
-				if (preg_match(";".$filter["value"].";i", $a[$value])){
-					if ($this->DEBUG){
-						write_log("carddav", "MATCH!");
+				if (is_array($a['save_data'][$value])){
+					/* TODO: We should correctly iterate here ... Good enough for now*/
+					foreach($a['save_data'][$value] AS $akey => $avalue){
+						if (@preg_match(";".$filter["value"].";i", $avalue)){
+							$x++;
+							$a['save_data']['ID'] = $a['ID'];
+							$a['save_data']['name'] = $a['save_data']['nickname']; // Holy Sh*t, RC 0.6 is inconsistent...
+							$this->result->add($a['save_data']);
+						}
 					}
-					$x++;
-					$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname']));
+				} else {
+					if (preg_match(";".$filter["value"].";i", $a['save_data'][$value])){
+						$x++;
+						$a['save_data']['ID'] = $a['ID'];
+						$this->result->add($a['save_data']);
+					}
 				}
 			}
 		} else {
 			$x++;
-			$this->result->add(array('ID' => $a['ID'], 'name' => $a['name'], 'firstname' => $a['firstname'], 'surname' => $a['surname']));
+			$a['save_data']['ID'] = $a['ID'];
+			$this->result->add($a['save_data']);
 		}
 	}
 	return $x;
@@ -551,7 +564,7 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	foreach ($colls as $key => $value){
-		if ($this->filter){
+		if ($this->filter || rcmail::get_instance()->action == "autocomplete"){
 			$this->set_group($value["ID"]);
 		}
 		$reply = $this->cdfopen("list_records_sync_collection", "", $opts);
@@ -688,65 +701,9 @@ class carddav_backend extends rcube_addressbook
 	$vcard = $this->get_record_from_carddav($uid);
 	if (!$vcard)
 		return false;
-	$vcf = new VCard;
-	$vcard = preg_replace(";\n ;", "", $vcard);
-	if (!$vcf->parse(explode("\n", $vcard))){
-		write_log("carddav", "Couldn't parse vcard ".$vcard);
-		return false;
-	}
-
-	$assoc = array('FN' => 'nickname', 'TITLE' => 'jobtitle', 'ORG' => 'organization', 'BDAY' => 'birthday',
-		       'NOTE' => 'notes', 'PHOTO' => 'photo', 'X-ASSISTANT' => 'assistant', 'X-MANAGER' => 'manager', 'X-SPOUSE' => 'spouse',
-		       'X-GENDER' => 'gender');
-	$retval = array('ID' => $oid);
-
-	foreach ($assoc as $key => $value){
-		$property = $vcf->getProperty($key);
-		if ($property){
-			$p = $property->getComponents();
-			$retval[$value] = $p[0];
-		}
-	}
-	$retval['photo'] = base64_decode($retval['photo']);
-	$property = $vcf->getProperty("N");
-	if ($property){
-		$N = $property->getComponents();
-		$retval['surname'] = $N[0];
-		$retval['firstname'] = $N[1];
-		$retval['middlename'] = $N[2];
-		$retval['prefix'] = $N[3];
-		$retval['suffix'] = $N[4];
-	}
-	$assoc = array('EMAIL' => 'email', 'TEL' => 'phone', 'URL' => 'website');
-	foreach ($assoc as $key => $value){
-		$property = $vcf->getProperties($key);
-		if ($property){
-			foreach ($property as $pkey => $pvalue){
-				$p = $pvalue->getComponents();
-				$k = strtolower($pvalue->params['TYPE'][0]);
-				if (in_array($k, $this->coltypes[$value]['subtypes'])){
-					$retval[$value.':'.$k][] = $p[0];
-				} else {
-					$retval[$value.':other'][] = $p[0];
-				}
-			}
-		}
-	}
-
-	$property = $vcf->getProperties("ADR");
-	if ($property){
-		foreach ($property as $pkey => $pvalue){
-			$p = $pvalue->getComponents();
-			$k = strtolower($pvalue->params['TYPE'][0]);
-			// post office box; the extended address; the street address; the locality (e.g., city); the region (e.g., state or province); the postal code; the country name
-			$adr = array("pobox" => $p[0], "extended" => $p[1], "street" => $p[2], "locality" => $p[3], "region" => $p[4], "zipcode" => $p[5], "country" => $p[6]);
-			if (in_array($k, $this->coltypes['address']['subtypes'])){
-				$retval['address:'.$k][] = $adr;
-			} else {
-				$retval['address:other'][] = $adr;
-			}
-		}
-	}
+	$retval = $this->create_save_data_from_vcard($vcard);
+	if (!$retval)
+		return fals;
 	$this->result->add($retval);
 	$sql_arr = $assoc_return && $this->result ? $this->result->first() : null;
 	return $assoc_return && $sql_arr ? $sql_arr : $this->result;
@@ -885,6 +842,70 @@ array (
 	$vcf .= "END:VCARD\r\n";
 
 	return $vcf;
+  }}}
+
+  public function create_save_data_from_vcard($vcard)
+  {{{
+	$vcf = new VCard;
+	$vcard = preg_replace(";\n ;", "", $vcard);
+	if (!$vcf->parse(explode("\n", $vcard))){
+		write_log("carddav", "Couldn't parse vcard ".$vcard);
+		return false;
+	}
+
+	$assoc = array('FN' => 'nickname', 'TITLE' => 'jobtitle', 'ORG' => 'organization', 'BDAY' => 'birthday',
+		       'NOTE' => 'notes', 'PHOTO' => 'photo', 'X-ASSISTANT' => 'assistant', 'X-MANAGER' => 'manager', 'X-SPOUSE' => 'spouse',
+		       'X-GENDER' => 'gender');
+	$retval = array('ID' => $oid);
+
+	foreach ($assoc as $key => $value){
+		$property = $vcf->getProperty($key);
+		if ($property){
+			$p = $property->getComponents();
+			$retval[$value] = $p[0];
+		}
+	}
+	$retval['photo'] = base64_decode($retval['photo']);
+	$property = $vcf->getProperty("N");
+	if ($property){
+		$N = $property->getComponents();
+		$retval['surname'] = $N[0];
+		$retval['firstname'] = $N[1];
+		$retval['middlename'] = $N[2];
+		$retval['prefix'] = $N[3];
+		$retval['suffix'] = $N[4];
+	}
+	$assoc = array('EMAIL' => 'email', 'TEL' => 'phone', 'URL' => 'website');
+	foreach ($assoc as $key => $value){
+		$property = $vcf->getProperties($key);
+		if ($property){
+			foreach ($property as $pkey => $pvalue){
+				$p = $pvalue->getComponents();
+				$k = strtolower($pvalue->params['TYPE'][0]);
+				if (in_array($k, $this->coltypes[$value]['subtypes'])){
+					$retval[$value.':'.$k][] = $p[0];
+				} else {
+					$retval[$value.':other'][] = $p[0];
+				}
+			}
+		}
+	}
+
+	$property = $vcf->getProperties("ADR");
+	if ($property){
+		foreach ($property as $pkey => $pvalue){
+			$p = $pvalue->getComponents();
+			$k = strtolower($pvalue->params['TYPE'][0]);
+			// post office box; the extended address; the street address; the locality (e.g., city); the region (e.g., state or province); the postal code; the country name
+			$adr = array("pobox" => $p[0], "extended" => $p[1], "street" => $p[2], "locality" => $p[3], "region" => $p[4], "zipcode" => $p[5], "country" => $p[6]);
+			if (in_array($k, $this->coltypes['address']['subtypes'])){
+				$retval['address:'.$k][] = $adr;
+			} else {
+				$retval['address:other'][] = $adr;
+			}
+		}
+	}
+	return $retval;
   }}}
 
   public function insert($save_data, $check=false)
