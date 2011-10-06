@@ -679,7 +679,6 @@ class carddav_backend extends rcube_addressbook
 
   public function get_record_from_carddav($uid)
   {{{
-	$this->result = $this->count();
 	$opts = array(
 		'http'=>array(
 			'method'=>"GET",
@@ -696,13 +695,19 @@ class carddav_backend extends rcube_addressbook
 
   public function get_record($oid, $assoc_return=false)
   {{{
+	$this->result = $this->count();
 	$uid = preg_replace(";_rcmcddot_;", ".", $oid);
 	$vcard = $this->get_record_from_carddav($uid);
 	if (!$vcard)
 		return false;
 	$retval = $this->create_save_data_from_vcard($vcard);
 	if (!$retval)
-		return fals;
+		return false;
+	$ID = $oid;
+	if ($this->group){
+		$ID = preg_replace(";^".$this->group.";", "", $ID);
+	}
+	$retval['ID'] = $ID;
 	$this->result->add($retval);
 	$sql_arr = $assoc_return && $this->result ? $this->result->first() : null;
 	return $assoc_return && $sql_arr ? $sql_arr : $this->result;
