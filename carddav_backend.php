@@ -362,31 +362,25 @@ class carddav_backend extends rcube_addressbook
 	return $new_array;
   }}}
 
-  public function addvcards($reply)
+  public function addvcards($reply, $try = 0)
   {{{
 	$addresses = array();
 	$ID = $name = null;
 	$filter = $this->get_search_set();
-	$ctag = "";
 	global $vcards;
 	$vcards = array();
-	$cur_vcard = array();
 	$xml_parser = xml_parser_create_ns();
 	xml_set_element_handler($xml_parser, "startElement_addvcards", "endElement_addvcards");
 	xml_set_character_data_handler($xml_parser, "characterData_addvcards");
 	xml_parse($xml_parser, $reply, true);
 	xml_parser_free($xml_parser);
+	$tryagain = array();
 	foreach ($vcards as $vcard){
 		$vcf = new VCard;
 		if (!preg_match(";BEGIN;", $vcard['vcf'])){
 # Seems like the server didn't give us the vcf data
-			$opts = array(
-				'http'=>array(
-					'method'=>"GET",
-				)
-			);
-			$reply = $this->cdfopen("addvcards", $vcard['href'], $opts);
-			$vcard['vcf'] = $reply['body'];
+			$tryagain[] = $vcard['href'];
+			continue;
 		}
 		$save_data = $this->create_save_data_from_vcard($vcard['vcf']);
 		if (!$save_data){
@@ -419,6 +413,7 @@ class carddav_backend extends rcube_addressbook
 					if (preg_match(";".$filter["value"].";i", $a['save_data'][$value])){
 						$x++;
 						$a['save_data']['ID'] = $a['ID'];
+						$a['save_data']['name'] = $a['save_data']['nickname']; // see above
 						$this->result->add($a['save_data']);
 					}
 				}
@@ -426,8 +421,14 @@ class carddav_backend extends rcube_addressbook
 		} else {
 			$x++;
 			$a['save_data']['ID'] = $a['ID'];
+			$a['save_data']['name'] = $a['save_data']['nickname']; // see above
 			$this->result->add($a['save_data']);
 		}
+	}
+	if ($try < 3 && count($tryagain) > 0){
+		$reply = $this->query_addressbook_multiget($tryagain);
+		$reply = $reply["body"];
+		$x += $this->addvcards($reply, ++$try);
 	}
 	return $x;
   }}}
@@ -578,6 +579,34 @@ class carddav_backend extends rcube_addressbook
 	return $records;
   }}}
 
+  public function query_addressbook_multiget($hrefs)
+  {{{
+	$xmlquery =
+		'<?xml version="1.0" encoding="utf-8" ?'.'>
+			<C:addressbook-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+				<D:prop>
+					<D:getetag/>
+					<C:address-data>
+						<C:allprop/>
+					</C:address-data>
+				</D:prop> ';
+	foreach ($hrefs as $href){
+		$xmlquery .= "<D:href>$href</D:href> ";
+	}
+	$xmlquery .= "</C:addressbook-multiget>";
+
+	$optsREPORT = array(
+		'http' => array(
+			'method'=>"REPORT",
+			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\""),
+			'content'=>$xmlquery
+		)
+	);
+
+	$reply = $this->cdfopen("query_addressbook_multiget", "", $optsREPORT);
+	return $reply;
+  }}}
+
   public function list_records_propfind_resourcetype($cols, $subset)
   {{{
 	$records = 0;
@@ -596,12 +625,6 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	$optsREPORT = array(
-		'http' => array(
-			'method'=>"REPORT",
-			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\"")
-		)
-	);
 	if (($this->filter && !$this->group) || rcmail::get_instance()->action == "autocomplete"){
 		$colls = $this->list_groups();
 	} else {
@@ -625,23 +648,12 @@ class carddav_backend extends rcube_addressbook
 			xml_set_character_data_handler($xml_parser, "characterData_addvcards");
 			xml_parse($xml_parser, $reply, true);
 			xml_parser_free($xml_parser);
-			$xmlquery =
-				'<?xml version="1.0" encoding="utf-8" ?'.'>
-					<C:addressbook-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
-						<D:prop>
-							<D:getetag/>
-							<C:address-data>
-								<C:allprop/>
-							</C:address-data>
-						</D:prop> ';
-			foreach ($vcards as $vcard){
-				if (strlen($vcard['href']) > 0){
-					$xmlquery .= "<D:href>".$vcard['href']."</D:href> ";
-				}
+			$urls = array();
+			foreach($vcards as $vcard){
+				$urls[] = $vcard['href'];
 			}
-			$xmlquery .= "</C:addressbook-multiget>";
-			$optsREPORT['http']['content'] = $xmlquery;
-			$reply = $this->cdfopen("list_records", "", $optsREPORT);
+			$reply = $this->query_addressbook_multiget($urls);
+			write_log("carddav", var_export($reply, true));
 			$reply = $reply["body"];
 			$records += $this->addvcards($reply);
 		}
