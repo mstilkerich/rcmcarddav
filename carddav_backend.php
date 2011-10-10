@@ -847,14 +847,14 @@ array (
 	}
 
 	foreach ($this->coltypes['address']['subtypes'] AS $key => $value){
-		if (in_array('address:'.$value, $save_data)){
-			foreach($save_data['address:'.$value] AS $akey => $avalue){
-				$vcf .= "ADR;TYPE=".strtoupper($value).":;;".$avalue['street'].";".$avalue['locality'].";".$avalue['region'].";".$avalue['zipcode'].";".$avalue['country']."\r\n";
-			}
+		foreach($save_data['address:'.$value] AS $akey => $avalue){
+			$vcf .= "ADR;TYPE=".strtoupper($value).":;;".$avalue['street'].";".$avalue['locality'].";".$avalue['region'].";".$avalue['zipcode'].";".$avalue['country']."\r\n";
 		}
 	}
 
-	$vcf .= "PHOTO;ENCODING=b:".base64_encode($save_data['photo'])."\r\n";
+	if (in_array('photo', $save_data)){
+		$vcf .= "PHOTO;ENCODING=b:".base64_encode($save_data['photo'])."\r\n";
+	}
 	$vcf .= "END:VCARD\r\n";
 
 	return $vcf;
