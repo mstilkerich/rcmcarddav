@@ -413,7 +413,7 @@ class carddav_backend extends rcube_addressbook
 	$http=new http_class;
 	$http->timeout=10;
 	$http->data_timeout=0;
-	$http->user_agent="RCM CardDAV plugin/TRUNK";
+	$http->user_agent="RCM CardDAV plugin/0.5.0";
 	$http->follow_redirect=1;
 	$http->redirection_limit=5;
 	$http->prefer_curl=1;
@@ -584,7 +584,7 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	foreach ($colls as $key => $value){
-		if ($this->filter){
+		if ($this->filter || rcmail::get_instance()->action == "autocomplete"){
 			$this->set_group($value["ID"]);
 		}
 		$reply = $this->cdfopen("list_records_propfind_resourcetype", "", $opts);
