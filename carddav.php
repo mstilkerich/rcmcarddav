@@ -44,6 +44,7 @@ class carddav extends rcube_plugin
       $sources[] = $this->abook_id;
       $config->set('autocomplete_addressbooks', $sources);
     }
+
   }}}
 
   public function address_sources($p)
