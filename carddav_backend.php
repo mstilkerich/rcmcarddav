@@ -584,7 +584,7 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	foreach ($colls as $key => $value){
-		if ($this->filter){
+		if ($this->filter || rcmail::get_instance()->action == "autocomplete"){
 			$this->set_group($value["ID"]);
 		}
 		$reply = $this->cdfopen("list_records_propfind_resourcetype", "", $opts);
