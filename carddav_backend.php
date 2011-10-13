@@ -828,6 +828,12 @@ array (
   'spouse' => 'Misses Account',
 )
 }}} */
+	if (strlen($save_data['name']) <= 0){
+		$save_data['name'] = $save_data['surname']." ".$save_data['firstname'];
+	}
+	if (strlen($save_data['name']) <= 1){
+		return false;
+	}
 	$vcf = "BEGIN:VCARD\r\n".
 		"VERSION:3.0\r\n".
 		"UID:$id\r\n".
@@ -933,6 +939,9 @@ array (
 	}
 
 	$vcf = $this->create_vcard_from_save_data($id, $save_data);
+	if ($vcf == false){
+		return false;
+	}
 
 	if ($this->put_record_to_carddav($id, $vcf)){
 		return $id;
@@ -945,6 +954,9 @@ array (
 	$oid = preg_replace("/_rcmcddot_/", ".", $oid);
 	$id = preg_replace(";\.vcf$;", "", $oid);
 	$vcf = $this->create_vcard_from_save_data($id, $save_data);
+	if ($vcf == false){
+		return false;
+	}
 
 	return $this->put_record_to_carddav($oid, $vcf);
   }}}
