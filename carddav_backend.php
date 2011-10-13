@@ -54,6 +54,13 @@ function carddavconfig(){{{
 	}
 	return $retval;
 }}}
+function concaturl($str, $cat){
+	if (substr($cat, 0, 1) != "/"){
+		return $str."/".$cat;
+	}
+	preg_match(";(^https?://[^/]+);", $str, $match);
+	return $match[0]."/".$cat;
+}
 
 function startElement_addvcards($parser, $n, $attrs) {{{
 	global $ctag;
@@ -98,63 +105,26 @@ function characterData_addvcards($parser, $data) {{{
 #}
 }}}
 
-function startElement_listgroups($parser, $n, $attrs) {{{
-	global $name; global $path; global $isab; global $ctag;
-
-	if ($n == "URN:IETF:PARAMS:XML:NS:CARDDAV:ADDRESSBOOK"){
-		$isab = true;
-	}
-	if (strlen($n)>0){ $ctag .= "||$n";}
-}}}
-function endElement_listgroups($parser, $n) {{{
-	global $name; global $path; global $isab; global $ctag;
-	global $colls;
-
-	$carddav = carddavconfig();
-
-	$ctag = preg_replace(";\|\|$n$;", "", $ctag);
-	if ($n == "DAV::RESPONSE"){
-		if ($isab || $carddav['lax_resource_checking']){
-			$path = preg_replace(";/;", "_rcmcdslash_", $path);
-			$path = preg_replace(";\\.;", "_rcmcddot_", $path);
-			$c["ID"] = $path;
-			$c["name"] = $name;
-			$colls[] = $c;
-		}
-		$name = "Unnamed";
-		$path = "";
-		$isab = false;
-	}
-}}}
-function characterData_listgroups($parser, $data) {{{
-	global $name; global $path; global $isab; global $ctag;
-	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::HREF"){
-		$path = $data;
-	}
-
-	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::DISPLAYNAME"){
-		$name = $data;
-	}
-}}}
 class carddav_backend extends rcube_addressbook
 {
   public $primary_key = 'ID';
   public $readonly = false;
-  public $groups = true;
+  public $groups = false;
 
   private $group;
   private $filter;
   private $result;
+  private $config;
   public $coltypes;
 
-  private $DEBUG = false;	# set to true for basic debugging
+  private $DEBUG = true;	# set to true for basic debugging
   private $DEBUG_HTTP = false;	# set to true for debugging raw http stream
 
   public function __construct()
   {{{
 	$this->ready = true;
-	$this->group = $_COOKIE["_cd_set_group"];
-	$this->coltypes = array(
+	$this->config = carddavconfig();
+	$this->coltypes = array( /* {{{ */
 		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('name'), 'category' => 'main'),
 		'firstname'    => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('firstname'), 'category' => 'main'),
 		'surname'      => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('surname'), 'category' => 'main'),
@@ -182,7 +152,7 @@ class carddav_backend extends rcube_addressbook
 		'manager'      => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('manager'), 'category' => 'personal'),
 		'spouse'       => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('spouse'), 'category' => 'personal'),
 		// TODO: define fields for vcards like GEO, KEY
-	);
+	); /* }}} */
   }}}
 
   public function get_name()
@@ -225,106 +195,32 @@ class carddav_backend extends rcube_addressbook
 
   public function get_group()
   {{{
-	$gid = $this->group ;
-	$gid = str_replace("/", "_rcmcdslash_", $gid);
-	$gid = str_replace(".", "_rcmcddot_", $gid);
-	$gid = str_replace("%20", " ", $gid);
-	return $gid;
+	return false;
   }}}
 
   public function set_group($gid)
   {{{
-	$gid = str_replace("_rcmcdslash_", "/", $gid);
-	$gid = str_replace("_rcmcddot_", ".", $gid);
-	$gid = str_replace(" ", "%20", $gid);
-	$this->group = $gid;
-	setcookie("_cd_set_group", $gid);
-	return $gid;
+	return false;
   }}}
 
   public function list_groups($search = null)
   {{{
-	$xmlquery = '<?xml version="1.0" encoding="utf-8" ?'.'> <a:propfind xmlns:a="DAV:"> <a:allprop/> </a:propfind>';
-
-	$opts = array(
-		'http'=>array(
-			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\""),
-			'content'=> $xmlquery
-		)
-	);
-
-	$reply = $this->cdfopen("list_groups", "", $opts);
-	$reply = $reply["body"];
-
-	global $colls;
-	$colls = array();
-	$name = "Unnamed";
-	$path = "";
-	$isab = false;
-	$ctag = "";
-	$xml_parser = xml_parser_create_ns();
-	xml_set_element_handler($xml_parser, "startElement_listgroups", "endElement_listgroups");
-	xml_set_character_data_handler($xml_parser, "characterData_listgroups");
-	xml_parse($xml_parser, $reply, true);
-	xml_parser_free($xml_parser);
-
-	return $colls;
+	return false;
   }}}
 
   public function create_group($name)
   {{{
-	$result = false;
-
-	$xmlquery = '<?xml version="1.0" encoding="utf-8" ?'.'> <D:mkcol xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <D:set> <D:prop> <D:resourcetype> <D:collection/> <C:addressbook/> </D:resourcetype> <D:displayname>'.$name.'</D:displayname> </D:prop> </D:set> </D:mkcol>';
-	$opts = array(
-		'http'=>array(
-			'method'=>"MKCOL",
-			'header'=>array("Content-Type: text/xml; charset=\"utf-8\""),
-			'content'=> $xmlquery
-		)
-	);
-	$reply = $this->cdfopen("create_group", "/".preg_replace(";[^A-Za-z0-9_-];", "_", $name), $opts);
-	if ($reply["status"] == 201){
-		$carddav = carddavconfig();
-
-		$ID = $carddav['url']."/$name";
-		$ID = preg_replace(";^http.?://[^/]*;", "", $ID);
-		$ID = preg_replace(";//;", "/", $ID);
-		$ID = preg_replace(";/;", "_rcmcdslash_", $ID);
-		$ID = preg_replace(";\\.;", "_rcmcddot_", $ID);
-		$result = array();
-		$result["id"] = $ID;
-		$result["name"] = $name;
-	}
-
-	return $result;
+	return false;
   }}}
 
   public function delete_group($gid)
   {{{
-	$result = false;
-
-	$opts = array(
-		'http'=>array(
-			'method'=>"DELETE",
-		)
-	);
-	$gid = str_replace("_rcmcdslash_", "/", $gid);
-	$gid = str_replace("_rcmcddot_", ".", $gid);
-	$gid = preg_replace(";/$;", "", $gid);
-	$gid = preg_replace(";^.*/;", "", $gid);
-	$reply = $this->cdfopen("delete_group", "/$gid", $opts);
-	if ($reply["status"] == 204){
-		$result = true;
-	}
-
-	return $result;
+	return false;
   }}}
 
   public function rename_group($gid, $newname)
   {{{
-	return;
+	return false;
   }}}
 
   public function array_sort($array, $on, $order=SORT_ASC)
@@ -387,11 +283,7 @@ class carddav_backend extends rcube_addressbook
 			write_log("carddav", "Couldn't parse vcard ".$vcard['vcf']);
 			continue;
 		}
-		$ID = $vcard['href'];
-		if ($this->group){
-			$ID = preg_replace(";^".$this->group.";", "", $ID);
-		}
-		$ID = preg_replace(";\.;", "_rcmcddot_", $ID);
+		$ID = base64_encode($vcard['href']);
 		$name = $save_data['name'];
 		if (strlen($name) == 0){
 			$name = $save_data['surname']." ".$save_data['firstname'];
@@ -436,7 +328,7 @@ class carddav_backend extends rcube_addressbook
 
   public function cdfopen($caller, $url, $opts)
   {{{
-	$carddav = carddavconfig();
+	$carddav = $this->config;
 
 	$http=new http_class;
 	$http->timeout=10;
@@ -445,17 +337,11 @@ class carddav_backend extends rcube_addressbook
 	$http->follow_redirect=1;
 	$http->redirection_limit=5;
 	$http->prefer_curl=1;
-	if ($caller == "list_groups" || $caller == "create_group" || $caller == "delete_group"){
-		$url = $carddav['url'].$url;
-	} else {
-		preg_match(";^(http.?://[^/]*)/;", $carddav['url'], $match);
-		$url = preg_replace(";".$this->group.";", "", $url);
-		$url = $match[1].$this->group.$url;
-	}
+	$url = concaturl($carddav['url'], $url);
 	if ($this->DEBUG){
 		write_log("carddav", "DEBUG cdfopen: $caller requesting $url");
 	}
-	$url = preg_replace("/:\/\//", "://".urlencode($carddav['username']).":".urlencode($carddav['password'])."@", $url);
+	$url = preg_replace(";://;", "://".urlencode($carddav['username']).":".urlencode($carddav['password'])."@", $url);
 	$error = $http->GetRequestArguments($url,$arguments);
 	$arguments["RequestMethod"] = $opts['http']['method'];
 	if (strlen($opts['http']['content']) > 0 && $opts['http']['method'] != "GET"){
@@ -558,24 +444,13 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	if (($this->filter && !$this->group) || rcmail::get_instance()->action == "autocomplete"){
-		$colls = $this->list_groups();
-	} else {
-		$colls = array(0 => array(ID => $this->get_group()));
+	$reply = $this->cdfopen("list_records_sync_collection", "", $opts);
+	if ($reply == -1){ /* error occured, as opposed to "" which means empty reply */
+		return -1;
 	}
-
-	foreach ($colls as $key => $value){
-		if ($this->filter || rcmail::get_instance()->action == "autocomplete"){
-			$this->set_group($value["ID"]);
-		}
-		$reply = $this->cdfopen("list_records_sync_collection", "", $opts);
-		if ($reply == -1){ /* error occured, as opposed to "" which means empty reply */
-			return -1;
-		}
-		$reply = $reply["body"];
-		if (strlen($reply)) {
-			$records += $this->addvcards($reply);
-		}
+	$reply = $reply["body"];
+	if (strlen($reply)) {
+		$records += $this->addvcards($reply);
 	}
 	return $records;
   }}}
@@ -626,38 +501,27 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	if (($this->filter && !$this->group) || rcmail::get_instance()->action == "autocomplete"){
-		$colls = $this->list_groups();
-	} else {
-		$colls = array(0 => array(ID => $this->get_group()));
+	$reply = $this->cdfopen("list_records_propfind_resourcetype", "", $opts);
+	if ($reply == -1){ /* error occured, as opposed to "" which means empty reply */
+		return -1;
 	}
-
-	foreach ($colls as $key => $value){
-		if ($this->filter || rcmail::get_instance()->action == "autocomplete"){
-			$this->set_group($value["ID"]);
+	$reply = $reply["body"];
+	if (strlen($reply)) {
+		$xml_parser = xml_parser_create_ns();
+		global $vcards;
+		$vcards = array();
+		xml_set_element_handler($xml_parser, "startElement_addvcards", "endElement_addvcards");
+		xml_set_character_data_handler($xml_parser, "characterData_addvcards");
+		xml_parse($xml_parser, $reply, true);
+		xml_parser_free($xml_parser);
+		$urls = array();
+		foreach($vcards as $vcard){
+			$urls[] = $vcard['href'];
 		}
-		$reply = $this->cdfopen("list_records_propfind_resourcetype", "", $opts);
-		if ($reply == -1){ /* error occured, as opposed to "" which means empty reply */
-			return -1;
-		}
+		$reply = $this->query_addressbook_multiget($urls);
+		write_log("carddav", var_export($reply, true));
 		$reply = $reply["body"];
-		if (strlen($reply)) {
-			$xml_parser = xml_parser_create_ns();
-			global $vcards;
-			$vcards = array();
-			xml_set_element_handler($xml_parser, "startElement_addvcards", "endElement_addvcards");
-			xml_set_character_data_handler($xml_parser, "characterData_addvcards");
-			xml_parse($xml_parser, $reply, true);
-			xml_parser_free($xml_parser);
-			$urls = array();
-			foreach($vcards as $vcard){
-				$urls[] = $vcard['href'];
-			}
-			$reply = $this->query_addressbook_multiget($urls);
-			write_log("carddav", var_export($reply, true));
-			$reply = $reply["body"];
-			$records += $this->addvcards($reply);
-		}
+		$records += $this->addvcards($reply);
 	}
 	return $records;
   }}}
@@ -709,7 +573,7 @@ class carddav_backend extends rcube_addressbook
   public function get_record($oid, $assoc_return=false)
   {{{
 	$this->result = $this->count();
-	$uid = preg_replace(";_rcmcddot_;", ".", $oid);
+	$uid = base64_decode($oid);
 	$vcard = $this->get_record_from_carddav($uid);
 	if (!$vcard)
 		return false;
@@ -717,9 +581,6 @@ class carddav_backend extends rcube_addressbook
 	if (!$retval)
 		return false;
 	$ID = $oid;
-	if ($this->group){
-		$ID = preg_replace(";^".$this->group.";", "", $ID);
-	}
 	$retval['ID'] = $ID;
 	$this->result->add($retval);
 	$sql_arr = $assoc_return && $this->result ? $this->result->first() : null;
@@ -951,7 +812,7 @@ array (
 
   public function update($oid, $save_data)
   {{{
-	$oid = preg_replace("/_rcmcddot_/", ".", $oid);
+	$oid = base64_decode($oid);
 	$id = preg_replace(";\.vcf$;", "", $oid);
 	$vcf = $this->create_vcard_from_save_data($id, $save_data);
 	if ($vcf == false){
@@ -964,6 +825,7 @@ array (
   public function delete($ids)
   {{{
 	foreach ($ids as $uid){
+		$uid = base64_decode($uid);
 		return $this->delete_record_from_carddav($uid);
 	}
 	return false;
