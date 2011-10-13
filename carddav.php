@@ -40,11 +40,16 @@ class carddav extends rcube_plugin
     // (maybe this should be configurable by the user?)
     $config = rcmail::get_instance()->config;
     $sources = (array) $config->get('autocomplete_addressbooks', array('sql'));
-    if (!in_array($this->abook_id, $sources)) {
-      $sources[] = $this->abook_id;
-      $config->set('autocomplete_addressbooks', $sources);
+    $prefs = carddavconfig("_cd_RAW");
+    foreach ($prefs as $key => $value){
+      if (!is_array($prefs[$key])){
+	      continue;
+      }
+      if (!in_array("carddav_".base64_encode($key), $sources)) {
+        $sources[] = "carddav_".base64_encode($key);
+      }
     }
-
+    $config->set('autocomplete_addressbooks', $sources);
   }}}
 
   public function address_sources($p)
@@ -55,8 +60,8 @@ class carddav extends rcube_plugin
 	      continue;
       }
       if ($prefs[$key]['use_carddav'] == 1)
-        $p['sources']["carddav_".$key] = array(
-          'id' => "carddav_".$key,
+        $p['sources']["carddav_".base64_encode($key)] = array(
+          'id' => "carddav_".base64_encode($key),
           'name' => $key,
           'readonly' => $abook->readonly,
           'groups' => $abook->groups,
@@ -68,7 +73,7 @@ class carddav extends rcube_plugin
   public function get_address_book($p)
   {{{
     if (preg_match(";^carddav_(.*)$;", $p['id'], $match)){
-      $p['instance'] = new carddav_backend($match[1]);
+      $p['instance'] = new carddav_backend(base64_decode($match[1]));
     }
 
     return $p;

@@ -513,6 +513,7 @@ class carddav_backend extends rcube_addressbook
 
   public function search($fields, $value, $strict=false, $select=true, $nocount=false, $required=array())
   {{{
+	    write_log("carddav", "blubb");
 	$f = array();
 	if (is_array($fields)){
 		foreach ($fields as $k => $v){
