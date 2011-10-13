@@ -808,9 +808,9 @@ array (
   {{{
 	foreach ($ids as $uid){
 		$uid = base64_decode($uid);
-		return $this->delete_record_from_carddav($uid);
+		$this->delete_record_from_carddav($uid);
 	}
-	return false;
+	return true;
   }}}
 
   function add_to_group($group_id, $ids)
