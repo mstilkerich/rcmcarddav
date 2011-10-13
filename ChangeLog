@@ -1,3 +1,10 @@
+Changes from 0.4.2 to 0.6.0:
+ * add group support
+ * faster vcard retrieval
+ * vcard parsing with library
+ * support for configuration file
+ * support full-featured addressbook of RC 0.6
+
 Changes from 0.4.1 to 0.4.2:
  * add some debug entries
  * fix FS#7 - case-insensitive Authentication headers (Basic vs. basic, Digest vs. digest)
