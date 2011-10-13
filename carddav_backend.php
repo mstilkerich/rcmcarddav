@@ -852,7 +852,7 @@ array (
 		}
 	}
 
-	if (in_array('photo', $save_data)){
+	if (array_key_exists('photo', $save_data)){
 		$vcf .= "PHOTO;ENCODING=b:".base64_encode($save_data['photo'])."\r\n";
 	}
 	$vcf .= "END:VCARD\r\n";
