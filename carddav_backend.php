@@ -22,11 +22,17 @@ require("inc/http.php");
 require("inc/sasl.php");
 require("inc/vcard.php");
 
-function carddavconfig(){{{
+function carddavconfig($sub = 'CardDAV'){{{
 	$rcmail = rcmail::get_instance();
 	$prefs = $rcmail->config->get('carddav', array());
 	$dont_override = $rcmail->config->get('dont_override', array());
 
+	if ($prefs['db_version'] == 1){
+		unset($prefs['db_version']);
+		$p['CardDAV'] = $prefs;
+		$p['db_version'] = 2;
+		$prefs = $p;
+	}
 	// Set some defaults
 	$use_carddav = false;
 	$username = "";
@@ -38,6 +44,9 @@ function carddavconfig(){{{
 		require("plugins/carddav/config.inc.php");
 	}
 
+	if ($sub == "_cd_RAW"){
+		return $prefs;
+	}
 	$retval = array();
 	$retval['use_carddav'] = $use_carddav;
 	$retval['username'] = $username;
@@ -45,6 +54,12 @@ function carddavconfig(){{{
 	$retval['url'] = str_replace("%u", $username, $url);
 	$retval['lax_resource_checking'] = $lax_resource_checking;
 
+	if (!array_key_exists($sub, $prefs)){
+		write_log("carddav", "FATAL! Request for non-existent configuration $sub");
+		return false;
+	}
+
+	$prefs = $prefs[$sub];
 	foreach ($retval as $key => $value){
 		if (!in_array("carddav_$key", $dont_override)){
 			if (in_array($key, $prefs)){
@@ -54,13 +69,13 @@ function carddavconfig(){{{
 	}
 	return $retval;
 }}}
-function concaturl($str, $cat){
+function concaturl($str, $cat){{{
 	if (substr($cat, 0, 1) != "/"){
 		return $str."/".$cat;
 	}
 	preg_match(";(^https?://[^/]+);", $str, $match);
 	return $match[0]."/".$cat;
-}
+}}}
 
 function startElement_addvcards($parser, $n, $attrs) {{{
 	global $ctag;
@@ -117,13 +132,13 @@ class carddav_backend extends rcube_addressbook
   private $config;
   public $coltypes;
 
-  private $DEBUG = true;	# set to true for basic debugging
+  private $DEBUG = false;	# set to true for basic debugging
   private $DEBUG_HTTP = false;	# set to true for debugging raw http stream
 
-  public function __construct()
+  public function __construct($sub = "CardDAV")
   {{{
 	$this->ready = true;
-	$this->config = carddavconfig();
+	$this->config = carddavconfig($sub);
 	$this->coltypes = array( /* {{{ */
 		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('name'), 'category' => 'main'),
 		'firstname'    => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('firstname'), 'category' => 'main'),
@@ -191,36 +206,6 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$this->result = null;
 	$this->filter = null;
-  }}}
-
-  public function get_group()
-  {{{
-	return false;
-  }}}
-
-  public function set_group($gid)
-  {{{
-	return false;
-  }}}
-
-  public function list_groups($search = null)
-  {{{
-	return false;
-  }}}
-
-  public function create_group($name)
-  {{{
-	return false;
-  }}}
-
-  public function delete_group($gid)
-  {{{
-	return false;
-  }}}
-
-  public function rename_group($gid, $newname)
-  {{{
-	return false;
   }}}
 
   public function array_sort($array, $on, $order=SORT_ASC)
@@ -837,6 +822,36 @@ array (
   }}}
 
   function remove_from_group($group_id, $ids)
+  {{{
+	return false;
+  }}}
+
+  function get_group()
+  {{{
+	return false;
+  }}}
+
+  function set_group($gid)
+  {{{
+	return false;
+  }}}
+
+  function list_groups($search = null)
+  {{{
+	return false;
+  }}}
+
+  function create_group($name)
+  {{{
+	return false;
+  }}}
+
+  function delete_group($gid)
+  {{{
+	return false;
+  }}}
+
+  function rename_group($gid, $newname)
   {{{
 	return false;
   }}}
