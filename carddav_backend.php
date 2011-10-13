@@ -504,7 +504,6 @@ class carddav_backend extends rcube_addressbook
 			$urls[] = $vcard['href'];
 		}
 		$reply = $this->query_addressbook_multiget($urls);
-		write_log("carddav", var_export($reply, true));
 		$reply = $reply["body"];
 		$records += $this->addvcards($reply);
 	}
@@ -513,7 +512,6 @@ class carddav_backend extends rcube_addressbook
 
   public function search($fields, $value, $strict=false, $select=true, $nocount=false, $required=array())
   {{{
-	    write_log("carddav", "blubb");
 	$f = array();
 	if (is_array($fields)){
 		foreach ($fields as $k => $v){
@@ -575,8 +573,6 @@ class carddav_backend extends rcube_addressbook
 
   public function put_record_to_carddav($id, $vcf)
   {{{
-	$id = preg_replace("/_rcmcdat_/", "@", $id);
-	$id = preg_replace("/_rcmcddot_/", ".", $id);
 	$this->result = $this->count();
 	$opts = array(
 		'http'=>array(
@@ -585,7 +581,7 @@ class carddav_backend extends rcube_addressbook
 			'header'=>"Content-Type: text/vcard"
 		)
 	);
-	$reply = $this->cdfopen("put_record_to_carddav", "/$id", $opts);
+	$reply = $this->cdfopen("put_record_to_carddav", "$id", $opts);
 	if ($reply["status"] >= 200 && $reply["status"] < 300) { return true; }
 	return true;
   }}}
