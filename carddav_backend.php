@@ -685,25 +685,39 @@ array (
 		       'NOTE' => 'notes', 'X-ASSISTANT' => 'assistant', 'X-MANAGER' => 'manager', 'X-SPOUSE' => 'spouse',
 		       'X-GENDER' => 'gender', 'X-ANNIVERSARY' => 'anniversary');
 	foreach ($assoc as $key => $value){
-		$vcf .= $key.":".$save_data[$value]."\r\n";
+		if (array_key_exists($value, $save_data)){
+			if (strlen($save_data[$value]) > 0){
+				$vcf .= $key.":".$save_data[$value]."\r\n";
+			}
+		}
 	}
 	$assoc = array('EMAIL' => 'email', 'URL' => 'website', 'TEL' => 'phone');
 	foreach ($assoc as $key => $value){
 		foreach ($this->coltypes[$value]['subtypes'] AS $ckey => $cvalue){
-			foreach($save_data[$value.':'.$cvalue] AS $ekey => $evalue){
-				$vcf .= $key.";TYPE=".strtoupper($cvalue).":".$evalue."\r\n";
+			if (array_key_exists($value.':'.$cvalue, $save_data)){
+				foreach($save_data[$value.':'.$cvalue] AS $ekey => $evalue){
+					if (strlen($evalue) > 0){
+						$vcf .= $key.";TYPE=".strtoupper($cvalue).":".$evalue."\r\n";
+					}
+				}
 			}
 		}
 	}
 
 	foreach ($this->coltypes['address']['subtypes'] AS $key => $value){
-		foreach($save_data['address:'.$value] AS $akey => $avalue){
-			$vcf .= "ADR;TYPE=".strtoupper($value).":;;".$avalue['street'].";".$avalue['locality'].";".$avalue['region'].";".$avalue['zipcode'].";".$avalue['country']."\r\n";
+		if (array_key_exists('address:'.$value, $save_data)){
+			foreach($save_data['address:'.$value] AS $akey => $avalue){
+				if (strlen($avalue['street'].$avalue['locality'].$avalue['region'].$avalue['zipcode'].$avalue['country']) > 0){
+					$vcf .= "ADR;TYPE=".strtoupper($value).":;;".$avalue['street'].";".$avalue['locality'].";".$avalue['region'].";".$avalue['zipcode'].";".$avalue['country']."\r\n";
+				}
+			}
 		}
 	}
 
 	if (array_key_exists('photo', $save_data)){
-		$vcf .= "PHOTO;ENCODING=b:".base64_encode($save_data['photo'])."\r\n";
+		if (strlen($save_data['photo']) > 0){
+			$vcf .= "PHOTO;ENCODING=b:".base64_encode($save_data['photo'])."\r\n";
+		}
 	}
 	$vcf .= "END:VCARD\r\n";
 
@@ -795,6 +809,13 @@ array (
   public function update($oid, $save_data)
   {{{
 	$oid = base64_decode($oid);
+	$save_data_old = $this->create_save_data_from_vcard($this->get_record_from_carddav($oid));
+	/* special case photo */
+	if (array_key_exists('photo', $save_data_old)){
+		if (!array_key_exists('photo', $save_data)){
+			$save_data['photo'] = $save_data_old['photo'];
+		}
+	}
 	$id = preg_replace(";\.vcf$;", "", $oid);
 	$vcf = $this->create_vcard_from_save_data($id, $save_data);
 	if ($vcf == false){
