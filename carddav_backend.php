@@ -392,7 +392,7 @@ class carddav_backend extends rcube_addressbook
 			$ID = preg_replace(";^".$this->group.";", "", $ID);
 		}
 		$ID = preg_replace(";\.;", "_rcmcddot_", $ID);
-		$name = $save_data['nickname'];
+		$name = $save_data['name'];
 		if (strlen($name) == 0){
 			$name = $save_data['surname']." ".$save_data['firstname'];
 		}
@@ -409,7 +409,6 @@ class carddav_backend extends rcube_addressbook
 						if (@preg_match(";".$filter["value"].";i", $avalue)){
 							$x++;
 							$a['save_data']['ID'] = $a['ID'];
-							$a['save_data']['name'] = $a['name'];
 							$this->result->add($a['save_data']);
 						}
 					}
@@ -417,7 +416,6 @@ class carddav_backend extends rcube_addressbook
 					if (preg_match(";".$filter["value"].";i", $a['save_data'][$value])){
 						$x++;
 						$a['save_data']['ID'] = $a['ID'];
-						$a['save_data']['name'] = $a['name'];
 						$this->result->add($a['save_data']);
 					}
 				}
@@ -425,7 +423,6 @@ class carddav_backend extends rcube_addressbook
 		} else {
 			$x++;
 			$a['save_data']['ID'] = $a['ID'];
-			$a['save_data']['name'] = $a['name'];
 			$this->result->add($a['save_data']);
 		}
 	}
@@ -835,7 +832,7 @@ array (
 		"VERSION:3.0\r\n".
 		"UID:$id\r\n".
 	$vcf .= "N:".$save_data['surname'].";".$save_data['firstname'].";".$save_data['middlename'].";".$save_data['prefix'].";".$save_data['suffix']."\r\n";
-	$assoc = array('FN' => 'nickname', 'TITLE' => 'jobtitle', 'ORG' => 'organization', 'BDAY' => 'birthday',
+	$assoc = array('FN' => 'name', 'TITLE' => 'jobtitle', 'ORG' => 'organization', 'BDAY' => 'birthday', 'NICKNAME' => 'nickname',
 		       'NOTE' => 'notes', 'X-ASSISTANT' => 'assistant', 'X-MANAGER' => 'manager', 'X-SPOUSE' => 'spouse',
 		       'X-GENDER' => 'gender', 'X-ANNIVERSARY' => 'anniversary');
 	foreach ($assoc as $key => $value){
@@ -873,7 +870,7 @@ array (
 		return false;
 	}
 
-	$assoc = array('FN' => 'nickname', 'TITLE' => 'jobtitle', 'ORG' => 'organization', 'BDAY' => 'birthday',
+	$assoc = array('FN' => 'name', 'TITLE' => 'jobtitle', 'ORG' => 'organization', 'BDAY' => 'birthday', 'NICKNAME' => 'nickname',
 		       'NOTE' => 'notes', 'PHOTO' => 'photo', 'X-ASSISTANT' => 'assistant', 'X-MANAGER' => 'manager', 'X-SPOUSE' => 'spouse',
 		       'X-GENDER' => 'gender');
 	$retval = array('ID' => $oid);
