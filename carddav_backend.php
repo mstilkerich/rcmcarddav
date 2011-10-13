@@ -27,7 +27,7 @@ function carddavconfig($sub = 'CardDAV'){{{
 	$prefs = $rcmail->config->get('carddav', array());
 	$dont_override = $rcmail->config->get('dont_override', array());
 
-	if ($prefs['db_version'] == 1){
+	if ($prefs['db_version'] == 1 || !array_key_exists('db_version', $prefs)){
 		unset($prefs['db_version']);
 		$p['CardDAV'] = $prefs;
 		$p['db_version'] = 2;
