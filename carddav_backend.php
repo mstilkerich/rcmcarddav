@@ -392,7 +392,11 @@ class carddav_backend extends rcube_addressbook
 			$ID = preg_replace(";^".$this->group.";", "", $ID);
 		}
 		$ID = preg_replace(";\.;", "_rcmcddot_", $ID);
-		$addresses[] = array('ID' => $ID, 'name' => $save_data['nickname'], 'save_data' => $save_data);
+		$name = $save_data['nickname'];
+		if (strlen($name) == 0){
+			$name = $save_data['surname']." ".$save_data['firstname'];
+		}
+		$addresses[] = array('ID' => $ID, 'name' => $name, 'save_data' => $save_data);
 		$ID = $name = null;
 	}
 	$x = 0;
@@ -405,7 +409,7 @@ class carddav_backend extends rcube_addressbook
 						if (@preg_match(";".$filter["value"].";i", $avalue)){
 							$x++;
 							$a['save_data']['ID'] = $a['ID'];
-							$a['save_data']['name'] = $a['save_data']['nickname']; // Holy Sh*t, RC 0.6 is inconsistent...
+							$a['save_data']['name'] = $a['name'];
 							$this->result->add($a['save_data']);
 						}
 					}
@@ -413,7 +417,7 @@ class carddav_backend extends rcube_addressbook
 					if (preg_match(";".$filter["value"].";i", $a['save_data'][$value])){
 						$x++;
 						$a['save_data']['ID'] = $a['ID'];
-						$a['save_data']['name'] = $a['save_data']['nickname']; // see above
+						$a['save_data']['name'] = $a['name'];
 						$this->result->add($a['save_data']);
 					}
 				}
@@ -421,7 +425,7 @@ class carddav_backend extends rcube_addressbook
 		} else {
 			$x++;
 			$a['save_data']['ID'] = $a['ID'];
-			$a['save_data']['name'] = $a['save_data']['nickname']; // see above
+			$a['save_data']['name'] = $a['name'];
 			$this->result->add($a['save_data']);
 		}
 	}
