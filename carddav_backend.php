@@ -38,7 +38,6 @@ function carddavconfig($sub = 'CardDAV'){{{
 	$username = "";
 	$password = "";
 	$url = "";
-	$lax_resource_checking = false;
 
 	if (file_exists("plugins/carddav/config.inc.php")){
 		require("plugins/carddav/config.inc.php");
@@ -52,7 +51,6 @@ function carddavconfig($sub = 'CardDAV'){{{
 	$retval['username'] = $username;
 	$retval['password'] = $password;
 	$retval['url'] = str_replace("%u", $username, $url);
-	$retval['lax_resource_checking'] = $lax_resource_checking;
 
 	if (!array_key_exists($sub, $prefs)){
 		write_log("carddav", "FATAL! Request for non-existent configuration $sub");

@@ -109,7 +109,6 @@ class carddav extends rcube_plugin
 		$username = $prefs['username'];
 		$password = $prefs['password'];
 		$url = $prefs['url'];
-		$lax_resource_checking = $prefs['lax_resource_checking'];
 
 		$dont_override = $rcmail->config->get('dont_override', array());
 
@@ -146,14 +145,6 @@ class carddav extends rcube_plugin
 			$content_url = $input->show();
 		}
 
-		if (in_array('carddav_lax_resource_checking', $dont_override)){
-			$content_lax_resource_checking = $lax_resource_checking ? "Enabled" : "Disabled";
-		} else {
-			// input box for lax resource checking
-			$checkbox = new html_checkbox(array('name' => base64_encode($key).'_cd_lax_resource_checking', 'value' => 1));
-			$content_lax_resource_checking = $checkbox->show($lax_resource_checking?1:0);
-		}
-
 		if (in_array('carddav_description', $dont_override)){
 			$content_description = $desc;
 		} else {
@@ -172,7 +163,6 @@ class carddav extends rcube_plugin
 				array('title'=> Q($this->gettext('cd_username')), 'content' => $content_username), 
 				array('title'=> Q($this->gettext('cd_password')), 'content' => $content_password),
 				array('title'=> Q($this->gettext('cd_url')), 'content' => $content_url),
-				array('title'=> Q($this->gettext('cd_lax_resource_checking')), 'content' => $content_lax_resource_checking),
 				array('title'=> Q($this->gettext('cd_delete')), 'content' => $content_delete),
 			),
 			'name' => $key
@@ -223,7 +213,6 @@ class carddav extends rcube_plugin
 			'username' => get_input_value(base64_encode($key).'_cd_username', RCUBE_INPUT_POST),
 			'password' => get_input_value(base64_encode($key).'_cd_password', RCUBE_INPUT_POST),
 			'url' => get_input_value(base64_encode($key).'_cd_url', RCUBE_INPUT_POST),
-			'lax_resource_checking' => isset($_POST[base64_encode($key).'_cd_lax_resource_checking']) ? 1 : 0
 		);
 	}
 	
@@ -234,7 +223,6 @@ class carddav extends rcube_plugin
 			'username' => "",
 			'password' => "",
 			'url' => "",
-			'lax_resource_checking' => 0
 		);
 	}
 	$args['prefs']['carddav'] = $prefs_all_new;
