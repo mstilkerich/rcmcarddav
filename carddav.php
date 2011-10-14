@@ -169,10 +169,22 @@ class carddav extends rcube_plugin
 		);
 	}
 	$input = new html_inputfield(array('name' => "new_cd_description", 'type' => 'text', 'autocomplete' => 'off', 'size' => 40));
-	$content_new = $input->show();
+	$content_description = $input->show();
+	$checkbox = new html_checkbox(array('name' => 'new_cd_use_carddav', 'value' => 1));
+	$content_use_carddav = $checkbox->show(1);
+	$input = new html_inputfield(array('name' => 'new_cd_username', 'type' => 'text', 'autocomplete' => 'off'));
+	$content_username = $input->show();
+	$input = new html_inputfield(array('name' => 'new_cd_password', 'type' => 'password', 'autocomplete' => 'off'));
+	$content_password = $input->show();
+	$input = new html_inputfield(array('name' => 'new_cd_url', 'type' => 'text', 'autocomplete' => 'off', 'size' => 40));
+	$content_url = $input->show();
 	$args['blocks']['cd_preferences_section_new'] = array(
 		'options' => array(
-			array('title'=> Q($this->gettext('cd_description')), 'content' => $content_new)
+			array('title'=> Q($this->gettext('cd_description')), 'content' => $content_description),
+			array('title'=> Q($this->gettext('cd_use_carddav')), 'content' => $content_use_carddav), 
+			array('title'=> Q($this->gettext('cd_username')), 'content' => $content_username), 
+			array('title'=> Q($this->gettext('cd_password')), 'content' => $content_password),
+			array('title'=> Q($this->gettext('cd_url')), 'content' => $content_url),
 		),
 		'name' => Q($this->gettext('cd_description_new'))
 	);
@@ -219,10 +231,10 @@ class carddav extends rcube_plugin
 	$new = get_input_value('new_cd_description', RCUBE_INPUT_POST);
 	if (strlen($new) > 0){
 		$prefs_all_new[$new] = array(
-			'use_carddav' => 0,
-			'username' => "",
-			'password' => "",
-			'url' => "",
+			'use_carddav' => isset($_POST['new_cd_use_carddav']) ? 1 : 0,
+			'username' => get_input_value('new_cd_username', RCUBE_INPUT_POST),
+			'password' => get_input_value('new_cd_password', RCUBE_INPUT_POST),
+			'url' => get_input_value('new_cd_url', RCUBE_INPUT_POST),
 		);
 	}
 	$args['prefs']['carddav'] = $prefs_all_new;
