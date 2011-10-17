@@ -60,7 +60,7 @@ function carddavconfig($sub = 'CardDAV'){{{
 	$prefs = $prefs[$sub];
 	foreach ($retval as $key => $value){
 		if (!in_array("carddav_$key", $dont_override)){
-			if (in_array($key, $prefs)){
+			if (array_key_exists($key, $prefs)){
 				$retval[$key] = $prefs[$key];
 			}
 		}
