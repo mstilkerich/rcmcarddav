@@ -17,7 +17,3 @@ $password = $rcmail->decrypt($_SESSION['password']);
 //                 use %p as substitute for the password specified above
 $url = "https://ical.example.org/caldav.php/%u/";
 // For read-only: $rcmail_config['dont_override'][] = "carddav_url";
-
-// Lax Resource Checking, see Settings page for help
-$lax_resource_checking = false;
-// For read-only: $rcmail_config['dont_override'][] = "carddav_lax_resource_checking"
