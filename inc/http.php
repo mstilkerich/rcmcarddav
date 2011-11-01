@@ -1043,8 +1043,9 @@ class http_class
 			$arguments["Headers"]["Accept"]=$this->accept;
 		if(strlen($this->request_method)==0)
 			return($this->SetError("3 it was not specified a valid request method"));
-		if(IsSet($arguments["RequestURI"]))
-			$this->request_uri=$arguments["RequestURI"];
+		if(IsSet($arguments["RequestURI"])){
+			$this->request_uri=preg_replace(';//+;', '/', $arguments["RequestURI"]);
+		}
 		if(strlen($this->request_uri)==0
 		|| substr($this->request_uri,0,1)!="/")
 			return($this->SetError("4 it was not specified a valid request URI"));
@@ -1203,6 +1204,7 @@ class http_class
 					break;
 			}
 			$request_uri=strtolower($this->protocol)."://".$this->host_name.(($this->host_port==0 || $this->host_port==$default_port) ? "" : ":".$this->host_port).$this->request_uri;
+			$request_uri=preg_replace(';//+;', '/', $request_uri);
 		}
 		if($this->use_curl)
 		{
@@ -1631,10 +1633,11 @@ class http_class
 			if(function_exists("class_exists")
 			&& !class_exists("sasl_client_class"))
 				return($this->SetError("the SASL client class needs to be loaded to be able to authenticate".($proxy ? " with the proxy server" : "")." and access this site"));
-			if(GetType($headers[$authenticate_header])=="array")
+			if(GetType($headers[$authenticate_header])=="array"){
 				$authenticate=$headers[$authenticate_header];
-			else
-				$authenticate=array($headers[$authenticate_header]);
+			} else {
+				$authenticate=explode(", ", $headers[$authenticate_header]);
+			}
 			for($response="", $mechanisms=array(),$m=0;$m<count($authenticate);$m++)
 			{
 				$mechanism=$this->Tokenize($authenticate[$m]," ");
@@ -1715,7 +1718,7 @@ class http_class
 				elseif(GetType($headers[$authenticate_header])=="array")
 					$authenticate=$headers[$authenticate_header];
 				else
-					$authenticate=array($headers[$authenticate_header]);
+					$authenticate=explode(", ", $headers[$authenticate_header]);
 				for($mechanism=0;$mechanism<count($authenticate);$mechanism++)
 				{
 					if(!strcmp($this->Tokenize($authenticate[$mechanism]," "),$sasl->mechanism))
@@ -1785,7 +1788,7 @@ class http_class
 								if(GetType($headers[$authenticate_header])=="array")
 									$authenticate=$headers[$authenticate_header];
 								else
-									$authenticate=array($headers[$authenticate_header]);
+									$authenticate=explode(", ", $headers[$authenticate_header]);
 								for($response="",$mechanism=0;$mechanism<count($authenticate);$mechanism++)
 								{
 									if(!strcmp($this->Tokenize($authenticate[$mechanism]," "),$sasl->mechanism))
