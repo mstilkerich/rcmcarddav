@@ -1,0 +1,11 @@
+-- table to store the configured address books
+CREATE TABLE IF NOT EXISTS carddav_addressbooks (
+	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ 	name VARCHAR(64) NOT NULL,
+ 	username VARCHAR(64) NOT NULL,
+ 	password VARCHAR(64) NOT NULL,
+ 	url VARCHAR(256) NOT NULL,
+ 	active TINYINT UNSIGNED NOT NULL DEFAULT 1,
+ 	user_id INT(10) UNSIGNED NOT NULL REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+ 	last_updated TIMESTAMP
+);

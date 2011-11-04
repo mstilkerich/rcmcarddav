@@ -17,106 +17,81 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-$rcmail = rcmail::get_instance();
-$user = $rcmail->user;;
 require_once(dirname(__FILE__) . '/carddav_backend.php');
-define("CARDDAV_DB_VERSION", 2);
 
 class carddav extends rcube_plugin
 {
-  public $task = 'addressbook|mail|settings';
-  private $abook_id = "CardDAV";
+	public $task = 'addressbook|mail|settings';
+	private $abook_id = "CardDAV";
 
-  public function init()
-  {{{
-    $this->add_hook('addressbooks_list', array($this, 'address_sources'));
-    $this->add_hook('addressbook_get', array($this, 'get_address_book'));
+	public function init()
+	{{{
+		$this->add_hook('addressbooks_list', array($this, 'address_sources'));
+		$this->add_hook('addressbook_get', array($this, 'get_address_book'));
 
-    $this->add_hook('preferences_list', array($this, 'cd_preferences'));
-    $this->add_hook('preferences_save', array($this, 'cd_save'));
-    $this->add_hook('preferences_sections_list',array($this, 'cd_preferences_section'));
+		$this->add_hook('preferences_list', array($this, 'cd_preferences'));
+		$this->add_hook('preferences_save', array($this, 'cd_save'));
+		$this->add_hook('preferences_sections_list',array($this, 'cd_preferences_section'));
 
-    // use this address book for autocompletion queries
-    // (maybe this should be configurable by the user?)
-    $config = rcmail::get_instance()->config;
-    $sources = (array) $config->get('autocomplete_addressbooks', array('sql'));
-    $prefs = carddavconfig("_cd_RAW");
-    foreach ($prefs as $key => $value){
-      if (!is_array($prefs[$key])){
-	      continue;
-      }
-      if (!in_array("carddav_".base64_encode($key), $sources)) {
-        $sources[] = "carddav_".base64_encode($key);
-      }
-    }
-    $config->set('autocomplete_addressbooks', $sources);
-  }}}
+		// use this address book for autocompletion queries
+		// (maybe this should be configurable by the user?)
+		$config = rcmail::get_instance()->config;
+		$sources = (array) $config->get('autocomplete_addressbooks', array('sql'));
 
-  public function address_sources($p)
-  {{{
-    $prefs = carddavconfig("_cd_RAW");
-    foreach ($prefs as $key => $value){
-      if (!is_array($prefs[$key])){
-	      continue;
-      }
-      if ($prefs[$key]['use_carddav'] == 1)
-        $p['sources']["carddav_".base64_encode($key)] = array(
-          'id' => "carddav_".base64_encode($key),
-          'name' => $key,
-          'readonly' => $abook->readonly,
-          'groups' => $abook->groups,
-        );
-    }
-    return $p;
-  }}}
+		$dbh = rcmail::get_instance()->db;
+		$sql_result = $dbh->query('SELECT id FROM ' . 
+			get_table_name('carddav_addressbooks') .
+			' WHERE user_id = ? AND active=1',
+			$_SESSION['user_id']);
 
-  public function get_address_book($p)
-  {{{
-    if (preg_match(";^carddav_(.*)$;", $p['id'], $match)){
-      $p['instance'] = new carddav_backend(base64_decode($match[1]));
-    }
-
-    return $p;
-  }}}
-
-  // user preferences
-  function cd_preferences($args)
-  {{{
-	if($args['section'] != 'cd_preferences')
-		return;
-
-	$this->add_texts('localization/', false);
-	$rcmail = rcmail::get_instance();
-	
-	if (version_compare(PHP_VERSION, '5.3.0') < 0) {
-		$args['blocks']['cd_preferences'] = array(
-			'options' => array(
-				array('title'=> Q($this->gettext('cd_php_too_old')), 'content' => PHP_VERSION)
-			),
-			'name' => Q($this->gettext('cd_title'))
-		);
-		return $args;
-	}
-
-	$prefs_all = carddavconfig("_cd_RAW"); // defined in carddav_backend.php
-	
-	foreach ($prefs_all as $key => $prefs){
-		if (!is_array($prefs)){
-			continue;
+		while ($abookrow = $dbh->fetch_assoc($sql_result)) {
+			$abookname = "carddav_" . $abookrow['id'];
+			if (!in_array($abookname, $sources)) {
+				$sources[] = $abookname;
+			}
 		}
-		$desc = $key;
-		$use_carddav = $prefs['use_carddav'];
-		$username = $prefs['username'];
-		$password = $prefs['password'];
-		$url = $prefs['url'];
+		$config->set('autocomplete_addressbooks', $sources);
+	}}}
 
-		$dont_override = $rcmail->config->get('dont_override', array());
+	public function address_sources($p)
+	{{{
+		$dbh = rcmail::get_instance()->db;
+		$sql_result = $dbh->query('SELECT id,name FROM ' . 
+			get_table_name('carddav_addressbooks') .
+			' WHERE user_id = ? AND active=1',
+			$_SESSION['user_id']);
 
+		while ($abookrow = $dbh->fetch_assoc($sql_result)) {
+			$p['sources']["carddav_".$abookrow['id']] = array(
+				'id' => "carddav_".$abookrow['id'],
+				'name' => $abookrow['name'],
+				// XXX what is $abook in this context?!
+				'readonly' => $abook->readonly,
+				'groups' => $abook->groups,
+			);
+		}
+		return $p;
+	}}}
+
+	public function get_address_book($p)
+	{{{
+		if (preg_match(";^carddav_(\d+)$;", $p['id'], $match)){
+			$p['instance'] = new carddav_backend($match[1]);
+		}
+
+		return $p;
+	}}}
+
+	/**
+	 * Builds a setting block for one address book for the preference page.
+	 */
+	private function cd_preferences_buildblock($abookid,$blockheader,$desc,$use_carddav,$username,$password,$url,$dont_override)
+	{{{
 		if (in_array('carddav_use_carddav', $dont_override)) {
 			$content_use_carddav = $use_carddav ? "Enabled" : "Disabled";
 		} else {
 			// check box for activating
-			$checkbox = new html_checkbox(array('name' => base64_encode($key).'_cd_use_carddav', 'value' => 1));
+			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_use_carddav', 'value' => 1));
 			$content_use_carddav = $checkbox->show($use_carddav?1:0);
 		}
 
@@ -124,7 +99,7 @@ class carddav extends rcube_plugin
 			$content_username = $username;
 		} else {
 			// input box for username
-			$input = new html_inputfield(array('name' => base64_encode($key).'_cd_username', 'type' => 'text', 'autocomplete' => 'off', 'value' => $username));
+			$input = new html_inputfield(array('name' => $abookid.'_cd_username', 'type' => 'text', 'autocomplete' => 'off', 'value' => $username));
 			$content_username = $input->show();
 		}
 
@@ -132,7 +107,7 @@ class carddav extends rcube_plugin
 			$content_password = "***";
 		} else {
 			// input box for password
-			$input = new html_inputfield(array('name' => base64_encode($key).'_cd_password', 'type' => 'password', 'autocomplete' => 'off', 'value' => $password));
+			$input = new html_inputfield(array('name' => $abookid.'_cd_password', 'type' => 'password', 'autocomplete' => 'off', 'value' => $password));
 			$content_password = $input->show();
 		}
 
@@ -140,104 +115,186 @@ class carddav extends rcube_plugin
 			$content_url = str_replace("%u", "$username", $url);
 		} else {
 			// input box for URL
-			$size = isset($prefs['url']) ? strlen($url) : 40;
-			$input = new html_inputfield(array('name' => base64_encode($key).'_cd_url', 'type' => 'text', 'autocomplete' => 'off', 'value' => $prefs['url'], 'size' => $size < 40 ? 40 : $size));
+			$size = max(strlen($url),40);
+			$input = new html_inputfield(array('name' => $abookid.'_cd_url', 'type' => 'text', 'autocomplete' => 'off', 'value' => $url, 'size' => $size));
 			$content_url = $input->show();
 		}
 
 		if (in_array('carddav_description', $dont_override)){
 			$content_description = $desc;
 		} else {
-			$input = new html_inputfield(array('name' => base64_encode($key).'_cd_description', 'type' => 'text', 'autocomplete' => 'off', 'value' => $desc, 'size' => 40));
+			$input = new html_inputfield(array('name' => $abookid.'_cd_description', 'type' => 'text', 'autocomplete' => 'off', 'value' => $desc, 'size' => 40));
 			$content_description = $input->show();
 		}
 
-		if (!in_array('carddav_delete', $dont_override)){
-			$checkbox = new html_checkbox(array('name' => base64_encode($key).'_cd_delete', 'value' => 1));
-			$content_delete = $checkbox->show(0);
-		}
-		$args['blocks']['cd_preferences'.base64_encode($key)] = array(
+
+		$retval = array(
 			'options' => array(
 				array('title'=> Q($this->gettext('cd_description')), 'content' => $content_description),
 				array('title'=> Q($this->gettext('cd_use_carddav')), 'content' => $content_use_carddav), 
 				array('title'=> Q($this->gettext('cd_username')), 'content' => $content_username), 
 				array('title'=> Q($this->gettext('cd_password')), 'content' => $content_password),
 				array('title'=> Q($this->gettext('cd_url')), 'content' => $content_url),
-				array('title'=> Q($this->gettext('cd_delete')), 'content' => $content_delete),
 			),
-			'name' => $key
+			'name' => $blockheader
 		);
-	}
-	$input = new html_inputfield(array('name' => "new_cd_description", 'type' => 'text', 'autocomplete' => 'off', 'size' => 40));
-	$content_description = $input->show();
-	$checkbox = new html_checkbox(array('name' => 'new_cd_use_carddav', 'value' => 1));
-	$content_use_carddav = $checkbox->show(1);
-	$input = new html_inputfield(array('name' => 'new_cd_username', 'type' => 'text', 'autocomplete' => 'off'));
-	$content_username = $input->show();
-	$input = new html_inputfield(array('name' => 'new_cd_password', 'type' => 'password', 'autocomplete' => 'off'));
-	$content_password = $input->show();
-	$input = new html_inputfield(array('name' => 'new_cd_url', 'type' => 'text', 'autocomplete' => 'off', 'size' => 40));
-	$content_url = $input->show();
-	$args['blocks']['cd_preferences_section_new'] = array(
-		'options' => array(
-			array('title'=> Q($this->gettext('cd_description')), 'content' => $content_description),
-			array('title'=> Q($this->gettext('cd_use_carddav')), 'content' => $content_use_carddav), 
-			array('title'=> Q($this->gettext('cd_username')), 'content' => $content_username), 
-			array('title'=> Q($this->gettext('cd_password')), 'content' => $content_password),
-			array('title'=> Q($this->gettext('cd_url')), 'content' => $content_url),
-		),
-		'name' => Q($this->gettext('cd_description_new'))
-	);
-	return($args);
-  }}}
 
-  // add a section to the preferences tab
-  function cd_preferences_section($args)
-  {{{
-	$this->add_texts('localization/', false);
-	$args['list']['cd_preferences'] = array(
-		'id'      => 'cd_preferences',
-		'section' => Q($this->gettext('cd_title'))
-	);
-	return($args);
-  }}}
-
-  // save preferences
-  function cd_save($args)
-  {{{
-	if($args['section'] != 'cd_preferences')
-		return;
-
-	$rcmail = rcmail::get_instance();
-
-	$prefs_all_old = carddavconfig("_cd_RAW");
-	$prefs_all_new = array('db_version' => CARDDAV_DB_VERSION);
-
-	foreach ($prefs_all_old as $key => $prefs){
-		if (!is_array($prefs)){
-			continue;
+		if (!in_array('carddav_delete', $dont_override) && preg_match('/^\d+$/',$abookid)) {
+			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_delete', 'value' => 1));
+			$content_delete = $checkbox->show(0);
+			$retval['options'][] = array('title'=> Q($this->gettext('cd_delete')), 'content' => $content_delete);
 		}
-		if (isset($_POST[base64_encode($key)."_cd_delete"])){
-			continue;
+
+		return $retval;
+	}}}
+
+	// user preferences
+	function cd_preferences($args)
+	{{{
+		if($args['section'] != 'cd_preferences')
+			return;
+
+		$this->add_texts('localization/', false);
+		$rcmail = rcmail::get_instance();
+		$dbh    = $rcmail->db;
+
+		if (version_compare(PHP_VERSION, '5.3.0') < 0) {
+			$args['blocks']['cd_preferences'] = array(
+				'options' => array(
+					array('title'=> Q($this->gettext('cd_php_too_old')), 'content' => PHP_VERSION)
+				),
+				'name' => Q($this->gettext('cd_title'))
+			);
+			return $args;
 		}
-		$prefs_all_new[get_input_value(base64_encode($key)."_cd_description", RCUBE_INPUT_POST)] = array(
-			'use_carddav' => isset($_POST[base64_encode($key).'_cd_use_carddav']) ? 1 : 0,
-			'username' => get_input_value(base64_encode($key).'_cd_username', RCUBE_INPUT_POST),
-			'password' => get_input_value(base64_encode($key).'_cd_password', RCUBE_INPUT_POST),
-			'url' => get_input_value(base64_encode($key).'_cd_url', RCUBE_INPUT_POST),
+
+		$dont_override = $rcmail->config->get('dont_override', array());
+
+		/////////    MIGRATE OLD SETTINGS TO DB 
+		$prefs_all = carddavconfig("_cd_RAW"); // defined in carddav_backend.php
+
+		foreach ($prefs_all as $key => $prefs){
+			if (!is_array($prefs)){
+				continue;
+			}
+
+			$desc = $key;
+			$use_carddav = $prefs['use_carddav'];
+			$username = $prefs['username'];
+			$password = $prefs['password'];
+			$url = $prefs['url'];
+
+			$args['blocks']['cd_preferences'.base64_encode($key)] = $this->cd_preferences_buildblock(base64_encode($key),$key,$desc,$use_carddav,$username,$password,$url,$dont_override);
+		}
+		/////////    [END] MIGRATE OLD SETTINGS TO DB 
+
+		$sql_result = $dbh->query('SELECT id,name,username,password,url,active FROM ' . 
+			get_table_name('carddav_addressbooks') .
+			' WHERE user_id = ?',
+			$_SESSION['user_id']);
+
+		while ($abook = $dbh->fetch_assoc($sql_result)) {
+			$abookid     = $abook['id'];
+			$desc        = $abook['name'];
+			$use_carddav = $abook['active'];
+			$username    = $abook['username'];
+			$password    = $abook['password'];
+			$url         = $abook['url'];
+
+			$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($abookid,$desc,$desc,$use_carddav,$username,$password,$url,$dont_override);
+		}
+
+		$args['blocks']['cd_preferences_section_new'] = $this->cd_preferences_buildblock('new', 'Configure new addressbook', '', 1, '','','', array());
+
+		return($args);
+	}}}
+
+	// add a section to the preferences tab
+	function cd_preferences_section($args)
+	{{{
+		$this->add_texts('localization/', false);
+		$args['list']['cd_preferences'] = array(
+			'id'      => 'cd_preferences',
+			'section' => Q($this->gettext('cd_title'))
 		);
-	}
-	
-	$new = get_input_value('new_cd_description', RCUBE_INPUT_POST);
-	if (strlen($new) > 0){
-		$prefs_all_new[$new] = array(
-			'use_carddav' => isset($_POST['new_cd_use_carddav']) ? 1 : 0,
-			'username' => get_input_value('new_cd_username', RCUBE_INPUT_POST),
-			'password' => get_input_value('new_cd_password', RCUBE_INPUT_POST),
-			'url' => get_input_value('new_cd_url', RCUBE_INPUT_POST),
-		);
-	}
-	$args['prefs']['carddav'] = $prefs_all_new;
-	return($args);
-  }}}
+		return($args);
+	}}}
+
+	// save preferences
+	function cd_save($args)
+	{{{
+		if($args['section'] != 'cd_preferences')
+			return;
+
+		$dbh    = rcmail::get_instance()->db;
+
+		/////////    MIGRATE OLD SETTINGS TO DB 
+		$prefs_all_old = carddavconfig("_cd_RAW");
+		foreach ($prefs_all_old as $key => $prefs) {
+
+			// broken entry(?) => delete
+			if (!is_array($prefs)){
+				continue;
+			}
+
+			// delete?
+			if (isset($_POST[base64_encode($key)."_cd_delete"])){
+				continue;
+			}
+
+			$dbh->query('INSERT INTO ' . get_table_name('carddav_addressbooks') .
+				'(name,username,password,url,active,user_id) ' .
+				'VALUES (?, ?, ?, ?, ?, ?)',
+					get_input_value(base64_encode($key)."_cd_description", RCUBE_INPUT_POST),
+					get_input_value(base64_encode($key).'_cd_username', RCUBE_INPUT_POST),
+					get_input_value(base64_encode($key).'_cd_password', RCUBE_INPUT_POST),
+					get_input_value(base64_encode($key).'_cd_url', RCUBE_INPUT_POST),
+					isset($_POST[base64_encode($key).'_cd_use_carddav']) ? 1 : 0,
+					$_SESSION['user_id']);
+		}
+		unset($args['prefs']['carddav']);
+		/////////    [END] MIGRATE OLD SETTINGS TO DB 
+
+		// update existing in DB
+		$sql_result = $dbh->query('SELECT id FROM ' . 
+			get_table_name('carddav_addressbooks') .
+			' WHERE user_id = ?',
+			$_SESSION['user_id']);
+
+		while ($abook = $dbh->fetch_assoc($sql_result)) {
+			$abookid = $abook['id'];
+			if( isset($_POST[$abookid."_cd_delete"]) ) {
+				$dbh->query('DELETE FROM ' .
+					get_table_name('carddav_addressbooks') .
+					' WHERE id = ?', $abookid);
+			} else {
+				$dbh->query('UPDATE ' .
+					get_table_name('carddav_addressbooks') .
+					' SET name=?,username=?,password=?,url=?,active=? ' .
+					' WHERE id = ?',
+					get_input_value($abookid."_cd_description", RCUBE_INPUT_POST),
+					get_input_value($abookid."_cd_username", RCUBE_INPUT_POST),
+					get_input_value($abookid."_cd_password", RCUBE_INPUT_POST),
+					get_input_value($abookid."_cd_url", RCUBE_INPUT_POST),
+					isset($_POST[$abookid.'_cd_use_carddav']) ? 1 : 0,
+					$abookid);
+			}
+		}
+
+		// add a new address book?	
+		$new = get_input_value('new_cd_description', RCUBE_INPUT_POST);
+		if (strlen($new) > 0) {
+			$dbh->query('INSERT INTO ' . get_table_name('carddav_addressbooks') .
+				'(name,username,password,url,active,user_id) ' .
+				'VALUES (?, ?, ?, ?, ?, ?)',
+					get_input_value('new_cd_description', RCUBE_INPUT_POST), 
+					get_input_value('new_cd_username', RCUBE_INPUT_POST),
+					get_input_value('new_cd_password', RCUBE_INPUT_POST),
+					get_input_value('new_cd_url', RCUBE_INPUT_POST),
+					isset($_POST['new_cd_use_carddav']) ? 1 : 0,
+					$_SESSION['user_id']);
+		}
+
+		return($args);
+	}}}
 }

@@ -22,6 +22,30 @@ require("inc/http.php");
 require("inc/sasl.php");
 require("inc/vcard.php");
 
+function carddavconfig_sql($abookid){{{
+	$dbh = rcmail::get_instance()->db;
+
+	$sql_result = $dbh->query('SELECT id,name,username,password,url FROM ' .
+		get_table_name('carddav_addressbooks') .
+		' WHERE id = ? AND user_id = ? AND active=1',
+		$abookid,
+		$_SESSION['user_id']); // to make sure that a user does not retrieve another user's address book by forging ids
+
+	$abookrow = $dbh->fetch_assoc($sql_result); // can only be a single row
+	if(! $abookrow) {
+		write_log("carddav", "FATAL! Request for non-existent configuration $abookid");
+		return false;
+	}
+
+	$retval = array();
+	$retval['username'] = $abookrow['username'];
+	$retval['password'] = $abookrow['password'];
+	$retval['url'] = str_replace("%u", $abookrow['username'], $abookrow['url']);
+	$retval['db_id'] = $abookid;
+
+	return $retval;
+}}}
+
 function carddavconfig($sub = 'CardDAV'){{{
 	$rcmail = rcmail::get_instance();
 	$prefs = $rcmail->config->get('carddav', array());
@@ -34,7 +58,6 @@ function carddavconfig($sub = 'CardDAV'){{{
 		$prefs = $p;
 	}
 	// Set some defaults
-	$use_carddav = false;
 	$username = "";
 	$password = "";
 	$url = "";
@@ -47,7 +70,6 @@ function carddavconfig($sub = 'CardDAV'){{{
 		return $prefs;
 	}
 	$retval = array();
-	$retval['use_carddav'] = $use_carddav;
 	$retval['username'] = $username;
 	$retval['password'] = $password;
 	$retval['url'] = str_replace("%u", $username, $url);
@@ -136,7 +158,7 @@ class carddav_backend extends rcube_addressbook
   public function __construct($sub = "CardDAV")
   {{{
 	$this->ready = true;
-	$this->config = carddavconfig($sub);
+	$this->config = carddavconfig_sql($sub);
 	$this->coltypes = array( /* {{{ */
 		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('name'), 'category' => 'main'),
 		'firstname'    => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('firstname'), 'category' => 'main'),
@@ -241,7 +263,7 @@ class carddav_backend extends rcube_addressbook
 	return $new_array;
   }}}
 
-  public function addvcards($reply, $try = 0)
+  private function addvcards($reply, $try = 0)
   {{{
 	$addresses = array();
 	$ID = $name = null;
@@ -255,9 +277,8 @@ class carddav_backend extends rcube_addressbook
 	xml_parser_free($xml_parser);
 	$tryagain = array();
 	foreach ($vcards as $vcard){
-		$vcf = new VCard;
 		if (!preg_match(";BEGIN;", $vcard['vcf'])){
-# Seems like the server didn't give us the vcf data
+			# Seems like the server didn't give us the vcf data
 			$tryagain[] = $vcard['href'];
 			continue;
 		}
@@ -379,7 +400,7 @@ class carddav_backend extends rcube_addressbook
 	return "";
   }}}
 
-  public function create_filter()
+  private function create_filter()
   {{{
 # This is just a stub to satisfy Apples CalenderServer
 # We should really use this more but for now we filter client side (in $this->addvcards)
@@ -402,7 +423,7 @@ class carddav_backend extends rcube_addressbook
 	return false;
   }}}
 
-  public function list_records_sync_collection($cols, $subset)
+  private function list_records_sync_collection($cols, $subset)
   {{{
 	$records = 0;
 	$xmlquery =
@@ -433,7 +454,7 @@ class carddav_backend extends rcube_addressbook
 	}
 	$reply = $reply["body"];
 	if (strlen($reply)) {
-		$records += $this->addvcards($reply);
+		$records = $this->addvcards($reply);
 	}
 	return $records;
   }}}
