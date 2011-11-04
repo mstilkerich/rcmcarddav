@@ -24,8 +24,19 @@ require("inc/vcard.php");
 
 function carddavconfig($sub = 'CardDAV'){{{
 	$rcmail = rcmail::get_instance();
-	$prefs = $rcmail->config->get('carddav', array());
-	$dont_override = $rcmail->config->get('dont_override', array());
+	$prefs;
+
+	if (file_exists("plugins/carddav/config.inc.php")){
+		require("plugins/carddav/config.inc.php");
+	}
+
+	if (!($prefs['_GLOBAL']['fixed'] == true)){ /* are user preferences allowed? */
+		$userprefs = $rcmail->config->get('carddav', array());
+		foreach ($userprefs as $key => $value){
+			if ("x".$key != "x")
+				$prefs[$key] = $value;
+		}
+	}
 
 	if ($prefs['db_version'] == 1 || !array_key_exists('db_version', $prefs)){
 		unset($prefs['db_version']);
@@ -33,24 +44,23 @@ function carddavconfig($sub = 'CardDAV'){{{
 		$p['db_version'] = 2;
 		$prefs = $p;
 	}
+
 	// Set some defaults
 	$use_carddav = false;
 	$username = "";
 	$password = "";
 	$url = "";
 
-	if (file_exists("plugins/carddav/config.inc.php")){
-		require("plugins/carddav/config.inc.php");
-	}
-
 	if ($sub == "_cd_RAW"){
 		return $prefs;
 	}
+
 	$retval = array();
 	$retval['use_carddav'] = $use_carddav;
 	$retval['username'] = $username;
 	$retval['password'] = $password;
 	$retval['url'] = str_replace("%u", $username, $url);
+	$retval['fromconfig'] = false;
 
 	if (!array_key_exists($sub, $prefs)){
 		write_log("carddav", "FATAL! Request for non-existent configuration $sub");
@@ -59,12 +69,12 @@ function carddavconfig($sub = 'CardDAV'){{{
 
 	$prefs = $prefs[$sub];
 	foreach ($retval as $key => $value){
-		if (!in_array("carddav_$key", $dont_override)){
-			if (array_key_exists($key, $prefs)){
-				$retval[$key] = $prefs[$key];
-			}
+		if (array_key_exists($key, $prefs)){
+			$retval[$key] = $prefs[$key];
 		}
 	}
+	$retval['url'] = str_replace("%u", $retval['username'], $retval['url']);
+
 	return $retval;
 }}}
 function concaturl($str, $cat){{{

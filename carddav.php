@@ -101,18 +101,19 @@ class carddav extends rcube_plugin
 	$prefs_all = carddavconfig("_cd_RAW"); // defined in carddav_backend.php
 	
 	foreach ($prefs_all as $key => $prefs){
-		if (!is_array($prefs)){
+		if (!is_array($prefs))
 			continue;
-		}
+		if ($key == '_GLOBAL')
+			continue;
 		$desc = $key;
 		$use_carddav = $prefs['use_carddav'];
 		$username = $prefs['username'];
 		$password = $prefs['password'];
 		$url = $prefs['url'];
 
-		$dont_override = $rcmail->config->get('dont_override', array());
+		$readonly = $prefs['readonly'] || $prefs_all['_GLOBAL']['fixed'];
 
-		if (in_array('carddav_use_carddav', $dont_override)) {
+		if ($readonly){
 			$content_use_carddav = $use_carddav ? "Enabled" : "Disabled";
 		} else {
 			// check box for activating
@@ -120,7 +121,7 @@ class carddav extends rcube_plugin
 			$content_use_carddav = $checkbox->show($use_carddav?1:0);
 		}
 
-		if (in_array('carddav_username', $dont_override)){
+		if ($readonly){
 			$content_username = $username;
 		} else {
 			// input box for username
@@ -128,7 +129,7 @@ class carddav extends rcube_plugin
 			$content_username = $input->show();
 		}
 
-		if (in_array('carddav_password', $dont_override)){
+		if ($readonly){
 			$content_password = "***";
 		} else {
 			// input box for password
@@ -136,7 +137,7 @@ class carddav extends rcube_plugin
 			$content_password = $input->show();
 		}
 
-		if (in_array('carddav_url', $dont_override)){
+		if ($readonly){
 			$content_url = str_replace("%u", "$username", $url);
 		} else {
 			// input box for URL
@@ -145,17 +146,13 @@ class carddav extends rcube_plugin
 			$content_url = $input->show();
 		}
 
-		if (in_array('carddav_description', $dont_override)){
+		if ($readonly || $prefs['fromconfig']){
 			$content_description = $desc;
 		} else {
 			$input = new html_inputfield(array('name' => base64_encode($key).'_cd_description', 'type' => 'text', 'autocomplete' => 'off', 'value' => $desc, 'size' => 40));
 			$content_description = $input->show();
 		}
 
-		if (!in_array('carddav_delete', $dont_override)){
-			$checkbox = new html_checkbox(array('name' => base64_encode($key).'_cd_delete', 'value' => 1));
-			$content_delete = $checkbox->show(0);
-		}
 		$args['blocks']['cd_preferences'.base64_encode($key)] = array(
 			'options' => array(
 				array('title'=> Q($this->gettext('cd_description')), 'content' => $content_description),
@@ -163,11 +160,19 @@ class carddav extends rcube_plugin
 				array('title'=> Q($this->gettext('cd_username')), 'content' => $content_username), 
 				array('title'=> Q($this->gettext('cd_password')), 'content' => $content_password),
 				array('title'=> Q($this->gettext('cd_url')), 'content' => $content_url),
-				array('title'=> Q($this->gettext('cd_delete')), 'content' => $content_delete),
 			),
 			'name' => $key
 		);
+
+		if (!($readonly || $prefs['fromconfig'])){
+			$checkbox = new html_checkbox(array('name' => base64_encode($key).'_cd_delete', 'value' => 1));
+			$content_delete = $checkbox->show(0);
+			$args['blocks']['cd_preferences'.base64_encode($key)]['options'][] = array('title'=> Q($this->gettext('cd_delete')), 'content' => $content_delete);
+		}
+
 	}
+	if ($prefs_all['_GLOBAL']['fixed'] == true)
+		return($args);
 	$input = new html_inputfield(array('name' => "new_cd_description", 'type' => 'text', 'autocomplete' => 'off', 'size' => 40));
 	$content_description = $input->show();
 	$checkbox = new html_checkbox(array('name' => 'new_cd_use_carddav', 'value' => 1));
@@ -213,8 +218,19 @@ class carddav extends rcube_plugin
 	$prefs_all_old = carddavconfig("_cd_RAW");
 	$prefs_all_new = array('db_version' => CARDDAV_DB_VERSION);
 
+	if ($prefs_all_old['_GLOBAL']['fixed'])
+		return;
+
 	foreach ($prefs_all_old as $key => $prefs){
 		if (!is_array($prefs)){
+			continue;
+		}
+		if ($key == "_GLOBAL"){
+			continue;
+		}
+		$readonly = $prefs['readonly'] || $prefs_all_old['_GLOBAL']['fixed'];
+		if ($readonly){
+			$prefs_all_new[$key] = $prefs;
 			continue;
 		}
 		if (isset($_POST[base64_encode($key)."_cd_delete"])){
@@ -229,7 +245,8 @@ class carddav extends rcube_plugin
 	}
 	
 	$new = get_input_value('new_cd_description', RCUBE_INPUT_POST);
-	if (strlen($new) > 0){
+
+	if ("x".$new != "x"){
 		$prefs_all_new[$new] = array(
 			'use_carddav' => isset($_POST['new_cd_use_carddav']) ? 1 : 0,
 			'username' => get_input_value('new_cd_username', RCUBE_INPUT_POST),
