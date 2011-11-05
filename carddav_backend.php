@@ -190,11 +190,19 @@ class carddav_backend extends rcube_addressbook
 	); /* }}} */
   }}}
 
+  /**
+   * Returns addressbook name (e.g. for addressbooks listing)
+   */
   public function get_name()
   {{{
 	return "CardDAV";
   }}}
 
+  /**
+   * Save a search string for future listings
+   *
+   * @param mixed Search params to use in listing method, obtained by get_search_set()
+   */
   public function set_search_set($filter)
   {{{
 	$newfilter = array('keys' => array(), 'value' => $filter['value']);
@@ -217,11 +225,19 @@ class carddav_backend extends rcube_addressbook
 	$this->filter = $newfilter;
   }}}
 
+  /**
+   * Getter for saved search properties
+   *
+   * @return mixed Search properties used by this class
+   */
   public function get_search_set()
   {{{
 	return $this->filter;
   }}}
 
+  /**
+   * Reset saved results and search parameters
+   */
   public function reset()
   {{{
 	$this->result = null;
@@ -407,6 +423,13 @@ class carddav_backend extends rcube_addressbook
 	return "<C:filter/>";
   }}}
 
+  /**
+   * List the current set of contact records
+   *
+   * @param  array  List of cols to show
+   * @param  int    Only return this number of records, use negative values for tail
+   * @return array  Indexed list of contact records, each a hash array
+   */
   public function list_records($cols=null, $subset=0)
   {{{
 	$this->result = $this->count();
@@ -423,6 +446,11 @@ class carddav_backend extends rcube_addressbook
 	return false;
   }}}
 
+  /**
+   * Retrieves the Card URIs from the CardDAV server
+   *
+   * @return int  number of cards in collection, -1 on error
+   */
   private function list_records_sync_collection($cols, $subset)
   {{{
 	$records = 0;
@@ -529,6 +557,16 @@ class carddav_backend extends rcube_addressbook
 	return $records;
   }}}
 
+  /**
+   * Search records
+   *
+   * @param array   List of fields to search in
+   * @param string  Search value
+   * @param boolean True if results are requested, False if count only
+   * @param boolean True to skip the count query (select only)
+   * @param array   List of fields that cannot be empty
+   * @return object rcube_result_set List of contact records and 'count' value
+   */
   public function search($fields, $value, $strict=false, $select=true, $nocount=false, $required=array())
   {{{
 	$f = array();
@@ -547,16 +585,31 @@ class carddav_backend extends rcube_addressbook
 	return $this->result;
   }}}
 
+  /**
+   * Count number of available contacts in database
+   *
+   * @return rcube_result_set Result set with values for 'count' and 'first'
+   */
   public function count()
   {{{
 	return new rcube_result_set(1, ($this->list_page-1) * $this->page_size);
   }}}
 
+  /**
+   * Return the last result set
+   *
+   * @return rcube_result_set Current result set or NULL if nothing selected yet
+   */
   public function get_result()
   {{{
 	return $this->result;
   }}}
 
+  /**
+   * Return the last result set
+   *
+   * @return rcube_result_set Current result set or NULL if nothing selected yet
+   */
   public function get_record_from_carddav($uid)
   {{{
 	$opts = array(
@@ -573,6 +626,14 @@ class carddav_backend extends rcube_addressbook
 	return $reply["body"];
   }}}
 
+  /**
+   * Get a specific contact record
+   *
+   * @param mixed record identifier(s)
+   * @param boolean True to return record as associative array, otherwise a result set is returned
+   *
+   * @return mixed Result object with all record fields or False if not found
+   */
   public function get_record($oid, $assoc_return=false)
   {{{
 	$this->result = $this->count();
@@ -807,6 +868,15 @@ array (
 	return $retval;
   }}}
 
+  /**
+   * Create a new contact record
+   *
+   * @param array Assoziative array with save data
+   *  Keys:   Field name with optional section in the form FIELD:SECTION
+   *  Values: Field value. Can be either a string or an array of strings for multiple values
+   * @param boolean True to check for duplicates first
+   * @return mixed The created record ID on success, False on error
+   */
   public function insert($save_data, $check=false)
   {{{
 	$id = $this->guid();
@@ -825,6 +895,15 @@ array (
 	return false;
   }}}
 
+  /**
+   * Update a specific contact record
+   *
+   * @param mixed Record identifier
+   * @param array Assoziative array with save data
+   *  Keys:   Field name with optional section in the form FIELD:SECTION
+   *  Values: Field value. Can be either a string or an array of strings for multiple values
+   * @return boolean True on success, False on error
+   */
   public function update($oid, $save_data)
   {{{
 	$oid = base64_decode($oid);
@@ -844,6 +923,12 @@ array (
 	return $this->put_record_to_carddav($oid, $vcf);
   }}}
 
+  /**
+   * Mark one or more contact records as deleted
+   *
+   * @param array  Record identifiers
+   * @param bool   Remove records irreversible (see self::undelete)
+   */
   public function delete($ids)
   {{{
 	foreach ($ids as $uid){
@@ -853,11 +938,25 @@ array (
 	return true;
   }}}
 
+  /**
+   * Add the given contact records the a certain group
+   *
+   * @param string  Group identifier
+   * @param array   List of contact identifiers to be added
+   * @return int    Number of contacts added
+   */
   function add_to_group($group_id, $ids)
   {{{
 	return false;
   }}}
 
+  /**
+   * Remove the given contact records from a certain group
+   *
+   * @param string  Group identifier
+   * @param array   List of contact identifiers to be removed
+   * @return int    Number of deleted group members
+   */
   function remove_from_group($group_id, $ids)
   {{{
 	return false;
@@ -868,26 +967,56 @@ array (
 	return false;
   }}}
 
+  /**
+   * Setter for the current group
+   * (empty, has to be re-implemented by extending class)
+   */
   function set_group($gid)
   {{{
 	return false;
   }}}
 
+  /**
+   * List all active contact groups of this source
+   *
+   * @param string  Optional search string to match group name
+   * @return array  Indexed list of contact groups, each a hash array
+   */
   function list_groups($search = null)
   {{{
 	return false;
   }}}
 
+  /**
+   * Create a contact group with the given name
+   *
+   * @param string The group name
+   * @return mixed False on error, array with record props in success
+   */
   function create_group($name)
   {{{
 	return false;
   }}}
 
+  /**
+   * Delete the given group and all linked group members
+   *
+   * @param string Group identifier
+   * @return boolean True on success, false if no data was changed
+   */
   function delete_group($gid)
   {{{
 	return false;
   }}}
 
+  /**
+   * Rename a specific contact group
+   *
+   * @param string Group identifier
+   * @param string New name to set for this group
+   * @param string New group identifier (if changed, otherwise don't set)
+   * @return boolean New name on success, false if no data was changed
+   */
   function rename_group($gid, $newname)
   {{{
 	return false;
