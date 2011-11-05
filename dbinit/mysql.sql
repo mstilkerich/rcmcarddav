@@ -1,13 +1,14 @@
 -- table to store the configured address books
 CREATE TABLE IF NOT EXISTS carddav_addressbooks (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
- 	name VARCHAR(64) NOT NULL,
- 	username VARCHAR(64) NOT NULL,
- 	password VARCHAR(64) NOT NULL,
- 	url VARCHAR(255) NOT NULL,
- 	active TINYINT UNSIGNED NOT NULL DEFAULT 1,
- 	user_id INT(10) UNSIGNED NOT NULL REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
- 	last_updated TIMESTAMP DEFAULT 0,
+	name VARCHAR(64) NOT NULL,
+	username VARCHAR(64) NOT NULL,
+	password VARCHAR(64) NOT NULL,
+	url VARCHAR(255) NOT NULL,
+	active TINYINT UNSIGNED NOT NULL DEFAULT 1,
+	user_id INT(10) UNSIGNED NOT NULL REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	last_updated TIMESTAMP DEFAULT 0,  -- time stamp of the last update of the local database
+	refresh_time TIME DEFAULT '1:00'   -- time span after that the local database will be refreshed, default 1h
 );
 
 CREATE TABLE IF NOT EXISTS carddav_contacts (
