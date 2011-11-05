@@ -25,7 +25,7 @@ require("inc/vcard.php");
 function carddavconfig($abookid){{{
 	$dbh = rcmail::get_instance()->db;
 
-	$sql_result = $dbh->query('SELECT id,name,username,password,url,'.
+	$sql_result = $dbh->query('SELECT name,username,password,url,'.
 		'(now()>last_updated+refresh_time) as needs_update FROM ' .
 		get_table_name('carddav_addressbooks') .
 		' WHERE id=? AND user_id=? AND active=1',
@@ -38,12 +38,14 @@ function carddavconfig($abookid){{{
 		return false;
 	}
 
-	$retval = array();
-	$retval['username'] = $abookrow['username'];
-	$retval['password'] = $abookrow['password'];
-	$retval['needs_update'] = $abookrow['needs_update'];
-	$retval['url'] = str_replace("%u", $abookrow['username'], $abookrow['url']);
-	$retval['db_id'] = $abookid;
+	$retval = array(
+		name         => $abookrow['name'],
+		username     => $abookrow['username'],
+		password     => $abookrow['password'],
+		url          => str_replace("%u", $abookrow['username'], $abookrow['url']),
+		needs_update => $abookrow['needs_update'],
+		db_id        => $abookid,
+	);
 
 	return $retval;
 }}}
@@ -145,18 +147,18 @@ function characterData_addvcards($parser, $data) {{{
 
 class carddav_backend extends rcube_addressbook
 {
-  public $primary_key = 'ID';
-  public $readonly = false;
-  public $groups = false;
+	public $primary_key = 'ID';
+	public $readonly    = false;
+	public $groups      = false;
+	public $coltypes;
 
-  private $group;
-  private $filter;
-  private $result;
-  private $config;
-  public $coltypes;
+	private $group;
+	private $filter;
+	private $result;
+	private $config;
 
-  private $DEBUG = false;	# set to true for basic debugging
-  private $DEBUG_HTTP = false;	# set to true for debugging raw http stream
+	private $DEBUG      = false; # set to true for basic debugging
+	private $DEBUG_HTTP = false; # set to true for debugging raw http stream
 
 	// contains a the URIs, db ids and etags of the locally stored cards whenever
 	// a refresh from the server is attempted. This is used to avoid a separate
@@ -164,8 +166,11 @@ class carddav_backend extends rcube_addressbook
 	// to detect whether cards were deleted on the server
 	private $existing_card_cache = array();
 
-  public function __construct($sub = "CardDAV")
-  {{{
+	// total number of contacts in address book
+	private $total_cards = -1;
+
+	public function __construct($sub = "CardDAV")
+	{{{
 	$this->ready = true;
 	$this->config = carddavconfig($sub);
 	$this->coltypes = array( /* {{{ */
@@ -202,10 +207,10 @@ class carddav_backend extends rcube_addressbook
   /**
    * Returns addressbook name (e.g. for addressbooks listing)
    */
-  public function get_name()
-  {{{
-	return "CardDAV";
-  }}}
+	public function get_name()
+	{{{
+	return $this->config['name'];
+	}}}
 
   /**
    * Save a search string for future listings
@@ -253,6 +258,7 @@ class carddav_backend extends rcube_addressbook
 	$this->filter = null;
   }}}
 
+		/*
   public function array_sort($array, $on, $order=SORT_ASC)
   {{{
 	$new_array = array();
@@ -286,7 +292,8 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	return $new_array;
-  }}}
+	}}}
+		 */
 
 	/**
 	 * Stores a vcard to the local database.
@@ -478,7 +485,10 @@ class carddav_backend extends rcube_addressbook
    */
   public function list_records($cols=null, $subset=0)
   {{{
-	$this->result = $this->count();
+		
+	if ($this->DEBUG){
+		write_log("carddav", "list_records: Columns: " . implode(",", $cols) . " SubSet: $subset");
+	}
 
 	// refresh from server if refresh interval passed
 	if ( $this->config['needs_update'] == 1 ) {
@@ -499,6 +509,7 @@ class carddav_backend extends rcube_addressbook
 
 		$records = $this->list_records_sync_collection($cols, $subset);
 		if ($records < 0){ /* returned error -1 */
+		write_log("carddav", "count");
 			$records = $this->list_records_propfind_resourcetype($cols, $subset);
 		}
 
@@ -514,6 +525,7 @@ class carddav_backend extends rcube_addressbook
 		}
 	}
 
+	$this->result = $this->count();
 	$records = $this->list_records_readdb();
 
 	if ($records > 0){
@@ -569,9 +581,12 @@ class carddav_backend extends rcube_addressbook
 	$dbh = rcmail::get_instance()->db;
 	$addresses = array();
 
-	$dbh->query('SELECT id,name,vcard FROM ' .
+	$dbh->limitquery('SELECT id,name,vcard FROM ' .
 		get_table_name('carddav_contacts') .
-		' WHERE abook_id=?',
+		' WHERE abook_id=? ' .
+		' ORDER BY name ASC',
+		$this->result->first,
+		$this->page_size,
 		$this->config['db_id']);
 
 	while($contact = $dbh->fetch_assoc($sql_result)) {
@@ -585,7 +600,7 @@ class carddav_backend extends rcube_addressbook
 
 	$x = 0;
 	$filter = $this->get_search_set();
-	foreach($this->array_sort($addresses, "name") as $a){
+	foreach($addresses as $a){
 		if (strlen($filter["value"]) > 0){
 			foreach ($filter["keys"] as $key => $value){
 				if (is_array($a['save_data'][$value])){
@@ -642,7 +657,7 @@ class carddav_backend extends rcube_addressbook
 	return $reply;
   }}}
 
-  public function list_records_propfind_resourcetype($cols, $subset)
+	private function list_records_propfind_resourcetype($cols, $subset)
   {{{
 	$records = 0;
 	$xmlquery =
@@ -719,7 +734,17 @@ class carddav_backend extends rcube_addressbook
    */
   public function count()
   {{{
-	return new rcube_result_set(1, ($this->list_page-1) * $this->page_size);
+	write_log("carddav", "count: list_page: " . $this->list_page . ", Page Size: ". $this->page_size);
+	if($this->total_cards < 0) {
+		$dbh = rcmail::get_instance()->db;
+		$sql_result = $dbh->query('SELECT COUNT(id) as total_cards FROM ' .
+			get_table_name('carddav_contacts') .
+			' WHERE abook_id=?',
+			$this->config['db_id']);
+		$resultrow = $dbh->fetch_assoc($sql_result);
+		$total_cards = $resultrow['total_cards'];
+	}
+	return new rcube_result_set($total_cards, ($this->list_page-1) * $this->page_size);
   }}}
 
   /**
