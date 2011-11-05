@@ -33,6 +33,9 @@ class carddav extends rcube_plugin
 		$this->add_hook('preferences_save', array($this, 'cd_save'));
 		$this->add_hook('preferences_sections_list',array($this, 'cd_preferences_section'));
 
+		// migrate old settings
+		migrateconfig();
+
 		// use this address book for autocompletion queries
 		// (maybe this should be configurable by the user?)
 		$config = rcmail::get_instance()->config;
@@ -66,8 +69,8 @@ class carddav extends rcube_plugin
 				'id' => "carddav_".$abookrow['id'],
 				'name' => $abookrow['name'],
 				// XXX what is $abook in this context?!
-				'readonly' => $abook->readonly,
-				'groups' => $abook->groups,
+				//'readonly' => $abook->readonly,
+				//'groups' => $abook->groups,
 			);
 		}
 		return $p;
@@ -170,24 +173,6 @@ class carddav extends rcube_plugin
 
 		$dont_override = $rcmail->config->get('dont_override', array());
 
-		/////////    MIGRATE OLD SETTINGS TO DB 
-		$prefs_all = carddavconfig("_cd_RAW"); // defined in carddav_backend.php
-
-		foreach ($prefs_all as $key => $prefs){
-			if (!is_array($prefs)){
-				continue;
-			}
-
-			$desc = $key;
-			$use_carddav = $prefs['use_carddav'];
-			$username = $prefs['username'];
-			$password = $prefs['password'];
-			$url = $prefs['url'];
-
-			$args['blocks']['cd_preferences'.base64_encode($key)] = $this->cd_preferences_buildblock(base64_encode($key),$key,$desc,$use_carddav,$username,$password,$url,$dont_override);
-		}
-		/////////    [END] MIGRATE OLD SETTINGS TO DB 
-
 		$sql_result = $dbh->query('SELECT id,name,username,password,url,active FROM ' . 
 			get_table_name('carddav_addressbooks') .
 			' WHERE user_id = ?',
@@ -227,34 +212,6 @@ class carddav extends rcube_plugin
 			return;
 
 		$dbh    = rcmail::get_instance()->db;
-
-		/////////    MIGRATE OLD SETTINGS TO DB 
-		$prefs_all_old = carddavconfig("_cd_RAW");
-		foreach ($prefs_all_old as $key => $prefs) {
-
-			// broken entry(?) => delete
-			if (!is_array($prefs)){
-				continue;
-			}
-
-			// delete?
-			if (isset($_POST[base64_encode($key)."_cd_delete"])){
-				continue;
-			}
-
-			$dbh->query('INSERT INTO ' . get_table_name('carddav_addressbooks') .
-				'(name,username,password,url,active,user_id) ' .
-				'VALUES (?, ?, ?, ?, ?, ?)',
-					get_input_value(base64_encode($key)."_cd_description", RCUBE_INPUT_POST),
-					get_input_value(base64_encode($key).'_cd_username', RCUBE_INPUT_POST),
-					get_input_value(base64_encode($key).'_cd_password', RCUBE_INPUT_POST),
-					get_input_value(base64_encode($key).'_cd_url', RCUBE_INPUT_POST),
-					isset($_POST[base64_encode($key).'_cd_use_carddav']) ? 1 : 0,
-					$_SESSION['user_id']);
-		}
-		unset($args['prefs']['carddav']);
-		/////////    [END] MIGRATE OLD SETTINGS TO DB 
-
 		// update existing in DB
 		$sql_result = $dbh->query('SELECT id FROM ' . 
 			get_table_name('carddav_addressbooks') .

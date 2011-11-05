@@ -22,12 +22,13 @@ require("inc/http.php");
 require("inc/sasl.php");
 require("inc/vcard.php");
 
-function carddavconfig_sql($abookid){{{
+function carddavconfig($abookid){{{
 	$dbh = rcmail::get_instance()->db;
 
-	$sql_result = $dbh->query('SELECT id,name,username,password,url,(now()>last_updated+refresh_time) as needs_update FROM ' .
+	$sql_result = $dbh->query('SELECT id,name,username,password,url,'.
+		'(now()>last_updated+refresh_time) as needs_update FROM ' .
 		get_table_name('carddav_addressbooks') .
-		' WHERE id = ? AND user_id = ? AND active=1',
+		' WHERE id=? AND user_id=? AND active=1',
 		$abookid,
 		$_SESSION['user_id']); // to make sure that a user does not retrieve another user's address book by forging ids
 
@@ -47,49 +48,50 @@ function carddavconfig_sql($abookid){{{
 	return $retval;
 }}}
 
-function carddavconfig($sub = 'CardDAV'){{{
+/**
+ * Migrates settings to a separate addressbook table.
+ */
+function migrateconfig($sub = 'CardDAV'){{{
 	$rcmail = rcmail::get_instance();
-	$prefs = $rcmail->config->get('carddav', array());
-	$dont_override = $rcmail->config->get('dont_override', array());
+	$prefs_all = $rcmail->config->get('carddav', 0);
+	$dbh = $rcmail->db;
 
-	if ($prefs['db_version'] == 1 || !array_key_exists('db_version', $prefs)){
-		unset($prefs['db_version']);
-		$p['CardDAV'] = $prefs;
+	// any old settings to migrate?
+	if(!$prefs_all) {
+		return;
+	}
+
+	// migrate to the multiple addressbook schema first if needed
+	if ($prefs_all['db_version'] == 1 || !array_key_exists('db_version', $prefs_all)){
+		write_log("carddav", "migrateconfig: DB1 to DB2");
+		unset($prefs_all['db_version']);
+		// FIXME $p does not seem to be initialized
+		$p['CardDAV'] = $prefs_all;
 		$p['db_version'] = 2;
-		$prefs = $p;
-	}
-	// Set some defaults
-	$username = "";
-	$password = "";
-	$url = "";
-
-	if (file_exists("plugins/carddav/config.inc.php")){
-		require("plugins/carddav/config.inc.php");
+		$prefs_all = $p;
 	}
 
-	if ($sub == "_cd_RAW"){
-		return $prefs;
-	}
-	$retval = array();
-	$retval['username'] = $username;
-	$retval['password'] = $password;
-	$retval['url'] = str_replace("%u", $username, $url);
-
-	if (!array_key_exists($sub, $prefs)){
-		write_log("carddav", "FATAL! Request for non-existent configuration $sub");
-		return false;
-	}
-
-	$prefs = $prefs[$sub];
-	foreach ($retval as $key => $value){
-		if (!in_array("carddav_$key", $dont_override)){
-			if (array_key_exists($key, $prefs)){
-				$retval[$key] = $prefs[$key];
-			}
+	// migrate settings to database
+	foreach ($prefs_all as $desc => $prefs){
+		// skip non address book attributes
+		if (!is_array($prefs)){
+			continue;
 		}
+
+		write_log("carddav", "migrateconfig: move addressbook $desc");
+		$dbh->query('INSERT INTO ' . get_table_name('carddav_addressbooks') .
+			'(name,username,password,url,active,user_id) ' .
+			'VALUES (?, ?, ?, ?, ?, ?)',
+				$desc, $prefs['username'], $prefs['password'], $prefs['url'],
+				$prefs['use_carddav'], $_SESSION['user_id']);
 	}
-	return $retval;
+
+	// delete old settings
+	$usettings = $rcmail->user->get_prefs();
+	$usettings['carddav'] = array();
+	write_log("carddav", "migrateconfig: delete old prefs: " . $rcmail->user->save_prefs($usettings));
 }}}
+
 function concaturl($str, $cat){{{
 	if (substr($cat, 0, 1) != "/"){
 		return $str."/".$cat;
@@ -159,7 +161,7 @@ class carddav_backend extends rcube_addressbook
   public function __construct($sub = "CardDAV")
   {{{
 	$this->ready = true;
-	$this->config = carddavconfig_sql($sub);
+	$this->config = carddavconfig($sub);
 	$this->coltypes = array( /* {{{ */
 		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('name'), 'category' => 'main'),
 		'firstname'    => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('firstname'), 'category' => 'main'),
