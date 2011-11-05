@@ -158,6 +158,12 @@ class carddav_backend extends rcube_addressbook
   private $DEBUG = false;	# set to true for basic debugging
   private $DEBUG_HTTP = false;	# set to true for debugging raw http stream
 
+	// contains a the URIs, db ids and etags of the locally stored cards whenever
+	// a refresh from the server is attempted. This is used to avoid a separate
+	// "exists?" DB query for each card retrieved from the server and also allows
+	// to detect whether cards were deleted on the server
+	private $existing_card_cache = array();
+
   public function __construct($sub = "CardDAV")
   {{{
 	$this->ready = true;
@@ -282,6 +288,9 @@ class carddav_backend extends rcube_addressbook
 	return $new_array;
   }}}
 
+	/**
+	 * Stores a vcard to the local database.
+	 */
 	private function dbstore_vcard($save_data, $vcard)
 	{{{
 	$dbh = rcmail::get_instance()->db;
@@ -300,12 +309,11 @@ class carddav_backend extends rcube_addressbook
 	}
 	$emails = implode(', ', $email_addrs);
 
-	$sql_result = $dbh->query('SELECT id,etag FROM ' .
-		get_table_name('carddav_contacts') .
-		' WHERE abook_id=? AND cuid=?',
-		$this->config['db_id'], $vcard['href']);
+	// does the card already exist in the local db? yes => update
+	if(array_key_exists($vcard['href'], $this->existing_card_cache)) {
+		$contact = $this->existing_card_cache[$vcard['href']];
 
-	if($contact = $dbh->fetch_assoc($sql_result)) {
+		// etag still the same? card not changed
 		if(strcmp($contact['etag'], $vcard['etag'])) {
 			$sql_result = $dbh->query('UPDATE ' .
 				get_table_name('carddav_contacts') .
@@ -315,7 +323,17 @@ class carddav_backend extends rcube_addressbook
 				$vcard['vcf'],
 				'', $vcard['etag'],
 				$contact['id']);
+			if ($this->DEBUG){
+				write_log("carddav", "dbstore: UPDATED card " . $vcard['href']);
+			}
+		} else if ($this->DEBUG){
+				write_log("carddav", "dbstore: UNCHANGED card " . $vcard['href']);
 		}
+
+		// delete from the cache, cards left are known to be deleted from the server
+		unset($this->existing_card_cache[$vcard['href']]);
+
+	// does not exist => insert new card
 	} else {
 		$sql_result = $dbh->query('INSERT INTO ' .
 			get_table_name('carddav_contacts') .
@@ -325,6 +343,9 @@ class carddav_backend extends rcube_addressbook
 				$vcard['vcf'],
 				'', // TODO search terms
 				$vcard['etag'], $vcard['href']);
+		if ($this->DEBUG){
+			write_log("carddav", "dbstore: INSERT card " . $vcard['href']);
+		}
 	}
 	}}}
 
@@ -459,10 +480,37 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$this->result = $this->count();
 
+	// refresh from server if refresh interval passed
 	if ( $this->config['needs_update'] == 1 ) {
+		$dbh = rcmail::get_instance()->db;
+
+		// determine existing local contact URIs and ETAGs
+		$sql_result = $dbh->query('SELECT cuid,id,etag FROM ' .
+			get_table_name('carddav_contacts') .
+			' WHERE abook_id=?',
+			$this->config['db_id']);
+
+		while($contact = $dbh->fetch_assoc($sql_result)) {
+			$this->existing_card_cache[$contact['cuid']] = array(
+				'id'=>$contact['id'],
+				'etag'=>$contact['etag']
+			);
+		}
+
 		$records = $this->list_records_sync_collection($cols, $subset);
 		if ($records < 0){ /* returned error -1 */
 			$records = $this->list_records_propfind_resourcetype($cols, $subset);
+		}
+
+		// delete cards not present on the server anymore
+		if ($records >= 0) {
+			foreach($this->existing_card_cache as $cuid => $value) {
+				$sql_result = $dbh->query('DELETE FROM ' .
+					get_table_name('carddav_contacts') .
+					' WHERE id=?',
+					$value['id']);
+				write_log("carddav", "deleted local card: $cuid");
+			}
 		}
 	}
 
