@@ -25,7 +25,7 @@ require("inc/vcard.php");
 function carddavconfig_sql($abookid){{{
 	$dbh = rcmail::get_instance()->db;
 
-	$sql_result = $dbh->query('SELECT id,name,username,password,url FROM ' .
+	$sql_result = $dbh->query('SELECT id,name,username,password,url,(now()>last_updated+refresh_time) as needs_update FROM ' .
 		get_table_name('carddav_addressbooks') .
 		' WHERE id = ? AND user_id = ? AND active=1',
 		$abookid,
@@ -40,6 +40,7 @@ function carddavconfig_sql($abookid){{{
 	$retval = array();
 	$retval['username'] = $abookrow['username'];
 	$retval['password'] = $abookrow['password'];
+	$retval['needs_update'] = $abookrow['needs_update'];
 	$retval['url'] = str_replace("%u", $abookrow['username'], $abookrow['url']);
 	$retval['db_id'] = $abookid;
 
@@ -279,11 +280,55 @@ class carddav_backend extends rcube_addressbook
 	return $new_array;
   }}}
 
+	private function dbstore_vcard($save_data, $vcard)
+	{{{
+	$dbh = rcmail::get_instance()->db;
+
+	// generate display name if not explicitly set
+	$name = $save_data['name'];
+	if (strlen($name) == 0){
+		$name = $save_data['surname']." ".$save_data['firstname'];
+	}
+
+	// build email search string
+	$email_keys = preg_grep('/^email:/', array_keys($save_data));
+	$email_addrs = array();
+	foreach($email_keys as $email_key) {
+		$email_addrs[] = implode(", ", $save_data[$email_key]);
+	}
+	$emails = implode(', ', $email_addrs);
+
+	$sql_result = $dbh->query('SELECT id,etag FROM ' .
+		get_table_name('carddav_contacts') .
+		' WHERE abook_id=? AND cuid=?',
+		$this->config['db_id'], $vcard['href']);
+
+	if($contact = $dbh->fetch_assoc($sql_result)) {
+		if(strcmp($contact['etag'], $vcard['etag'])) {
+			$sql_result = $dbh->query('UPDATE ' .
+				get_table_name('carddav_contacts') .
+				' SET name=?,email=?,firstname=?,surname=?,vcard=?,words=?,etag=?' .
+				' WHERE id=?',
+				$name, $emails, $save_data['firstname'], $save_data['surname'],
+				$vcard['vcf'],
+				'', $vcard['etag'],
+				$contact['id']);
+		}
+	} else {
+		$sql_result = $dbh->query('INSERT INTO ' .
+			get_table_name('carddav_contacts') .
+			' (abook_id,name,email,firstname,surname,vcard,words,etag,cuid) VALUES (?,?,?,?,?,?,?,?,?)',
+				$this->config['db_id'], $name, $emails,
+				$save_data['firstname'], $save_data['surname'],
+				$vcard['vcf'],
+				'', // TODO search terms
+				$vcard['etag'], $vcard['href']);
+	}
+	}}}
+
   private function addvcards($reply, $try = 0)
   {{{
-	$addresses = array();
-	$ID = $name = null;
-	$filter = $this->get_search_set();
+	$dbh = rcmail::get_instance()->db;
 	global $vcards;
 	$vcards = array();
 	$xml_parser = xml_parser_create_ns();
@@ -292,6 +337,8 @@ class carddav_backend extends rcube_addressbook
 	xml_parse($xml_parser, $reply, true);
 	xml_parser_free($xml_parser);
 	$tryagain = array();
+
+	$x = 0;
 	foreach ($vcards as $vcard){
 		if (!preg_match(";BEGIN;", $vcard['vcf'])){
 			# Seems like the server didn't give us the vcf data
@@ -303,41 +350,17 @@ class carddav_backend extends rcube_addressbook
 			write_log("carddav", "Couldn't parse vcard ".$vcard['vcf']);
 			continue;
 		}
-		$ID = base64_encode($vcard['href']);
-		$name = $save_data['name'];
-		if (strlen($name) == 0){
-			$name = $save_data['surname']." ".$save_data['firstname'];
-		}
-		$addresses[] = array('ID' => $ID, 'name' => $name, 'save_data' => $save_data);
-		$ID = $name = null;
+		$this->dbstore_vcard($save_data, $vcard);
+
+		$x++;
 	}
-	$x = 0;
-	foreach($this->array_sort($addresses, "name") as $a){
-		if (strlen($filter["value"]) > 0){
-			foreach ($filter["keys"] as $key => $value){
-				if (is_array($a['save_data'][$value])){
-					/* TODO: We should correctly iterate here ... Good enough for now*/
-					foreach($a['save_data'][$value] AS $akey => $avalue){
-						if (@preg_match(";".$filter["value"].";i", $avalue)){
-							$x++;
-							$a['save_data']['ID'] = $a['ID'];
-							$this->result->add($a['save_data']);
-						}
-					}
-				} else {
-					if (preg_match(";".$filter["value"].";i", $a['save_data'][$value])){
-						$x++;
-						$a['save_data']['ID'] = $a['ID'];
-						$this->result->add($a['save_data']);
-					}
-				}
-			}
-		} else {
-			$x++;
-			$a['save_data']['ID'] = $a['ID'];
-			$this->result->add($a['save_data']);
-		}
-	}
+
+	// set last_updated timestamp
+	$dbh->query('UPDATE ' .
+		get_table_name('carddav_addressbooks') .
+		' SET last_updated=now() WHERE id=?',
+			$this->config['db_id']);
+
 	if ($try < 3 && count($tryagain) > 0){
 		$reply = $this->query_addressbook_multiget($tryagain);
 		$reply = $reply["body"];
@@ -418,8 +441,8 @@ class carddav_backend extends rcube_addressbook
 
   private function create_filter()
   {{{
-# This is just a stub to satisfy Apples CalenderServer
-# We should really use this more but for now we filter client side (in $this->addvcards)
+	// This is just a stub to satisfy Apples CalenderServer
+	// We should really use this more but for now we filter client side (in $this->addvcards)
 	return "<C:filter/>";
   }}}
 
@@ -434,10 +457,14 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$this->result = $this->count();
 
-	$records = $this->list_records_sync_collection($cols, $subset);
-	if ($records < 0){ /* returned error -1 */
-		$records = $this->list_records_propfind_resourcetype($cols, $subset);
+	if ( $this->config['needs_update'] == 1 ) {
+		$records = $this->list_records_sync_collection($cols, $subset);
+		if ($records < 0){ /* returned error -1 */
+			$records = $this->list_records_propfind_resourcetype($cols, $subset);
+		}
 	}
+
+	$records = $this->list_records_readdb();
 
 	if ($records > 0){
 		return $this->result;
@@ -487,7 +514,57 @@ class carddav_backend extends rcube_addressbook
 	return $records;
   }}}
 
-  public function query_addressbook_multiget($hrefs)
+	private function list_records_readdb()
+	{{{
+	$dbh = rcmail::get_instance()->db;
+	$addresses = array();
+
+	$dbh->query('SELECT id,name,vcard FROM ' .
+		get_table_name('carddav_contacts') .
+		' WHERE abook_id=?',
+		$this->config['db_id']);
+
+	while($contact = $dbh->fetch_assoc($sql_result)) {
+		$save_data = $this->create_save_data_from_vcard($contact['vcard']);
+		if (!$save_data){
+			write_log("carddav", "Couldn't parse vcard ".$contact['vcard']);
+			continue;
+		}
+		$addresses[] = array('ID' => $contact['id'], 'name' => $contact['name'], 'save_data' => $save_data);
+	}
+
+	$x = 0;
+	$filter = $this->get_search_set();
+	foreach($this->array_sort($addresses, "name") as $a){
+		if (strlen($filter["value"]) > 0){
+			foreach ($filter["keys"] as $key => $value){
+				if (is_array($a['save_data'][$value])){
+					// TODO: We should correctly iterate here ... Good enough for now
+					foreach($a['save_data'][$value] AS $akey => $avalue){
+						if (@preg_match(";".$filter["value"].";i", $avalue)){
+							$x++;
+							$a['save_data']['ID'] = $a['ID'];
+							$this->result->add($a['save_data']);
+						}
+					}
+				} else {
+					if (preg_match(";".$filter["value"].";i", $a['save_data'][$value])){
+						$x++;
+						$a['save_data']['ID'] = $a['ID'];
+						$this->result->add($a['save_data']);
+					}
+				}
+			}
+		} else {
+			$x++;
+			$a['save_data']['ID'] = $a['ID'];
+			$this->result->add($a['save_data']);
+		}
+	}
+	return $x;
+	}}}
+
+  private function query_addressbook_multiget($hrefs)
   {{{
 	$xmlquery =
 		'<?xml version="1.0" encoding="utf-8" ?'.'>
@@ -637,15 +714,24 @@ class carddav_backend extends rcube_addressbook
   public function get_record($oid, $assoc_return=false)
   {{{
 	$this->result = $this->count();
-	$uid = base64_decode($oid);
-	$vcard = $this->get_record_from_carddav($uid);
-	if (!$vcard)
+	
+	$dbh = rcmail::get_instance()->db;
+	$sql_result = $dbh->query('SELECT vcard FROM ' .
+		get_table_name('carddav_contacts') .
+		' WHERE abook_id=? AND id=?',
+		$this->config['db_id'], $oid);
+
+	$contact = $dbh->fetch_assoc($sql_result);
+	if(!$contact['vcard']) {
 		return false;
-	$retval = $this->create_save_data_from_vcard($vcard);
-	if (!$retval)
+	}
+
+	$retval = $this->create_save_data_from_vcard($contact['vcard']);
+	if(!$retval) {
 		return false;
-	$ID = $oid;
-	$retval['ID'] = $ID;
+	}
+
+	$retval['ID'] = $oid;
 	$this->result->add($retval);
 	$sql_arr = $assoc_return && $this->result ? $this->result->first() : null;
 	return $assoc_return && $sql_arr ? $sql_arr : $this->result;
@@ -813,10 +899,20 @@ array (
 		return false;
 	}
 
-	$assoc = array('FN' => 'name', 'TITLE' => 'jobtitle', 'ORG' => 'organization', 'BDAY' => 'birthday', 'NICKNAME' => 'nickname',
-		       'NOTE' => 'notes', 'PHOTO' => 'photo', 'X-ASSISTANT' => 'assistant', 'X-MANAGER' => 'manager', 'X-SPOUSE' => 'spouse',
-		       'X-GENDER' => 'gender');
-	$retval = array('ID' => $oid);
+	$assoc = array(
+		'FN' => 'name',
+		'TITLE' => 'jobtitle',
+		'ORG' => 'organization',
+		'BDAY' => 'birthday',
+		'NICKNAME' => 'nickname',
+		'NOTE' => 'notes',
+		'PHOTO' => 'photo',
+		'X-ASSISTANT' => 'assistant',
+		'X-MANAGER' => 'manager',
+		'X-SPOUSE' => 'spouse',
+		'X-GENDER' => 'gender'
+	);
+	$retval = array();
 
 	foreach ($assoc as $key => $value){
 		$property = $vcf->getProperty($key);
@@ -879,6 +975,7 @@ array (
    */
   public function insert($save_data, $check=false)
   {{{
+	return false; // TODO
 	$id = $this->guid();
 	while ($this->get_record_from_carddav($id.".vcf")){
 		$id = $this->guid();
@@ -906,6 +1003,7 @@ array (
    */
   public function update($oid, $save_data)
   {{{
+	return false; // TODO
 	$oid = base64_decode($oid);
 	$save_data_old = $this->create_save_data_from_vcard($this->get_record_from_carddav($oid));
 	/* special case photo */
@@ -931,6 +1029,7 @@ array (
    */
   public function delete($ids)
   {{{
+	return false; // TODO
 	foreach ($ids as $uid){
 		$uid = base64_decode($uid);
 		$this->delete_record_from_carddav($uid);
