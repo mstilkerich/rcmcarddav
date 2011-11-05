@@ -168,8 +168,13 @@ class carddav_backend extends rcube_addressbook
 
 	// total number of contacts in address book
 	private $total_cards = -1;
+	// filter string for DB queries
+	private $search_filter = '';
+	// attributes that are redundantly stored in the contact table and need
+	// not be parsed from the vcard
+	private $table_cols = array('name', 'email', 'firstname', 'surname');
 
-	public function __construct($sub = "CardDAV")
+	public function __construct($sub)
 	{{{
 	$this->ready = true;
 	$this->config = carddavconfig($sub);
@@ -219,22 +224,67 @@ class carddav_backend extends rcube_addressbook
    */
   public function set_search_set($filter)
   {{{
-	$newfilter = array('keys' => array(), 'value' => $filter['value']);
-	foreach ($filter['keys'] as $key => $value){
-		$xfilter = $value;
-		if (strstr($xfilter, "*"))
-			$xfilter = str_replace("*", ".*?", $value);
+	// these attributes can be directly searched for in the DB
+	$fast_search = array('firstname'=>1, 'surname'=>1, 'email'=>1, 'name'=>1);
+	$dbsearch = true;
+
+	// create uniform filter layout
+	if(!is_array($filter['value'])) {
+		$searchvalue = $filter['value'];
+		$filter['value'] = array();
+
+		foreach ($filter['keys'] as $key => $val) {
+			$filter['value'][$key] = $searchvalue;
+		}
+	}
+
+	$newfilter = array('keys' => array(), 'value' => array());
+
+	foreach ($filter['keys'] as $arrk => $filterfield) {
+		$searchvalue = $filter['value'][$arrk];
+		// XXX not sure whether this is enough to avoid SQL injection
+		$filter_value_safe = strstr($searchvalue, "'") ? 0 : 1;
+
+		// the special filter field key '*' means search any field
+		// in this case, we don't need any additional search filters
+		// and we cannot use the DB to prefilter	
+		if (strcmp($filterfield, "*") == 0) {
+			if($filter_value_safe) { // special case: directly search the vcard
+				$this->filter = $filter;
+				$this->search_filter = " AND vcard like '%$searchvalue%' ";
+				return;
+			}
+			$filterfield = '.+';
+			$dbsearch = false;
+		}
+
+		// common keys can be filtered at the DB layer
+		if($filter_value_safe && array_key_exists($filterfield, $fast_search)) {
+			$this->search_filter .= " OR $filterfield like '%$searchvalue%' ";
+		} else {
+			$dbsearch = false;
+		}
+
 		foreach($this->coltypes as $key => $value){
-			if (preg_match(";$xfilter;", $key)){
-				if ($this->coltypes[$key]['subtypes']){
-					foreach ($this->coltypes[$key]['subtypes'] AS $skey => $svalue){
-						$newfilter['keys'][] = "$key:$svalue";
+			if (preg_match(";$filterfield;", $key)){
+				if ($value['subtypes']){
+					foreach ($value['subtypes'] AS $skey => $svalue){
+						$newfilter['keys'][]  = "$key:$svalue";
+						$newfilter['value'][] = $searchvalue;
 					}
 				} else {
-					$newfilter['keys'][] = $key;
+					$newfilter['keys'][]  = $key;
+					$newfilter['value'][] = $searchvalue;
 				}
 			}
 		}
+	}
+
+	if(!$dbsearch) {
+		$this->search_filter = '';
+	} else {
+		$this->search_filter = preg_replace("/^ OR /", "", $this->search_filter, 1);
+		$this->search_filter = ' AND (' . $this->search_filter . ') ';
 	}
 	$this->filter = $newfilter;
   }}}
@@ -256,44 +306,8 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$this->result = null;
 	$this->filter = null;
+	$this->search_filter = '';
   }}}
-
-		/*
-  public function array_sort($array, $on, $order=SORT_ASC)
-  {{{
-	$new_array = array();
-	$sortable_array = array();
-
-	if (count($array) > 0) {
-		foreach ($array as $k => $v) {
-			if (is_array($v)) {
-				foreach ($v as $k2 => $v2) {
-					if ($k2 == $on) {
-						$sortable_array[$k] = $v2;
-					}
-				}
-			} else {
-				$sortable_array[$k] = $v;
-			}
-		}
-
-		switch ($order) {
-			case SORT_ASC:
-				asort($sortable_array);
-			break;
-			case SORT_DESC:
-				arsort($sortable_array);
-			break;
-		}
-
-		foreach ($sortable_array as $k => $v) {
-			$new_array[$k] = $array[$k];
-		}
-	}
-
-	return $new_array;
-	}}}
-		 */
 
 	/**
 	 * Stores a vcard to the local database.
@@ -476,6 +490,43 @@ class carddav_backend extends rcube_addressbook
 	return "<C:filter/>";
   }}}
 
+	private function refreshdb_from_server()
+	{{{
+	$dbh = rcmail::get_instance()->db;
+
+	// determine existing local contact URIs and ETAGs
+	$sql_result = $dbh->query('SELECT cuid,id,etag FROM ' .
+		get_table_name('carddav_contacts') .
+		' WHERE abook_id=?',
+		$this->config['db_id']);
+
+	while($contact = $dbh->fetch_assoc($sql_result)) {
+		$this->existing_card_cache[$contact['cuid']] = array(
+			'id'=>$contact['id'],
+			'etag'=>$contact['etag']
+		);
+	}
+
+	$records = $this->list_records_sync_collection($cols, $subset);
+	if ($records < 0){ /* returned error -1 */
+	write_log("carddav", "count");
+		$records = $this->list_records_propfind_resourcetype($cols, $subset);
+	}
+
+	// delete cards not present on the server anymore
+	if ($records >= 0) {
+		foreach($this->existing_card_cache as $cuid => $value) {
+			$sql_result = $dbh->query('DELETE FROM ' .
+				get_table_name('carddav_contacts') .
+				' WHERE id=?',
+				$value['id']);
+			write_log("carddav", "deleted local card: $cuid");
+		}
+	}
+
+	$this->existing_card_cache = array();
+	}}}
+
   /**
    * List the current set of contact records
    *
@@ -486,47 +537,15 @@ class carddav_backend extends rcube_addressbook
   public function list_records($cols=null, $subset=0)
   {{{
 		
-	if ($this->DEBUG){
+	if ($this->DEBUG)
 		write_log("carddav", "list_records: Columns: " . implode(",", $cols) . " SubSet: $subset");
-	}
 
 	// refresh from server if refresh interval passed
-	if ( $this->config['needs_update'] == 1 ) {
-		$dbh = rcmail::get_instance()->db;
-
-		// determine existing local contact URIs and ETAGs
-		$sql_result = $dbh->query('SELECT cuid,id,etag FROM ' .
-			get_table_name('carddav_contacts') .
-			' WHERE abook_id=?',
-			$this->config['db_id']);
-
-		while($contact = $dbh->fetch_assoc($sql_result)) {
-			$this->existing_card_cache[$contact['cuid']] = array(
-				'id'=>$contact['id'],
-				'etag'=>$contact['etag']
-			);
-		}
-
-		$records = $this->list_records_sync_collection($cols, $subset);
-		if ($records < 0){ /* returned error -1 */
-		write_log("carddav", "count");
-			$records = $this->list_records_propfind_resourcetype($cols, $subset);
-		}
-
-		// delete cards not present on the server anymore
-		if ($records >= 0) {
-			foreach($this->existing_card_cache as $cuid => $value) {
-				$sql_result = $dbh->query('DELETE FROM ' .
-					get_table_name('carddav_contacts') .
-					' WHERE id=?',
-					$value['id']);
-				write_log("carddav", "deleted local card: $cuid");
-			}
-		}
-	}
+	if ( $this->config['needs_update'] == 1 )
+		$this->refreshdb_from_server();
 
 	$this->result = $this->count();
-	$records = $this->list_records_readdb();
+	$records = $this->list_records_readdb($cols);
 
 	if ($records > 0){
 		return $this->result;
@@ -576,57 +595,98 @@ class carddav_backend extends rcube_addressbook
 	return $records;
   }}}
 
-	private function list_records_readdb()
+	private function list_records_readdb($cols)
 	{{{
 	$dbh = rcmail::get_instance()->db;
-	$addresses = array();
+	$filter = $this->get_search_set();
+	$fast_filter = ((strlen($this->search_filter)>0) || !$filter);
 
-	$dbh->limitquery('SELECT id,name,vcard FROM ' .
+	// determine whether we have to parse the vcard or if only db cols are requested
+	$read_vcard = !$cols || count(array_intersect($cols, $this->table_cols)) < count($cols);
+	$dbattr = $read_vcard ? 'vcard' : 'firstname,surname,email';
+
+	if($fast_filter) {
+		$limit_index = $this->result->first;
+		$limit_rows  = $this->page_size;
+	} else { // take all rows and filter on application level
+		$limit_index = 0;
+		$limit_rows  = 0;
+	}
+	
+	$dbh->limitquery("SELECT id,name,$dbattr FROM " .
 		get_table_name('carddav_contacts') .
 		' WHERE abook_id=? ' .
+		$this->search_filter .
 		' ORDER BY name ASC',
 		$this->result->first,
 		$this->page_size,
 		$this->config['db_id']);
 
+	$addresses = array();
 	while($contact = $dbh->fetch_assoc($sql_result)) {
-		$save_data = $this->create_save_data_from_vcard($contact['vcard']);
-		if (!$save_data){
-			write_log("carddav", "Couldn't parse vcard ".$contact['vcard']);
-			continue;
+		if($read_vcard) {
+			$save_data = $this->create_save_data_from_vcard($contact['vcard']);
+			if (!$save_data){
+				write_log("carddav", "Couldn't parse vcard ".$contact['vcard']);
+				continue;
+			}
+		} else {
+			$save_data = array();
+			foreach	($cols as $col) {
+				if(strcmp($col,'email')==0)
+					$save_data[$col] = preg_split('/,\s*/', $contact[$col]);
+				else
+					$save_data[$col] = $contact[$col];
+			}
 		}
 		$addresses[] = array('ID' => $contact['id'], 'name' => $contact['name'], 'save_data' => $save_data);
 	}
 
-	$x = 0;
-	$filter = $this->get_search_set();
-	foreach($addresses as $a){
-		if (strlen($filter["value"]) > 0){
-			foreach ($filter["keys"] as $key => $value){
-				if (is_array($a['save_data'][$value])){
+	// generic filter if needed
+	if(!$fast_filter && $filter) {
+		$tmp_addr = $addresses;
+		$addresses = array();
+		$skip_rows = $this->result->first;
+		$max_rows  = $this->page_size;
+
+		foreach($tmp_addr as $a) {
+			if(count($addresses) >= $max_rows)
+				break;
+
+			foreach ($filter["keys"] as $key => $filterfield) {
+				$filtervalue = $filter["value"][$key];
+				$does_match = false;
+
+				// check match
+				if (is_array($a['save_data'][$filterfield])){
 					// TODO: We should correctly iterate here ... Good enough for now
 					foreach($a['save_data'][$value] AS $akey => $avalue){
-						if (@preg_match(";".$filter["value"].";i", $avalue)){
-							$x++;
-							$a['save_data']['ID'] = $a['ID'];
-							$this->result->add($a['save_data']);
+						if (@preg_match(";".$filtervalue.";i", $avalue)){
+							$does_match = true;
+							break;
 						}
 					}
-				} else {
-					if (preg_match(";".$filter["value"].";i", $a['save_data'][$value])){
-						$x++;
-						$a['save_data']['ID'] = $a['ID'];
-						$this->result->add($a['save_data']);
+				} else if (preg_match(";".$filtervalue.";i", $a['save_data'][$filterfield])){
+					$does_match = true;
+				}
+
+				if($does_match) {
+					if($skip_rows > 0) {
+						$skip_rows--;
+					} else {
+						$addresses[] = $a;
 					}
 				}
 			}
-		} else {
-			$x++;
-			$a['save_data']['ID'] = $a['ID'];
-			$this->result->add($a['save_data']);
 		}
 	}
-	return $x;
+
+	// create results for roundcube	
+	foreach($addresses as $a) {
+		$a['save_data']['ID'] = $a['ID'];
+		$this->result->add($a['save_data']);
+	}
+	return count($addresses);
 	}}}
 
   private function query_addressbook_multiget($hrefs)
@@ -1195,5 +1255,4 @@ array (
   {{{
 	return false;
   }}}
-
 }
