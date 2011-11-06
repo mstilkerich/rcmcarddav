@@ -315,6 +315,7 @@ class carddav_backend extends rcube_addressbook
 	private function dbstore_vcard($save_data, $vcard)
 	{{{
 	$dbh = rcmail::get_instance()->db;
+	$ret = false;
 
 	// generate display name if not explicitly set
 	$name = $save_data['name'];
@@ -349,6 +350,7 @@ class carddav_backend extends rcube_addressbook
 			}
 		} else if ($this->DEBUG){
 				write_log("carddav", "dbstore: UNCHANGED card " . $vcard['href']);
+				$ret = $contact['id'];
 		}
 
 		// delete from the cache, cards left are known to be deleted from the server
@@ -368,6 +370,9 @@ class carddav_backend extends rcube_addressbook
 			write_log("carddav", "dbstore: INSERT card " . $vcard['href']);
 		}
 	}
+
+	// return database id of the card
+	return $ret ? $ret : $dbh->insert_id('carddav_contacts');
 	}}}
 
   private function addvcards($reply, $try = 0)
@@ -770,7 +775,7 @@ class carddav_backend extends rcube_addressbook
    * @return object rcube_result_set List of contact records and 'count' value
    */
   public function search($fields, $value, $strict=false, $select=true, $nocount=false, $required=array())
-  {{{
+  {{{ // TODO this interface is not yet fully implemented
 	$f = array();
 	if (is_array($fields)){
 		foreach ($fields as $k => $v){
@@ -794,7 +799,6 @@ class carddav_backend extends rcube_addressbook
    */
   public function count()
   {{{
-	write_log("carddav", "count: list_page: " . $this->list_page . ", Page Size: ". $this->page_size);
 	if($this->total_cards < 0) {
 		$dbh = rcmail::get_instance()->db;
 		$sql_result = $dbh->query('SELECT COUNT(id) as total_cards FROM ' .
@@ -822,14 +826,14 @@ class carddav_backend extends rcube_addressbook
    *
    * @return rcube_result_set Current result set or NULL if nothing selected yet
    */
-  public function get_record_from_carddav($uid)
+  private function get_record_from_carddav($uid)
   {{{
 	$opts = array(
 		'http'=>array(
 			'method'=>"GET",
 		)
 	);
-	$reply = $this->cdfopen("get_record_from_carddav", "$uid", $opts);
+	$reply = $this->cdfopen("get_record_from_carddav", $uid, $opts);
 	if (!strlen($reply["body"])) { return false; }
 	if ($reply["status"] == 404){
 		write_log("carddav", "Request for VCF '$uid' which doesn't exits on the server.");
@@ -872,7 +876,7 @@ class carddav_backend extends rcube_addressbook
 	return $assoc_return && $sql_arr ? $sql_arr : $this->result;
   }}}
 
-  public function put_record_to_carddav($id, $vcf)
+  private function put_record_to_carddav($id, $vcf)
   {{{
 	$this->result = $this->count();
 	$opts = array(
@@ -882,12 +886,15 @@ class carddav_backend extends rcube_addressbook
 			'header'=>"Content-Type: text/vcard"
 		)
 	);
-	$reply = $this->cdfopen("put_record_to_carddav", "$id", $opts);
-	if ($reply["status"] >= 200 && $reply["status"] < 300) { return true; }
-	return true;
+	$reply = $this->cdfopen("put_record_to_carddav", $id.'.vcf', $opts);
+	if ($reply["status"] >= 200 && $reply["status"] < 300) {
+		return $reply["headers"]["etag"];
+	}
+
+	return false;
   }}}
 
-  public function delete_record_from_carddav($id, $vcf = "")
+  private function delete_record_from_carddav($id, $vcf = "")
   {{{
 	$this->result = $this->count();
 	$opts = array(
@@ -903,12 +910,12 @@ class carddav_backend extends rcube_addressbook
 	return false;
   }}}
 
-  public function guid()
+  private function guid()
   {{{
 	return sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X', mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(16384, 20479), mt_rand(32768, 49151), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535));
   }}}
 
-  public function create_vcard_from_save_data($id, $save_data)
+  private function create_vcard_from_save_data($id, $save_data)
   {{{
 	    /* {{{
 array (
@@ -1025,7 +1032,7 @@ array (
 	return $vcf;
   }}}
 
-  public function create_save_data_from_vcard($vcard)
+  private function create_save_data_from_vcard($vcard)
   {{{
 	$vcf = new VCard;
 	$vcard = preg_replace(";\n ;", "", $vcard);
@@ -1110,7 +1117,7 @@ array (
    */
   public function insert($save_data, $check=false)
   {{{
-	return false; // TODO
+	// find an unused UID
 	$id = $this->guid();
 	while ($this->get_record_from_carddav($id.".vcf")){
 		$id = $this->guid();
@@ -1121,8 +1128,18 @@ array (
 		return false;
 	}
 
-	if ($this->put_record_to_carddav($id, $vcf)){
-		return $id;
+	if ($etag = $this->put_record_to_carddav($id, $vcf)) {
+		$url = concaturl($this->config['url'], $id.".vcf");
+		$url = preg_replace(';https?://[^/]+;', '', $url);
+		$vcard = array (
+			'vcf'  => $vcf,
+			'etag' => $etag,
+			'href' => $url,
+		);
+		write_log('carddav', 'create local store card: ' . print_r($vcard, true));
+		$dbid = $this->dbstore_vcard($save_data, $vcard);
+		write_log('carddav',"created ID: $dbid");
+		return $dbid;
 	}
 	return false;
   }}}
