@@ -95,11 +95,24 @@ function migrateconfig($sub = 'CardDAV'){{{
 }}}
 
 function concaturl($str, $cat){{{
+	preg_match(";(^https?://[^/]+)(.*);", $str, $match);
+	$hostpart = $match[1];
+	$urlpart  = $match[2];
+
+	// is $cat a simple filename?
+	// then attach it to the URL
 	if (substr($cat, 0, 1) != "/"){
-		return $str."/".$cat;
+		$urlpart .= "/$cat";
+	
+	// $cat is a full path, the append it to the
+	// hostpart only
+	} else {
+		$urlpart = "$cat";
 	}
-	preg_match(";(^https?://[^/]+);", $str, $match);
-	return $match[0]."/".$cat;
+
+	// remove // in the path
+	$urlpart = preg_replace(';//+;','/',$urlpart);
+	return $hostpart.$urlpart;
 }}}
 
 function startElement_addvcards($parser, $n, $attrs) {{{
@@ -147,7 +160,8 @@ function characterData_addvcards($parser, $data) {{{
 
 class carddav_backend extends rcube_addressbook
 {
-	public $primary_key = 'ID';
+	// database primary key, used by RC to search by ID
+	public $primary_key = 'id';
 	public $readonly    = false;
 	public $groups      = false;
 	public $coltypes;
@@ -172,7 +186,7 @@ class carddav_backend extends rcube_addressbook
 	private $search_filter = '';
 	// attributes that are redundantly stored in the contact table and need
 	// not be parsed from the vcard
-	private $table_cols = array('name', 'email', 'firstname', 'surname');
+	private $table_cols = array('id', 'name', 'email', 'firstname', 'surname');
 
 	public function __construct($sub)
 	{{{
@@ -225,7 +239,7 @@ class carddav_backend extends rcube_addressbook
   public function set_search_set($filter)
   {{{
 	// these attributes can be directly searched for in the DB
-	$fast_search = array('firstname'=>1, 'surname'=>1, 'email'=>1, 'name'=>1);
+	$fast_search = array($this->primary_key=>1, 'firstname'=>1, 'surname'=>1, 'email'=>1, 'name'=>1);
 	$dbsearch = true;
 
 	// create uniform filter layout
@@ -243,6 +257,7 @@ class carddav_backend extends rcube_addressbook
 	foreach ($filter['keys'] as $arrk => $filterfield) {
 		$searchvalue = $filter['value'][$arrk];
 		// XXX not sure whether this is enough to avoid SQL injection
+		// TODO checkout how variable func arguments work in PHP and if it can be used instead
 		$filter_value_safe = strstr($searchvalue, "'") ? 0 : 1;
 
 		// the special filter field key '*' means search any field
@@ -260,7 +275,10 @@ class carddav_backend extends rcube_addressbook
 
 		// common keys can be filtered at the DB layer
 		if($filter_value_safe && array_key_exists($filterfield, $fast_search)) {
-			$this->search_filter .= " OR $filterfield like '%$searchvalue%' ";
+			if(strcmp($filterfield, $this->primary_key) == 0)
+				$this->search_filter .= " OR $filterfield = '$searchvalue' ";
+			else
+				$this->search_filter .= " OR $filterfield like '%$searchvalue%' ";
 		} else {
 			$dbsearch = false;
 		}
@@ -306,6 +324,7 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$this->result = null;
 	$this->filter = null;
+	$this->total_cards = -1;
 	$this->search_filter = '';
   }}}
 
@@ -532,25 +551,41 @@ class carddav_backend extends rcube_addressbook
 	$this->existing_card_cache = array();
 	}}}
 
-  /**
-   * List the current set of contact records
-   *
-   * @param  array  List of cols to show
-   * @param  int    Only return this number of records, use negative values for tail
-   * @return array  Indexed list of contact records, each a hash array
-   */
-  public function list_records($cols=null, $subset=0)
+	/**
+	 * List the current set of contact records
+	 *
+	 * @param  array   List of cols to show, Null means all
+	 * @param  int     Only return this number of records, use negative values for tail
+	 * @param  boolean True to skip the count query (select only)
+	 * @return array   Indexed list of contact records, each a hash array
+	 */
+  public function list_records($cols=null, $subset=0, $nocount=false)
   {{{
-		
-	if ($this->DEBUG)
-		write_log("carddav", "list_records: Columns: " . implode(",", $cols) . " SubSet: $subset");
+	if ($this->DEBUG) {
+		write_log("carddav", "list_records: nocnt $nocount Col " . (is_array($cols)?implode(",", $cols):$cols) . 
+			" SubSet $subset pagesize ".$this->page_size." page ".$this->list_page );
+	}
 
 	// refresh from server if refresh interval passed
 	if ( $this->config['needs_update'] == 1 )
 		$this->refreshdb_from_server();
 
-	$this->result = $this->count();
-	$records = $this->list_records_readdb($cols);
+	// if the count is not requested we can save one query
+	if($nocount)
+		$this->result = new rcube_result_set();
+	else
+		$this->result = $this->count();
+
+	$records = $this->list_records_readdb($cols,$subset);
+	if($nocount) {
+		$this->result->count = $records;
+
+	} else if ($this->list_page <= 1) {
+		if ($records < $this->page_size && $subset == 0)
+			$this->result->count = $records;
+		else
+			$this->result->count = $this->_count($cols);
+	}
 
 	if ($records > 0){
 		return $this->result;
@@ -600,61 +635,11 @@ class carddav_backend extends rcube_addressbook
 	return $records;
   }}}
 
-	private function list_records_readdb($cols)
+	private function list_records_filter_generic($all_addr, $skip_rows, $max_rows)
 	{{{
-	$dbh = rcmail::get_instance()->db;
-	$filter = $this->get_search_set();
-	$fast_filter = ((strlen($this->search_filter)>0) || !$filter);
-
-	// determine whether we have to parse the vcard or if only db cols are requested
-	$read_vcard = !$cols || count(array_intersect($cols, $this->table_cols)) < count($cols);
-	$dbattr = $read_vcard ? 'vcard' : 'firstname,surname,email';
-
-	if($fast_filter) {
-		$limit_index = $this->result->first;
-		$limit_rows  = $this->page_size;
-	} else { // take all rows and filter on application level
-		$limit_index = 0;
-		$limit_rows  = 0;
-	}
-	
-	$dbh->limitquery("SELECT id,name,$dbattr FROM " .
-		get_table_name('carddav_contacts') .
-		' WHERE abook_id=? ' .
-		$this->search_filter .
-		' ORDER BY name ASC',
-		$this->result->first,
-		$this->page_size,
-		$this->config['db_id']);
-
-	$addresses = array();
-	while($contact = $dbh->fetch_assoc($sql_result)) {
-		if($read_vcard) {
-			$save_data = $this->create_save_data_from_vcard($contact['vcard']);
-			if (!$save_data){
-				write_log("carddav", "Couldn't parse vcard ".$contact['vcard']);
-				continue;
-			}
-		} else {
-			$save_data = array();
-			foreach	($cols as $col) {
-				if(strcmp($col,'email')==0)
-					$save_data[$col] = preg_split('/,\s*/', $contact[$col]);
-				else
-					$save_data[$col] = $contact[$col];
-			}
-		}
-		$addresses[] = array('ID' => $contact['id'], 'name' => $contact['name'], 'save_data' => $save_data);
-	}
-
-	// generic filter if needed
-	if(!$fast_filter && $filter) {
-		$tmp_addr = $addresses;
 		$addresses = array();
-		$skip_rows = $this->result->first;
-		$max_rows  = $this->page_size;
 
-		foreach($tmp_addr as $a) {
+		foreach($all_addr as $a) {
 			if(count($addresses) >= $max_rows)
 				break;
 
@@ -684,12 +669,67 @@ class carddav_backend extends rcube_addressbook
 				}
 			}
 		}
+
+		return $addresses;
+	}}}
+
+	private function list_records_readdb($cols, $subset=0, $count_only=false)
+	{{{
+	$dbh = rcmail::get_instance()->db;
+
+	// true if we can use DB filtering or no filtering is requested
+	$filter = $this->get_search_set();
+	$this->determine_filter_params($cols,$subset,$fast_filter, $firstrow, $numrows, $read_vcard);
+
+	$dbattr = $read_vcard ? 'vcard' : 'firstname,surname,email';
+
+	if($fast_filter) {
+		$limit_index = $firstrow;
+		$limit_rows  = $numrows;
+	} else { // take all rows and filter on application level
+		$limit_index = 0;
+		$limit_rows  = 0;
+	}
+	
+	$dbh->limitquery("SELECT id,name,$dbattr FROM " .
+		get_table_name('carddav_contacts') .
+		' WHERE abook_id=? ' .
+		$this->search_filter .
+		' ORDER BY name ASC',
+		$limit_index,
+		$limit_rows,
+		$this->config['db_id']);
+
+	$addresses = array();
+	while($contact = $dbh->fetch_assoc($sql_result)) {
+		if($read_vcard) {
+			$save_data = $this->create_save_data_from_vcard($contact['vcard']);
+			if (!$save_data){
+				write_log("carddav", "Couldn't parse vcard ".$contact['vcard']);
+				continue;
+			}
+		} else {
+			$save_data = array();
+			foreach	($cols as $col) {
+				if(strcmp($col,'email')==0)
+					$save_data[$col] = preg_split('/,\s*/', $contact[$col]);
+				else
+					$save_data[$col] = $contact[$col];
+			}
+		}
+		$addresses[] = array('ID' => $contact['id'], 'name' => $contact['name'], 'save_data' => $save_data);
 	}
 
-	// create results for roundcube	
-	foreach($addresses as $a) {
-		$a['save_data']['ID'] = $a['ID'];
-		$this->result->add($a['save_data']);
+	// generic filter if needed
+	if(!$fast_filter)
+		$addresses = list_records_filter_generic($addresses, $firstrow, $numrows);
+
+	if(!$count_only) {
+		// create results for roundcube	
+		foreach($addresses as $a) {
+			$a['save_data']['ID'] = $a['ID'];
+			$this->result->add($a['save_data']);
+		}
 	}
 	return count($addresses);
 	}}}
@@ -778,7 +818,7 @@ class carddav_backend extends rcube_addressbook
   {{{ // TODO this interface is not yet fully implemented
 	$f = array();
 	if (is_array($fields)){
-		foreach ($fields as $k => $v){
+		foreach ($fields as $v){
 			$f["keys"][] = $v;
 		}
 	} else {
@@ -800,16 +840,49 @@ class carddav_backend extends rcube_addressbook
   public function count()
   {{{
 	if($this->total_cards < 0) {
-		$dbh = rcmail::get_instance()->db;
-		$sql_result = $dbh->query('SELECT COUNT(id) as total_cards FROM ' .
-			get_table_name('carddav_contacts') .
-			' WHERE abook_id=?',
-			$this->config['db_id']);
-		$resultrow = $dbh->fetch_assoc($sql_result);
-		$total_cards = $resultrow['total_cards'];
+		$this->_count();
 	}
-	return new rcube_result_set($total_cards, ($this->list_page-1) * $this->page_size);
+	return new rcube_result_set($this->total_cards, ($this->list_page-1) * $this->page_size);
   }}}
+
+	// Determines and returns the number of cards matching the current search criteria
+	private function _count($cols=null)
+	{{{
+	if($this->total_cards < 0) {
+		$dbh = rcmail::get_instance()->db;
+
+		$this->determine_filter_params($cols, 0, $fast_filter, $firstrow, $numrows, $read_vcard);
+
+		if($fast_filter) {
+			$sql_result = $dbh->query('SELECT COUNT(id) as total_cards FROM ' .
+				get_table_name('carddav_contacts') .
+				' WHERE abook_id=?' .
+				$this->search_filter,
+				$this->config['db_id']);
+	
+			$resultrow = $dbh->fetch_assoc($sql_result);
+			$this->total_cards = $resultrow['total_cards'];
+
+		} else { # else we just use list_records (slow...)
+			$this->total_cards = list_records_readdb($cols, 0, true);
+		}
+	}
+	return $this->total_cards;
+	}}}
+
+	private function determine_filter_params($cols, $subset, &$fast_filter, &$firstrow, &$numrows, &$read_vcard) {
+		$filter = $this->get_search_set();
+
+		// true if we can use DB filtering or no filtering is requested
+		$fast_filter = (strlen($this->search_filter)>0) || empty($filter) || empty($filter['keys']);
+		
+		// determine whether we have to parse the vcard or if only db cols are requested
+		$read_vcard = !$cols || count(array_intersect($cols, $this->table_cols)) < count($cols);
+		
+		// determine result subset needed
+		$firstrow = ($subset>=0) ? $this->result->first : ($this->result->first+$this->page_size+$subset);
+		$numrows  = $subset ? abs($subset) : $this->page_size;
+	}
 
   /**
    * Return the last result set
@@ -903,7 +976,7 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 	$id = preg_replace(";_rcmcddot_;", ".", $id);
-	$reply = $this->cdfopen("delete_record_from_carddav", "$id", $opts);
+	$reply = $this->cdfopen("delete_record_from_carddav", $id, $opts);
 	if ($reply["status"] == 204){
 		return true;
 	}
@@ -1139,6 +1212,9 @@ array (
 		write_log('carddav', 'create local store card: ' . print_r($vcard, true));
 		$dbid = $this->dbstore_vcard($save_data, $vcard);
 		write_log('carddav',"created ID: $dbid");
+
+		if($this->total_cards != -1)
+			$this->total_cards++; 
 		return $dbid;
 	}
 	return false;
@@ -1181,12 +1257,33 @@ array (
    */
   public function delete($ids)
   {{{
-	return false; // TODO
-	foreach ($ids as $uid){
-		$uid = base64_decode($uid);
-		$this->delete_record_from_carddav($uid);
+	$dbh = rcmail::get_instance()->db;
+	$deleted = 0;
+
+	foreach ($ids as $dbid){
+		$sql_result = $dbh->query('SELECT id,cuid FROM '.
+			get_table_name('carddav_contacts') .
+			' WHERE id=?',
+			$dbid);
+
+		$contact = $dbh->fetch_assoc($sql_result);
+		if($contact['id'] == $dbid) {
+			write_log('carddav', "Delete Card $dbid, URL " . $contact['cuid']);
+			if($this->delete_record_from_carddav($contact['cuid'])) {
+				write_log('carddav', "Delete Local $dbid");
+				$dbh->query('DELETE FROM '.
+					get_table_name('carddav_contacts') .
+					' WHERE id=?',
+					$dbid);
+
+				$deleted++;
+			}
+		}
 	}
-	return true;
+
+	if($this->total_cards != -1)
+		$this->total_cards -= $deleted; 
+	return $deleted;
   }}}
 
   /**
