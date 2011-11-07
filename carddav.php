@@ -88,7 +88,7 @@ class carddav extends rcube_plugin
 	/**
 	 * Builds a setting block for one address book for the preference page.
 	 */
-	private function cd_preferences_buildblock($abookid,$blockheader,$desc,$use_carddav,$username,$password,$url,$dont_override)
+	private function cd_preferences_buildblock($abookid,$blockheader,$desc,$use_carddav,$username,$url,$dont_override)
 	{{{
 		if (in_array('carddav_use_carddav', $dont_override)) {
 			$content_use_carddav = $use_carddav ? "Enabled" : "Disabled";
@@ -110,7 +110,7 @@ class carddav extends rcube_plugin
 			$content_password = "***";
 		} else {
 			// input box for password
-			$input = new html_inputfield(array('name' => $abookid.'_cd_password', 'type' => 'password', 'autocomplete' => 'off', 'value' => $password));
+			$input = new html_inputfield(array('name' => $abookid.'_cd_password', 'type' => 'password', 'autocomplete' => 'off', 'value' => ''));
 			$content_password = $input->show();
 		}
 
@@ -173,7 +173,7 @@ class carddav extends rcube_plugin
 
 		$dont_override = $rcmail->config->get('dont_override', array());
 
-		$sql_result = $dbh->query('SELECT id,name,username,password,url,active FROM ' . 
+		$sql_result = $dbh->query('SELECT id,name,username,url,active FROM ' . 
 			get_table_name('carddav_addressbooks') .
 			' WHERE user_id = ?',
 			$_SESSION['user_id']);
@@ -183,13 +183,12 @@ class carddav extends rcube_plugin
 			$desc        = $abook['name'];
 			$use_carddav = $abook['active'];
 			$username    = $abook['username'];
-			$password    = $abook['password'];
 			$url         = $abook['url'];
 
-			$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($abookid,$desc,$desc,$use_carddav,$username,$password,$url,$dont_override);
+			$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($abookid,$desc,$desc,$use_carddav,$username,$url,$dont_override);
 		}
 
-		$args['blocks']['cd_preferences_section_new'] = $this->cd_preferences_buildblock('new', 'Configure new addressbook', '', 1, '','','', array());
+		$args['blocks']['cd_preferences_section_new'] = $this->cd_preferences_buildblock('new', 'Configure new addressbook', '', 1, '','', array());
 
 		return($args);
 	}}}
@@ -225,16 +224,28 @@ class carddav extends rcube_plugin
 					get_table_name('carddav_addressbooks') .
 					' WHERE id = ?', $abookid);
 			} else {
-				$dbh->query('UPDATE ' .
-					get_table_name('carddav_addressbooks') .
-					' SET name=?,username=?,password=?,url=?,active=? ' .
-					' WHERE id = ?',
+				$newset = array (
 					get_input_value($abookid."_cd_description", RCUBE_INPUT_POST),
 					get_input_value($abookid."_cd_username", RCUBE_INPUT_POST),
-					get_input_value($abookid."_cd_password", RCUBE_INPUT_POST),
 					get_input_value($abookid."_cd_url", RCUBE_INPUT_POST),
-					isset($_POST[$abookid.'_cd_use_carddav']) ? 1 : 0,
-					$abookid);
+					isset($_POST[$abookid.'_cd_use_carddav']) ? 1 : 0
+				);
+
+				// only set the password if the user entered a new one
+				$extraquery = '';
+				$password = get_input_value($abookid."_cd_password", RCUBE_INPUT_POST);
+				if(strlen($password) > 0) {
+					$extraquery = ',password=?';
+					$newset[] = $password;
+				}
+				$newset[] = $abookid;
+
+				$dbh->query('UPDATE ' .
+					get_table_name('carddav_addressbooks') .
+					' SET name=?,username=?,url=?,active=?' .
+					$extraquery .
+					' WHERE id = ?',
+					$newset);
 			}
 		}
 
