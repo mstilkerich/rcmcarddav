@@ -1183,7 +1183,7 @@ array (
   private function create_save_data_from_vcard($vcard)
   {{{
 	$vcf = new VCard;
-	$vcard = preg_replace(";\n ;", "", $vcard);
+	$vcard = preg_replace(";\r?\n[ \t];", "", $vcard);
 	if (!$vcf->parse(explode("\n", $vcard))){
 		write_log("carddav", "Couldn't parse vcard ".$vcard);
 		return false;
