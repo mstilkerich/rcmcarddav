@@ -23,3 +23,10 @@ CREATE TABLE IF NOT EXISTS carddav_contacts (
 	etag VARCHAR(255),  -- entity tag, can be used to check if card changed on server
 	cuid VARCHAR(255)   -- unique identifier of the card within the collection
 );
+
+CREATE TABLE IF NOT EXISTS carddav_xsubtypes (
+	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	typename VARCHAR(128) NOT NULL,  -- name of the type
+	subtype  VARCHAR(128) NOT NULL,  -- name of the subtype
+	UNIQUE INDEX(typename,subtype)
+);

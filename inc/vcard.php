@@ -61,9 +61,19 @@ class VCard
      * Returns the first property mapped to the specified name or null if
      * there are no properties with that name.
      */
-    function getProperty($name)
-    {
-        return $this->_map[$name][0];
+    function getProperty($name, $group='')
+		{
+			$name  = strtoupper($name);
+			$group = strtoupper($group);
+
+			if(array_key_exists($name,$this->_map)) {
+				foreach($this->_map[$name] as $v) {
+					// if $group is not set the first will match
+					if($v->getGroup() == $group)
+						return $v;
+				}
+			}
+			return null;
     }
 
     /**
@@ -123,6 +133,7 @@ class VCardProperty
     var $name;          // string
     var $params;        // params[PARAM_NAME] => value[,value...]
     var $value;         // string
+		var $group='';      // group prefix
 
     /**
      * Parses a vCard property from one or more lines. Lines that are not
@@ -136,18 +147,20 @@ class VCardProperty
             $tmp = split_quoted_string(":", $line, 2);
             if (count($tmp) == 2) {
                 $this->value = $tmp[1];
-                $tmp = strtoupper($tmp[0]);
+								$tmp = strtoupper($tmp[0]);
                 $tmp = split_quoted_string(";", $tmp);
                 $this->name = $tmp[0];
                 $this->params = array();
                 for ($i = 1; $i < count($tmp); $i++) {
                     $this->_parseParam($tmp[$i]);
-                }
-		$tmp = split_quoted_string(".", $this->name, 2);
-		if (count($tmp) == 2){		# XXX ignore prefixes for RCMCardDAV
-						# XXX see http://tools.ietf.org/html/draft-ietf-vcarddav-carddav-10#section-10.4.2
-			$this->name = $tmp[1];
-		}
+								}
+								$tmp = split_quoted_string(".", $this->name, 2);
+								if (count($tmp) == 2) {
+									# XXX (RCMCardDAV) store group prefix
+									# XXX see http://tools.ietf.org/html/draft-ietf-vcarddav-carddav-10#section-10.4.2
+									$this->group = $tmp[0];
+									$this->name = $tmp[1];
+								}
                 if ($this->params['ENCODING'][0] == 'QUOTED-PRINTABLE') {
                     $this->_decodeQuotedPrintable($lines);
                 }
@@ -175,6 +188,10 @@ class VCardProperty
         // Split the line on the delimiter tag.
         return explode("\x01", $value);
     }
+
+		function getGroup() {
+			return $this->group;
+		}
 
     // ----- Private methods -----
 

@@ -243,7 +243,31 @@ class carddav_backend extends rcube_addressbook
 		'spouse'       => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('spouse'), 'category' => 'personal'),
 		// TODO: define fields for vcards like GEO, KEY
 	); /* }}} */
+	$this->addextrasubtypes();
   }}}
+
+	private function storeextrasubtype($typename, $subtype)
+	{{{
+	$dbh = rcmail::get_instance()->db;
+	$sql_result = $dbh->query('INSERT INTO ' .
+		get_table_name('carddav_xsubtypes') .
+		' (typename,subtype) VALUES (?,?)',
+			$typename,
+			$subtype
+	);
+	}}}
+
+	private function addextrasubtypes()
+	{{{
+	$dbh = rcmail::get_instance()->db;
+	// read extra subtypes
+	$sql_result = $dbh->query('SELECT typename,subtype FROM ' .
+		get_table_name('carddav_xsubtypes'));
+
+	while ( $row = $dbh->fetch_assoc($sql_result) ) {
+		$this->coltypes[$row['typename']]['subtypes'][] = $row['subtype'];
+	}
+	}}}
 
   /**
    * Returns addressbook name (e.g. for addressbooks listing)
@@ -1123,6 +1147,39 @@ array (
 	return $vcf;
   }}}
 
+	private function get_attr_label(&$vcard, &$pvalue, $attrname) {
+		// prefer a known standard label if available
+		$xlabel = strtolower($pvalue->params['TYPE'][0]);
+		if(strlen($xlabel)>0 &&
+			in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
+				return $xlabel;
+		}
+		
+		// check for a custom label using Apple's X-ABLabel extension
+		$group = $pvalue->getGroup();
+		if($group) {
+			$xlabel = $vcard->getProperty('X-ABLabel', $group);
+			if($xlabel) {
+				$xlabel = $xlabel->getComponents();
+				if($xlabel)
+					$xlabel = $xlabel[0];
+			}
+
+			// strange Apple label that I don't know to interpret
+			if(strlen($xlabel)<=0 || preg_match(';_\$!<.*>!\$_;', $xlabel))
+				return 'other';
+
+			// add to known types if new
+			if(!in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
+				$this->storeextrasubtype($attrname, $xlabel);
+				$this->coltypes[$attrname]['subtypes'][] = $xlabel;
+			}
+			return $xlabel;
+		}
+
+		return 'other';
+	}
+
   private function create_save_data_from_vcard($vcard)
   {{{
 	$vcf = new VCard;
@@ -1157,12 +1214,8 @@ array (
 		if ($property){
 			foreach ($property as $pkey => $pvalue){
 				$p = $pvalue->getComponents();
-				$k = strtolower($pvalue->params['TYPE'][0]);
-				if (in_array($k, $this->coltypes[$value]['subtypes'])){
-					$retval[$value.':'.$k][] = $p[0];
-				} else {
-					$retval[$value.':other'][] = $p[0];
-				}
+				$label = $this->get_attr_label($vcf, $pvalue, $value);
+				$retval[$value.':'.$label][] = $p[0];
 			}
 		}
 	}
@@ -1171,14 +1224,10 @@ array (
 	if ($property){
 		foreach ($property as $pkey => $pvalue){
 			$p = $pvalue->getComponents();
-			$k = strtolower($pvalue->params['TYPE'][0]);
+			$label = $this->get_attr_label($vcf, $pvalue, 'address');
 			// post office box; the extended address; the street address; the locality (e.g., city); the region (e.g., state or province); the postal code; the country name
 			$adr = array("pobox" => $p[0], "extended" => $p[1], "street" => $p[2], "locality" => $p[3], "region" => $p[4], "zipcode" => $p[5], "country" => $p[6]);
-			if (in_array($k, $this->coltypes['address']['subtypes'])){
-				$retval['address:'.$k][] = $adr;
-			} else {
-				$retval['address:other'][] = $adr;
-			}
+			$retval['address:'.$label][] = $adr;
 		}
 	}
 	return $retval;
