@@ -260,10 +260,11 @@ class carddav_backend extends rcube_addressbook
    */
   public function set_search_set($filter)
   {{{
+	$dbh = rcmail::get_instance()->db;
 	// these attributes can be directly searched for in the DB
 	$fast_search = array($this->primary_key=>1, 'firstname'=>1, 'surname'=>1, 'email'=>1, 'name'=>1);
 	$dbsearch = true;
-
+	
 	// create uniform filter layout
 	if(!is_array($filter['value'])) {
 		$searchvalue = $filter['value'];
@@ -275,32 +276,27 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	$newfilter = array('keys' => array(), 'value' => array());
+	$this->search_filter = '';
 
 	foreach ($filter['keys'] as $arrk => $filterfield) {
 		$searchvalue = $filter['value'][$arrk];
-		// XXX not sure whether this is enough to avoid SQL injection
-		// TODO checkout how variable func arguments work in PHP and if it can be used instead
-		$filter_value_safe = strstr($searchvalue, "'") ? 0 : 1;
 
 		// the special filter field key '*' means search any field
 		// in this case, we don't need any additional search filters
 		// and we cannot use the DB to prefilter	
-		if (strcmp($filterfield, "*") == 0) {
-			if($filter_value_safe) { // special case: directly search the vcard
-				$this->filter = $filter;
-				$this->search_filter = " AND vcard like '%$searchvalue%' ";
-				return;
-			}
-			$filterfield = '.+';
-			$dbsearch = false;
+		if ($filterfield === '*') {
+			$this->filter = $filter;
+			$this->search_filter = " AND vcard like " . $dbh->quote("%$searchvalue%", 'text');
+			return;
 		}
 
 		// common keys can be filtered at the DB layer
-		if($filter_value_safe && array_key_exists($filterfield, $fast_search)) {
-			if(strcmp($filterfield, $this->primary_key) == 0)
-				$this->search_filter .= " OR $filterfield = '$searchvalue' ";
-			else
-				$this->search_filter .= " OR $filterfield like '%$searchvalue%' ";
+		if(array_key_exists($filterfield, $fast_search)) {
+			if($filterfield === $this->primary_key) {
+				$this->search_filter .= " OR $filterfield =  " . $dbh->quote($searchvalue, 'integer');
+			} else {
+				$this->search_filter .= " OR $filterfield like  " . $dbh->quote("%$searchvalue%", 'text');
+			}
 		} else {
 			$dbsearch = false;
 		}
@@ -712,15 +708,16 @@ class carddav_backend extends rcube_addressbook
 		$limit_index = 0;
 		$limit_rows  = 0;
 	}
-	
-	$dbh->limitquery("SELECT id,name,$dbattr FROM " .
+
+	$sql_result = $dbh->limitquery("SELECT id,name,$dbattr FROM " .
 		get_table_name('carddav_contacts') .
 		' WHERE abook_id=? ' .
 		$this->search_filter .
 		' ORDER BY name ASC',
 		$limit_index,
 		$limit_rows,
-		$this->config['db_id']);
+		$this->config['db_id']
+	);
 
 	$addresses = array();
 	while($contact = $dbh->fetch_assoc($sql_result)) {
@@ -880,7 +877,8 @@ class carddav_backend extends rcube_addressbook
 				get_table_name('carddav_contacts') .
 				' WHERE abook_id=?' .
 				$this->search_filter,
-				$this->config['db_id']);
+				$this->config['db_id']
+			);
 	
 			$resultrow = $dbh->fetch_assoc($sql_result);
 			$this->total_cards = $resultrow['total_cards'];
