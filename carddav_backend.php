@@ -171,7 +171,7 @@ class carddav_backend extends rcube_addressbook
 	private $result;
 	private $config;
 
-	private $DEBUG      = false; # set to true for basic debugging
+	private $DEBUG      = true; # set to true for basic debugging
 	private $DEBUG_HTTP = false; # set to true for debugging raw http stream
 
 	// contains a the URIs, db ids and etags of the locally stored cards whenever
@@ -187,6 +187,28 @@ class carddav_backend extends rcube_addressbook
 	// attributes that are redundantly stored in the contact table and need
 	// not be parsed from the vcard
 	private $table_cols = array('id', 'name', 'email', 'firstname', 'surname');
+
+	private $vcf2rc = array(
+		'simple' => array(
+			'FN' => 'name',
+			'TITLE' => 'jobtitle',
+			'ORG' => 'organization',
+			'BDAY' => 'birthday',
+			'NICKNAME' => 'nickname',
+			'NOTE' => 'notes',
+			'PHOTO' => 'photo',
+			'X-ANNIVERSARY' => 'anniversary',
+			'X-ASSISTANT' => 'assistant',
+			'X-MANAGER' => 'manager',
+			'X-SPOUSE' => 'spouse',
+			'X-GENDER' => 'gender',
+		),
+		'multi' => array(
+			'EMAIL' => 'email',
+			'TEL' => 'phone',
+			'URL' => 'website',
+		),
+	);
 
 	public function __construct($sub)
 	{{{
@@ -899,7 +921,7 @@ class carddav_backend extends rcube_addressbook
    *
    * @return rcube_result_set Current result set or NULL if nothing selected yet
    */
-  private function get_record_from_carddav($uid)
+  private function get_record_from_carddav($uid, &$etag)
   {{{
 	$opts = array(
 		'http'=>array(
@@ -912,6 +934,7 @@ class carddav_backend extends rcube_addressbook
 		write_log("carddav", "Request for VCF '$uid' which doesn't exits on the server.");
 		return false;
 	}
+	$etag = $reply['headers']['etag'];
 	return $reply["body"];
   }}}
 
@@ -1062,18 +1085,15 @@ array (
 		"VERSION:3.0\r\n".
 		"UID:$id\r\n".
 	$vcf .= "N:".$save_data['surname'].";".$save_data['firstname'].";".$save_data['middlename'].";".$save_data['prefix'].";".$save_data['suffix']."\r\n";
-	$assoc = array('FN' => 'name', 'TITLE' => 'jobtitle', 'ORG' => 'organization', 'BDAY' => 'birthday', 'NICKNAME' => 'nickname',
-		       'NOTE' => 'notes', 'X-ASSISTANT' => 'assistant', 'X-MANAGER' => 'manager', 'X-SPOUSE' => 'spouse',
-		       'X-GENDER' => 'gender', 'X-ANNIVERSARY' => 'anniversary');
-	foreach ($assoc as $key => $value){
+
+	foreach ($this->vcf2rc['simple'] as $key => $value){
 		if (array_key_exists($value, $save_data)){
 			if (strlen($save_data[$value]) > 0){
 				$vcf .= $key.":".$save_data[$value]."\r\n";
 			}
 		}
 	}
-	$assoc = array('EMAIL' => 'email', 'URL' => 'website', 'TEL' => 'phone');
-	foreach ($assoc as $key => $value){
+	foreach ($this->vcf2rc['multi'] as $key => $value){
 		foreach ($this->coltypes[$value]['subtypes'] AS $ckey => $cvalue){
 			if (array_key_exists($value.':'.$cvalue, $save_data)){
 				foreach($save_data[$value.':'.$cvalue] AS $ekey => $evalue){
@@ -1114,22 +1134,9 @@ array (
 		return false;
 	}
 
-	$assoc = array(
-		'FN' => 'name',
-		'TITLE' => 'jobtitle',
-		'ORG' => 'organization',
-		'BDAY' => 'birthday',
-		'NICKNAME' => 'nickname',
-		'NOTE' => 'notes',
-		'PHOTO' => 'photo',
-		'X-ASSISTANT' => 'assistant',
-		'X-MANAGER' => 'manager',
-		'X-SPOUSE' => 'spouse',
-		'X-GENDER' => 'gender'
-	);
 	$retval = array();
 
-	foreach ($assoc as $key => $value){
+	foreach ($this->vcf2rc['simple'] as $key => $value){
 		$property = $vcf->getProperty($key);
 		if ($property){
 			$p = $property->getComponents();
@@ -1146,8 +1153,8 @@ array (
 		$retval['prefix'] = $N[3];
 		$retval['suffix'] = $N[4];
 	}
-	$assoc = array('EMAIL' => 'email', 'TEL' => 'phone', 'URL' => 'website');
-	foreach ($assoc as $key => $value){
+
+	foreach ($this->vcf2rc['multi'] as $key => $value){
 		$property = $vcf->getProperties($key);
 		if ($property){
 			foreach ($property as $pkey => $pvalue){
