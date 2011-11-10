@@ -216,6 +216,58 @@ class VCardProperty
 		return explode("\x01", $value);
 	}
 
+	function deleteParam($name)
+	{
+		unset($this->params[$name]);
+	}
+
+	function getParam($name, $which=-1)
+	{
+		if(!array_key_exists($name, $this->params))
+			return null;
+		$p = $this->params[$name];
+
+		if($which < 0) // return array of all
+			return $p;
+
+		if($which < count($p))
+			return $p[$which];
+
+		// no one at requested index present
+		return null;
+	}
+
+	// $which=-1  means append new param value
+	function setParam($name, $value, $which=-1) {
+		if(!array_key_exists($name, $this->params))
+			$this->params[$name] = array();
+
+		$p = &$this->params[$name];
+		$value = dquote($value);
+	
+		if($which<0 || $which>=count($p)) {
+			$p[] = $value;
+		} else {
+			$p[$which] = $value;
+		}
+	}
+
+	function setComponent($newvalue, $idx=0, $delim=";")
+	{
+		$comps = $this->getComponents($delim);
+		if(count($comps) <= $idx) {
+			$comps[] = $newvalue; // append
+		} else { // replace
+			$comps[$idx] = $newvalue;
+		}
+
+		// escape delimiters
+		foreach($comps as &$comp) {
+			$comp = str_replace($delim, "\\$delim", $comp);
+		}
+		$this->value = implode($delim, $comps);
+	}
+
 	function getGroup() {
 		return $this->group;
 	}
