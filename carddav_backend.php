@@ -373,10 +373,37 @@ class carddav_backend extends rcube_addressbook
 	/**
 	 * Stores a vcard to the local database.
 	 */
-	private function dbstore_vcard($save_data, $vcard)
+	private function dbstore_vcard($vcard, $save_data=null)
 	{{{
 	$dbh = rcmail::get_instance()->db;
 	$ret = false;
+
+	$card_exists = false;
+	$needs_update = false;
+	
+	if(!$save_data) {
+		$save_data = $this->create_save_data_from_vcard($vcard['vcf'], $vcf, $needs_update);
+		if (!$save_data){
+			write_log("carddav", "Couldn't parse vcard ".$vcard['vcf']);
+			return -1;
+		}
+	}
+
+	if(array_key_exists($vcard['href'], $this->existing_card_cache)) {
+		$card_exists = true;
+		$contact = $this->existing_card_cache[$vcard['href']];
+		
+		// delete from the cache, cards left are known to be deleted from the server
+		unset($this->existing_card_cache[$vcard['href']]);
+
+		// abort if card has not changed
+		if(!$needs_update && ($contact['etag'] === $vcard['etag'])) {
+			if ($this->DEBUG){
+				write_log("carddav", "dbstore: UNCHANGED card " . $vcard['href']);
+			}
+			return $contact['id'];
+		}
+	}
 
 	// generate display name if not explicitly set
 	$name = $save_data['name'];
@@ -393,29 +420,18 @@ class carddav_backend extends rcube_addressbook
 	$emails = implode(', ', $email_addrs);
 
 	// does the card already exist in the local db? yes => update
-	if(array_key_exists($vcard['href'], $this->existing_card_cache)) {
-		$contact = $this->existing_card_cache[$vcard['href']];
-
-		// etag still the same? card not changed
-		if(strcmp($contact['etag'], $vcard['etag'])) {
+	if($card_exists) {
 			$sql_result = $dbh->query('UPDATE ' .
 				get_table_name('carddav_contacts') .
 				' SET name=?,email=?,firstname=?,surname=?,vcard=?,words=?,etag=?' .
 				' WHERE id=?',
 				$name, $emails, $save_data['firstname'], $save_data['surname'],
-				$vcard['vcf'],
+			$vcf->toString(),
 				'', $vcard['etag'],
 				$contact['id']);
 			if ($this->DEBUG){
 				write_log("carddav", "dbstore: UPDATED card " . $vcard['href']);
 			}
-		} else if ($this->DEBUG){
-				write_log("carddav", "dbstore: UNCHANGED card " . $vcard['href']);
-				$ret = $contact['id'];
-		}
-
-		// delete from the cache, cards left are known to be deleted from the server
-		unset($this->existing_card_cache[$vcard['href']]);
 
 	// does not exist => insert new card
 	} else {
@@ -424,7 +440,7 @@ class carddav_backend extends rcube_addressbook
 			' (abook_id,name,email,firstname,surname,vcard,words,etag,cuid) VALUES (?,?,?,?,?,?,?,?,?)',
 				$this->config['db_id'], $name, $emails,
 				$save_data['firstname'], $save_data['surname'],
-				$vcard['vcf'],
+				$vcf->toString(),
 				'', // TODO search terms
 				$vcard['etag'], $vcard['href']);
 		if ($this->DEBUG){
@@ -455,12 +471,7 @@ class carddav_backend extends rcube_addressbook
 			$tryagain[] = $vcard['href'];
 			continue;
 		}
-		$save_data = $this->create_save_data_from_vcard($vcard['vcf']);
-		if (!$save_data){
-			write_log("carddav", "Couldn't parse vcard ".$vcard['vcf']);
-			continue;
-		}
-		$this->dbstore_vcard($save_data, $vcard);
+		$this->dbstore_vcard($vcard);
 
 		$x++;
 	}
@@ -490,7 +501,11 @@ class carddav_backend extends rcube_addressbook
 	$http->follow_redirect=1;
 	$http->redirection_limit=5;
 	$http->prefer_curl=1;
+
+	if(!strpos($url, '://')) {
 	$url = concaturl($carddav['url'], $url);
+	}
+
 	if ($this->DEBUG){
 		write_log("carddav", "DEBUG cdfopen: $caller requesting $url");
 	}
@@ -1166,8 +1181,16 @@ array (
 			}
 
 			// strange Apple label that I don't know to interpret
-			if(strlen($xlabel)<=0 || preg_match(';_\$!<.*>!\$_;', $xlabel))
+			if(strlen($xlabel)<=0) {
 				return 'other';
+			}
+
+			if(preg_match(';_\$!<(.*)>!\$_;', $xlabel, $matches)) {
+				$match = strtolower($matches[1]);
+				if(in_array($match, $this->coltypes[$attrname]['subtypes']))
+				 return $match;	
+				return 'other';
+			}
 
 			// add to known types if new
 			if(!in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
@@ -1180,8 +1203,26 @@ array (
 		return 'other';
 	}
 
-  private function create_save_data_from_vcard($vcard)
+	private function download_photo(&$save_data)
   {{{
+	$opts = array(
+		'http'=>array(
+			'method'=>"GET",
+		)
+	);
+	$uri = $save_data['photo'];
+	$reply = $this->cdfopen("download_photo", $uri, $opts);
+	if ($reply["status"] == 200){
+		$save_data['photo'] = base64_encode($reply['body']);
+		return true;
+	}
+	write_log('carddav.warn', "Downloading $uri failed: " . $reply["status"]);
+	return false;
+	}}}
+
+  private function create_save_data_from_vcard($vcard, &$vcf=null, &$needs_update=null)
+	{{{
+	$needs_update=false;
 	$vcf = new VCard;
 	$vcard = preg_replace(";\r?\n[ \t];", "", $vcard);
 	if (!$vcf->parse(explode("\n", $vcard))){
@@ -1198,7 +1239,20 @@ array (
 			$retval[$value] = $p[0];
 		}
 	}
-	$retval['photo'] = base64_decode($retval['photo']);
+
+	// decode / download photo
+	if($retval['photo']) {
+		$kind = $vcf->getProperty('PHOTO')->getParam('VALUE',0);
+		if($kind && strcasecmp('uri', $kind)==0) {
+			if($this->download_photo($retval)) {
+				$vcf->getProperty('PHOTO')->deleteParam('VALUE');
+				$vcf->getProperty('PHOTO')->setParam('ENCODING', 'b', 0);
+				$vcf->getProperty('PHOTO')->setComponent($retval['photo'],0);
+				$needs_update=true;
+			}
+		}
+	}
+
 	$property = $vcf->getProperty("N");
 	if ($property){
 		$N = $property->getComponents();
@@ -1264,7 +1318,7 @@ array (
 			'href' => $url,
 		);
 		write_log('carddav', 'create local store card: ' . print_r($vcard, true));
-		$dbid = $this->dbstore_vcard($save_data, $vcard);
+		$dbid = $this->dbstore_vcard($vcard, $save_data);
 		write_log('carddav',"created ID: $dbid");
 
 		if($this->total_cards != -1)
