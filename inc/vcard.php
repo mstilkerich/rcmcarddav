@@ -28,6 +28,7 @@ class VCard
 	 * is a VCardProperty array of properties which share that property name.
 	 */
 	var $_map;
+	private $usedGroups = array();
 
 	/**
 	 * Parses a vCard from one or more lines. Lines that are not property
@@ -39,6 +40,9 @@ class VCard
 		$this->_map = null;
 		$property = new VCardProperty();
 		while ($property->parse($lines)) {
+			if($property->getGroup() && !in_array($property->getGroup(), $this->usedGroups))
+				$this->usedGroups[] = $property->getGroup();
+
 			if (is_null($this->_map)) {
 				if ($property->name == 'BEGIN') {
 					$this->_map = array();
@@ -57,6 +61,14 @@ class VCard
 		return $this->_map != null;
 	}
 
+	function genGroupLabel()
+	{
+		for($i=1; in_array("item$i", $this->usedGroups); $i++);
+		$grp = "item$i";
+		$this->usedGroups[] = $grp;
+		return $grp;
+	}
+
 	function toString()
 	{
 		$line =  "BEGIN:VCARD\r\n";
@@ -69,13 +81,90 @@ class VCard
 		return $line;
 	}
 
+	function deletePropertyByGroup($name,$group,$delgroup=false)
+	{
+		$name = strtoupper($name);
+		if(array_key_exists($name,$this->_map)) {
+			for($i=count($this->_map[$name])-1; $i>=0; $i--) {
+				if($this->_map[$name][$i]->getGroup() === $group) {
+					$this->deleteProperty($name,$delgroup,$i,1);
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	// delgroup: if true, for each deleted property delete all other properties
+	//   of the vcard that belong to that group as well. Should be enabled if a
+	//   "master property" is deleted
+	function deleteProperty($name,$delgroup=true,$from=0,$numelem=0)
+	{
+		$name = strtoupper($name);
+		if(array_key_exists($name,$this->_map)) {
+			if($numelem == 0)
+				$numelem = count($this->_map[$name]) - $from;
+
+			$del = array_splice($this->_map[$name], $from, $numelem);
+
+			if(count($this->_map[$name])==0) { // delete entry as well
+				unset($this->_map[$name]);
+			}
+
+			if($delgroup) {
+				$delgroups = array();
+				foreach($del as $d) {
+					if($d->getGroup())
+						$delgroups[] = $d->getGroup();
+				}
+				if(count($delgroups)) {
+				// not very efficient by should be ok for typically sized vcards...
+				foreach($this->_map as $pkey => &$props) {
+					for($i=count($props)-1; $i>=0; $i--) {
+						if(in_array($props[$i]->getGroup(), $delgroups))
+							array_splice($props, $i, 1);
+					}
+					if(count($props) == 0)
+						unset($this->_map[$pkey]);
+				} }
+			}
+		}
+	}
+
+	// changes the value of a property or creates the property if it does not exist
+	function setProperty($name, $value, $idx=0, $pvidx=0, $group='',$pvdelim=';') 
+	{
+		$name = strtoupper($name);
+		// does the mapping exist at all?
+		if(!array_key_exists($name,$this->_map)) {
+			$this->_map[$name] = array();
+		}
+
+		// idx < 0? => append new
+		if($idx < 0)
+			$idx = count($this->_map[$name]);
+
+		// do we need to create a new property?	
+		if(count($this->_map[$name]) <= $idx) {
+			$idx = count($this->_map[$name]);
+			$this->_map[$name][] = new VCardProperty();
+			// init name and group
+			$this->_map[$name][$idx]->name  = $name;
+			$this->_map[$name][$idx]->group = $group;
+		}
+
+		// modify the (now) existing property
+		$this->_map[$name][$idx]->setComponent($value, $pvidx, $pvdelim);
+		return $idx;
+	}
+
 	/**
 	 * Returns the first property mapped to the specified name or null if
 	 * there are no properties with that name.
 	 */
 	function getProperty($name, $group='')
 	{
-		$name  = strtoupper($name);
+		$name = strtoupper($name);
 
 		if(array_key_exists($name,$this->_map)) {
 			foreach($this->_map[$name] as $v) {
@@ -93,6 +182,7 @@ class VCard
 	 */
 	function getProperties($name)
 	{
+		$name = strtoupper($name);
 		return $this->_map[$name];
 	}
 
@@ -142,7 +232,7 @@ class VCard
 class VCardProperty
 {
 	var $name;          // string
-	var $params;        // params[PARAM_NAME] => value[,value...]
+	var $params=array();// params[PARAM_NAME] => value[,value...]
 	var $value;         // string
 	var $group='';      // group prefix
 
@@ -161,7 +251,6 @@ class VCardProperty
 				// parameter values can be case sensitive
 				$tmp = split_quoted_string(";", $tmp[0]);
 				$this->name = $tmp[0];
-				$this->params = array();
 				for ($i = 1; $i < count($tmp); $i++) {
 					$this->_parseParam($tmp[$i]);
 				}
@@ -195,12 +284,12 @@ class VCardProperty
 				$line .= ";$pname=". dquote($value);
 			}
 		}
-		$line .= ':' . $this->value . "\r\n";
+		$line .= ':' . $this->value;
 
 		// fold lines to 75 characters length
 		$flines = str_split($line, 75);
-
-		return implode("\r\n ", $flines);
+		$line = implode("\r\n ", $flines);
+		return ($line . "\r\n");
 	}
 
 	/**
@@ -219,13 +308,22 @@ class VCardProperty
 		return explode("\x01", $value);
 	}
 
-	function deleteParam($name)
+	function deleteParam($name, $from=0, $numelem=0)
 	{
-		unset($this->params[$name]);
+		$name = strtoupper($name);
+		if(array_key_exists($name, $this->params)) {
+			if($numelem == 0)
+				$numelem = count($this->params[$name]) - $from;
+
+			array_splice($this->params[$name], $from, $numelem);
+			if(count($this->params[$name]) == 0)	
+				unset($this->params[$name]);
+		}
 	}
 
 	function getParam($name, $which=-1)
 	{
+		$name = strtoupper($name);
 		if(!array_key_exists($name, $this->params))
 			return null;
 		$p = $this->params[$name];
@@ -240,15 +338,18 @@ class VCardProperty
 		return null;
 	}
 
-	// $which=-1  means append new param value
+	// $which=-1 means append, -2 prepend new param value
 	function setParam($name, $value, $which=-1) {
+		$name = strtoupper($name);
 		if(!array_key_exists($name, $this->params))
 			$this->params[$name] = array();
 
 		$p = &$this->params[$name];
 		$value = dquote($value);
-	
-		if($which<0 || $which>=count($p)) {
+
+		if($which == -2) {	
+			array_unshift($p, $value);
+		} else if($which<0 || $which>=count($p)) {
 			$p[] = $value;
 		} else {
 			$p[$which] = $value;
@@ -258,11 +359,11 @@ class VCardProperty
 	function setComponent($newvalue, $idx=0, $delim=";")
 	{
 		$comps = $this->getComponents($delim);
-		if(count($comps) <= $idx) {
-			$comps[] = $newvalue; // append
-		} else { // replace
-			$comps[$idx] = $newvalue;
+		// create empty intermediate components if needed
+		for($i=count($comps); $i < $idx; $i++) {
+			$comps[] = '';
 		}
+		$comps[$idx] = $newvalue;
 
 		// escape delimiters
 		foreach($comps as &$comp) {
@@ -273,6 +374,10 @@ class VCardProperty
 
 	function getGroup() {
 		return $this->group;
+	}
+	
+	function setGroup($group) {
+		return $this->group = $group;
 	}
 
 	// ----- Private methods -----
