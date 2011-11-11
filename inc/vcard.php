@@ -197,7 +197,10 @@ class VCardProperty
 		}
 		$line .= ':' . $this->value . "\r\n";
 
-		return $line;
+		// fold lines to 75 characters length
+		$flines = str_split($line, 75);
+
+		return implode("\r\n ", $flines);
 	}
 
 	/**
