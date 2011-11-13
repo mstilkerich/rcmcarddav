@@ -282,7 +282,7 @@ class carddav extends rcube_plugin
 					$dbh->query('UPDATE ' .
 						get_table_name('carddav_contacts') .
 						" SET name=CONCAT($dostr) " .
-						" WHERE abook_id=? AND showas is null",
+						" WHERE abook_id=? AND showas=''",
 						$abookid);
 				}
 
@@ -292,7 +292,7 @@ class carddav extends rcube_plugin
 					$dbh->query('UPDATE ' .
 						get_table_name('carddav_contacts') .
 						' SET sortname=CONCAT(' . $dostr . ') ' .
-						" WHERE abook_id=? AND showas is null",
+						" WHERE abook_id=? AND showas=''",
 						$abookid);
 				}
 			}

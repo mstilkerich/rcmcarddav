@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS carddav_contacts (
 	firstname VARCHAR(255),
 	surname VARCHAR(255),
 	organization VARCHAR(255),
-	showas VARCHAR(32), -- special display type (e.g., as a company)
+	showas VARCHAR(32) NOT NULL DEFAULT '', -- special display type (e.g., as a company)
 	vcard LONGTEXT,     -- complete vcard
 	words text,         -- search keywords
 	etag VARCHAR(255),  -- entity tag, can be used to check if card changed on server

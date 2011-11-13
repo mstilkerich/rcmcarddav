@@ -402,6 +402,25 @@ class carddav_backend extends rcube_addressbook
 	$this->search_filter = '';
   }}}
 
+	private function set_displayname(&$save_data)
+	{{{
+	if(strcasecmp($save_data['showas'], 'COMPANY') == 0) {
+		$save_data['name'] = $save_data['organization'];
+		$save_data['sortname'] = $name;
+	} else {
+		if($this->config['displayorder'] === 'lastfirst') {
+			$save_data['name'] = $save_data['surname'].", ".$save_data['firstname'];
+		} else {
+			$save_data['name'] = $save_data['firstname']." ".$save_data['surname'];
+		}
+		if($this->config['sortorder'] === 'firstname') {
+			$save_data['sortname'] = $save_data['firstname'].$save_data['surname'];
+		} else {
+			$save_data['sortname'] = $save_data['surname'].$save_data['firstname'];
+		}
+	}
+	}}}
+
 	/**
 	 * Stores a vcard to the local database.
 	 *
@@ -429,7 +448,6 @@ class carddav_backend extends rcube_addressbook
 	private function dbstore_vcard($vcard, $save_data=null, $dbid=0)
 	{{{
 	$dbh = rcmail::get_instance()->db;
-	$cfg = $this->config;
 	$card_exists = ($dbid!=0);
 
 	// SYNC mode: cache of existing cards exists
@@ -463,23 +481,6 @@ class carddav_backend extends rcube_addressbook
 		$save_data = $save_data['save_data'];
 	}
 
-	// generate display name according to display order setting
-	if(strcasecmp($save_data['showas'], 'COMPANY') == 0) {
-		$name = $save_data['organization'];
-		$sortname = $name;
-	} else {
-		if($cfg['displayorder'] === 'lastfirst') {
-			$name = $save_data['surname'].", ".$save_data['firstname'];
-		} else {
-			$name = $save_data['firstname']." ".$save_data['surname'];
-		}
-		if($cfg['sortorder'] === 'firstname') {
-			$sortname = $save_data['firstname'].$save_data['surname'];
-		} else {
-			$sortname = $save_data['surname'].$save_data['firstname'];
-		}
-	}
-
 	// build email search string
 	$email_keys = preg_grep('/^email:/', array_keys($save_data));
 	$email_addrs = array();
@@ -488,18 +489,16 @@ class carddav_backend extends rcube_addressbook
 	}
 	$emails = implode(', ', $email_addrs);
 
-	$qparams = array($name, $sortname, $emails, $save_data['firstname'], $save_data['surname'],	$save_data['organization'], $vcfstr, $vcard['etag']);
-	$qcolumns= array('name','sortname','email','firstname','surname','organization','vcard','etag');
-
-	// showas is not part of save_data if we got the save_data from roundcube, as
-	// the showas attribute is not transported through the interface
-	// FIXME if we retrieve a card from the server that has no X-ABShowAs, we
-	// don't store it here. This is a problem if a card previously had that
-	// property but it was removed on the server side...
-	if($save_data['showas']) {
-		$qparams[]  = $save_data['showas'];
-		$qcolumns[] = 'showas';
-	}
+	$qparams = array(
+		$save_data['name'], $save_data['sortname'], $emails,
+		$save_data['firstname'], $save_data['surname'],	$save_data['organization'],
+		$vcfstr, $vcard['etag'], $save_data['showas']
+	);
+	$qcolumns= array(
+		'name','sortname','email',
+		'firstname','surname','organization',
+		'vcard','etag','showas'
+	);
 
 	// does the card already exist in the local db? yes => update
 	if($card_exists) {
@@ -1387,6 +1386,9 @@ class carddav_backend extends rcube_addressbook
 			$save_data['address:'.$label][] = $adr;
 	} }
 
+	// set displayname according to settings
+	$this->set_displayname($save_data);
+
 	return array(
 		'save_data'    => $save_data,
 		'vcf'          => $vcf,
@@ -1445,6 +1447,20 @@ class carddav_backend extends rcube_addressbook
 	if (array_key_exists('photo', $save_data)) {
 		$save_data['photo'] = base64_encode($save_data['photo']);
 	}
+
+	// heuristic to determine X-ABShowAs setting
+	// organization set but neither first nor surname => showas company
+	if(!$save_data['surname'] && !$save_data['firstname']
+		&& $save_data['organization'] && !$save_data['showas']) {
+		$save_data['showas'] = 'COMPANY';
+	}
+	// organization not set but showas==company => show as regular
+	if(!$save_data['organization'] && $save_data['showas']==='COMPANY') {
+		$save_data['showas'] = '';
+	}
+	
+	// generate display name according to display order setting
+	$this->set_displayname($save_data);
 	}}}
 
   /**
@@ -1459,17 +1475,20 @@ class carddav_backend extends rcube_addressbook
   public function update($id, $save_data)
   {{{
 	$dbh = rcmail::get_instance()->db;
-	$this->preprocess_rc_savedata($save_data);
 
 	// get current DB data
-	$sql_res = $dbh->query('SELECT id,cuid,etag,vcard FROM ' .
+	$sql_res = $dbh->query('SELECT id,cuid,etag,vcard,showas FROM ' .
 		get_table_name('carddav_contacts') .
 		' WHERE id=?',
 		$id);
 	$contact = $dbh->fetch_assoc($sql_result);
 	if($contact['id'] != $id)
 		return false;
-	$url      = $contact['cuid'];
+	$url = $contact['cuid'];
+
+	// complete save_data
+	$save_data['showas'] = $contact['showas'];
+	$this->preprocess_rc_savedata($save_data);
 
 	// check if changed on server
 	if(!($srv_etag = $this->get_record_from_carddav($url)))
@@ -1506,6 +1525,8 @@ class carddav_backend extends rcube_addressbook
 		);
 		$id = $this->dbstore_vcard($vcard, $save_data, $id);
 		return true;
+	} else {
+		$this->warn("Could not store: $vcfstr");
 	}
 
 	return false;
