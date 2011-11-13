@@ -252,9 +252,10 @@ class carddav_backend extends rcube_addressbook
 	$dbh = rcmail::get_instance()->db;
 	$sql_result = $dbh->query('INSERT INTO ' .
 		get_table_name('carddav_xsubtypes') .
-		' (typename,subtype) VALUES (?,?)',
+		' (typename,subtype,abook_id) VALUES (?,?,?)',
 			$typename,
-			$subtype
+			$subtype,
+			$this->config['db_id']
 	);
 	}}}
 
@@ -271,7 +272,10 @@ class carddav_backend extends rcube_addressbook
 
 	// read extra subtypes
 	$sql_result = $dbh->query('SELECT typename,subtype FROM ' .
-		get_table_name('carddav_xsubtypes'));
+		get_table_name('carddav_xsubtypes') .
+		' WHERE abook_id=?',
+		$this->config['db_id']
+	);
 
 	while ( $row = $dbh->fetch_assoc($sql_result) ) {
 		$this->coltypes[$row['typename']]['subtypes'][] = $row['subtype'];

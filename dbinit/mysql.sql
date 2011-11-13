@@ -28,5 +28,6 @@ CREATE TABLE IF NOT EXISTS carddav_xsubtypes (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	typename VARCHAR(128) NOT NULL,  -- name of the type
 	subtype  VARCHAR(128) NOT NULL,  -- name of the subtype
-	UNIQUE INDEX(typename,subtype)
+	abook_id INT UNSIGNED NOT NULL REFERENCES carddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	UNIQUE INDEX(typename,subtype,abook_id)
 );
