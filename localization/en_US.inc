@@ -9,4 +9,7 @@ $labels['cd_php_too_old'] = "Your version of PHP is too old! Please update to at
 $labels['cd_description'] = "Name of the addressbook";
 $labels['cd_delete'] = "Remove this addressbook";
 $labels['cd_description_new'] = "Configure new addressbook";
+$labels['cd_displayorder'] = "Display order";
+$labels['cd_sortorder'] = "Sort order";
+$labels['cd_refresh_time'] = "Update interval (hours)";
 ?>

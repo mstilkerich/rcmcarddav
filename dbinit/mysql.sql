@@ -9,15 +9,20 @@ CREATE TABLE IF NOT EXISTS carddav_addressbooks (
 	user_id INT(10) UNSIGNED NOT NULL REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
 	last_updated TIMESTAMP DEFAULT 0,  -- time stamp of the last update of the local database
 	refresh_time TIME DEFAULT '1:00'   -- time span after that the local database will be refreshed, default 1h
+	sortorder VARCHAR(64) NOT NULL,
+	displayorder VARCHAR(64) NOT NULL,
 );
 
 CREATE TABLE IF NOT EXISTS carddav_contacts (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	abook_id INT UNSIGNED NOT NULL REFERENCES carddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE,
-	name VARCHAR(255),  -- display name, or <FirstName> <LastName> if not set
+	name VARCHAR(255)     NOT NULL, -- display name
+	sortname VARCHAR(255) NOT NULL, -- sort name
 	email VARCHAR(255), -- ", " separated list of mail addresses
 	firstname VARCHAR(255),
 	surname VARCHAR(255),
+	organization VARCHAR(255),
+	showas VARCHAR(32), -- special display type (e.g., as a company)
 	vcard LONGTEXT,     -- complete vcard
 	words text,         -- search keywords
 	etag VARCHAR(255),  -- entity tag, can be used to check if card changed on server

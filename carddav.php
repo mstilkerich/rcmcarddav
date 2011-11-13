@@ -68,9 +68,6 @@ class carddav extends rcube_plugin
 			$p['sources']["carddav_".$abookrow['id']] = array(
 				'id' => "carddav_".$abookrow['id'],
 				'name' => $abookrow['name'],
-				// XXX what is $abook in this context?!
-				//'readonly' => $abook->readonly,
-				//'groups' => $abook->groups,
 			);
 		}
 		return $p;
@@ -88,21 +85,23 @@ class carddav extends rcube_plugin
 	/**
 	 * Builds a setting block for one address book for the preference page.
 	 */
-	private function cd_preferences_buildblock($abookid,$blockheader,$desc,$use_carddav,$username,$url,$dont_override)
+	private function cd_preferences_buildblock($blockheader,$abook,$dont_override)
 	{{{
+		$abookid = $abook['id'];
+
 		if (in_array('carddav_use_carddav', $dont_override)) {
 			$content_use_carddav = $use_carddav ? "Enabled" : "Disabled";
 		} else {
 			// check box for activating
 			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_use_carddav', 'value' => 1));
-			$content_use_carddav = $checkbox->show($use_carddav?1:0);
+			$content_use_carddav = $checkbox->show($abook['active']?1:0);
 		}
 
 		if (in_array('carddav_username', $dont_override)){
 			$content_username = $username;
 		} else {
 			// input box for username
-			$input = new html_inputfield(array('name' => $abookid.'_cd_username', 'type' => 'text', 'autocomplete' => 'off', 'value' => $username));
+			$input = new html_inputfield(array('name' => $abookid.'_cd_username', 'type' => 'text', 'autocomplete' => 'off', 'value' => $abook['username']));
 			$content_username = $input->show();
 		}
 
@@ -119,17 +118,32 @@ class carddav extends rcube_plugin
 		} else {
 			// input box for URL
 			$size = max(strlen($url),40);
-			$input = new html_inputfield(array('name' => $abookid.'_cd_url', 'type' => 'text', 'autocomplete' => 'off', 'value' => $url, 'size' => $size));
+			$input = new html_inputfield(array('name' => $abookid.'_cd_url', 'type' => 'text', 'autocomplete' => 'off', 'value' => $abook['url'], 'size' => $size));
 			$content_url = $input->show();
 		}
+
+		// input box for refresh time
+		$input = new html_inputfield(array('name' => $abookid.'_cd_refresh_time', 'type' => 'text', 'autocomplete' => 'off', 'value' => $abook['refresh_time'], 'size' => 10));
+		$content_refresh_time = $input->show();
 
 		if (in_array('carddav_description', $dont_override)){
 			$content_description = $desc;
 		} else {
-			$input = new html_inputfield(array('name' => $abookid.'_cd_description', 'type' => 'text', 'autocomplete' => 'off', 'value' => $desc, 'size' => 40));
+			$input = new html_inputfield(array('name' => $abookid.'_cd_description', 'type' => 'text', 'autocomplete' => 'off', 'value' => $abook['name'], 'size' => 40));
 			$content_description = $input->show();
 		}
 
+		// dropdown for display order
+		$input = new html_select(array('name' => $abookid.'_cd_displayorder'));
+		$input->add('First Name, Last Name', 'firstlast');
+		$input->add('Last Name, First Name', 'lastfirst');
+		$content_displayorder = $input->show($abook['displayorder']);
+
+		// dropdown for sort order
+		$input = new html_select(array('name' => $abookid.'_cd_sortorder'));
+		$input->add('First Name', 'firstname');
+		$input->add('Last Name', 'surname');
+		$content_sortorder = $input->show($abook['sortorder']);
 
 		$retval = array(
 			'options' => array(
@@ -138,6 +152,9 @@ class carddav extends rcube_plugin
 				array('title'=> Q($this->gettext('cd_username')), 'content' => $content_username), 
 				array('title'=> Q($this->gettext('cd_password')), 'content' => $content_password),
 				array('title'=> Q($this->gettext('cd_url')), 'content' => $content_url),
+				array('title'=> Q($this->gettext('cd_refresh_time')), 'content' => $content_refresh_time),
+				array('title'=> Q($this->gettext('cd_displayorder')), 'content' => $content_displayorder),
+				array('title'=> Q($this->gettext('cd_sortorder')), 'content' => $content_sortorder),
 			),
 			'name' => $blockheader
 		);
@@ -173,22 +190,17 @@ class carddav extends rcube_plugin
 
 		$dont_override = $rcmail->config->get('dont_override', array());
 
-		$sql_result = $dbh->query('SELECT id,name,username,url,active FROM ' . 
+		$sql_result = $dbh->query('SELECT * FROM ' . 
 			get_table_name('carddav_addressbooks') .
 			' WHERE user_id = ?',
 			$_SESSION['user_id']);
 
 		while ($abook = $dbh->fetch_assoc($sql_result)) {
 			$abookid     = $abook['id'];
-			$desc        = $abook['name'];
-			$use_carddav = $abook['active'];
-			$username    = $abook['username'];
-			$url         = $abook['url'];
-
-			$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($abookid,$desc,$desc,$use_carddav,$username,$url,$dont_override);
+			$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($abook['name'],$abook,$dont_override);
 		}
 
-		$args['blocks']['cd_preferences_section_new'] = $this->cd_preferences_buildblock('new', 'Configure new addressbook', '', 1, '','', array());
+		$args['blocks']['cd_preferences_section_new'] = $this->cd_preferences_buildblock('Configure new addressbook', array( 'id'=>'new', 'active'=>1, 'refresh_time'=>1), array());
 
 		return($args);
 	}}}
@@ -212,7 +224,7 @@ class carddav extends rcube_plugin
 
 		$dbh    = rcmail::get_instance()->db;
 		// update existing in DB
-		$sql_result = $dbh->query('SELECT id FROM ' . 
+		$sql_result = $dbh->query('SELECT id,sortorder,displayorder FROM ' . 
 			get_table_name('carddav_addressbooks') .
 			' WHERE user_id = ?',
 			$_SESSION['user_id']);
@@ -224,11 +236,27 @@ class carddav extends rcube_plugin
 					get_table_name('carddav_addressbooks') .
 					' WHERE id = ?', $abookid);
 			} else {
+				$olddisplayorder = $abook['displayorder'];
+				$oldsortorder = $abook['sortorder'];
+
+				$refresht = get_input_value($abookid."_cd_refresh_time", RCUBE_INPUT_POST);
+				if(preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $refresht, $match)) {
+					$refresht = sprintf("%02d:%02d:%02d", $match[1],
+						$match[3] ? $match[3] : 0,
+						$match[5] ? $match[5] : 0);
+				} else {
+					write_log("carddav.warn", "Could not parse given refresh time '$refresht'");
+					$refresht = '01:00:00';
+				}
+
+				$displayorder = get_input_value($abookid."_cd_displayorder", RCUBE_INPUT_POST);
+				$sortorder = get_input_value($abookid."_cd_sortorder", RCUBE_INPUT_POST);
 				$newset = array (
 					get_input_value($abookid."_cd_description", RCUBE_INPUT_POST),
 					get_input_value($abookid."_cd_username", RCUBE_INPUT_POST),
 					get_input_value($abookid."_cd_url", RCUBE_INPUT_POST),
-					isset($_POST[$abookid.'_cd_use_carddav']) ? 1 : 0
+					isset($_POST[$abookid.'_cd_use_carddav']) ? 1 : 0,
+					$displayorder, $sortorder, $refresht,
 				);
 
 				// only set the password if the user entered a new one
@@ -242,10 +270,31 @@ class carddav extends rcube_plugin
 
 				$dbh->query('UPDATE ' .
 					get_table_name('carddav_addressbooks') .
-					' SET name=?,username=?,url=?,active=?' .
+					' SET name=?,username=?,url=?,active=?,displayorder=?,sortorder=?,refresh_time=?' .
 					$extraquery .
 					' WHERE id = ?',
 					$newset);
+
+				// update display names if changed
+				if($olddisplayorder !== $displayorder) {
+					$dostr = ($displayorder==='firstlast')?'firstname," ",surname':'surname,", ",firstname';
+					write_log("carddav", "UPDATE DISP ORDER $olddisplayorder TO $displayorder DOSTR $dostr ID $abookid");
+					$dbh->query('UPDATE ' .
+						get_table_name('carddav_contacts') .
+						" SET name=CONCAT($dostr) " .
+						" WHERE abook_id=? AND showas is null",
+						$abookid);
+				}
+
+				// update sort names if setting changed
+				if($oldsortorder !== $sortorder) {
+					$dostr = ($sortorder==='firstname')?'firstname,surname':'surname,firstname';
+					$dbh->query('UPDATE ' .
+						get_table_name('carddav_contacts') .
+						' SET sortname=CONCAT(' . $dostr . ') ' .
+						" WHERE abook_id=? AND showas is null",
+						$abookid);
+				}
 			}
 		}
 
@@ -253,13 +302,16 @@ class carddav extends rcube_plugin
 		$new = get_input_value('new_cd_description', RCUBE_INPUT_POST);
 		if (strlen($new) > 0) {
 			$dbh->query('INSERT INTO ' . get_table_name('carddav_addressbooks') .
-				'(name,username,password,url,active,user_id) ' .
-				'VALUES (?, ?, ?, ?, ?, ?)',
+				'(name,username,password,url,active,displayorder,sortorder,refresh_time,user_id) ' .
+				'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
 					get_input_value('new_cd_description', RCUBE_INPUT_POST), 
 					get_input_value('new_cd_username', RCUBE_INPUT_POST),
 					get_input_value('new_cd_password', RCUBE_INPUT_POST),
 					get_input_value('new_cd_url', RCUBE_INPUT_POST),
 					isset($_POST['new_cd_use_carddav']) ? 1 : 0,
+					get_input_value('new_cd_displayorder', RCUBE_INPUT_POST),
+					get_input_value('new_cd_sortorder', RCUBE_INPUT_POST),
+					get_input_value('new_cd_refresh_time', RCUBE_INPUT_POST),
 					$_SESSION['user_id']);
 		}
 

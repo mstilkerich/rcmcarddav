@@ -203,6 +203,7 @@ class carddav_backend extends rcube_addressbook
 			'X-MANAGER' => 'manager',
 			'X-SPOUSE' => 'spouse',
 			'X-GENDER' => 'gender',
+			'X-ABShowAs' => 'showas',
 		),
 		'multi' => array(
 			'EMAIL' => 'email',
@@ -390,6 +391,7 @@ class carddav_backend extends rcube_addressbook
 	private function dbstore_vcard($vcard, $save_data=null, $dbid=0)
 	{{{
 	$dbh = rcmail::get_instance()->db;
+	$cfg = $this->config;
 	$card_exists = ($dbid!=0);
 
 	if(array_key_exists($vcard['href'], $this->existing_card_cache)) {
@@ -422,9 +424,20 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	// generate display name if not explicitly set (mandatory)
-	$name = $save_data['name'];
-	if (strlen($name) == 0){
-		$name = $save_data['firstname']." ".$save_data['surname'];
+	if(strcasecmp($save_data['showas'], 'COMPANY') == 0) {
+		$name = $save_data['organization'];
+		$sortname = $name;
+	} else {
+		if($cfg['displayorder'] === 'lastfirst') {
+			$name = $save_data['surname'].", ".$save_data['firstname'];
+		} else {
+			$name = $save_data['firstname']." ".$save_data['surname'];
+		}
+		if($cfg['sortorder'] === 'firstname') {
+			$sortname = $save_data['firstname'].$save_data['surname'];
+		} else {
+			$sortname = $save_data['surname'].$save_data['firstname'];
+		}
 	}
 
 	// build email search string
@@ -439,11 +452,12 @@ class carddav_backend extends rcube_addressbook
 	if($card_exists) {
 		$sql_result = $dbh->query('UPDATE ' .
 			get_table_name('carddav_contacts') .
-			' SET name=?,email=?,firstname=?,surname=?,vcard=?,words=?,etag=?' .
+			' SET name=?,sortname=?,email=?,firstname=?,surname=?,organization=?,showas=?,vcard=?,etag=?' .
 			' WHERE id=?',
-			$name, $emails, $save_data['firstname'], $save_data['surname'],
+			$name, $sortname, $emails, $save_data['firstname'], $save_data['surname'],
+			$save_data['organization'], $save_data['showas'],
 			$vcf,
-			'', $vcard['etag'],
+			$vcard['etag'],
 			$dbid);
 		if ($this->DEBUG){
 			write_log("carddav", "dbstore: UPDATED card " . $vcard['href']);
@@ -453,11 +467,11 @@ class carddav_backend extends rcube_addressbook
 	} else {
 		$sql_result = $dbh->query('INSERT INTO ' .
 			get_table_name('carddav_contacts') .
-			' (abook_id,name,email,firstname,surname,vcard,words,etag,cuid) VALUES (?,?,?,?,?,?,?,?,?)',
-				$this->config['db_id'], $name, $emails,
+			' (abook_id,name,sortname,email,firstname,surname,organization,showas,vcard,etag,cuid) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+				$this->config['db_id'], $name, $sortname, $emails,
 				$save_data['firstname'], $save_data['surname'],
+				$save_data['organization'], $save_data['showas'],
 				$vcf,
-				'', // TODO search terms
 				$vcard['etag'], $vcard['href']);
 		$dbid = $dbh->insert_id('carddav_contacts');
 		if ($this->DEBUG){
@@ -768,7 +782,7 @@ class carddav_backend extends rcube_addressbook
 		get_table_name('carddav_contacts') .
 		' WHERE abook_id=? ' .
 		$this->search_filter .
-		' ORDER BY name ASC',
+		' ORDER BY sortname ASC',
 		$limit_index,
 		$limit_rows,
 		$this->config['db_id']
