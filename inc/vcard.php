@@ -35,8 +35,13 @@ class VCard
 	 * lines, such as blank lines, are skipped. Returns false if there are
 	 * no more lines to be parsed.
 	 */
-	function parse(&$lines)
+	function parse($lines)
 	{
+		if(!is_array($lines)) {
+			$lines = preg_replace(";\r?\n[ \t];", "", $lines);
+			$lines = explode("\n", $lines);
+		}
+
 		$this->_map = null;
 		$property = new VCardProperty();
 		while ($property->parse($lines)) {
@@ -440,7 +445,7 @@ class VCardProperty
 	/**
 	 * Decodes a quoted printable value spanning multiple lines.
 	 */
-	function _decodeQuotedPrintable(&$lines)
+	function _decodeQuotedPrintable($lines)
 	{
 		$value = &$this->value;
 		while ($value[strlen($value) - 1] == "=") {
