@@ -222,7 +222,7 @@ class carddav extends rcube_plugin
 		if($args['section'] != 'cd_preferences')
 			return;
 
-		$dbh    = rcmail::get_instance()->db;
+		$dbh = rcmail::get_instance()->db;
 		// update existing in DB
 		$sql_result = $dbh->query('SELECT id,sortorder,displayorder FROM ' . 
 			get_table_name('carddav_addressbooks') .
@@ -301,18 +301,23 @@ class carddav extends rcube_plugin
 		// add a new address book?	
 		$new = get_input_value('new_cd_description', RCUBE_INPUT_POST);
 		if (strlen($new) > 0) {
+			$srv  = get_input_value('new_cd_url', RCUBE_INPUT_POST);
+			$usr  = get_input_value('new_cd_username', RCUBE_INPUT_POST);
+			$pass = get_input_value('new_cd_password', RCUBE_INPUT_POST);
+
+			$srv = carddav_backend::find_addressbook(array('url'=>$srv,'password'=>$pass,'username'=>$usr));
+			if($srv) {
 			$dbh->query('INSERT INTO ' . get_table_name('carddav_addressbooks') .
 				'(name,username,password,url,active,displayorder,sortorder,refresh_time,user_id) ' .
 				'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
 					get_input_value('new_cd_description', RCUBE_INPUT_POST), 
-					get_input_value('new_cd_username', RCUBE_INPUT_POST),
-					get_input_value('new_cd_password', RCUBE_INPUT_POST),
-					get_input_value('new_cd_url', RCUBE_INPUT_POST),
+					$usr,$pass,$srv,
 					isset($_POST['new_cd_use_carddav']) ? 1 : 0,
 					get_input_value('new_cd_displayorder', RCUBE_INPUT_POST),
 					get_input_value('new_cd_sortorder', RCUBE_INPUT_POST),
 					get_input_value('new_cd_refresh_time', RCUBE_INPUT_POST),
 					$_SESSION['user_id']);
+			}
 		}
 
 		return($args);

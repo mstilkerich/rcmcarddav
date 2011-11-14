@@ -163,8 +163,8 @@ class carddav_backend extends rcube_addressbook
 	private $config;
 	private $xlabels;
 
-	private $DEBUG      = false; // set to true for basic debugging
-	private $DEBUG_HTTP = false; // set to true for debugging raw http stream
+	const DEBUG      = false; // set to true for basic debugging
+	const DEBUG_HTTP = false; // set to true for debugging raw http stream
 
 	// contains a the URIs, db ids and etags of the locally stored cards whenever
 	// a refresh from the server is attempted. This is used to avoid a separate
@@ -205,25 +205,25 @@ class carddav_backend extends rcube_addressbook
 
 
 	// log helpers
-	private function warn() {
+	private static function warn() {
 		write_log("carddav.warn", implode(' ', func_get_args()));
 	}
-	private function debug() {
-		if($this->DEBUG) {
+	private static function debug() {
+		if(self::DEBUG) {
 			write_log("carddav", implode(' ', func_get_args()));
 		}
 	}
-	private function debug_http() {
-		if($this->DEBUG_HTTP) {
+	private static function debug_http() {
+		if(self::DEBUG_HTTP) {
 			write_log("carddav", implode(' ', func_get_args()));
 		}
 	}
 
-	public function __construct($sub)
+	public function __construct($dbid)
 	{{{
 	$dbh = rcmail::get_instance()->db;
 	$this->ready  = $dbh && !$dbh->is_error();
-	$this->config = carddavconfig($sub);
+	$this->config = carddavconfig($dbid);
 	$this->coltypes = array( /* {{{ */
 		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('name'), 'category' => 'main'),
 		'firstname'    => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('firstname'), 'category' => 'main'),
@@ -463,7 +463,7 @@ class carddav_backend extends rcube_addressbook
 
 		// abort if card has not changed
 		if($contact['etag'] === $vcard['etag']) {
-			$this->debug("dbstore: UNCHANGED card " . $vcard['href']);
+			self::debug("dbstore: UNCHANGED card " . $vcard['href']);
 			return $dbid;
 		}
 	}
@@ -473,7 +473,7 @@ class carddav_backend extends rcube_addressbook
 	if(!$save_data) {
 		$save_data = $this->create_save_data_from_vcard($vcard['vcf']);
 		if (!$save_data){
-			$this->warn("Couldn't parse vcard ".$vcard['vcf']);
+			self::warn("Couldn't parse vcard ".$vcard['vcf']);
 			return false;
 		}
 		// update the vcf string if the card was modified (photo inlined)
@@ -503,7 +503,7 @@ class carddav_backend extends rcube_addressbook
 
 	// does the card already exist in the local db? yes => update
 	if($card_exists) {
-		$this->debug("dbstore: UPDATE card " . $vcard['href']);
+		self::debug("dbstore: UPDATE card " . $vcard['href']);
 		$qparams[]  = $dbid;
 		$sql_result = $dbh->query('UPDATE ' .
 			get_table_name('carddav_contacts') .
@@ -516,7 +516,7 @@ class carddav_backend extends rcube_addressbook
 		$qcolumns[] = 'abook_id'; $qparams[] = $this->config['db_id'];
 		$qcolumns[] = 'cuid';     $qparams[] = $vcard['href'];
 
-		$this->debug("dbstore: INSERT card " . $vcard['href']);
+		self::debug("dbstore: INSERT card " . $vcard['href']);
 		$sql_result = $dbh->query('INSERT INTO ' .
 			get_table_name('carddav_contacts') .
 			' ('. implode(',', $qcolumns) . ') VALUES (?' . str_repeat(',?', count($qcolumns)-1) .')',
@@ -573,10 +573,14 @@ class carddav_backend extends rcube_addressbook
 	return $x;
   }}}
 
-  private function cdfopen($caller, $url, $opts)
+	/**
+	 * @param array config array containing at least the keys
+	 *             - url: base url if $url is a relative url
+	 *             - username
+	 *             - password
+	 */
+  public static function cdfopen($caller, $url, $opts, $carddav)
   {{{
-	$carddav = $this->config;
-
 	$http=new http_class;
 	$http->timeout=10;
 	$http->data_timeout=0;
@@ -589,7 +593,7 @@ class carddav_backend extends rcube_addressbook
 		$url = concaturl($carddav['url'], $url);
 	}
 
-	$this->debug("cdfopen: $caller requesting $url");
+	self::debug("cdfopen: $caller requesting $url");
 
 	$url = preg_replace(";://;", "://".urlencode($carddav['username']).":".urlencode($carddav['password'])."@", $url);
 	$error = $http->GetRequestArguments($url,$arguments);
@@ -609,7 +613,7 @@ class carddav_backend extends rcube_addressbook
 	$error = $http->Open($arguments);
 	if ($error == ""){
 		$error=$http->SendRequest($arguments);
-		$this->debug_http("cdfopen SendRequest: ".var_export($http, true));
+		self::debug_http("cdfopen SendRequest: ".var_export($http, true));
 
 		if ($error == ""){
 			$error=$http->ReadReplyHeaders($headers);
@@ -619,20 +623,20 @@ class carddav_backend extends rcube_addressbook
 					$reply["status"] = $http->response_status;
 					$reply["headers"] = $headers;
 					$reply["body"] = $body;
-					$this->debug_http("cdfopen success: ".var_export($reply, true));
+					self::debug_http("cdfopen success: ".var_export($reply, true));
 					return $reply;
 				} else {
-					$this->warn("cdfopen: Could not read reply body: ".$error);
+					self::warn("cdfopen: Could not read reply body: ".$error);
 				}
 			} else {
-				$this->warn("cdfopen: Could not read reply header: ".$error);
+				self::warn("cdfopen: Could not read reply header: ".$error);
 			}
 		} else {
-			$this->warn("cdfopen: Could not send request: ".$error);
+			self::warn("cdfopen: Could not send request: ".$error);
 		}
 	} else {
-		$this->warn("cdfopen: Could not open: ".$error);
-		$this->debug_http("cdfopen failed: ".var_export($http, true));
+		self::warn("cdfopen: Could not open: ".$error);
+		self::debug_http("cdfopen failed: ".var_export($http, true));
 	}
 	return -1;
   }}}
@@ -669,7 +673,7 @@ class carddav_backend extends rcube_addressbook
 				get_table_name('carddav_contacts') .
 				' WHERE id=?',
 				$value['id']);
-			$this->debug("deleted local card: $cuid");
+			self::debug("deleted local card: $cuid");
 		}
 	}
 	$this->existing_card_cache = array();
@@ -719,6 +723,87 @@ class carddav_backend extends rcube_addressbook
 	return false;
   }}}
 
+
+	public static function find_addressbook($config)
+	{{{
+	$xmlquery =
+		'<?xml version="1.0" encoding="utf-8" ?'.'>
+			<a:propfind xmlns:a="DAV:">
+				<a:prop>
+					<a:current-user-principal/>
+				</a:prop>
+			</a:propfind>';
+	$opts = array(
+		'http'=>array(
+			'method'=>"PROPFIND",
+			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\""),
+			'content'=> $xmlquery
+		)
+	);
+
+	$reply = self::cdfopen("geturl", "/", $opts, $config);
+	if ($reply == -1) // error occured, as opposed to "" which means empty reply
+		return false;
+
+	$xml = new SimpleXMLElement($reply['body']);
+	$princurl = $xml->response->propstat->prop->{'current-user-principal'}->href;
+	self::debug("find_addressbook Principal URL: $princurl");
+
+	$xmlquery =
+		'<?xml version="1.0" encoding="utf-8" ?'.'>
+			<a:propfind xmlns:a="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">>
+				<a:prop>
+					<C:addressbook-home-set/>
+				</a:prop>
+			</a:propfind>';
+	$opts = array(
+		'http'=>array(
+			'method'=>"PROPFIND",
+			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\""),
+			'content'=> $xmlquery
+		)
+	);
+	
+	$reply = self::cdfopen("geturl", $princurl, $opts, $config);
+	if ($reply == -1) // error occured, as opposed to "" which means empty reply
+		return false;
+
+	$xml = new SimpleXMLElement($reply['body']);
+	$abookhome = $xml->response->propstat->prop->{'addressbook-home-set'}->href;
+	self::debug("find_addressbook addressbook home: $abookhome");
+
+	if(!preg_match(';^[^/]+://[^/]+;', $abookhome, $match))
+		return false;
+	$serverpart = $match[0];
+
+	$xmlquery =
+		'<?xml version="1.0" encoding="utf-8"?'.'>
+		<D:propfind xmlns:D="DAV:"><D:prop>
+  		<D:resourcetype />
+		</D:prop></D:propfind>';
+	$opts = array(
+		'http'=>array(
+			'method'=>"PROPFIND",
+			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\""),
+			'content'=> $xmlquery
+		)
+	);
+	
+	$reply = self::cdfopen("geturl", $abookhome, $opts, $config);
+	if ($reply == -1) // error occured, as opposed to "" which means empty reply
+		return false;
+
+	$xml = new SimpleXMLElement($reply['body']);
+	foreach($xml->response as $coll) {
+		if($coll->propstat->prop->resourcetype->addressbook) {
+			$serverpart .= $coll->href;
+			self::debug("find_addressbook found: $serverpart");
+			return $serverpart;
+		}
+	}
+	return false;
+	}}}
+
   /**
    * Retrieves the Card URIs from the CardDAV server
    *
@@ -749,7 +834,7 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	$reply = $this->cdfopen("list_records_sync_collection", "", $opts);
+	$reply = self::cdfopen("list_records_sync_collection", "", $opts, $this->config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return -1;
 
@@ -831,7 +916,7 @@ class carddav_backend extends rcube_addressbook
 		if($read_vcard) {
 			$save_data = $this->create_save_data_from_vcard($contact['vcard']);
 			if (!$save_data){
-				$this->warn("Couldn't parse vcard ".$contact['vcard']);
+				self::warn("Couldn't parse vcard ".$contact['vcard']);
 				continue;
 			}
 			$save_data = $save_data['save_data'];
@@ -885,7 +970,7 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	$reply = $this->cdfopen("query_addressbook_multiget", "", $optsREPORT);
+	$reply = self::cdfopen("query_addressbook_multiget", "", $optsREPORT, $this->config);
 	return $reply;
   }}}
 
@@ -907,7 +992,7 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	$reply = $this->cdfopen("list_records_propfind_resourcetype", "", $opts);
+	$reply = self::cdfopen("list_records_propfind_resourcetype", "", $opts, $this->config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return -1;
 
@@ -1034,10 +1119,10 @@ class carddav_backend extends rcube_addressbook
 			'method'=>"GET",
 		)
 	);
-	$reply = $this->cdfopen("get_record_from_carddav", $uid, $opts);
+	$reply = self::cdfopen("get_record_from_carddav", $uid, $opts, $this->config);
 	if (!strlen($reply["body"])) { return false; }
 	if ($reply["status"] == 404){
-		$this->warn("Request for VCF '$uid' which doesn't exits on the server.");
+		self::warn("Request for VCF '$uid' which doesn't exits on the server.");
 		return false;
 	}
 
@@ -1099,7 +1184,7 @@ class carddav_backend extends rcube_addressbook
 			),
 		)
 	);
-	$reply = $this->cdfopen("put_record_to_carddav", $id, $opts);
+	$reply = self::cdfopen("put_record_to_carddav", $id, $opts, $this->config);
 	if ($reply["status"] >= 200 && $reply["status"] < 300) {
 		return $reply["headers"]["etag"];
 	}
@@ -1116,7 +1201,7 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 	$id = preg_replace(";_rcmcddot_;", ".", $id);
-	$reply = $this->cdfopen("delete_record_from_carddav", $id, $opts);
+	$reply = self::cdfopen("delete_record_from_carddav", $id, $opts, $this->config);
 	if ($reply["status"] == 204){
 		return true;
 	}
@@ -1144,7 +1229,7 @@ class carddav_backend extends rcube_addressbook
 
 		$vcf = new VCard;
 		if(!$vcf->parse($vcfstr)) {
-			$this->warn("Couldn't parse newly created vcard " . implode("\n", $vcfstr));
+			self::warn("Couldn't parse newly created vcard " . implode("\n", $vcfstr));
 			return false;
 		}
 	} else { // update revision
@@ -1310,12 +1395,12 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 	$uri = $save_data['photo'];
-	$reply = $this->cdfopen("download_photo", $uri, $opts);
+	$reply = self::cdfopen("download_photo", $uri, $opts, $this->config);
 	if ($reply["status"] == 200){
 		$save_data['photo'] = base64_encode($reply['body']);
 		return true;
 	}
-	$this->warn("Downloading $uri failed: " . $reply["status"]);
+	self::warn("Downloading $uri failed: " . $reply["status"]);
 	return false;
 	}}}
 
@@ -1340,7 +1425,7 @@ class carddav_backend extends rcube_addressbook
 	{{{
 	$vcf = new VCard;
 	if (!$vcf->parse($vcfstr)){
-		$this->warn("Couldn't parse vcard: $vcfstr");
+		self::warn("Couldn't parse vcard: $vcfstr");
 		return false;
 	}
 
@@ -1514,14 +1599,14 @@ class carddav_backend extends rcube_addressbook
 
 	// card has changed on server, abort for now
 	if($contact['etag'] !== $srv_etag) {
-		$this->warn("Card Changed $url, abort");
+		self::warn("Card Changed $url, abort");
 		return false;
 	}
 
 	// create vcard from current DB data to be updated with the new data
 	$vcf = new VCard;
 	if(!$vcf->parse($contact['vcard'])){
-		$this->warn("Update: Couldn't parse local vcard: ".$contact['vcard']);
+		self::warn("Update: Couldn't parse local vcard: ".$contact['vcard']);
 		return false;
 	}
 
@@ -1529,7 +1614,7 @@ class carddav_backend extends rcube_addressbook
 	$uid = $uid[0];
 	$vcf = $this->create_vcard_from_save_data($uid, $save_data, $vcf);
 	if(!$vcf) {
-		$this->warn("Update: Couldn't adopt local vcard to new settings");
+		self::warn("Update: Couldn't adopt local vcard to new settings");
 		return false;
 	}
 
@@ -1543,7 +1628,7 @@ class carddav_backend extends rcube_addressbook
 		$id = $this->dbstore_vcard($vcard, $save_data, $id);
 		return ($id>0);
 	} else {
-		$this->warn("Could not store: $vcfstr");
+		self::warn("Could not store: $vcfstr");
 	}
 
 	return false;
@@ -1567,7 +1652,7 @@ class carddav_backend extends rcube_addressbook
 			$dbid);
 
 		$contact = $dbh->fetch_assoc($sql_result);
-		if($contact['id'] == $dbid) {
+		if($contact['id'] === $dbid) {
 			if($this->delete_record_from_carddav($contact['cuid'])) {
 				$dbh->query('DELETE FROM '.
 					get_table_name('carddav_contacts') .
