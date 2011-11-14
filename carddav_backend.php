@@ -221,7 +221,8 @@ class carddav_backend extends rcube_addressbook
 
 	public function __construct($sub)
 	{{{
-	$this->ready = true;
+	$dbh = rcmail::get_instance()->db;
+	$this->ready  = $dbh && !$dbh->is_error();
 	$this->config = carddavconfig($sub);
 	$this->coltypes = array( /* {{{ */
 		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('name'), 'category' => 'main'),
@@ -405,8 +406,8 @@ class carddav_backend extends rcube_addressbook
 	private function set_displayname(&$save_data)
 	{{{
 	if(strcasecmp($save_data['showas'], 'COMPANY') == 0) {
-		$save_data['name'] = $save_data['organization'];
-		$save_data['sortname'] = $name;
+		$save_data['name']     = $save_data['organization'];
+		$save_data['sortname'] = $save_data['organization'];
 	} else {
 		if($this->config['displayorder'] === 'lastfirst') {
 			$save_data['name'] = $save_data['surname'].", ".$save_data['firstname'];
@@ -443,7 +444,7 @@ class carddav_backend extends rcube_addressbook
 	 *               the database id of existing cards and this parameter needs not
 	 *               be provided.
 	 *
-	 * @return int  The database id of the created or updated card, -1 on error.
+	 * @return int  The database id of the created or updated card, false on error.
 	 */
 	private function dbstore_vcard($vcard, $save_data=null, $dbid=0)
 	{{{
@@ -473,7 +474,7 @@ class carddav_backend extends rcube_addressbook
 		$save_data = $this->create_save_data_from_vcard($vcard['vcf']);
 		if (!$save_data){
 			$this->warn("Couldn't parse vcard ".$vcard['vcf']);
-			return -1;
+			return false;
 		}
 		// update the vcf string if the card was modified (photo inlined)
 		if($save_data['needs_update'])
@@ -492,7 +493,7 @@ class carddav_backend extends rcube_addressbook
 	$qparams = array(
 		$save_data['name'], $save_data['sortname'], $emails,
 		$save_data['firstname'], $save_data['surname'],	$save_data['organization'],
-		$vcfstr, $vcard['etag'], $save_data['showas']
+		$vcfstr, $vcard['etag'], $save_data['showas']?$save_data['showas']:''
 	);
 	$qcolumns= array(
 		'name','sortname','email',
@@ -502,25 +503,30 @@ class carddav_backend extends rcube_addressbook
 
 	// does the card already exist in the local db? yes => update
 	if($card_exists) {
+		$this->debug("dbstore: UPDATE card " . $vcard['href']);
 		$qparams[]  = $dbid;
 		$sql_result = $dbh->query('UPDATE ' .
 			get_table_name('carddav_contacts') .
 			' SET ' . implode('=?,',$qcolumns) . '=?' .
 			' WHERE id=?',
 			$qparams);
-		$this->debug("dbstore: UPDATED card " . $vcard['href']);
 
 	// does not exist => insert new card
 	} else {
 		$qcolumns[] = 'abook_id'; $qparams[] = $this->config['db_id'];
 		$qcolumns[] = 'cuid';     $qparams[] = $vcard['href'];
 
+		$this->debug("dbstore: INSERT card " . $vcard['href']);
 		$sql_result = $dbh->query('INSERT INTO ' .
 			get_table_name('carddav_contacts') .
 			' ('. implode(',', $qcolumns) . ') VALUES (?' . str_repeat(',?', count($qcolumns)-1) .')',
 				$qparams);
 		$dbid = $dbh->insert_id('carddav_contacts');
-		$this->debug("dbstore: INSERT card " . $vcard['href']);
+	}
+
+	if($dbh->is_error()) {
+		$this->set_error(self::ERROR_SAVING, $dbh->is_error());
+		return false;
 	}
 
 	// return database id of the card
@@ -552,14 +558,17 @@ class carddav_backend extends rcube_addressbook
 			$tryagain[] = $vcard['href'];
 			continue;
 		}
-		$this->dbstore_vcard($vcard);
+		if(!$this->dbstore_vcard($vcard))
+		 return false;
 		$x++;
 	}
 
 	if ($try < 3 && count($tryagain) > 0){
 		$reply = $this->query_addressbook_multiget($tryagain);
 		$reply = $reply["body"];
-		$x += $this->addvcards($reply, ++$try);
+		$numcards = $this->addvcards($reply, ++$try);
+		if(!$numcards) return false;
+		$x += $numcards;
 	}
 	return $x;
   }}}
@@ -1431,10 +1440,11 @@ class carddav_backend extends rcube_addressbook
 			'href' => $url,
 		);
 		$dbid = $this->dbstore_vcard($vcard, $save_data);
-
-		if($this->total_cards != -1)
-			$this->total_cards++; 
-		return $dbid;
+		if($dbid) {
+			if($this->total_cards != -1)
+				$this->total_cards++; 
+			return $dbid;
+		}
 	}
 	return false;
   }}}
@@ -1524,7 +1534,7 @@ class carddav_backend extends rcube_addressbook
 			'href' => $url,
 		);
 		$id = $this->dbstore_vcard($vcard, $save_data, $id);
-		return true;
+		return ($id>0);
 	} else {
 		$this->warn("Could not store: $vcfstr");
 	}
