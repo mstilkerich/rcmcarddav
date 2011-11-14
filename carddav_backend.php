@@ -1082,14 +1082,21 @@ class carddav_backend extends rcube_addressbook
 	return $assoc_return && $sql_arr ? $sql_arr : $this->result;
   }}}
 
-  private function put_record_to_carddav($id, $vcf)
-  {{{
+  private function put_record_to_carddav($id, $vcf, $etag='')
+	{{{
 	$this->result = $this->count();
+	$matchhdr = $etag ?
+		"If-Match: $etag" :
+		"If-None-Match: *";
+
 	$opts = array(
 		'http'=>array(
 			'method'=>"PUT",
 			'content'=>$vcf,
-			'header'=>"Content-Type: text/vcard"
+			'header'=> array(
+				"Content-Type: text/vcard",
+				$matchhdr,
+			),
 		)
 	);
 	$reply = $this->cdfopen("put_record_to_carddav", $id, $opts);
@@ -1527,7 +1534,7 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	$vcfstr = $vcf->toString();
-	if($etag = $this->put_record_to_carddav($url, $vcfstr)) {
+	if($etag = $this->put_record_to_carddav($url, $vcfstr, $srv_etag)) {
 		$vcard = array (
 			'vcf'  => $vcfstr,
 			'etag' => $etag,
