@@ -82,6 +82,19 @@ class carddav extends rcube_plugin
 		return $p;
 	}}}
 
+	private function process_cd_time($refresht)
+	{{{
+	if(preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $refresht, $match)) {
+		$refresht = sprintf("%02d:%02d:%02d", $match[1],
+			$match[3] ? $match[3] : 0,
+			$match[5] ? $match[5] : 0);
+	} else {
+		write_log("carddav.warn", "Could not parse given refresh time '$refresht'");
+		$refresht = '01:00:00';
+	}
+	return $refresht;
+	}}}
+
 	/**
 	 * Builds a setting block for one address book for the preference page.
 	 */
@@ -215,6 +228,8 @@ class carddav extends rcube_plugin
 		);
 		return($args);
 	}}}
+	
+	
 
 	// save preferences
 	function cd_save($args)
@@ -240,14 +255,7 @@ class carddav extends rcube_plugin
 				$oldsortorder = $abook['sortorder'];
 
 				$refresht = get_input_value($abookid."_cd_refresh_time", RCUBE_INPUT_POST);
-				if(preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $refresht, $match)) {
-					$refresht = sprintf("%02d:%02d:%02d", $match[1],
-						$match[3] ? $match[3] : 0,
-						$match[5] ? $match[5] : 0);
-				} else {
-					write_log("carddav.warn", "Could not parse given refresh time '$refresht'");
-					$refresht = '01:00:00';
-				}
+				$refresht = $this->process_cd_time($refresht);
 
 				$displayorder = get_input_value($abookid."_cd_displayorder", RCUBE_INPUT_POST);
 				$sortorder = get_input_value($abookid."_cd_sortorder", RCUBE_INPUT_POST);
@@ -307,16 +315,19 @@ class carddav extends rcube_plugin
 
 			$srv = carddav_backend::find_addressbook(array('url'=>$srv,'password'=>$pass,'username'=>$usr));
 			if($srv) {
-			$dbh->query('INSERT INTO ' . get_table_name('carddav_addressbooks') .
-				'(name,username,password,url,active,displayorder,sortorder,refresh_time,user_id) ' .
-				'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-					get_input_value('new_cd_description', RCUBE_INPUT_POST), 
-					$usr,$pass,$srv,
-					isset($_POST['new_cd_use_carddav']) ? 1 : 0,
-					get_input_value('new_cd_displayorder', RCUBE_INPUT_POST),
-					get_input_value('new_cd_sortorder', RCUBE_INPUT_POST),
-					get_input_value('new_cd_refresh_time', RCUBE_INPUT_POST),
-					$_SESSION['user_id']);
+				$refresht = get_input_value('new_cd_refresh_time', RCUBE_INPUT_POST);				
+				$refresht = $this->process_cd_time($refresht);
+
+				$dbh->query('INSERT INTO ' . get_table_name('carddav_addressbooks') .
+					'(name,username,password,url,active,displayorder,sortorder,refresh_time,user_id) ' .
+					'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+						get_input_value('new_cd_description', RCUBE_INPUT_POST), 
+						$usr,$pass,$srv,
+						isset($_POST['new_cd_use_carddav']) ? 1 : 0,
+						get_input_value('new_cd_displayorder', RCUBE_INPUT_POST),
+						get_input_value('new_cd_sortorder', RCUBE_INPUT_POST),
+						$refresht,
+						$_SESSION['user_id']);
 			}
 		}
 
