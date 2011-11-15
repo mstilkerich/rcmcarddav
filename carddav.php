@@ -250,6 +250,16 @@ class carddav extends rcube_plugin
 				$dbh->query('DELETE FROM ' .
 					get_table_name('carddav_addressbooks') .
 					' WHERE id = ?', $abookid);
+
+				// we explicitly delete all data belonging to the addressbook, since
+				// cascaded deleted are not supported by all database backends
+				$dbh->query('DELETE FROM ' .
+					get_table_name('carddav_contacts') .
+					' WHERE abook_id = ?', $abookid);
+				$dbh->query('DELETE FROM ' .
+					get_table_name('carddav_xsubtypes') .
+					' WHERE abook_id = ?', $abookid);
+
 			} else {
 				$olddisplayorder = $abook['displayorder'];
 				$oldsortorder = $abook['sortorder'];
