@@ -295,21 +295,27 @@ class carddav extends rcube_plugin
 
 				// update display names if changed
 				if($olddisplayorder !== $displayorder) {
-					$dostr = ($displayorder==='firstlast')?'firstname," ",surname':'surname,", ",firstname';
+					$dostr = ($displayorder==='firstlast') ?
+						$dbh->concat('firstname', "' '" ,'surname') :
+						$dbh->concat('surname', "', '" ,'firstname') ;
+
 					write_log("carddav", "UPDATE DISP ORDER $olddisplayorder TO $displayorder DOSTR $dostr ID $abookid");
 					$dbh->query('UPDATE ' .
 						get_table_name('carddav_contacts') .
-						" SET name=CONCAT($dostr) " .
+						" SET name=($dostr) " .
 						" WHERE abook_id=? AND showas=''",
 						$abookid);
 				}
 
 				// update sort names if setting changed
 				if($oldsortorder !== $sortorder) {
-					$dostr = ($sortorder==='firstname')?'firstname,surname':'surname,firstname';
+					$dostr = ($sortorder==='firstname')?
+						$dbh->concat('firstname','surname') :
+						$dbh->concat('surname','firstname') ;
+
 					$dbh->query('UPDATE ' .
 						get_table_name('carddav_contacts') .
-						' SET sortname=CONCAT(' . $dostr . ') ' .
+						" SET sortname=($dostr) " .
 						" WHERE abook_id=? AND showas=''",
 						$abookid);
 				}

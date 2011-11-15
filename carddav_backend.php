@@ -26,7 +26,7 @@ function carddavconfig($abookid){{{
 	$dbh = rcmail::get_instance()->db;
 
 	$sql_result = $dbh->query('SELECT name,username,password,url,'.
-		'(now()>last_updated+refresh_time) as needs_update FROM ' .
+		'('.$dbh->now().'>last_updated+refresh_time) as needs_update FROM ' .
 		get_table_name('carddav_addressbooks') .
 		' WHERE id=? AND user_id=? AND active=1',
 		$abookid,
@@ -38,12 +38,16 @@ function carddavconfig($abookid){{{
 		return false;
 	}
 
+	// postgres will return 't'/'f' here for true/false, normalize it to 1/0
+	$nu = $abookrow['needs_update'];
+	$nu = ($nu==1 || $nu=='t')?1:0;
+
 	$retval = array(
 		name         => $abookrow['name'],
 		username     => $abookrow['username'],
 		password     => $abookrow['password'],
 		url          => str_replace("%u", $abookrow['username'], $abookrow['url']),
-		needs_update => $abookrow['needs_update'],
+		needs_update => $nu,
 		db_id        => $abookid,
 	);
 
@@ -81,7 +85,8 @@ function migrateconfig($sub = 'CardDAV'){{{
 		}
 
 		write_log("carddav", "migrateconfig: move addressbook $desc");
-		$dbh->query('INSERT INTO ' . get_table_name('carddav_addressbooks') .
+		$dbh->query('INSERT INTO ' .
+			get_table_name('carddav_addressbooks') .
 			'(name,username,password,url,active,user_id) ' .
 			'VALUES (?, ?, ?, ?, ?, ?)',
 				$desc, $prefs['username'], $prefs['password'], $prefs['url'],
@@ -163,7 +168,7 @@ class carddav_backend extends rcube_addressbook
 	private $config;
 	private $xlabels;
 
-	const DEBUG      = false; // set to true for basic debugging
+	const DEBUG      = true; // set to true for basic debugging
 	const DEBUG_HTTP = false; // set to true for debugging raw http stream
 
 	// contains a the URIs, db ids and etags of the locally stored cards whenever
@@ -521,7 +526,10 @@ class carddav_backend extends rcube_addressbook
 			get_table_name('carddav_contacts') .
 			' ('. implode(',', $qcolumns) . ') VALUES (?' . str_repeat(',?', count($qcolumns)-1) .')',
 				$qparams);
-		$dbid = $dbh->insert_id('carddav_contacts');
+		// XXX the parameter is the sequence name for postgres; it doesn't work
+		// when using the name of the table. For some reason it still provides
+		// the correct ID for MySQL...
+		$dbid = $dbh->insert_id('carddav_contact_ids');
 	}
 
 	if($dbh->is_error()) {
@@ -681,7 +689,7 @@ class carddav_backend extends rcube_addressbook
 	// set last_updated timestamp
 	$dbh->query('UPDATE ' .
 		get_table_name('carddav_addressbooks') .
-		' SET last_updated=now() WHERE id=?',
+		' SET last_updated=' . $dbh->now() .' WHERE id=?',
 			$this->config['db_id']);
 	}}}
 
