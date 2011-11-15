@@ -348,7 +348,7 @@ class carddav_backend extends rcube_addressbook
 		// and we cannot use the DB to prefilter	
 		if ($filterfield === '*') {
 			$this->filter = $filter;
-			$this->search_filter = " AND vcard like " . $dbh->quote("%$searchvalue%", 'text');
+			$this->search_filter = " AND " . $dbh->ilike('vcard',"%$searchvalue%");
 			return;
 		}
 
@@ -357,7 +357,7 @@ class carddav_backend extends rcube_addressbook
 			if($filterfield === $this->primary_key) {
 				$this->search_filter .= " OR $filterfield =  " . $dbh->quote($searchvalue, 'integer');
 			} else {
-				$this->search_filter .= " OR $filterfield like  " . $dbh->quote("%$searchvalue%", 'text');
+				$this->search_filter .= " OR " . $dbh->ilike($filterfield,"%$searchvalue%");
 			}
 		} else {
 			$dbsearch = false;
