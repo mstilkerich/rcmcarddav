@@ -25,14 +25,20 @@ require("inc/vcard.php");
 function carddavconfig($abookid){{{
 	$dbh = rcmail::get_instance()->db;
 
+	// cludge, agreed, but the MDB abstraction seems to have no way of
+	// doing time calculations...
+	$timequery = ($dbh->db_provider === 'sqlite')
+		? "(datetime('now') > datetime(last_updated,refresh_time))" 
+		: '('.$dbh->now().'>last_updated+refresh_time)';
+
 	$sql_result = $dbh->query('SELECT name,username,password,url,'.
-		'('.$dbh->now().'>last_updated+refresh_time) as needs_update FROM ' .
+		"$timequery as needs_update FROM " .
 		get_table_name('carddav_addressbooks') .
 		' WHERE id=?', $abookid);
 
 	$abookrow = $dbh->fetch_assoc($sql_result); // can only be a single row
 	if(! $abookrow) {
-		write_log("carddav", "FATAL! Request for non-existent configuration $abookid");
+		write_log("carddav.warn", "FATAL! Request for non-existent configuration $abookid");
 		return false;
 	}
 
