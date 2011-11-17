@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS carddav_contacts (
 	cuid VARCHAR(255),  -- unique identifier of the card within the collection
 
 	PRIMARY KEY(id),
+	INDEX (abook_id),
 	FOREIGN KEY (abook_id) REFERENCES carddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) /*!40000 ENGINE=INNODB */;
 

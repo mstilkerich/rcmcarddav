@@ -28,9 +28,7 @@ function carddavconfig($abookid){{{
 	$sql_result = $dbh->query('SELECT name,username,password,url,'.
 		'('.$dbh->now().'>last_updated+refresh_time) as needs_update FROM ' .
 		get_table_name('carddav_addressbooks') .
-		' WHERE id=? AND user_id=? AND active=1',
-		$abookid,
-		$_SESSION['user_id']); // to make sure that a user does not retrieve another user's address book by forging ids
+		' WHERE id=?', $abookid);
 
 	$abookrow = $dbh->fetch_assoc($sql_result); // can only be a single row
 	if(! $abookrow) {
@@ -326,7 +324,7 @@ class carddav_backend extends rcube_addressbook
 	// these attributes can be directly searched for in the DB
 	$fast_search = array($this->primary_key, 'firstname', 'surname', 'email', 'name', 'organization');
 	$dbsearch = true;
-	
+
 	// create uniform filter layout
 	if(!is_array($filter['value'])) {
 		$searchvalue = $filter['value'];

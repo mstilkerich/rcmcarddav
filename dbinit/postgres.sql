@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS carddav_contacts (
 	cuid VARCHAR(255)   -- unique identifier of the card within the collection
 );
 
+CREATE INDEX carddav_contacts_abook_id_idx ON carddav_contacts(abook_id);
+
 CREATE SEQUENCE carddav_xsubtype_ids
     INCREMENT BY 1
     NO MAXVALUE
