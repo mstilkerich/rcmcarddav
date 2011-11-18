@@ -8,12 +8,17 @@ CREATE TABLE carddav_addressbooks (
 	active       TINYINT UNSIGNED NOT NULL DEFAULT 1,
 	user_id      integer NOT NULL,
 	last_updated DATETIME DEFAULT 0,  -- time stamp of the last update of the local database
-	refresh_time TIME DEFAULT '1:00',   -- time span after that the local database will be refreshed, default 1h
+	refresh_time TIME DEFAULT '1:00', -- time span after that the local database will be refreshed
 	sortorder    VARCHAR(64) NOT NULL,
 	displayorder VARCHAR(64) NOT NULL,
 
+	readonly     TINYINT UNSIGNED NOT NULL DEFAULT 0, -- read only addressbook, no add/modify/delete of contacts
+	fixed        TINYINT UNSIGNED NOT NULL DEFAULT 0, -- some settings may only be changed by the admin (applies to presets only)
+	presetname   VARCHAR(64),                         -- presetname, '' if no preset
+
 	-- not enforced by sqlite < 3.6.19
-	FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	UNIQUE(user_id,presetname)
 );
 
 CREATE TABLE carddav_contacts (

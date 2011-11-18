@@ -12,8 +12,13 @@ CREATE TABLE IF NOT EXISTS carddav_addressbooks (
 	refresh_time TIME DEFAULT '1:00',   -- time span after that the local database will be refreshed, default 1h
 	sortorder VARCHAR(64) NOT NULL,
 	displayorder VARCHAR(64) NOT NULL,
+	
+	readonly TINYINT UNSIGNED NOT NULL DEFAULT 0, -- read only addressbook, no add/modify/delete of contacts
+	fixed    TINYINT UNSIGNED NOT NULL DEFAULT 0, -- some settings may only be changed by the admin (applies to presets only)
+	presetname   VARCHAR(64),                     -- presetname, '' if no preset
 
 	PRIMARY KEY(id),
+	UNIQUE INDEX(user_id,presetname),
 	FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE
 ) /*!40000 ENGINE=INNODB */;
 

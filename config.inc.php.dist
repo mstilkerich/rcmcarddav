@@ -1,19 +1,22 @@
 <?
-// If you want some values read-only, add a "carddav_*" parameter to $rcmail_config['dont_override'] in config/main.inc.php
+// set explicit values for two addressbooks
+$prefs['Personal']['use_carddav']  = true;
+$prefs['Personal']['username']     = $_SESSION['username'];
+$prefs['Personal']['password']     = $rcmail->decrypt($_SESSION['password']);
+$prefs['Personal']['url']          = "https://ical.example.org/caldav.php/%u/Personal";
+$prefs['Personal']['readonly']     = false; // can be edited
+$prefs['Personal']['fromconfig']   = true;  // internal identifier, don't change
 
-// Enable CardDAV backend
-$use_carddav = true;
-// For read-only: $rcmail_config['dont_override'][] = "carddav_use_carddav";
+$prefs['Corporate']['use_carddav'] = true;
+$prefs['Corporate']['username']    = $_SESSION['username'];
+$prefs['Corporate']['password']    = $rcmail->decrypt($_SESSION['password']);
+$prefs['Corporate']['url']         = "https://ical.example.org/caldav.php/%u/Corporate";
+$prefs['Corporate']['readonly']    = true; // cannot be edited
+$prefs['Corporate']['fromconfig']  = true; // internal identifier, don't change
 
-// Use roundcubemail username
-$username = $_SESSION['username'];
-// For read-only: $rcmail_config['dont_override'][] = "carddav_username";
+$prefs['db_version'] = 2; // internal identifier, don't change
 
-// Use roundcubemail password
-$password = $rcmail->decrypt($_SESSION['password']);
-// For read-only: $rcmail_config['dont_override'][] = "carddav_password";
-
-// URL to backend, use %u as substitute for the username specified above
-//                 use %p as substitute for the password specified above
-$url = "https://ical.example.org/caldav.php/%u/";
-// For read-only: $rcmail_config['dont_override'][] = "carddav_url";
+// Addressbooks are fixed (default: false)
+// If true, User cannot add / edit / delete any addressbooks
+// If false, user can add / edit / delete custom addressbooks as well as any not-readonly addressbooks defined above, but not the description
+// $prefs['_GLOBAL']['fixed'] = true;
