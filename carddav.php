@@ -38,7 +38,7 @@ class carddav extends rcube_plugin
 	);
 
 	// these fields can only be changed by the admin for presets with fixed=1
-	private static $preset_adminonly = array('username','url','readonly');
+	private static $preset_adminonly = array('username','url');
 
 	public function init()
 	{{{
@@ -96,7 +96,6 @@ class carddav extends rcube_plugin
 
 	// add not existing preset addressbooks
 	foreach($prefs as $presetname => $preset) {
-
 		if(array_key_exists($presetname, $existing_presets)) {
 			if($preset['fixed']) {
 				// update: only admin fix keys, only if it's fixed
@@ -109,7 +108,7 @@ class carddav extends rcube_plugin
 				$ep = $existing_presets[$presetname];
 				self::update_abook($ep['id'],$ep['displayorder'],$ep['sortorder'],$pa);
 			}
-			
+
 			unset($existing_presets[$presetname]);
 
 		} else { // create
@@ -458,7 +457,7 @@ class carddav extends rcube_plugin
 	}
 
 	// optional fields
-	$qfo = array('active','readonly','presetname');
+	$qfo = array('active','presetname');
 	foreach($qfo as $f) {
 		if(array_key_exists($f,$pa)) {
 			$qf[] = $f;
@@ -478,12 +477,15 @@ class carddav extends rcube_plugin
 	$dbh = rcmail::get_instance()->db;
 	
 	// check parameters
-	$pa['refresh_time'] = self::process_cd_time($pa['refresh_time']);
-	$pa['sortorder']    = self::process_sortorder($pa['sortorder']);
-	$pa['displayorder'] = self::process_displayorder($pa['displayorder']);
+	if(array_key_exists('refresh_time', $pa))
+		$pa['refresh_time'] = self::process_cd_time($pa['refresh_time']);
+	if(array_key_exists('sortorder', $pa))
+		$pa['sortorder']    = self::process_sortorder($pa['sortorder']);
+	if(array_key_exists('displayorder', $pa))
+		$pa['displayorder'] = self::process_displayorder($pa['displayorder']);
 
 	// optional fields
-	$qfo=array('name','username','url','displayorder','sortorder','refresh_time','active','readonly');
+	$qfo=array('name','username','url','displayorder','sortorder','refresh_time','active');
 	$qf=array();
 	$qv=array();
 
@@ -504,7 +506,8 @@ class carddav extends rcube_plugin
 	);
 
 	// update display names if changed
-	if($olddisplayorder !== $pa['displayorder']) {
+	if(array_key_exists('displayorder', $pa) &&
+		$olddisplayorder !== $pa['displayorder']) {
 		$dostr = ($pa['displayorder']==='firstlast') ?
 			$dbh->concat('firstname', "' '" ,'surname') :
 			$dbh->concat('surname', "', '" ,'firstname') ;
@@ -517,7 +520,8 @@ class carddav extends rcube_plugin
 	}
 
 	// update sort names if setting changed
-	if($oldsortorder !== $pa['sortorder']) {
+	if(array_key_exists('sortorder', $pa) &&
+		$oldsortorder !== $pa['sortorder']) {
 		$dostr = ($pa['sortorder']==='firstname')?
 			$dbh->concat('firstname','surname') :
 			$dbh->concat('surname','firstname') ;

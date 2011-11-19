@@ -12,7 +12,6 @@ CREATE TABLE carddav_addressbooks (
 	sortorder    VARCHAR(64) NOT NULL,
 	displayorder VARCHAR(64) NOT NULL,
 
-	readonly     TINYINT UNSIGNED NOT NULL DEFAULT 0, -- read only addressbook, no add/modify/delete of contacts
 	presetname   VARCHAR(64),                         -- presetname, '' if no preset
 
 	-- not enforced by sqlite < 3.6.19
@@ -31,7 +30,6 @@ CREATE TABLE carddav_contacts (
 	organization VARCHAR(255),
 	showas       VARCHAR(32) NOT NULL DEFAULT '', -- special display type (e.g., as a company)
 	vcard        TEXT,         -- complete vcard
-	words        TEXT,         -- search keywords
 	etag         VARCHAR(255), -- entity tag, can be used to check if card changed on server
 	cuid         VARCHAR(255), -- unique identifier of the card within the collection
 
