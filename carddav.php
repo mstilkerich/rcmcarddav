@@ -80,8 +80,6 @@ class carddav extends rcube_plugin
 	migrateconfig();
 
 	$prefs = carddav_backend::get_adminsettings();
-	if(!$prefs)
-		return;
 
 	// read existing presets from DB
 	$sql_result = $dbh->query('SELECT id,presetname,displayorder,sortorder FROM ' .
@@ -119,8 +117,6 @@ class carddav extends rcube_plugin
 
 	// delete existing preset addressbooks that where removed by admin
 	foreach($existing_presets as $ep) {
-		$abookid = $ep['id'];
-		write_log("carddav", "Delete Old Preset $abookid");
 		self::delete_abook($ep['id']);
 	}
 	}}}
