@@ -93,6 +93,7 @@ class carddav extends rcube_plugin
 	}
 
 	// add not existing preset addressbooks
+	if($prefs) {
 	foreach($prefs as $presetname => $preset) {
 		if(array_key_exists($presetname, $existing_presets)) {
 			if($preset['fixed']) {
@@ -113,7 +114,7 @@ class carddav extends rcube_plugin
 			$preset['presetname'] = $presetname;
 			self::insert_abook($preset);
 		}
-	}
+	}}
 
 	// delete existing preset addressbooks that where removed by admin
 	foreach($existing_presets as $ep) {
@@ -123,19 +124,28 @@ class carddav extends rcube_plugin
 
 	public function address_sources($p)
 	{{{
-		$dbh = rcmail::get_instance()->db;
-		$sql_result = $dbh->query('SELECT id,name FROM ' . 
-			get_table_name('carddav_addressbooks') .
-			' WHERE user_id=? AND active=1',
-			$_SESSION['user_id']);
+	$dbh = rcmail::get_instance()->db;
+	$prefs = carddav_backend::get_adminsettings();
 
-		while ($abookrow = $dbh->fetch_assoc($sql_result)) {
-			$p['sources']["carddav_".$abookrow['id']] = array(
-				'id' => "carddav_".$abookrow['id'],
-				'name' => $abookrow['name'],
-			);
-		}
-		return $p;
+	$sql_result = $dbh->query('SELECT id,name,presetname FROM ' . 
+		get_table_name('carddav_addressbooks') .
+		' WHERE user_id=? AND active=1',
+		$_SESSION['user_id']);
+
+	while ($abookrow = $dbh->fetch_assoc($sql_result)) {
+		$ro = false;
+		if($abookrow['presetname'] && $prefs[$abookrow['presetname']]['readonly'])
+			$ro = true;
+
+		$p['sources']["carddav_".$abookrow['id']] = array(
+			'id' => "carddav_".$abookrow['id'],
+			'name' => $abookrow['name'],
+			'groups' => true,
+			'autocomplete' => true,
+			'readonly' => $ro,
+		);
+	}
+	return $p;
 	}}}
 
 	public function get_address_book($p)
