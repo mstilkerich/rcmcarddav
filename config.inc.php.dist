@@ -1,25 +1,28 @@
 <?
-// set explicit values for two addressbooks
+//// set explicit values for two addressbooks
+
+//// Preset 1: Personal
+// required attributes
 $prefs['Personal']['name']         = 'Personal';
 $prefs['Personal']['username']     = $_SESSION['username'];
 $prefs['Personal']['password']     = $rcmail->decrypt($_SESSION['password']);
 $prefs['Personal']['url']          = "https://ical.example.org/caldav.php/%u/Personal";
-// optional
-$prefs['Personal']['active']       = false;
-$prefs['Personal']['readonly']     = false; // contacts can be added/deleted/edited
-$prefs['Personal']['fixed']        = true; // settings can be edited
-$prefs['Personal']['displayorder'] = false;
-$prefs['Personal']['sortorder']    = 'surname';
+// optional attributes
+$prefs['Personal']['active']       = true;  // if true: addressbook enabled by default
+$prefs['Personal']['readonly']     = false; // if true: contacts can be added/deleted/edited
+$prefs['Personal']['fixed']        = true;  // if true: some settings cannot be edited by the
+                                            //     user (see $preset_adminonly in carddav.php)
+$prefs['Personal']['displayorder'] = 'firstlast'; // default type to display names
+$prefs['Personal']['sortorder']    = 'surname';   // default variant to sort cards
 $prefs['Personal']['refresh_time'] = '2'; // refresh time (HH[:MM[:SS]])
 
+//// Preset 2: Corporate
 $prefs['Corporate']['name']        = 'Corporate';
-$prefs['Corporate']['active']      = true;
 $prefs['Corporate']['username']    = $_SESSION['username'];
 $prefs['Corporate']['password']    = $rcmail->decrypt($_SESSION['password']);
 $prefs['Corporate']['url']         = "https://ical.example.org/caldav.php/%u/Corporate";
-$prefs['Corporate']['readonly']    = false; // can be edited
 
 // Addressbooks are fixed (default: false)
-// If true, User cannot add / edit / delete any addressbooks
-// If false, user can add / edit / delete custom addressbooks as well as any not-readonly addressbooks defined above, but not the description
+// If true, User cannot add custom addressbooks
+// If false, user can add / edit / delete custom addressbooks
 //$prefs['_GLOBAL']['fixed'] = true;
