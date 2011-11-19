@@ -79,7 +79,7 @@ class carddav extends rcube_plugin
 	// migrate old settings
 	migrateconfig();
 
-	$prefs = self::get_adminsettings();
+	$prefs = carddav_backend::get_adminsettings();
 	if(!$prefs)
 		return;
 
@@ -294,7 +294,7 @@ class carddav extends rcube_plugin
 		$rcmail = rcmail::get_instance();
 		$dbh    = $rcmail->db;
 
-		$prefs = self::get_adminsettings();
+		$prefs = carddav_backend::get_adminsettings();
 
 		if (version_compare(PHP_VERSION, '5.3.0') < 0) {
 			$args['blocks']['cd_preferences'] = array(
@@ -338,21 +338,12 @@ class carddav extends rcube_plugin
 		return($args);
 	}}}
 	
-	private static function get_adminsettings()
-	{{{
-	$rcmail = rcmail::get_instance();
-	$prefs;
-	if (file_exists("plugins/carddav/config.inc.php"))
-		require("plugins/carddav/config.inc.php");
-	return $prefs;
-	}}}
-	
 	// save preferences
 	function cd_save($args)
 	{{{
 		if($args['section'] != 'cd_preferences')
 			return;
-		$prefs = self::get_adminsettings();
+		$prefs = carddav_backend::get_adminsettings();
 
 		$dbh = rcmail::get_instance()->db;
 		// update existing in DB
@@ -475,7 +466,7 @@ class carddav extends rcube_plugin
 	private static function update_abook($abookid, $olddisplayorder, $oldsortorder, $pa)
 	{{{
 	$dbh = rcmail::get_instance()->db;
-	
+
 	// check parameters
 	if(array_key_exists('refresh_time', $pa))
 		$pa['refresh_time'] = self::process_cd_time($pa['refresh_time']);
@@ -485,7 +476,7 @@ class carddav extends rcube_plugin
 		$pa['displayorder'] = self::process_displayorder($pa['displayorder']);
 
 	// optional fields
-	$qfo=array('name','username','url','displayorder','sortorder','refresh_time','active');
+	$qfo=array('name','username','password','url','active','refresh_time','sortorder','displayorder');
 	$qf=array();
 	$qv=array();
 

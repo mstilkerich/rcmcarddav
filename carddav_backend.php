@@ -31,7 +31,7 @@ function carddavconfig($abookid){{{
 		? "(datetime('now') > datetime(last_updated,refresh_time))" 
 		: '('.$dbh->now().'>last_updated+refresh_time)';
 
-	$sql_result = $dbh->query('SELECT name,username,password,url,'.
+	$sql_result = $dbh->query('SELECT id as abookid,name,username,password,url,presetname,'.
 		"$timequery as needs_update FROM " .
 		get_table_name('carddav_addressbooks') .
 		' WHERE id=?', $abookid);
@@ -45,17 +45,10 @@ function carddavconfig($abookid){{{
 	// postgres will return 't'/'f' here for true/false, normalize it to 1/0
 	$nu = $abookrow['needs_update'];
 	$nu = ($nu==1 || $nu=='t')?1:0;
+	$abookrow['needs_update'] = $nu;
 
-	$retval = array(
-		name         => $abookrow['name'],
-		username     => $abookrow['username'],
-		password     => $abookrow['password'],
-		url          => str_replace("%u", $abookrow['username'], $abookrow['url']),
-		needs_update => $nu,
-		db_id        => $abookid,
-	);
-
-	return $retval;
+	$abookrow['url'] = str_replace("%u", $abookrow['username'], $abookrow['url']);
+	return $abookrow;
 }}}
 
 /**
@@ -232,7 +225,14 @@ class carddav_backend extends rcube_addressbook
 	{{{
 	$dbh = rcmail::get_instance()->db;
 	$this->ready  = $dbh && !$dbh->is_error();
+
 	$this->config = carddavconfig($dbid);
+	if($this->config['presetname']) {
+		$prefs = self::get_adminsettings();
+		if($prefs[$this->config['presetname']]['readonly'])
+			$this->readonly = true;
+	}
+
 	$this->coltypes = array( /* {{{ */
 		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('name'), 'category' => 'main'),
 		'firstname'    => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('firstname'), 'category' => 'main'),
@@ -276,7 +276,7 @@ class carddav_backend extends rcube_addressbook
 		' (typename,subtype,abook_id) VALUES (?,?,?)',
 			$typename,
 			$subtype,
-			$this->config['db_id']
+			$this->config['abookid']
 	);
 	}}}
 
@@ -302,7 +302,7 @@ class carddav_backend extends rcube_addressbook
 	$sql_result = $dbh->query('SELECT typename,subtype FROM ' .
 		get_table_name('carddav_xsubtypes') .
 		' WHERE abook_id=?',
-		$this->config['db_id']
+		$this->config['abookid']
 	);
 
 	while ( $row = $dbh->fetch_assoc($sql_result) ) {
@@ -522,7 +522,7 @@ class carddav_backend extends rcube_addressbook
 
 	// does not exist => insert new card
 	} else {
-		$qcolumns[] = 'abook_id'; $qparams[] = $this->config['db_id'];
+		$qcolumns[] = 'abook_id'; $qparams[] = $this->config['abookid'];
 		$qcolumns[] = 'cuid';     $qparams[] = $vcard['href'];
 
 		self::debug("dbstore: INSERT card " . $vcard['href']);
@@ -664,7 +664,7 @@ class carddav_backend extends rcube_addressbook
 	$sql_result = $dbh->query('SELECT cuid,id,etag FROM ' .
 		get_table_name('carddav_contacts') .
 		' WHERE abook_id=?',
-		$this->config['db_id']);
+		$this->config['abookid']);
 
 	while($contact = $dbh->fetch_assoc($sql_result)) {
 		$this->existing_card_cache[$contact['cuid']] = array(
@@ -694,7 +694,7 @@ class carddav_backend extends rcube_addressbook
 	$dbh->query('UPDATE ' .
 		get_table_name('carddav_addressbooks') .
 		' SET last_updated=' . $dbh->now() .' WHERE id=?',
-			$this->config['db_id']);
+			$this->config['abookid']);
 	}}}
 
 	/**
@@ -920,7 +920,7 @@ class carddav_backend extends rcube_addressbook
 		' ORDER BY sortname ASC',
 		$limit_index,
 		$limit_rows,
-		$this->config['db_id']
+		$this->config['abookid']
 	);
 
 	$addresses = array();
@@ -1082,7 +1082,7 @@ class carddav_backend extends rcube_addressbook
 				get_table_name('carddav_contacts') .
 				' WHERE abook_id=?' .
 				$this->search_filter,
-				$this->config['db_id']
+				$this->config['abookid']
 			);
 	
 			$resultrow = $dbh->fetch_assoc($sql_result);
@@ -1160,7 +1160,7 @@ class carddav_backend extends rcube_addressbook
 	$sql_result = $dbh->query('SELECT vcard FROM ' .
 		get_table_name('carddav_contacts') .
 		' WHERE abook_id=? AND id=?',
-		$this->config['db_id'], $oid);
+		$this->config['abookid'], $oid);
 
 	$contact = $dbh->fetch_assoc($sql_result);
 	if(!$contact['vcard']) {
@@ -1764,4 +1764,13 @@ class carddav_backend extends rcube_addressbook
   {{{
 	return false;
   }}}
+		
+	public static function get_adminsettings()
+	{{{
+	$rcmail = rcmail::get_instance();
+	$prefs;
+	if (file_exists("plugins/carddav/config.inc.php"))
+		require("plugins/carddav/config.inc.php");
+	return $prefs;
+	}}}
 }
