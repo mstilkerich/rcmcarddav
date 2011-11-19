@@ -13,7 +13,6 @@ CREATE TABLE carddav_addressbooks (
 	displayorder VARCHAR(64) NOT NULL,
 
 	readonly     TINYINT UNSIGNED NOT NULL DEFAULT 0, -- read only addressbook, no add/modify/delete of contacts
-	fixed        TINYINT UNSIGNED NOT NULL DEFAULT 0, -- some settings may only be changed by the admin (applies to presets only)
 	presetname   VARCHAR(64),                         -- presetname, '' if no preset
 
 	-- not enforced by sqlite < 3.6.19

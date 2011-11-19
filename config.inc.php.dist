@@ -1,22 +1,25 @@
 <?
 // set explicit values for two addressbooks
-$prefs['Personal']['use_carddav']  = true;
+$prefs['Personal']['name']         = 'Personal';
 $prefs['Personal']['username']     = $_SESSION['username'];
 $prefs['Personal']['password']     = $rcmail->decrypt($_SESSION['password']);
 $prefs['Personal']['url']          = "https://ical.example.org/caldav.php/%u/Personal";
-$prefs['Personal']['readonly']     = false; // can be edited
-$prefs['Personal']['fromconfig']   = true;  // internal identifier, don't change
+// optional
+$prefs['Personal']['active']       = false;
+$prefs['Personal']['readonly']     = false; // contacts can be added/deleted/edited
+$prefs['Personal']['fixed']        = true; // settings can be edited
+$prefs['Personal']['displayorder'] = false;
+$prefs['Personal']['sortorder']    = 'surname';
+$prefs['Personal']['refresh_time'] = '2'; // refresh time (HH[:MM[:SS]])
 
-$prefs['Corporate']['use_carddav'] = true;
+$prefs['Corporate']['name']        = 'Corporate';
+$prefs['Corporate']['active']      = true;
 $prefs['Corporate']['username']    = $_SESSION['username'];
 $prefs['Corporate']['password']    = $rcmail->decrypt($_SESSION['password']);
 $prefs['Corporate']['url']         = "https://ical.example.org/caldav.php/%u/Corporate";
-$prefs['Corporate']['readonly']    = true; // cannot be edited
-$prefs['Corporate']['fromconfig']  = true; // internal identifier, don't change
-
-$prefs['db_version'] = 2; // internal identifier, don't change
+$prefs['Corporate']['readonly']    = false; // can be edited
 
 // Addressbooks are fixed (default: false)
 // If true, User cannot add / edit / delete any addressbooks
 // If false, user can add / edit / delete custom addressbooks as well as any not-readonly addressbooks defined above, but not the description
-// $prefs['_GLOBAL']['fixed'] = true;
+//$prefs['_GLOBAL']['fixed'] = true;

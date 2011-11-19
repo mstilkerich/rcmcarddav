@@ -38,7 +38,7 @@ class carddav extends rcube_plugin
 	);
 
 	// these fields can only be changed by the admin for presets with fixed=1
-	private static $preset_adminonly = array('username','url','readonly','fixed');
+	private static $preset_adminonly = array('username','url','readonly');
 
 	public function init()
 	{{{
@@ -119,8 +119,10 @@ class carddav extends rcube_plugin
 	}
 
 	// delete existing preset addressbooks that where removed by admin
-	foreach($existing_presets as $abookid) {
-		self::delete_abook($abookid);
+	foreach($existing_presets as $ep) {
+		$abookid = $ep['id'];
+		write_log("carddav", "Delete Old Preset $abookid");
+		self::delete_abook($ep['id']);
 	}
 	}}}
 
