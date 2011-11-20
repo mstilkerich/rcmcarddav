@@ -468,9 +468,7 @@ class carddav_backend extends rcube_addressbook
 			$save_data['name'], $vcard['vcf'], $vcard['etag'], $dbid);
 
 		// delete current group members (will be reinserted if needed below)	
-		$dbh->query('DELETE FROM ' .
-			get_table_name('carddav_group_user') .
-			' WHERE group_id=?', $dbid);
+		self::delete_dbrecord($dbid,'group_user','group_id');
 
 	} else {
 		self::debug("dbstore: INSERT group card " . $vcard['href']);
@@ -749,8 +747,6 @@ class carddav_backend extends rcube_addressbook
 	 */
 	private function refreshdb_from_server()
 	{{{
-	$dbh = rcmail::get_instance()->db;
-
 	// determine existing local contact URIs and ETAGs
 	$contacts = self::get_dbrecord($this->id,'id,uri,etag','contacts',false,'abook_id');
 
@@ -772,23 +768,16 @@ class carddav_backend extends rcube_addressbook
 
 	// delete cards not present on the server anymore
 	if ($records >= 0) {
-		foreach($this->existing_card_cache as $uri => $value) {
-			$sql_result = $dbh->query('DELETE FROM ' .
-				get_table_name('carddav_contacts') .
-				' WHERE id=?', $value['id']);
-			self::debug("deleted local card: $uri");
-		}
-		foreach($this->existing_grpcard_cache as $uri => $value) {
-			$sql_result = $dbh->query('DELETE FROM ' .
-				get_table_name('carddav_groups') .
-				' WHERE id=?', $value['id']);
-			self::debug("deleted group card: $uri");
-		}
+		$del = self::delete_dbrecord(array_values($this->existing_card_cache));
+		self::debug("deleted $del contacts during server refresh");
+		$del = self::delete_dbrecord(array_values($this->existing_grpcard_cache),'groups');
+		self::debug("deleted $del groups during server refresh");
 	}
 	$this->existing_card_cache = array();
 	$this->existing_grpcard_cache = array();
 	
 	// set last_updated timestamp
+	$dbh = rcmail::get_instance()->db;
 	$dbh->query('UPDATE ' .
 		get_table_name('carddav_addressbooks') .
 		' SET last_updated=' . $dbh->now() .' WHERE id=?',
@@ -1752,18 +1741,13 @@ class carddav_backend extends rcube_addressbook
    */
   public function delete($ids)
   {{{
-	$dbh = rcmail::get_instance()->db;
 	$deleted = 0;
-
 	foreach ($ids as $dbid) {
 		$contact = self::get_dbrecord($dbid,'uri');
 		if(!$contact) continue;
 
 		if($this->delete_record_from_carddav($contact['uri'])) {
-			$dbh->query('DELETE FROM '.
-				get_table_name('carddav_contacts') .
-				' WHERE id=?', $dbid);
-			$deleted++;
+			$deleted += self::delete_dbrecord($dbid);
 		}
 	}
 
@@ -1962,16 +1946,12 @@ class carddav_backend extends rcube_addressbook
    */
   public function delete_group($group_id)
   {{{
-	$dbh = rcmail::get_instance()->db;
-
 	// get current DB data
 	$group = self::get_dbrecord($group_id,'uri','groups');
 	if(!$group)	return false;
 	
 	if($this->delete_record_from_carddav($group['uri'])) {
-		$sql_result = $dbh->query('DELETE FROM ' .
-			get_table_name('carddav_groups') .
-			' WHERE id=?', $group_id);
+		self::delete_dbrecord($group_id, 'groups');
 		return true;
 	}
 
@@ -2037,5 +2017,23 @@ class carddav_backend extends rcube_addressbook
 	while($row = $dbh->fetch_assoc($sql_result))
 		$ret[] = $row;
 	return $ret;
+	}}}
+		
+	public static function delete_dbrecord($ids, $table='contacts', $idfield='id')
+	{{{
+	$dbh = rcmail::get_instance()->db;
+	$idfield = $dbh->quoteIdentifier($idfield);
+
+	if(is_array($ids)) {
+		foreach($ids as &$id)
+			$id = $dbh->quote(is_array($id)?$id[$idfield]:$id);
+		$dspec = ' IN ('. implode(',',$ids) .')';
+	} else {
+		$dspec = ' = ' . $dbh->quote($ids);
+	}
+	$sql_result = $dbh->query("DELETE FROM " .
+		get_table_name("carddav_$table") .
+		" WHERE $idfield $dspec" );
+	return $dbh->affected_rows($sql_result);
 	}}}
 }

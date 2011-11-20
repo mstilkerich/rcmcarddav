@@ -409,19 +409,11 @@ class carddav extends rcube_plugin
 		
 	private static function delete_abook($abookid)
 	{{{
-	$dbh = rcmail::get_instance()->db;
-	$dbh->query('DELETE FROM ' .
-		get_table_name('carddav_addressbooks') .
-		' WHERE id=?', $abookid);
-
+	carddav_backend::delete_dbrecord($abookid,'addressbooks');
 	// we explicitly delete all data belonging to the addressbook, since
 	// cascaded deleted are not supported by all database backends
-	$dbh->query('DELETE FROM ' .
-		get_table_name('carddav_contacts') .
-		' WHERE abook_id=?', $abookid);
-	$dbh->query('DELETE FROM ' .
-		get_table_name('carddav_xsubtypes') .
-		' WHERE abook_id=?', $abookid);
+	carddav_backend::delete_dbrecord($abookid,'contacts','abook_id');
+	carddav_backend::delete_dbrecord($abookid,'xsubtypes','abook_id');
 	}}}	
 		
 	private static function insert_abook($pa)
