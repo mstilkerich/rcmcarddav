@@ -170,6 +170,7 @@ class carddav_backend extends rcube_addressbook
 	// to detect whether cards were deleted on the server
 	private $existing_card_cache = array();
 	private $existing_grpcard_cache = array();
+	private $users_to_add;
 
 	// total number of contacts in address book
 	private $total_cards = -1;
@@ -481,12 +482,8 @@ class carddav_backend extends rcube_addressbook
 		$dbid = $dbh->insert_id('carddav_group_ids');
 	}
 
-	// add group members
-	$cuid2dbid = array();
-	$cuids = self::get_dbrecord($this->id,'id,cuid','contacts',false,'abook_id');
-	foreach($cuids as $row) {
-		$cuid2dbid[$row['cuid']] = $row['id'];
-	}
+	// record group members
+	$this->users_to_add[$dbid] = array();
 
 	$members = $vcf->getProperties('X-ADDRESSBOOKSERVER-MEMBER');
 	self::debug("Group " . $save_data['name'] . ' has ' . count($members) . ' members');
@@ -497,14 +494,7 @@ class carddav_backend extends rcube_addressbook
 			self::warn("don't know how to interpret group membership: " . implode(':', $mbr));
 			continue;
 		}
-		if(!array_key_exists($mbr[2], $cuid2dbid)) {
-			self::warn("member uid not found " . implode(':', $mbr));
-			continue;
-		}
-		$dbh->query('INSERT INTO '.
-			get_table_name('carddav_group_user') .
-			' (group_id,contact_id) VALUES (?,?)',
-			$dbid, $cuid2dbid[$mbr[2]]);
+		$this->users_to_add[$dbid][] = $dbh->quote($mbr[2]);
 	}
 
 	return $dbid;
@@ -743,6 +733,7 @@ class carddav_backend extends rcube_addressbook
 	 */
 	private function refreshdb_from_server()
 	{{{
+	$dbh = rcmail::get_instance()->db;
 	// determine existing local contact URIs and ETAGs
 	$contacts = self::get_dbrecord($this->id,'id,uri,etag','contacts',false,'abook_id');
 
@@ -757,6 +748,9 @@ class carddav_backend extends rcube_addressbook
 		$this->existing_grpcard_cache[$group['uri']] = $group;
 	}
 
+	// used to record which users need to be added to which groups
+	$this->users_to_add = array();
+
 	$records = $this->list_records_sync_collection($cols, $subset);
 	if ($records < 0){ // returned error -1
 		$records = $this->list_records_propfind_resourcetype($cols, $subset);
@@ -769,11 +763,22 @@ class carddav_backend extends rcube_addressbook
 		$del = self::delete_dbrecord(array_values($this->existing_grpcard_cache),'groups');
 		self::debug("deleted $del groups during server refresh");
 	}
+
+	foreach($this->users_to_add as $dbid => $cuids) {
+		if(count($cuids)<=0) continue;
+		$sql_result = $dbh->query('INSERT INTO '.
+			get_table_name('carddav_group_user') .
+			' (group_id,contact_id) SELECT ?,id from ' .
+			get_table_name('carddav_contacts') .
+			' WHERE abook_id=? AND cuid IN (' . implode(',', $cuids) . ')', $dbid, $this->id);
+		self::debug("Added " . $dbh->affected_rows($sql_result) . " contacts to group $dbid");
+	}
+
+	unset($this->users_to_add);
 	$this->existing_card_cache = array();
 	$this->existing_grpcard_cache = array();
 	
 	// set last_updated timestamp
-	$dbh = rcmail::get_instance()->db;
 	$dbh->query('UPDATE ' .
 		get_table_name('carddav_addressbooks') .
 		' SET last_updated=' . $dbh->now() .' WHERE id=?',
