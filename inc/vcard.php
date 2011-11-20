@@ -86,6 +86,20 @@ class VCard
 		return $line;
 	}
 
+	function deletePropertyByValue($name,$value,$delgroup=true)
+	{
+		$name = strtoupper($name);
+		if(array_key_exists($name,$this->_map)) {
+			for($i=count($this->_map[$name])-1; $i>=0; $i--) {
+				if($this->_map[$name][$i]->getValue() === $value) {
+					$this->deleteProperty($name,$delgroup,$i,1);
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	function deletePropertyByGroup($name,$group,$delgroup=false)
 	{
 		$name = strtoupper($name);
@@ -311,6 +325,10 @@ class VCardProperty
 		$value = str_replace("\x00", "$delim", $value);
 		// Split the line on the delimiter tag.
 		return explode("\x01", $value);
+	}
+
+	function getValue() {
+		return $this->value;
 	}
 
 	function deleteParam($name, $from=0, $numelem=0)

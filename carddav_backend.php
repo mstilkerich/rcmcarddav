@@ -435,10 +435,10 @@ class carddav_backend extends rcube_addressbook
 	}
 	}}}
 
-	private function dbstore_group($vcard) {{{
+	private function dbstore_group($vcard, $dbid=0) {{{
 	$dbh = rcmail::get_instance()->db;
+	$card_exists = ($dbid!=0);
 
-	$card_exists = false;
 	if(array_key_exists($vcard['href'], $this->existing_grpcard_cache)) {
 		$card_exists = true;
 		$group = $this->existing_grpcard_cache[$vcard['href']];
@@ -821,7 +821,7 @@ class carddav_backend extends rcube_addressbook
 	 * @return array   Indexed list of contact records, each a hash array
 	 */
   public function list_records($cols=null, $subset=0, $nocount=false)
-  {{{
+	{{{
 	// refresh from server if refresh interval passed
 	if ( $this->config['needs_update'] == 1 )
 		$this->refreshdb_from_server();
@@ -1716,7 +1716,7 @@ class carddav_backend extends rcube_addressbook
 	$dbh = rcmail::get_instance()->db;
 
 	// get current DB data
-	$sql_res = $dbh->query('SELECT id,uri,etag,vcard,showas FROM ' .
+	$sql_result = $dbh->query('SELECT id,uri,etag,vcard,showas FROM ' .
 		get_table_name('carddav_contacts') .
 		' WHERE id=?',
 		$id);
@@ -1814,11 +1814,47 @@ class carddav_backend extends rcube_addressbook
    * @param array   List of contact identifiers to be added
    * @return int    Number of contacts added
    */
-  function add_to_group($group_id, $ids)
+  public function add_to_group($group_id, $ids)
 	{{{
+	$dbh = rcmail::get_instance()->db;
+
 	if (!is_array($ids))
 		$ids = explode(',', $ids);
-	return false;
+
+	// get current DB data
+	$sql_result = $dbh->query('SELECT uri,etag,vcard FROM ' .
+		get_table_name('carddav_groups') .
+		' WHERE id=?', $group_id);
+
+	$group = $dbh->fetch_assoc($sql_result);
+	if(!$group)	return false;
+
+	// create vcard from current DB data to be updated with the new data
+	$vcf = new VCard;
+	if(!$vcf->parse($group['vcard'])){
+		self::warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
+		return false;
+	}
+
+	foreach ($ids as $cid) {
+		$sql_result = $dbh->query('SELECT cuid FROM ' .
+			get_table_name('carddav_contacts') .
+			' WHERE id=?', $cid);
+		$contact = $dbh->fetch_assoc($sql_result);
+		if(!$contact) return false;
+
+		$vcf->setProperty('X-ADDRESSBOOKSERVER-MEMBER',
+			"urn:uuid:" . $contact['cuid'], -1);
+	}
+
+	$vcfstr = $vcf->toString();
+	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
+		return false;
+
+	if(!$this->dbstore_group(array('href' => $group['uri'],'etag' => $etag,'vcf'  => $vcfstr), $group_id))
+		return false;
+
+	return true;
   }}}
 
   /**
@@ -1828,9 +1864,48 @@ class carddav_backend extends rcube_addressbook
    * @param array   List of contact identifiers to be removed
    * @return int    Number of deleted group members
    */
-  function remove_from_group($group_id, $ids)
+  public function remove_from_group($group_id, $ids)
   {{{
-	return false;
+	$dbh = rcmail::get_instance()->db;
+	$deleted = 0;
+
+	if (!is_array($ids))
+		$ids = explode(',', $ids);
+
+	// get current DB data
+	$sql_result = $dbh->query('SELECT uri,etag,vcard FROM ' .
+		get_table_name('carddav_groups') .
+		' WHERE id=?', $group_id);
+
+	$group = $dbh->fetch_assoc($sql_result);
+	if(!$group)	return false;
+
+	// create vcard from current DB data to be updated with the new data
+	$vcf = new VCard;
+	if(!$vcf->parse($group['vcard'])){
+		self::warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
+		return false;
+	}
+
+	foreach ($ids as $cid) {
+		$sql_result = $dbh->query('SELECT cuid FROM ' .
+			get_table_name('carddav_contacts') .
+			' WHERE id=?', $cid);
+		$contact = $dbh->fetch_assoc($sql_result);
+		if(!$contact) return false;
+
+		$vcf->deletePropertyByValue('X-ADDRESSBOOKSERVER-MEMBER',	"urn:uuid:" . $contact['cuid']);
+		$deleted++;
+	}
+
+	$vcfstr = $vcf->toString();
+	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
+		return false;
+
+	if(!$this->dbstore_group(array('href' => $group['uri'],'etag' => $etag,'vcf'  => $vcfstr), $group_id))
+		return false;
+
+	return $deleted;
   }}}
 
 	/**
@@ -1841,7 +1916,7 @@ class carddav_backend extends rcube_addressbook
 	 * @return array List of assigned groups as ID=>Name pairs
 	 * @since 0.5-beta
 	 */
-	function get_record_groups($id)
+	public function get_record_groups($id)
 	{{{
 	$dbh = rcmail::get_instance()->db;
 	$sql_result = $dbh->query('SELECT id,name FROM '.
@@ -1857,16 +1932,10 @@ class carddav_backend extends rcube_addressbook
 	return $res;
 	}}}
 
-  function get_group()
-  {{{
-	self::warn("get group");
-	return false;
-  }}}
-
   /**
    * Setter for the current group
    */
-  function set_group($gid)
+  public function set_group($gid)
   {{{
 	self::warn("set group $gid");
 	$this->group_id = $gid;
@@ -1878,7 +1947,7 @@ class carddav_backend extends rcube_addressbook
    * @param string  Optional search string to match group name
    * @return array  Indexed list of contact groups, each a hash array
    */
-  function list_groups($search = null)
+  public function list_groups($search = null)
   {{{
 	self::warn("list groups $search");
 
