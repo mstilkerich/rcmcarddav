@@ -162,7 +162,7 @@ class carddav_backend extends rcube_addressbook
 	private $config;
 	private $xlabels;
 
-	const DEBUG      = true; // set to true for basic debugging
+	const DEBUG      = false; // set to true for basic debugging
 	const DEBUG_HTTP = false; // set to true for debugging raw http stream
 
 	// contains a the URIs, db ids and etags of the locally stored cards whenever
@@ -197,7 +197,7 @@ class carddav_backend extends rcube_addressbook
 			'X-MANAGER' => 'manager',
 			'X-SPOUSE' => 'spouse',
 			// the two kind attributes should not occur both in the same vcard
-			'KIND' => 'kind',   // VCard v4
+			//'KIND' => 'kind',   // VCard v4
 			'X-ADDRESSBOOKSERVER-KIND' => 'kind', // Apple Addressbook extension
 		),
 		'multi' => array(
@@ -500,6 +500,7 @@ class carddav_backend extends rcube_addressbook
 
 	$members = $vcf->getProperties('X-ADDRESSBOOKSERVER-MEMBER');
 	self::warn("Group " . $save_data['name'] . ' has ' . count($members) . ' members');
+	if($members) {
 	foreach($members as $mbr) {
 		$mbr = $mbr->getComponents(':');
 		if(!$mbr) continue;
@@ -515,7 +516,7 @@ class carddav_backend extends rcube_addressbook
 			get_table_name('carddav_group_user') .
 			' (group_id,contact_id) VALUES (?,?)',
 			$dbid, $cuid2dbid[$mbr[2]]);
-	}
+	}}
 
 	return $dbid;
 	}}}
@@ -1371,11 +1372,15 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	// N is mandatory
-	$vcf->setProperty("N", $save_data['surname'],   0,0);
-	$vcf->setProperty("N", $save_data['firstname'], 0,1);
-	$vcf->setProperty("N", $save_data['middlename'],0,2);
-	$vcf->setProperty("N", $save_data['prefix'],    0,3);
-	$vcf->setProperty("N", $save_data['suffix'],    0,4);
+	if($save_data['kind'] === 'group') {
+		$vcf->setProperty("N", $save_data['name'],   0,0);
+	} else {
+		$vcf->setProperty("N", $save_data['surname'],   0,0);
+		$vcf->setProperty("N", $save_data['firstname'], 0,1);
+		$vcf->setProperty("N", $save_data['middlename'],0,2);
+		$vcf->setProperty("N", $save_data['prefix'],    0,3);
+		$vcf->setProperty("N", $save_data['suffix'],    0,4);
+	}
 
 	// process all simple attributes
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
@@ -1937,7 +1942,6 @@ class carddav_backend extends rcube_addressbook
    */
   public function set_group($gid)
   {{{
-	self::warn("set group $gid");
 	$this->group_id = $gid;
   }}}
 
@@ -1949,8 +1953,6 @@ class carddav_backend extends rcube_addressbook
    */
   public function list_groups($search = null)
   {{{
-	self::warn("list groups $search");
-
 	$dbh = rcmail::get_instance()->db;
 
 	$searchextra = $search
@@ -1974,8 +1976,6 @@ class carddav_backend extends rcube_addressbook
 	return $groups;
   }}}
 
-
-
   /**
    * Create a contact group with the given name
    *
@@ -1984,8 +1984,32 @@ class carddav_backend extends rcube_addressbook
    */
   function create_group($name)
   {{{
-	self::warn("create group $name");
-	return false;
+	// find an unused UID
+	$cuid = $this->guid();
+	while ($this->get_record_from_carddav("$cuid.vcf")){
+		$cuid = $this->guid();
+	}
+	$uri = "$cuid.vcf";
+
+	$save_data = array(
+		'name' => $name,
+		'kind' => 'group',
+	);
+	
+	$vcf = $this->create_vcard_from_save_data($cuid, $save_data);
+	if ($vcf == false)
+		return false;
+
+	$vcfstr = $vcf->toString();
+	if (!($etag = $this->put_record_to_carddav($uri, $vcfstr)))
+		return false;
+
+	$url = concaturl($this->config['url'], $uri);
+	$url = preg_replace(';https?://[^/]+;', '', $url);
+	if(!($dbid = $this->dbstore_group(array('href' => $url,'etag' => $etag,'vcf'=>$vcfstr))))
+		return false;
+
+	return array('id'=>$dbid, 'name'=>$name);
   }}}
 
   /**
@@ -1994,9 +2018,25 @@ class carddav_backend extends rcube_addressbook
    * @param string Group identifier
    * @return boolean True on success, false if no data was changed
    */
-  function delete_group($gid)
+  function delete_group($group_id)
   {{{
-	self::warn("delete group $gid");
+	$dbh = rcmail::get_instance()->db;
+
+	// get current DB data
+	$sql_result = $dbh->query('SELECT uri FROM ' .
+		get_table_name('carddav_groups') .
+		' WHERE id=?', $group_id);
+
+	$group = $dbh->fetch_assoc($sql_result);
+	if(!$group)	return false;
+	
+	if($this->delete_record_from_carddav($group['uri'])) {
+		$sql_result = $dbh->query('DELETE FROM ' .
+			get_table_name('carddav_groups') .
+			' WHERE id=?', $group_id);
+		return true;
+	}
+
 	return false;
   }}}
 
@@ -2008,10 +2048,36 @@ class carddav_backend extends rcube_addressbook
    * @param string New group identifier (if changed, otherwise don't set)
    * @return boolean New name on success, false if no data was changed
    */
-  function rename_group($gid, $newname)
+  function rename_group($group_id, $newname)
   {{{
-	self::warn("rename group $gid to $newname");
-	return false;
+	$dbh = rcmail::get_instance()->db;
+
+	// get current DB data
+	$sql_result = $dbh->query('SELECT uri,etag,vcard FROM ' .
+		get_table_name('carddav_groups') .
+		' WHERE id=?', $group_id);
+
+	$group = $dbh->fetch_assoc($sql_result);
+	if(!$group)	return false;
+	
+	// create vcard from current DB data to be updated with the new data
+	$vcf = new VCard;
+	if(!$vcf->parse($group['vcard'])){
+		self::warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
+		return false;
+	}
+
+	$vcf->setProperty('FN', $newname);
+	$vcf->setProperty('N', $newname);
+	
+	$vcfstr = $vcf->toString();
+	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
+		return false;
+
+	if(!$this->dbstore_group(array('href' => $group['uri'],'etag'=>$etag,'vcf'=>$vcfstr), $group_id))
+		return false;
+	
+	return $newname;
   }}}
 		
 	public static function get_adminsettings()
