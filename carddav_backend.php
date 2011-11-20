@@ -492,8 +492,7 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	$members = $vcf->getProperties('X-ADDRESSBOOKSERVER-MEMBER');
-	self::warn("Group " . $save_data['name'] . ' has ' . count($members) . ' members');
-	if($members) {
+	self::debug("Group " . $save_data['name'] . ' has ' . count($members) . ' members');
 	foreach($members as $mbr) {
 		$mbr = $mbr->getComponents(':');
 		if(!$mbr) continue;
@@ -509,7 +508,7 @@ class carddav_backend extends rcube_addressbook
 			get_table_name('carddav_group_user') .
 			' (group_id,contact_id) VALUES (?,?)',
 			$dbid, $cuid2dbid[$mbr[2]]);
-	}}
+	}
 
 	return $dbid;
 	}}}
@@ -1567,29 +1566,27 @@ class carddav_backend extends rcube_addressbook
 
 	foreach ($this->vcf2rc['multi'] as $key => $value){
 		$property = $vcf->getProperties($key);
-		if ($property){
 			foreach ($property as $pkey => $pvalue){
 				$p = $pvalue->getComponents();
 				$label = $this->get_attr_label($vcf, $pvalue, $value);
 				$save_data[$value.':'.$label][] = $p[0];
-	} } }
+	} }
 
 	$property = $vcf->getProperties("ADR");
-	if ($property){
-		foreach ($property as $pkey => $pvalue){
-			$p = $pvalue->getComponents();
-			$label = $this->get_attr_label($vcf, $pvalue, 'address');
-			$adr = array(
-				'pobox'    => $p[0], // post office box
-				'extended' => $p[1], // extended address
-				'street'   => $p[2], // street address
-				'locality' => $p[3], // locality (e.g., city)
-				'region'   => $p[4], // region (e.g., state or province)
-				'zipcode'  => $p[5], // postal code
-				'country'  => $p[6], // country name
-			);
-			$save_data['address:'.$label][] = $adr;
-	} }
+	foreach ($property as $pkey => $pvalue){
+		$p = $pvalue->getComponents();
+		$label = $this->get_attr_label($vcf, $pvalue, 'address');
+		$adr = array(
+			'pobox'    => $p[0], // post office box
+			'extended' => $p[1], // extended address
+			'street'   => $p[2], // street address
+			'locality' => $p[3], // locality (e.g., city)
+			'region'   => $p[4], // region (e.g., state or province)
+			'zipcode'  => $p[5], // postal code
+			'country'  => $p[6], // country name
+		);
+		$save_data['address:'.$label][] = $adr;
+	}
 
 	// set displayname according to settings
 	$this->set_displayname($save_data);
@@ -1745,6 +1742,11 @@ class carddav_backend extends rcube_addressbook
 	foreach ($ids as $dbid) {
 		$contact = self::get_dbrecord($dbid,'uri');
 		if(!$contact) continue;
+
+		// delete contact from all groups it is contained in
+		$groups = $this->get_record_groups($dbid);
+		foreach($groups as $group_id => $grpname)
+			$this->remove_from_group($group_id, $dbid);
 
 		if($this->delete_record_from_carddav($contact['uri'])) {
 			$deleted += self::delete_dbrecord($dbid);

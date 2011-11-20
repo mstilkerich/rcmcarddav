@@ -196,13 +196,15 @@ class VCard
 	}
 
 	/**
-	 * Returns the properties mapped to the specified name or null if
+	 * Returns the properties mapped to the specified name or an empty array if
 	 * there are no properties with that name.
 	 */
 	function getProperties($name)
 	{
 		$name = strtoupper($name);
-		return $this->_map[$name];
+		if(array_key_exists($name,$this->_map))
+			return $this->_map[$name];
+		return array();
 	}
 
 	/**
