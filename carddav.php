@@ -297,9 +297,6 @@ class carddav extends rcube_plugin
 			return;
 
 		$this->add_texts('localization/', false);
-		$rcmail = rcmail::get_instance();
-		$dbh    = $rcmail->db;
-
 		$prefs = carddav_backend::get_adminsettings();
 
 		if (version_compare(PHP_VERSION, '5.3.0') < 0) {
@@ -312,12 +309,8 @@ class carddav extends rcube_plugin
 			return $args;
 		}
 
-		$sql_result = $dbh->query('SELECT * FROM ' . 
-			get_table_name('carddav_addressbooks') .
-			' WHERE user_id=?',
-			$_SESSION['user_id']);
-
-		while ($abook = $dbh->fetch_assoc($sql_result)) {
+		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'*','addressbooks',false,'user_id');
+		foreach($abooks as $abook) {
 			$abookid = $abook['id'];
 			$blockhdr = $abook['name'];
 			if($abook['presetname'])
@@ -351,14 +344,11 @@ class carddav extends rcube_plugin
 			return;
 		$prefs = carddav_backend::get_adminsettings();
 
-		$dbh = rcmail::get_instance()->db;
 		// update existing in DB
-		$sql_result = $dbh->query('SELECT id,presetname,sortorder,displayorder FROM ' . 
-			get_table_name('carddav_addressbooks') .
-			' WHERE user_id=?',
-			$_SESSION['user_id']);
+		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'id,presetname,sortorder,displayorder',
+			'addressbooks', false, 'user_id');
 
-		while ($abook = $dbh->fetch_assoc($sql_result)) {
+		foreach($abooks as $abook) {
 			$abookid = $abook['id'];
 			if( isset($_POST[$abookid."_cd_delete"]) ) {
 				self::delete_abook($abookid);

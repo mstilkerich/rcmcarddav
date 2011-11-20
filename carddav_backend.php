@@ -31,14 +31,12 @@ function carddavconfig($abookid){{{
 		? "(datetime('now') > datetime(last_updated,refresh_time))" 
 		: '('.$dbh->now().'>last_updated+refresh_time)';
 
-	$sql_result = $dbh->query('SELECT id as abookid,name,username,password,url,presetname,'.
-		"$timequery as needs_update FROM " .
-		get_table_name('carddav_addressbooks') .
-		' WHERE id=?', $abookid);
-
-	$abookrow = $dbh->fetch_assoc($sql_result); // can only be a single row
+	$abookrow = carddav_backend::get_dbrecord($abookid,
+		'id as abookid,name,username,password,url,presetname,' .
+		$timequery . ' as needs_update', 'addressbooks');
+	
 	if(! $abookrow) {
-		write_log("carddav.warn", "FATAL! Request for non-existent configuration $abookid");
+		carddav_backend::warn("FATAL! Request for non-existent configuration $abookid");
 		return false;
 	}
 
@@ -209,15 +207,17 @@ class carddav_backend extends rcube_addressbook
 
 
 	// log helpers
-	private static function warn() {
+	public static function warn() {
 		write_log("carddav.warn", implode(' ', func_get_args()));
 	}
-	private static function debug() {
+
+	public static function debug() {
 		if(self::DEBUG) {
 			write_log("carddav", implode(' ', func_get_args()));
 		}
 	}
-	private static function debug_http() {
+
+	public static function debug_http() {
 		if(self::DEBUG_HTTP) {
 			write_log("carddav", implode(' ', func_get_args()));
 		}
@@ -293,23 +293,17 @@ class carddav_backend extends rcube_addressbook
 	 */
 	private function addextrasubtypes()
 	{{{
-	$dbh = rcmail::get_instance()->db;
 	$this->xlabels = array();
 
 	foreach($this->coltypes as $k => $v) {
 		if(array_key_exists('subtypes', $v)) {
 			$this->xlabels[$k] = array();
-		}
-	}
+	} }
 
 	// read extra subtypes
-	$sql_result = $dbh->query('SELECT typename,subtype FROM ' .
-		get_table_name('carddav_xsubtypes') .
-		' WHERE abook_id=?',
-		$this->config['abookid']
-	);
+	$xtypes = self::get_dbrecord($this->config['abookid'],'typename,subtype','xsubtypes',false,'abookid');
 
-	while ( $row = $dbh->fetch_assoc($sql_result) ) {
+	foreach ($xtypes as $row) {
 		$this->coltypes[$row['typename']]['subtypes'][] = $row['subtype'];
 		$this->xlabels[$row['typename']][] = $row['subtype'];
 	}
@@ -491,10 +485,8 @@ class carddav_backend extends rcube_addressbook
 
 	// add group members
 	$cuid2dbid = array();
-	$sql_result = $dbh->query('SELECT id,cuid from '.
-		get_table_name('carddav_contacts') .
-		' WHERE abook_id=?', $this->config['abookid']);
-	while($row = $dbh->fetch_assoc($sql_result)) {
+	$cuids = self::get_dbrecord($this->config['abookid'],'id,cuid','contacts',false,'abook_id');
+	foreach($cuids as $row) {
 		$cuid2dbid[$row['cuid']] = $row['id'];
 	}
 
@@ -758,29 +750,17 @@ class carddav_backend extends rcube_addressbook
 	$dbh = rcmail::get_instance()->db;
 
 	// determine existing local contact URIs and ETAGs
-	$sql_result = $dbh->query('SELECT uri,id,etag FROM ' .
-		get_table_name('carddav_contacts') .
-		' WHERE abook_id=?',
-		$this->config['abookid']);
+	$contacts = self::get_dbrecord($this->config['abookid'],'id,uri,etag','contacts',false,'abook_id');
 
-	while($contact = $dbh->fetch_assoc($sql_result)) {
-		$this->existing_card_cache[$contact['uri']] = array(
-			'id'=>$contact['id'],
-			'etag'=>$contact['etag']
-		);
+	foreach($contacts as $contact) {
+		$this->existing_card_cache[$contact['uri']] = $contact;
 	}
 
 	// determine existing local group URIs and ETAGs
-	$sql_result = $dbh->query('SELECT uri,id,etag FROM ' .
-		get_table_name('carddav_groups') .
-		' WHERE abook_id=?',
-		$this->config['abookid']);
+	$groups = self::get_dbrecord($this->config['abookid'],'id,uri,etag','groups',false,'abook_id');
 
-	while($group = $dbh->fetch_assoc($sql_result)) {
-		$this->existing_grpcard_cache[$group['uri']] = array(
-			'id'=>$group['id'],
-			'etag'=>$group['etag']
-		);
+	foreach($groups as $group) {
+		$this->existing_grpcard_cache[$group['uri']] = $group;
 	}
 
 	$records = $this->list_records_sync_collection($cols, $subset);
@@ -1279,16 +1259,8 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$this->result = $this->count();
 	
-	$dbh = rcmail::get_instance()->db;
-	$sql_result = $dbh->query('SELECT vcard FROM ' .
-		get_table_name('carddav_contacts') .
-		' WHERE abook_id=? AND id=?',
-		$this->config['abookid'], $oid);
-
-	$contact = $dbh->fetch_assoc($sql_result);
-	if(!$contact['vcard']) {
-		return false;
-	}
+	$contact = self::get_dbrecord($oid, 'vcard');
+	if(!$contact) return false;
 
 	$retval = $this->create_save_data_from_vcard($contact['vcard']);
 	if(!$retval) {
@@ -1718,16 +1690,9 @@ class carddav_backend extends rcube_addressbook
    */
   public function update($id, $save_data)
   {{{
-	$dbh = rcmail::get_instance()->db;
-
 	// get current DB data
-	$sql_result = $dbh->query('SELECT id,uri,etag,vcard,showas FROM ' .
-		get_table_name('carddav_contacts') .
-		' WHERE id=?',
-		$id);
-	$contact = $dbh->fetch_assoc($sql_result);
-	if($contact['id'] != $id)
-		return false;
+	$contact = self::get_dbrecord($id,'id,uri,etag,vcard,showas');
+	if(!$contact) return false;
 	$url = $contact['uri'];
 
 	// complete save_data
@@ -1788,22 +1753,15 @@ class carddav_backend extends rcube_addressbook
 	$dbh = rcmail::get_instance()->db;
 	$deleted = 0;
 
-	foreach ($ids as $dbid){
-		$sql_result = $dbh->query('SELECT id,uri FROM '.
-			get_table_name('carddav_contacts') .
-			' WHERE id=?',
-			$dbid);
+	foreach ($ids as $dbid) {
+		$contact = self::get_dbrecord($dbid,'uri');
+		if(!$contact) continue;
 
-		$contact = $dbh->fetch_assoc($sql_result);
-		if($contact['id'] === $dbid) {
-			if($this->delete_record_from_carddav($contact['uri'])) {
-				$dbh->query('DELETE FROM '.
-					get_table_name('carddav_contacts') .
-					' WHERE id=?',
-					$dbid);
-
-				$deleted++;
-			}
+		if($this->delete_record_from_carddav($contact['uri'])) {
+			$dbh->query('DELETE FROM '.
+				get_table_name('carddav_contacts') .
+				' WHERE id=?', $dbid);
+			$deleted++;
 		}
 	}
 
@@ -1821,17 +1779,11 @@ class carddav_backend extends rcube_addressbook
    */
   public function add_to_group($group_id, $ids)
 	{{{
-	$dbh = rcmail::get_instance()->db;
-
 	if (!is_array($ids))
 		$ids = explode(',', $ids);
 
 	// get current DB data
-	$sql_result = $dbh->query('SELECT uri,etag,vcard FROM ' .
-		get_table_name('carddav_groups') .
-		' WHERE id=?', $group_id);
-
-	$group = $dbh->fetch_assoc($sql_result);
+	$group = self::get_dbrecord($group_id,'uri,etag,vcard','groups');
 	if(!$group)	return false;
 
 	// create vcard from current DB data to be updated with the new data
@@ -1842,10 +1794,7 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	foreach ($ids as $cid) {
-		$sql_result = $dbh->query('SELECT cuid FROM ' .
-			get_table_name('carddav_contacts') .
-			' WHERE id=?', $cid);
-		$contact = $dbh->fetch_assoc($sql_result);
+		$contact = self::get_dbrecord($cid,'cuid');
 		if(!$contact) return false;
 
 		$vcf->setProperty('X-ADDRESSBOOKSERVER-MEMBER',
@@ -1871,18 +1820,11 @@ class carddav_backend extends rcube_addressbook
    */
   public function remove_from_group($group_id, $ids)
   {{{
-	$dbh = rcmail::get_instance()->db;
-	$deleted = 0;
-
 	if (!is_array($ids))
 		$ids = explode(',', $ids);
 
 	// get current DB data
-	$sql_result = $dbh->query('SELECT uri,etag,vcard FROM ' .
-		get_table_name('carddav_groups') .
-		' WHERE id=?', $group_id);
-
-	$group = $dbh->fetch_assoc($sql_result);
+	$group = self::get_dbrecord($group_id,'uri,etag,vcard','groups');
 	if(!$group)	return false;
 
 	// create vcard from current DB data to be updated with the new data
@@ -1892,11 +1834,9 @@ class carddav_backend extends rcube_addressbook
 		return false;
 	}
 
+	$deleted = 0;
 	foreach ($ids as $cid) {
-		$sql_result = $dbh->query('SELECT cuid FROM ' .
-			get_table_name('carddav_contacts') .
-			' WHERE id=?', $cid);
-		$contact = $dbh->fetch_assoc($sql_result);
+		$contact = self::get_dbrecord($cid,'cuid');
 		if(!$contact) return false;
 
 		$vcf->deletePropertyByValue('X-ADDRESSBOOKSERVER-MEMBER',	"urn:uuid:" . $contact['cuid']);
@@ -1982,7 +1922,7 @@ class carddav_backend extends rcube_addressbook
    * @param string The group name
    * @return mixed False on error, array with record props in success
    */
-  function create_group($name)
+  public function create_group($name)
   {{{
 	// find an unused UID
 	$cuid = $this->guid();
@@ -2018,16 +1958,12 @@ class carddav_backend extends rcube_addressbook
    * @param string Group identifier
    * @return boolean True on success, false if no data was changed
    */
-  function delete_group($group_id)
+  public function delete_group($group_id)
   {{{
 	$dbh = rcmail::get_instance()->db;
 
 	// get current DB data
-	$sql_result = $dbh->query('SELECT uri FROM ' .
-		get_table_name('carddav_groups') .
-		' WHERE id=?', $group_id);
-
-	$group = $dbh->fetch_assoc($sql_result);
+	$group = self::get_dbrecord($group_id,'uri','groups');
 	if(!$group)	return false;
 	
 	if($this->delete_record_from_carddav($group['uri'])) {
@@ -2048,16 +1984,12 @@ class carddav_backend extends rcube_addressbook
    * @param string New group identifier (if changed, otherwise don't set)
    * @return boolean New name on success, false if no data was changed
    */
-  function rename_group($group_id, $newname)
+  public function rename_group($group_id, $newname)
   {{{
 	$dbh = rcmail::get_instance()->db;
 
 	// get current DB data
-	$sql_result = $dbh->query('SELECT uri,etag,vcard FROM ' .
-		get_table_name('carddav_groups') .
-		' WHERE id=?', $group_id);
-
-	$group = $dbh->fetch_assoc($sql_result);
+	$group = self::get_dbrecord($group_id,'uri,etag,vcard','groups');
 	if(!$group)	return false;
 	
 	// create vcard from current DB data to be updated with the new data
@@ -2087,5 +2019,23 @@ class carddav_backend extends rcube_addressbook
 	if (file_exists("plugins/carddav/config.inc.php"))
 		require("plugins/carddav/config.inc.php");
 	return $prefs;
+	}}}
+
+	public static function get_dbrecord($id, $cols='*', $table='contacts', $retsingle=true, $idfield='id')
+	{{{
+	$dbh = rcmail::get_instance()->db;
+	$sql_result = $dbh->query("SELECT $cols FROM " .
+		get_table_name("carddav_$table") .
+		' WHERE ' . $dbh->quoteIdentifier($idfield) . '=?', $id);
+
+	// single row requested?
+	if($retsingle)
+		return $dbh->fetch_assoc($sql_result);
+
+	// multiple rows requested
+	$ret = array();
+	while($row = $dbh->fetch_assoc($sql_result))
+		$ret[] = $row;
+	return $ret;
 	}}}
 }
