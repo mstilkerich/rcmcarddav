@@ -412,8 +412,14 @@ class carddav extends rcube_plugin
 	carddav_backend::delete_dbrecord($abookid,'addressbooks');
 	// we explicitly delete all data belonging to the addressbook, since
 	// cascaded deleted are not supported by all database backends
+	// ...contacts
 	carddav_backend::delete_dbrecord($abookid,'contacts','abook_id');
+	// ...custom subtypes
 	carddav_backend::delete_dbrecord($abookid,'xsubtypes','abook_id');
+	// ...groups and memberships
+	$delgroups = carddav_backend::get_dbrecord($abookid, 'id as group_id', 'groups', false, 'abook_id');
+	carddav_backend::delete_dbrecord($abookid,'groups','abook_id');
+	carddav_backend::delete_dbrecord($delgroups,'group_user','group_id');
 	}}}	
 		
 	private static function insert_abook($pa)

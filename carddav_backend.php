@@ -161,7 +161,7 @@ class carddav_backend extends rcube_addressbook
 	private $config;
 	private $xlabels;
 
-	const DEBUG      = false; // set to true for basic debugging
+	const DEBUG      = true; // set to true for basic debugging
 	const DEBUG_HTTP = false; // set to true for debugging raw http stream
 
 	// contains a the URIs, db ids and etags of the locally stored cards whenever
@@ -494,11 +494,11 @@ class carddav_backend extends rcube_addressbook
 		$mbr = $mbr->getComponents(':');
 		if(!$mbr) continue;
 		if(count($mbr)!=3 || $mbr[0] !== 'urn' || $mbr[1] !== 'uuid') {
-			self::warn("don't know how to interpret group membership: " . $implode(':', $mbr));
+			self::warn("don't know how to interpret group membership: " . implode(':', $mbr));
 			continue;
 		}
 		if(!array_key_exists($mbr[2], $cuid2dbid)) {
-			self::warn("member uid not found " . $implode(':', $mbr));
+			self::warn("member uid not found " . implode(':', $mbr));
 			continue;
 		}
 		$dbh->query('INSERT INTO '.
@@ -2021,15 +2021,17 @@ class carddav_backend extends rcube_addressbook
 	public static function delete_dbrecord($ids, $table='contacts', $idfield='id')
 	{{{
 	$dbh = rcmail::get_instance()->db;
-	$idfield = $dbh->quoteIdentifier($idfield);
 
 	if(is_array($ids)) {
+		if(count($ids) <= 0) return 0;
 		foreach($ids as &$id)
 			$id = $dbh->quote(is_array($id)?$id[$idfield]:$id);
 		$dspec = ' IN ('. implode(',',$ids) .')';
 	} else {
 		$dspec = ' = ' . $dbh->quote($ids);
 	}
+
+	$idfield = $dbh->quoteIdentifier($idfield);
 	$sql_result = $dbh->query("DELETE FROM " .
 		get_table_name("carddav_$table") .
 		" WHERE $idfield $dspec" );
