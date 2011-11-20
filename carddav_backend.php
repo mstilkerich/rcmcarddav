@@ -281,10 +281,7 @@ class carddav_backend extends rcube_addressbook
 	$sql_result = $dbh->query('INSERT INTO ' .
 		get_table_name('carddav_xsubtypes') .
 		' (typename,subtype,abook_id) VALUES (?,?,?)',
-			$typename,
-			$subtype,
-			$this->id
-	);
+			$typename, $subtype, $this->id);
 	}}}
 
 	/**
@@ -304,7 +301,7 @@ class carddav_backend extends rcube_addressbook
 	} }
 
 	// read extra subtypes
-	$xtypes = self::get_dbrecord($this->id,'typename,subtype','xsubtypes',false,'abookid');
+	$xtypes = self::get_dbrecord($this->id,'typename,subtype','xsubtypes',false,'abook_id');
 
 	foreach ($xtypes as $row) {
 		$this->coltypes[$row['typename']]['subtypes'][] = $row['subtype'];
