@@ -73,8 +73,7 @@ class carddav extends rcube_plugin
 
 	public function init_presets()
 	{{{
-	$rcmail = rcmail::get_instance();
-	$dbh = $rcmail->db;
+	$dbh = rcmail::get_instance()->db;
 
 	// migrate old settings
 	migrateconfig();

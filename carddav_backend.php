@@ -155,6 +155,7 @@ class carddav_backend extends rcube_addressbook
 	public $primary_key = 'id';
 	public $coltypes;
 
+	private $id;
 	private $filter;
 	private $result;
 	private $config;
@@ -226,9 +227,11 @@ class carddav_backend extends rcube_addressbook
 	public function __construct($dbid)
 	{{{
 	$dbh = rcmail::get_instance()->db;
+
 	$this->ready  = $dbh && !$dbh->is_error();
 	$this->groups = true;
 	$this->readonly = false;
+	$this->id = $dbid;;
 
 	$this->config = carddavconfig($dbid);
 	if($this->config['presetname']) {
@@ -280,7 +283,7 @@ class carddav_backend extends rcube_addressbook
 		' (typename,subtype,abook_id) VALUES (?,?,?)',
 			$typename,
 			$subtype,
-			$this->config['abookid']
+			$this->id
 	);
 	}}}
 
@@ -301,7 +304,7 @@ class carddav_backend extends rcube_addressbook
 	} }
 
 	// read extra subtypes
-	$xtypes = self::get_dbrecord($this->config['abookid'],'typename,subtype','xsubtypes',false,'abookid');
+	$xtypes = self::get_dbrecord($this->id,'typename,subtype','xsubtypes',false,'abookid');
 
 	foreach ($xtypes as $row) {
 		$this->coltypes[$row['typename']]['subtypes'][] = $row['subtype'];
@@ -474,7 +477,7 @@ class carddav_backend extends rcube_addressbook
 		$sql_result = $dbh->query('INSERT INTO ' .
 			get_table_name('carddav_groups') .
 			' (abook_id,name,vcard,etag,uri,cuid) VALUES (?,?,?,?,?,?)',
-				$this->config['abookid'], $save_data['name'],
+				$this->id, $save_data['name'],
 				$vcard['vcf'], $vcard['etag'], $vcard['href'],$save_data['cuid']);
 
 		// XXX the parameter is the sequence name for postgres; it doesn't work
@@ -485,7 +488,7 @@ class carddav_backend extends rcube_addressbook
 
 	// add group members
 	$cuid2dbid = array();
-	$cuids = self::get_dbrecord($this->config['abookid'],'id,cuid','contacts',false,'abook_id');
+	$cuids = self::get_dbrecord($this->id,'id,cuid','contacts',false,'abook_id');
 	foreach($cuids as $row) {
 		$cuid2dbid[$row['cuid']] = $row['id'];
 	}
@@ -604,7 +607,7 @@ class carddav_backend extends rcube_addressbook
 
 	// does not exist => insert new card
 	} else {
-		$qcolumns[] = 'abook_id'; $qparams[] = $this->config['abookid'];
+		$qcolumns[] = 'abook_id'; $qparams[] = $this->id;
 		$qcolumns[] = 'uri';      $qparams[] = $vcard['href'];
 		$qcolumns[] = 'cuid';     $qparams[] = $save_data['cuid'];
 
@@ -636,7 +639,6 @@ class carddav_backend extends rcube_addressbook
 	 */
   private function addvcards($reply, $try = 0)
   {{{
-	$dbh = rcmail::get_instance()->db;
 	global $vcards;
 	$vcards = array();
 	$xml_parser = xml_parser_create_ns();
@@ -750,14 +752,14 @@ class carddav_backend extends rcube_addressbook
 	$dbh = rcmail::get_instance()->db;
 
 	// determine existing local contact URIs and ETAGs
-	$contacts = self::get_dbrecord($this->config['abookid'],'id,uri,etag','contacts',false,'abook_id');
+	$contacts = self::get_dbrecord($this->id,'id,uri,etag','contacts',false,'abook_id');
 
 	foreach($contacts as $contact) {
 		$this->existing_card_cache[$contact['uri']] = $contact;
 	}
 
 	// determine existing local group URIs and ETAGs
-	$groups = self::get_dbrecord($this->config['abookid'],'id,uri,etag','groups',false,'abook_id');
+	$groups = self::get_dbrecord($this->id,'id,uri,etag','groups',false,'abook_id');
 
 	foreach($groups as $group) {
 		$this->existing_grpcard_cache[$group['uri']] = $group;
@@ -790,7 +792,7 @@ class carddav_backend extends rcube_addressbook
 	$dbh->query('UPDATE ' .
 		get_table_name('carddav_addressbooks') .
 		' SET last_updated=' . $dbh->now() .' WHERE id=?',
-			$this->config['abookid']);
+			$this->id);
 	}}}
 
 	/**
@@ -1023,7 +1025,7 @@ class carddav_backend extends rcube_addressbook
 		' ORDER BY sortname ASC',
 		$limit_index,
 		$limit_rows,
-		$this->config['abookid']
+		$this->id
 	);
 
 	$addresses = array();
@@ -1185,7 +1187,7 @@ class carddav_backend extends rcube_addressbook
 				get_table_name('carddav_contacts') .
 				' WHERE abook_id=?' .
 				$this->search_filter,
-				$this->config['abookid']
+				$this->id
 			);
 	
 			$resultrow = $dbh->fetch_assoc($sql_result);
@@ -1904,7 +1906,7 @@ class carddav_backend extends rcube_addressbook
 		' WHERE abook_id=?' .
 		$searchextra .
 		' ORDER BY name ASC',
-		$this->config['abookid']);
+		$this->id);
 
 	$groups = array();
 
@@ -1986,8 +1988,6 @@ class carddav_backend extends rcube_addressbook
    */
   public function rename_group($group_id, $newname)
   {{{
-	$dbh = rcmail::get_instance()->db;
-
 	// get current DB data
 	$group = self::get_dbrecord($group_id,'uri,etag,vcard','groups');
 	if(!$group)	return false;
