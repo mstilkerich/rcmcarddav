@@ -9,8 +9,8 @@ CREATE TABLE IF NOT EXISTS carddav_addressbooks (
 	user_id INT(10) UNSIGNED NOT NULL,
 	last_updated TIMESTAMP NOT NULL DEFAULT 0, -- time stamp of the last update of the local database
 	refresh_time TIME NOT NULL DEFAULT '1:00', -- time span after that the local database will be refreshed, default 1h
-	sortorder VARCHAR(64) NOT NULL,
-	displayorder VARCHAR(64) NOT NULL,
+	sortorder VARCHAR(64) NOT NULL default 'surname',
+	displayorder VARCHAR(64) NOT NULL default 'firstlast',
 	
 	presetname   VARCHAR(64), -- presetname
 
