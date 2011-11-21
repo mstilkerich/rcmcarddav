@@ -430,71 +430,48 @@ class carddav_backend extends rcube_addressbook
 	}
 	}}}
 
-	private function dbstore_group($vcard, $dbid=0) {{{
+	private function dbstore_group($etag, $uri, $vcfstr, $save_data, $dbid=0)
+	{{{
+	return $this->dbstore_base('groups',$etag,$uri,$vcfstr,$save_data,$dbid);
+	}}}
+
+	private function dbstore_base($table, $etag, $uri, $vcfstr, $save_data, $dbid=0, $xcol=array(), $xval=array()) 
+	{{{
 	$dbh = rcmail::get_instance()->db;
-	$card_exists = ($dbid!=0);
 
-	if(array_key_exists($vcard['href'], $this->existing_grpcard_cache)) {
-		$card_exists = true;
-		$group = $this->existing_grpcard_cache[$vcard['href']];
-		$dbid = $group['id'];
-		
-		// delete from the cache, cards left are known to be deleted from the server
-		unset($this->existing_grpcard_cache[$vcard['href']]);
+	$xcol[]='name';  $xval[]=$save_data['name'];
+	$xcol[]='etag';  $xval[]=$etag;
+	$xcol[]='vcard'; $xval[]=$vcfstr;
 
-		// abort if card has not changed
-		if($group['etag'] === $vcard['etag']) {
-			self::debug("dbstore: UNCHANGED group card " . $vcard['href']);
-			return $dbid;
-		}
-	}
-	
-	$save_data = $this->create_save_data_from_vcard($vcard['vcf']);
-	$vcf = $save_data['vcf'];
-	$save_data = $save_data['save_data'];
-	if($save_data['kind'] !== 'group') {
-		self::warn("Attempt to store non-group vcard as a group: " . print_r($save_data['kind'],true) . ' VCF: '	. $vcard['vcf']);
-		return false;
-	}
-
-	if($card_exists) {
-		self::debug("dbstore: UPDATE group card " . $vcard['href']);
+	if($dbid) {
+		self::debug("dbstore: UPDATE card $uri");
+		$xval[]=$dbid;
 		$sql_result = $dbh->query('UPDATE ' .
-			get_table_name('carddav_groups') .
-			' SET name=?,vcard=?,etag=?' .
-			' WHERE id=?',
-			$save_data['name'], $vcard['vcf'], $vcard['etag'], $dbid);
-
-		// delete current group members (will be reinserted if needed below)	
-		self::delete_dbrecord($dbid,'group_user','group_id');
+			get_table_name("carddav_$table") .
+			' SET ' . implode('=?,', $xcol) . '=?' .
+			' WHERE id=?', $xval);
 
 	} else {
-		self::debug("dbstore: INSERT group card " . $vcard['href']);
+		self::debug("dbstore: INSERT card $uri");
+		$xcol[]='abook_id'; $xval[]=$this->id;
+		$xcol[]='uri';      $xval[]=$uri;
+		$xcol[]='cuid';     $xval[]=$save_data['cuid'];
+
 		$sql_result = $dbh->query('INSERT INTO ' .
-			get_table_name('carddav_groups') .
-			' (abook_id,name,vcard,etag,uri,cuid) VALUES (?,?,?,?,?,?)',
-				$this->id, $save_data['name'],
-				$vcard['vcf'], $vcard['etag'], $vcard['href'],$save_data['cuid']);
+			get_table_name("carddav_$table") .
+			' (' . implode(',',$xcol) . ') VALUES (?' . str_repeat(',?', count($xcol)-1) .')',
+				$xval);
 
 		// XXX the parameter is the sequence name for postgres; it doesn't work
 		// when using the name of the table. For some reason it still provides
 		// the correct ID for MySQL...
-		$dbid = $dbh->insert_id('carddav_group_ids');
+		$seqname = preg_replace('/s$/', '', $table);
+		$dbid = $dbh->insert_id("carddav_$seqname"."_ids");
 	}
-
-	// record group members
-	$this->users_to_add[$dbid] = array();
-
-	$members = $vcf->getProperties('X-ADDRESSBOOKSERVER-MEMBER');
-	self::debug("Group " . $save_data['name'] . ' has ' . count($members) . ' members');
-	foreach($members as $mbr) {
-		$mbr = $mbr->getComponents(':');
-		if(!$mbr) continue;
-		if(count($mbr)!=3 || $mbr[0] !== 'urn' || $mbr[1] !== 'uuid') {
-			self::warn("don't know how to interpret group membership: " . implode(':', $mbr));
-			continue;
-		}
-		$this->users_to_add[$dbid][] = $dbh->quote($mbr[2]);
+	
+	if($dbh->is_error()) {
+		$this->set_error(self::ERROR_SAVING, $dbh->is_error());
+		return false;
 	}
 
 	return $dbid;
@@ -524,95 +501,48 @@ class carddav_backend extends rcube_addressbook
 	 *
 	 * @return int  The database id of the created or updated card, false on error.
 	 */
-	private function dbstore_vcard($vcard, $save_data=null, $dbid=0)
+	private function dbstore_contact($etag, $uri, $vcfstr, $save_data, $dbid=0)
 	{{{
-	$dbh = rcmail::get_instance()->db;
-	$card_exists = ($dbid!=0);
-
-	// SYNC mode: cache of existing cards exists
-	// use it to check if we need to update the card
-	if(array_key_exists($vcard['href'], $this->existing_card_cache)) {
-		$card_exists = true;
-		$contact = $this->existing_card_cache[$vcard['href']];
-		$dbid = $contact['id'];
-		
-		// delete from the cache, cards left are known to be deleted from the server
-		unset($this->existing_card_cache[$vcard['href']]);
-
-		// abort if card has not changed
-		if($contact['etag'] === $vcard['etag']) {
-			self::debug("dbstore: UNCHANGED card " . $vcard['href']);
-			return $dbid;
-		}
-	}
-
-	// if no sync data was provided, create it on the fly	
-	$vcfstr = $vcard['vcf'];
-	if(!$save_data) {
-		$save_data = $this->create_save_data_from_vcard($vcard['vcf']);
-		if (!$save_data){
-			self::warn("Couldn't parse vcard ".$vcard['vcf']);
-			return false;
-		}
-		// update the vcf string if the card was modified (photo inlined)
-		if($save_data['needs_update'])
-			$vcfstr = $save_data['vcf']->toString();
-		$save_data = $save_data['save_data'];
-	}
-
 	// build email search string
 	$email_keys = preg_grep('/^email:/', array_keys($save_data));
 	$email_addrs = array();
 	foreach($email_keys as $email_key) {
 		$email_addrs[] = implode(", ", $save_data[$email_key]);
 	}
-	$emails = implode(', ', $email_addrs);
+	$save_data['email']	= implode(', ', $email_addrs);
 
-	$qparams = array(
-		$save_data['name'], $save_data['sortname'], $emails,
-		$save_data['firstname'], $save_data['surname'],	$save_data['organization'],
-		$vcfstr, $vcard['etag'], $save_data['showas']?$save_data['showas']:''
-	);
-	$qcolumns= array(
-		'name','sortname','email',
-		'firstname','surname','organization',
-		'vcard','etag','showas'
-	);
+	// extra columns for the contacts table
+	$xcol_all=array('firstname','surname','organization','sortname','showas','email');
+	$xcol=array();
+	$xval=array();
+	foreach($xcol_all as $k) {
+		if(array_key_exists($k,$save_data)) {
+			$xcol[] = $k;
+			$xval[] = $save_data[$k];
+	} }
 
-	// does the card already exist in the local db? yes => update
-	if($card_exists) {
-		self::debug("dbstore: UPDATE card " . $vcard['href']);
-		$qparams[]  = $dbid;
-		$sql_result = $dbh->query('UPDATE ' .
-			get_table_name('carddav_contacts') .
-			' SET ' . implode('=?,',$qcolumns) . '=?' .
-			' WHERE id=?',
-			$qparams);
+	return $this->dbstore_base('contacts',$etag,$uri,$vcfstr,$save_data,$dbid,$xcol,$xval);
+	}}}
 
-	// does not exist => insert new card
-	} else {
-		$qcolumns[] = 'abook_id'; $qparams[] = $this->id;
-		$qcolumns[] = 'uri';      $qparams[] = $vcard['href'];
-		$qcolumns[] = 'cuid';     $qparams[] = $save_data['cuid'];
-
-		self::debug("dbstore: INSERT card " . $vcard['href']);
-		$sql_result = $dbh->query('INSERT INTO ' .
-			get_table_name('carddav_contacts') .
-			' ('. implode(',', $qcolumns) . ') VALUES (?' . str_repeat(',?', count($qcolumns)-1) .')',
-				$qparams);
-		// XXX the parameter is the sequence name for postgres; it doesn't work
-		// when using the name of the table. For some reason it still provides
-		// the correct ID for MySQL...
-		$dbid = $dbh->insert_id('carddav_contact_ids');
-	}
-
-	if($dbh->is_error()) {
-		$this->set_error(self::ERROR_SAVING, $dbh->is_error());
+	private static function checkcache(&$cache, $uri, $etag)
+	{{{
+	if(!array_key_exists($uri, $cache))
 		return false;
-	}
+	
+	$dbrec = $cache[$uri];
+	$dbid  = $dbrec['id'];
+		
+	// delete from the cache, cards left are known to be deleted from the server
+	unset($cache[$uri]);
 
-	// return database id of the card
-	return $dbid;
+	$needsupd = true;
+
+	// abort if card has not changed
+	if($etag === $dbrec['etag']) {
+		self::debug("checkcache: UNCHANGED card $uri");
+		$needsupd = false;
+	}
+	return array('needs_update'=>$needsupd, 'dbid'=>$dbid);
 	}}}
 
 	/**
@@ -623,6 +553,7 @@ class carddav_backend extends rcube_addressbook
 	 */
   private function addvcards($reply, $try = 0)
   {{{
+	$dbh = rcmail::get_instance()->db;
 	global $vcards;
 	$vcards = array();
 	$xml_parser = xml_parser_create_ns();
@@ -632,21 +563,56 @@ class carddav_backend extends rcube_addressbook
 	xml_parser_free($xml_parser);
 	$tryagain = array();
 
-	$x = 0;
-	foreach ($vcards as $vcard){
+	foreach ($vcards as $vcard) {
 		if (!preg_match(";BEGIN;", $vcard['vcf'])){
 			// Seems like the server didn't give us the vcf data
 			$tryagain[] = $vcard['href'];
 			continue;
 		}
 
-		if (preg_match(";X-ADDRESSBOOKSERVER-KIND:group;", $vcard['vcf'])){
-			if(!$this->dbstore_group($vcard))
+		// check existing card caches, also determines kind of existing cards
+		$dbid = 0;
+		if(	($ret = self::checkcache($this->existing_grpcard_cache,$vcard['href'],$vcard['etag']))
+			|| ($ret = self::checkcache($this->existing_card_cache,$vcard['href'],$vcard['etag'])) ) {
+
+			$dbid = $ret['dbid'];
+			// card has not changed
+			if(!$ret['needs_update']) continue;
+		}
+
+		// changed on server, parse VCF
+		$save_data = $this->create_save_data_from_vcard($vcard['vcf']);
+		$vcf = $save_data['vcf'];
+		if($save_data['needs_update'])
+			$vcard['vcf'] = $vcf->toString();
+		$save_data = $save_data['save_data'];
+	
+		if($save_data['kind'] === 'group') {
+			self::debug('Processing Group ' . $save_data['name']);
+			// delete current group members (will be reinserted if needed below)	
+			if($dbid) self::delete_dbrecord($dbid,'group_user','group_id');
+
+			// store group card
+			if(!($dbid = $this->dbstore_group($vcard['etag'],$vcard['href'],$vcard['vcf'],$save_data,$dbid)))
 				return false;
-		} else {
-			if(!$this->dbstore_vcard($vcard))
-			 return false;
-			$x++;
+
+			// record group members for deferred store
+			$this->users_to_add[$dbid] = array();
+			$members = $vcf->getProperties('X-ADDRESSBOOKSERVER-MEMBER');
+			self::debug("Group $dbid has " . count($members) . " members");
+			foreach($members as $mbr) {
+				$mbr = $mbr->getComponents(':');
+				if(!$mbr) continue;
+				if(count($mbr)!=3 || $mbr[0] !== 'urn' || $mbr[1] !== 'uuid') {
+					self::warn("don't know how to interpret group membership: " . implode(':', $mbr));
+					continue;
+				}
+				$this->users_to_add[$dbid][] = $dbh->quote($mbr[2]);
+			}
+
+		} else { // individual/other
+			if(!$this->dbstore_contact($vcard['etag'],$vcard['href'],$vcard['vcf'],$save_data,$dbid))
+				return false;
 		}
 	}
 
@@ -655,9 +621,8 @@ class carddav_backend extends rcube_addressbook
 		$reply = $reply["body"];
 		$numcards = $this->addvcards($reply, ++$try);
 		if(!$numcards) return false;
-		$x += $numcards;
 	}
-	return $x;
+	return true;
   }}}
 
 	/**
@@ -734,16 +699,16 @@ class carddav_backend extends rcube_addressbook
 	private function refreshdb_from_server()
 	{{{
 	$dbh = rcmail::get_instance()->db;
+	$duration = time();
+
 	// determine existing local contact URIs and ETAGs
 	$contacts = self::get_dbrecord($this->id,'id,uri,etag','contacts',false,'abook_id');
-
 	foreach($contacts as $contact) {
 		$this->existing_card_cache[$contact['uri']] = $contact;
 	}
 
 	// determine existing local group URIs and ETAGs
 	$groups = self::get_dbrecord($this->id,'id,uri,etag','groups',false,'abook_id');
-
 	foreach($groups as $group) {
 		$this->existing_grpcard_cache[$group['uri']] = $group;
 	}
@@ -783,6 +748,9 @@ class carddav_backend extends rcube_addressbook
 		get_table_name('carddav_addressbooks') .
 		' SET last_updated=' . $dbh->now() .' WHERE id=?',
 			$this->id);
+
+	$duration = time() - $duration;
+	self::debug("server refresh took $duration seconds");
 	}}}
 
 	/**
@@ -1315,15 +1283,15 @@ class carddav_backend extends rcube_addressbook
 	/**
 	 * Creates a new or updates an existing vcard from save data.
 	 */
-  private function create_vcard_from_save_data($cuid, $save_data, $vcf=null)
+  private function create_vcard_from_save_data($save_data, $vcf=null)
   {{{
 	if(!$vcf) { // create fresh minimal vcard
 		$vcfstr = array(
-			"BEGIN:VCARD",
-			"VERSION:3.0",
-			"UID:$cuid",
-			"REV:".date("c"),
-			"END:VCARD"
+			'BEGIN:VCARD',
+			'VERSION:3.0',
+			'UID:'.$save_data['cuid'],
+			'REV:'.date('c'),
+			'END:VCARD'
 		);
 
 		$vcf = new VCard;
@@ -1600,6 +1568,16 @@ class carddav_backend extends rcube_addressbook
 	);
   }}}
 
+	private function find_free_uid()
+	{{{
+	// find an unused UID
+	$cuid = $this->guid();
+	while ($this->get_record_from_carddav("$cuid.vcf")){
+		$cuid = $this->guid();
+	}
+	return $cuid;
+	}}}
+
   /**
    * Create a new contact record
    *
@@ -1614,35 +1592,24 @@ class carddav_backend extends rcube_addressbook
 	$this->preprocess_rc_savedata($save_data);
 
 	// find an unused UID
-	$cuid = $this->guid();
-	while ($this->get_record_from_carddav("$cuid.vcf")){
-		$cuid = $this->guid();
-	}
-	$save_data['cuid'] = $cuid;
+	$save_data['cuid'] = $this->find_free_uid();
 
-	$vcf = $this->create_vcard_from_save_data($cuid, $save_data);
-	if ($vcf == false){
-		return false;
-	}
+	$vcf = $this->create_vcard_from_save_data($save_data);
+	if(!$vcf) return false;
+	$vcfstr = $vcf->toString();
 
-	$vcf = $vcf->toString();
 	$uri = "$cuid.vcf";
-	if ($etag = $this->put_record_to_carddav($uri, $vcf)) {
-		$url = concaturl($this->config['url'], $uri);
-		$url = preg_replace(';https?://[^/]+;', '', $url);
-		$vcard = array (
-			'vcf'  => $vcf,
-			'etag' => $etag,
-			'href' => $url,
-		);
-		$dbid = $this->dbstore_vcard($vcard, $save_data);
-		if($dbid) {
-			if($this->total_cards != -1)
-				$this->total_cards++; 
-			return $dbid;
-		}
-	}
-	return false;
+	if(!($etag = $this->put_record_to_carddav($uri, $vcfstr)))
+		return false;
+
+	$url = concaturl($this->config['url'], $uri);
+	$url = preg_replace(';https?://[^/]+;', '', $url);
+	$dbid = $this->dbstore_contact($etag,$url,$vcfstr,$save_data);
+	if(!$dbid) return false;
+
+	if($this->total_cards != -1)
+		$this->total_cards++; 
+	return $dbid;
   }}}
 
 	/**
@@ -1681,24 +1648,12 @@ class carddav_backend extends rcube_addressbook
   public function update($id, $save_data)
   {{{
 	// get current DB data
-	$contact = self::get_dbrecord($id,'id,uri,etag,vcard,showas');
+	$contact = self::get_dbrecord($id,'id,cuid,uri,etag,vcard,showas');
 	if(!$contact) return false;
-	$url = $contact['uri'];
 
 	// complete save_data
 	$save_data['showas'] = $contact['showas'];
 	$this->preprocess_rc_savedata($save_data);
-
-	// check if changed on server
-	if(!($srv_etag = $this->get_record_from_carddav($url)))
-		return false;
-	$srv_etag = $srv_etag['etag'];
-
-	// card has changed on server, abort for now
-	if($contact['etag'] !== $srv_etag) {
-		self::warn("Card Changed $url, abort");
-		return false;
-	}
 
 	// create vcard from current DB data to be updated with the new data
 	$vcf = new VCard;
@@ -1707,29 +1662,19 @@ class carddav_backend extends rcube_addressbook
 		return false;
 	}
 
-	$cuid = $vcf->getProperty("UID")->getComponents();
-	$cuid = $cuid[0];
-	$save_data['cuid'] = $cuid;
-	$vcf = $this->create_vcard_from_save_data($cuid, $save_data, $vcf);
+	$vcf = $this->create_vcard_from_save_data($save_data, $vcf);
 	if(!$vcf) {
 		self::warn("Update: Couldn't adopt local vcard to new settings");
 		return false;
 	}
 
 	$vcfstr = $vcf->toString();
-	if($etag = $this->put_record_to_carddav($url, $vcfstr, $srv_etag)) {
-		$vcard = array (
-			'vcf'  => $vcfstr,
-			'etag' => $etag,
-			'href' => $url,
-		);
-		$id = $this->dbstore_vcard($vcard, $save_data, $id);
-		return ($id>0);
-	} else {
-		self::warn("Could not store: $vcfstr");
+	if(!($etag=$this->put_record_to_carddav($url, $vcfstr, $contact['etag']))) {
+		self::warn("Updating card on server failed");
+		return false;
 	}
-
-	return false;
+	$id = $this->dbstore_contact($etag,$url,$vcfstr,$save_data,$id);
+	return ($id!=0);
   }}}
 
   /**
@@ -1773,7 +1718,7 @@ class carddav_backend extends rcube_addressbook
 		$ids = explode(',', $ids);
 
 	// get current DB data
-	$group = self::get_dbrecord($group_id,'uri,etag,vcard','groups');
+	$group = self::get_dbrecord($group_id,'uri,etag,vcard,name,cuid','groups');
 	if(!$group)	return false;
 
 	// create vcard from current DB data to be updated with the new data
@@ -1795,8 +1740,16 @@ class carddav_backend extends rcube_addressbook
 	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
 		return false;
 
-	if(!$this->dbstore_group(array('href' => $group['uri'],'etag' => $etag,'vcf'  => $vcfstr), $group_id))
+	if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
 		return false;
+
+	$dbh = rcmail::get_instance()->db;
+	foreach ($ids as $cid) {
+		$dbh->query('INSERT INTO ' .
+			get_table_name('carddav_group_user') .
+			' (group_id,contact_id) VALUES (?,?)',
+				$group_id, $cid);
+	}
 
 	return true;
   }}}
@@ -1814,7 +1767,7 @@ class carddav_backend extends rcube_addressbook
 		$ids = explode(',', $ids);
 
 	// get current DB data
-	$group = self::get_dbrecord($group_id,'uri,etag,vcard','groups');
+	$group = self::get_dbrecord($group_id,'name,cuid,uri,etag,vcard','groups');
 	if(!$group)	return false;
 
 	// create vcard from current DB data to be updated with the new data
@@ -1837,9 +1790,10 @@ class carddav_backend extends rcube_addressbook
 	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
 		return false;
 
-	if(!$this->dbstore_group(array('href' => $group['uri'],'etag' => $etag,'vcf'  => $vcfstr), $group_id))
+	if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group['name'],$group_id))
 		return false;
-
+	
+	self::delete_dbrecord($ids,'group_user','contact_id');
 	return $deleted;
   }}}
 
@@ -1914,29 +1868,25 @@ class carddav_backend extends rcube_addressbook
    */
   public function create_group($name)
   {{{
-	// find an unused UID
-	$cuid = $this->guid();
-	while ($this->get_record_from_carddav("$cuid.vcf")){
-		$cuid = $this->guid();
-	}
+	$cuid = $this->find_free_uid();
 	$uri = "$cuid.vcf";
 
 	$save_data = array(
 		'name' => $name,
 		'kind' => 'group',
+		'cuid' => $cuid,
 	);
 	
-	$vcf = $this->create_vcard_from_save_data($cuid, $save_data);
-	if ($vcf == false)
-		return false;
-
+	$vcf = $this->create_vcard_from_save_data($save_data);
+	if (!$vcf) return false;
 	$vcfstr = $vcf->toString();
+
 	if (!($etag = $this->put_record_to_carddav($uri, $vcfstr)))
 		return false;
 
 	$url = concaturl($this->config['url'], $uri);
 	$url = preg_replace(';https?://[^/]+;', '', $url);
-	if(!($dbid = $this->dbstore_group(array('href' => $url,'etag' => $etag,'vcf'=>$vcfstr))))
+	if(!($dbid = $this->dbstore_group($etag,$url,$vcfstr,$save_data)))
 		return false;
 
 	return array('id'=>$dbid, 'name'=>$name);
@@ -1956,6 +1906,7 @@ class carddav_backend extends rcube_addressbook
 	
 	if($this->delete_record_from_carddav($group['uri'])) {
 		self::delete_dbrecord($group_id, 'groups');
+		self::delete_dbrecord($group_id, 'group_user', 'group_id');
 		return true;
 	}
 
@@ -1973,8 +1924,9 @@ class carddav_backend extends rcube_addressbook
   public function rename_group($group_id, $newname)
   {{{
 	// get current DB data
-	$group = self::get_dbrecord($group_id,'uri,etag,vcard','groups');
+	$group = self::get_dbrecord($group_id,'uri,etag,vcard,name,cuid','groups');
 	if(!$group)	return false;
+	$group['name'] = $newname;
 	
 	// create vcard from current DB data to be updated with the new data
 	$vcf = new VCard;
@@ -1985,14 +1937,14 @@ class carddav_backend extends rcube_addressbook
 
 	$vcf->setProperty('FN', $newname);
 	$vcf->setProperty('N', $newname);
-	
 	$vcfstr = $vcf->toString();
+
 	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
 		return false;
 
-	if(!$this->dbstore_group(array('href' => $group['uri'],'etag'=>$etag,'vcf'=>$vcfstr), $group_id))
+	if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
 		return false;
-	
+
 	return $newname;
   }}}
 		
