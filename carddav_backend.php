@@ -1259,7 +1259,7 @@ class carddav_backend extends rcube_addressbook
 	return false;
   }}}
 
-  private function delete_record_from_carddav($id, $vcf = "")
+  private function delete_record_from_carddav($id)
   {{{
 	$this->result = $this->count();
 	$opts = array(
@@ -1790,7 +1790,7 @@ class carddav_backend extends rcube_addressbook
 	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
 		return false;
 
-	if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group['name'],$group_id))
+	if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
 		return false;
 	
 	self::delete_dbrecord($ids,'group_user','contact_id');
