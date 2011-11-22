@@ -162,7 +162,7 @@ class carddav_backend extends rcube_addressbook
 	private $xlabels;
 
 	const DEBUG      = true; // set to true for basic debugging
-	const DEBUG_HTTP = false; // set to true for debugging raw http stream
+	const DEBUG_HTTP = true; // set to true for debugging raw http stream
 
 	// contains a the URIs, db ids and etags of the locally stored cards whenever
 	// a refresh from the server is attempted. This is used to avoid a separate
@@ -1252,7 +1252,7 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 	$reply = self::cdfopen("put_record_to_carddav", $id, $opts, $this->config);
-	if ($reply["status"] >= 200 && $reply["status"] < 300) {
+	if ($reply!==-1 && $reply["status"] >= 200 && $reply["status"] < 300) {
 		return $reply["headers"]["etag"];
 	}
 
@@ -1669,11 +1669,11 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	$vcfstr = $vcf->toString();
-	if(!($etag=$this->put_record_to_carddav($url, $vcfstr, $contact['etag']))) {
+	if(!($etag=$this->put_record_to_carddav($contact['uri'], $vcfstr, $contact['etag']))) {
 		self::warn("Updating card on server failed");
 		return false;
 	}
-	$id = $this->dbstore_contact($etag,$url,$vcfstr,$save_data,$id);
+	$id = $this->dbstore_contact($etag,$contact['uri'],$vcfstr,$save_data,$id);
 	return ($id!=0);
   }}}
 
