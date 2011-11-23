@@ -155,10 +155,15 @@ class carddav_backend extends rcube_addressbook
 	public $primary_key = 'id';
 	public $coltypes;
 
+	// database ID of the addressbook
 	private $id;
+	// currently active search filter
 	private $filter;
+
 	private $result;
+	// configuration of the addressbook
 	private $config;
+	// custom labels defined in the addressbook
 	private $xlabels;
 
 	const DEBUG      = true; // set to true for basic debugging
@@ -169,7 +174,11 @@ class carddav_backend extends rcube_addressbook
 	// "exists?" DB query for each card retrieved from the server and also allows
 	// to detect whether cards were deleted on the server
 	private $existing_card_cache = array();
+	// same thing for groups
 	private $existing_grpcard_cache = array();
+	// used in refresh DB to record group memberships for the delayed
+	// creation in the database (after all contacts have been loaded and
+	// stored from the server)
 	private $users_to_add;
 
 	// total number of contacts in address book
@@ -180,6 +189,7 @@ class carddav_backend extends rcube_addressbook
 	// not be parsed from the vcard
 	private $table_cols = array('id', 'name', 'email', 'firstname', 'surname');
 
+	// maps VCard property names to roundcube keys
 	private $vcf2rc = array(
 		'simple' => array(
 			'BDAY' => 'birthday',
@@ -229,10 +239,10 @@ class carddav_backend extends rcube_addressbook
 	{{{
 	$dbh = rcmail::get_instance()->db;
 
-	$this->ready  = $dbh && !$dbh->is_error();
-	$this->groups = true;
+	$this->ready    = $dbh && !$dbh->is_error();
+	$this->groups   = true;
 	$this->readonly = false;
-	$this->id = $dbid;;
+	$this->id       = $dbid;
 
 	$this->config = carddavconfig($dbid);
 	if($this->config['presetname']) {
@@ -275,6 +285,9 @@ class carddav_backend extends rcube_addressbook
 
 	/**
 	 * Stores a custom label in the database (X-ABLabel extension).
+	 *
+	 * @param string Name of the type/category (phone,address,email)
+	 * @param string Name of the custom label to store for the type
 	 */
 	private function storeextrasubtype($typename, $subtype)
 	{{{
@@ -311,7 +324,9 @@ class carddav_backend extends rcube_addressbook
 	}}}
 
   /**
-   * Returns addressbook name (e.g. for addressbooks listing).
+	 * Returns addressbook name (e.g. for addressbooks listing).
+	 *
+	 * @return string name of this addressbook
    */
 	public function get_name()
 	{{{
@@ -411,12 +426,16 @@ class carddav_backend extends rcube_addressbook
 	$this->search_filter = '';
   }}}
 
+	/**
+	 * Determines the name to be displayed for a contact. The routine
+	 * distinguishes contact cards for individuals from organizations.
+	 */
 	private function set_displayname(&$save_data)
 	{{{
 	if(strcasecmp($save_data['showas'], 'COMPANY') == 0) {
 		$save_data['name']     = $save_data['organization'];
 		$save_data['sortname'] = $save_data['organization'];
-	} else if(!$save_data['kind']) {
+	} else if($save_data['kind'] and strcasecmp($save_data['kind'],'group')!==0 ) {
 		if($this->config['displayorder'] === 'lastfirst') {
 			$save_data['name'] = $save_data['surname'].", ".$save_data['firstname'];
 		} else {
@@ -430,6 +449,17 @@ class carddav_backend extends rcube_addressbook
 	}
 	}}}
 
+	/**
+	 * Stores a group vcard in the database.
+	 *
+	 * @param string etag of the VCard in the given version on the CardDAV server
+	 * @param string path to the VCard on the CardDAV server
+	 * @param string string representation of the VCard
+	 * @param array  associative array containing at least name and cuid (card UID)
+	 * @param int    optionally, database id of the group if the store operation is an update
+	 *
+	 * @return int  The database id of the created or updated card, false on error.
+	 */
 	private function dbstore_group($etag, $uri, $vcfstr, $save_data, $dbid=0)
 	{{{
 	return $this->dbstore_base('groups',$etag,$uri,$vcfstr,$save_data,$dbid);
@@ -478,26 +508,13 @@ class carddav_backend extends rcube_addressbook
 	}}}
 
 	/**
-	 * Stores a vcard to the local database.
+	 * Stores a contact to the local database.
 	 *
-	 * If the cache of existing cards is initialized with the existing cards in the
-	 * DB, the card will only be stored if the provided etag is different from the
-	 * stored one. This function removes all cards found in the card cache from the
-	 * cache once processed.
-	 *
-	 * @param array Associative array that contains the values with the keys:
-	 *               - vcf:  the VCard content as a string
-	 *               - etag: the etag of the VCard on the CardDAV server, identifying the version
-	 *               - href: the URI of the vcard on the CardDAV server
-	 *
-	 * @param array Optional roundcube representation of the VCard. Will be created on the fly
-	 *               from the VCard content if not provided.
-	 *
-	 * @param int   If an existing card is updated, the database id of that card.
-	 *               If not provided a new card will be created. If the cache
-	 *               of existing cards was initialized, it will be used to acquire
-	 *               the database id of existing cards and this parameter needs not
-	 *               be provided.
+	 * @param string etag of the VCard in the given version on the CardDAV server
+	 * @param string path to the VCard on the CardDAV server
+	 * @param string string representation of the VCard
+	 * @param array  associative array containing the roundcube save data for the contact
+	 * @param int    optionally, database id of the contact if the store operation is an update
 	 *
 	 * @return int  The database id of the created or updated card, false on error.
 	 */
@@ -524,6 +541,15 @@ class carddav_backend extends rcube_addressbook
 	return $this->dbstore_base('contacts',$etag,$uri,$vcfstr,$save_data,$dbid,$xcol,$xval);
 	}}}
 
+	/**
+	 * Checks if the given local card cache (for contacts or groups) contains
+	 * a card with the given URI. If not, the function returns false.
+	 * If yes, the card is removed from the cache, and the cached etag is 
+	 * compared with the given one. The function returns an associative array
+	 * with the database id of the existing card (key dbid) and a boolean that
+	 * indicates whether the card needs a server refresh as determined by the
+	 * etag comparison (keey needs_update).
+	 */
 	private static function checkcache(&$cache, $uri, $etag)
 	{{{
 	if(!array_key_exists($uri, $cache))
@@ -791,7 +817,10 @@ class carddav_backend extends rcube_addressbook
 	return false;
   }}}
 
-
+	/**
+	 * Determines the location of the addressbook for the current user on the
+	 * CardDAV server.
+	 */
 	public static function find_addressbook($config)
 	{{{
 	$xmlquery =
