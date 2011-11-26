@@ -284,10 +284,12 @@ class VCardProperty
 				} else {
 					$this->name = strtoupper($this->name);
 				}
-				if ($this->params['ENCODING'][0] == 'QUOTED-PRINTABLE') {
+				if (array_key_exists('ENCODING', $this->params)
+					&& $this->params['ENCODING'][0] == 'QUOTED-PRINTABLE') {
 					$this->_decodeQuotedPrintable($lines);
 				}
-				if ($this->params['CHARSET'][0] == 'UTF-8') {
+				if (array_key_exists('CHARSET', $this->params)
+					&& $this->params['CHARSET'][0] == 'UTF-8') {
 					$this->value = utf8_decode($this->value);
 				}
 				return true;

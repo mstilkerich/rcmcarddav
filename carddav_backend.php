@@ -32,8 +32,8 @@ function carddavconfig($abookid){{{
 		: '('.$dbh->now().'>last_updated+refresh_time)';
 
 	$abookrow = carddav_backend::get_dbrecord($abookid,
-		'id as abookid,name,username,password,url,presetname,' .
-		$timequery . ' as needs_update', 'addressbooks');
+		'id as abookid,name,username,password,url,presetname,displayorder,sortorder,'
+		. $timequery . ' as needs_update', 'addressbooks');
 	
 	if(! $abookrow) {
 		carddav_backend::warn("FATAL! Request for non-existent configuration $abookid");
@@ -130,7 +130,7 @@ function endElement_addvcards($parser, $n) {{{
 	$ctag = preg_replace(";\|\|$n$;", "", $ctag);
 	if ($n == "DAV::RESPONSE"){
 		$vcards[] = $cur_vcard;
-		$cur_vcard = array();
+		$cur_vcard = array('vcf'=>'','etag'=>'');
 	}
 }}}
 function characterData_addvcards($parser, $data) {{{
@@ -383,7 +383,7 @@ class carddav_backend extends rcube_addressbook
 
 		foreach($this->coltypes as $key => $value){
 			if (preg_match(";$filterfield;", $key)){
-				if ($value['subtypes']){
+				if (array_key_exists('subtypes',$value)){
 					foreach ($value['subtypes'] AS $skey => $svalue){
 						$newfilter['keys'][]  = "$key:$svalue";
 						$newfilter['value'][] = $searchvalue;
@@ -435,7 +435,7 @@ class carddav_backend extends rcube_addressbook
 	if(strcasecmp($save_data['showas'], 'COMPANY') == 0) {
 		$save_data['name']     = $save_data['organization'];
 		$save_data['sortname'] = $save_data['organization'];
-	} else if($save_data['kind'] and strcasecmp($save_data['kind'],'group')!==0 ) {
+	} else if(array_key_exists('kind', $save_data) && strcasecmp($save_data['kind'],'group')!==0 ) {
 		if($this->config['displayorder'] === 'lastfirst') {
 			$save_data['name'] = $save_data['surname'].", ".$save_data['firstname'];
 		} else {
@@ -676,17 +676,19 @@ class carddav_backend extends rcube_addressbook
 	$url = preg_replace(";://;", "://".urlencode($carddav['username']).":".urlencode($carddav['password'])."@", $url);
 	$error = $http->GetRequestArguments($url,$arguments);
 	$arguments["RequestMethod"] = $opts['http']['method'];
-	if (strlen($opts['http']['content']) > 0 && $opts['http']['method'] != "GET"){
+	if (array_key_exists('content',$opts['http']) && strlen($opts['http']['content']) > 0 && $opts['http']['method'] != "GET"){
 		$arguments["Body"] = $opts['http']['content']."\r\n";
 	}
-	if (is_array($opts['http']['header'])){
-		foreach ($opts['http']['header'] as $key => $value){
-			$h = explode(": ", $value);
+	if(array_key_exists('header',$opts['http'])) {
+		if (is_array($opts['http']['header'])){
+			foreach ($opts['http']['header'] as $key => $value){
+				$h = explode(": ", $value);
+				$arguments["Headers"][$h[0]] = $h[1];
+			}
+		} else {
+			$h = explode(": ", $opts['http']['header']);
 			$arguments["Headers"][$h[0]] = $h[1];
 		}
-	} else {
-		$h = explode(": ", $opts['http']['header']);
-		$arguments["Headers"][$h[0]] = $h[1];
 	}
 	$error = $http->Open($arguments);
 	if ($error == ""){
@@ -742,9 +744,9 @@ class carddav_backend extends rcube_addressbook
 	// used to record which users need to be added to which groups
 	$this->users_to_add = array();
 
-	$records = $this->list_records_sync_collection($cols, $subset);
+	$records = $this->list_records_sync_collection();
 	if ($records < 0){ // returned error -1
-		$records = $this->list_records_propfind_resourcetype($cols, $subset);
+		$records = $this->list_records_propfind_resourcetype();
 	}
 
 	// delete cards not present on the server anymore
@@ -906,7 +908,7 @@ class carddav_backend extends rcube_addressbook
    *
    * @return int  number of cards in collection, -1 on error
    */
-  private function list_records_sync_collection($cols, $subset)
+  private function list_records_sync_collection()
   {{{
 	$records = 0;
 	$xmlquery =
@@ -1078,7 +1080,7 @@ class carddav_backend extends rcube_addressbook
 	return $reply;
   }}}
 
-	private function list_records_propfind_resourcetype($cols, $subset)
+	private function list_records_propfind_resourcetype()
   {{{
 	$records = 0;
 	$xmlquery =
@@ -1167,9 +1169,7 @@ class carddav_backend extends rcube_addressbook
 	if($this->total_cards < 0) {
 		$dbh = rcmail::get_instance()->db;
 
-		$this->determine_filter_params($cols, 0, $fast_filter, $firstrow, $numrows, $read_vcard);
-
-		if($fast_filter) {
+		if($this->dbfilter_enabled()) {
 			$sql_result = $dbh->query('SELECT COUNT(id) as total_cards FROM ' .
 				get_table_name('carddav_contacts') .
 				' WHERE abook_id=?' .
@@ -1187,17 +1187,23 @@ class carddav_backend extends rcube_addressbook
 	return $this->total_cards;
 	}}}
 
-	private function determine_filter_params($cols, $subset, &$fast_filter, &$firstrow, &$numrows, &$read_vcard) {
+	private function dbfilter_enabled() {
 		$filter = $this->get_search_set();
 
 		// true if we can use DB filtering or no filtering is requested
-		$fast_filter = (strlen($this->search_filter)>0) || empty($filter) || empty($filter['keys']);
-		
+		return (strlen($this->search_filter)>0) || empty($filter) || empty($filter['keys']);
+	}
+
+	private function determine_filter_params($cols, $subset, &$fast_filter, &$firstrow, &$numrows, &$read_vcard) {
+		// true if we can use DB filtering or no filtering is requested
+		$fast_filter = $this->dbfilter_enabled();
+
 		// determine whether we have to parse the vcard or if only db cols are requested
 		$read_vcard = !$cols || count(array_intersect($cols, $this->table_cols)) < count($cols);
 		
 		// determine result subset needed
-		$firstrow = ($subset>=0) ? $this->result->first : ($this->result->first+$this->page_size+$subset);
+		$firstrow = ($subset>=0) ?
+			$this->result->first : ($this->result->first+$this->page_size+$subset);
 		$numrows  = $subset ? abs($subset) : $this->page_size;
 	}
 
@@ -1333,7 +1339,7 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	// N is mandatory
-	if($save_data['kind'] === 'group') {
+	if(array_key_exists('kind',$save_data) && $save_data['kind'] === 'group') {
 		$vcf->setProperty("N", $save_data['name'],   0,0);
 	} else {
 		$vcf->setProperty("N", $save_data['surname'],   0,0);
@@ -1448,7 +1454,10 @@ class carddav_backend extends rcube_addressbook
 
 	private function get_attr_label($vcard, $pvalue, $attrname) {
 		// prefer a known standard label if available
-		$xlabel = strtolower($pvalue->params['TYPE'][0]);
+		$xlabel = '';
+		if(array_key_exists('TYPE', $pvalue->params)) {
+			$xlabel = strtolower($pvalue->params['TYPE'][0]);
+		}
 		if(strlen($xlabel)>0 &&
 			in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
 				return $xlabel;
@@ -1530,7 +1539,11 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	$needs_update=false;
-	$save_data = array();
+	$save_data = array(
+		// DEFAULTS
+		'kind'   => 'individual',
+		'showas' => 'INDIVIDUAL', 
+	);
 
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
 		$property = $vcf->getProperty($vkey);
@@ -1541,7 +1554,7 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	// inline photo if external reference
-	if($save_data['photo']) {
+	if(array_key_exists('photo', $save_data)) {
 		$kind = $vcf->getProperty('PHOTO')->getParam('VALUE',0);
 		if($kind && strcasecmp('uri', $kind)==0) {
 			if($this->download_photo($save_data)) {
@@ -1627,7 +1640,7 @@ class carddav_backend extends rcube_addressbook
 	if(!$vcf) return false;
 	$vcfstr = $vcf->toString();
 
-	$uri = "$cuid.vcf";
+	$uri = $save_data['cuid'] . '.vcf';
 	if(!($etag = $this->put_record_to_carddav($uri, $vcfstr)))
 		return false;
 
@@ -1653,7 +1666,7 @@ class carddav_backend extends rcube_addressbook
 	// heuristic to determine X-ABShowAs setting
 	// organization set but neither first nor surname => showas company
 	if(!$save_data['surname'] && !$save_data['firstname']
-		&& $save_data['organization'] && !$save_data['showas']) {
+		&& $save_data['organization'] && !array_key_exists('showas',$save_data)) {
 		$save_data['showas'] = 'COMPANY';
 	}
 	// organization not set but showas==company => show as regular
@@ -1980,7 +1993,7 @@ class carddav_backend extends rcube_addressbook
 	public static function get_adminsettings()
 	{{{
 	$rcmail = rcmail::get_instance();
-	$prefs;
+	$prefs = array();
 	if (file_exists("plugins/carddav/config.inc.php"))
 		require("plugins/carddav/config.inc.php");
 	return $prefs;

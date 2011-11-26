@@ -50,6 +50,9 @@ class carddav extends rcube_plugin
 		$this->add_hook('preferences_sections_list',array($this, 'cd_preferences_section'));
 
 		$this->add_hook('login_after',array($this, 'init_presets'));
+		
+		if(!array_key_exists('user_id', $_SESSION))
+			return;
 
 		// use this address book for autocompletion queries
 		// (maybe this should be configurable by the user?)
@@ -160,8 +163,8 @@ class carddav extends rcube_plugin
 	{{{
 	if(preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $refresht, $match)) {
 		$refresht = sprintf("%02d:%02d:%02d", $match[1],
-			$match[3] ? $match[3] : 0,
-			$match[5] ? $match[5] : 0);
+			count($match)>3 ? $match[3] : 0,
+			count($match)>5 ? $match[5] : 0);
 	} else {
 		write_log("carddav.warn", "Could not parse given refresh time '$refresht'");
 		$refresht = '01:00:00';
@@ -194,10 +197,9 @@ class carddav extends rcube_plugin
 	private function cd_preferences_buildblock($blockheader,$abook,$prefs)
 	{{{
 		$abookid = $abook['id'];
-		$preset = $abook['presetname'];
 
 		if (self::no_override('active', $abook, $prefs)) {
-			$content_active = $prefs[$preset] ? "Enabled" : "Disabled";
+			$content_active = $prefs[$abook['presetname']] ? "Enabled" : "Disabled";
 		} else {
 			// check box for activating
 			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_active', 'value' => 1));
@@ -224,7 +226,7 @@ class carddav extends rcube_plugin
 			$content_url = str_replace("%u", $abook['username'], $abook['url']);
 		} else {
 			// input box for URL
-			$size = max(strlen($url),40);
+			$size = max(strlen($abook['url']),40);
 			$input = new html_inputfield(array('name' => $abookid.'_cd_url', 'type' => 'text', 'autocomplete' => 'off', 'value' => $abook['url'], 'size' => $size));
 			$content_url = $input->show();
 		}
@@ -317,9 +319,20 @@ class carddav extends rcube_plugin
 			$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($blockhdr,$abook,$prefs);
 		}
 
-		if(!$prefs['_GLOBAL']['fixed']) {
-			$args['blocks']['cd_preferences_section_new'] = $this->cd_preferences_buildblock('Configure new addressbook',
-				array( 'id'=>'new', 'active'=>1, 'refresh_time'=>1), $prefs);
+		if(!array_key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) {
+			$args['blocks']['cd_preferences_section_new'] = $this->cd_preferences_buildblock(
+				'Configure new addressbook',
+				array(
+					'id'           => 'new',
+					'active'       => 1,
+					'username'     => '',
+					'url'          => '',
+					'name'         => '',
+					'refresh_time' => 1,
+					'presetname'   => '',
+					'sortorder'    => self::sortorder_default,
+					'displayorder' => self::displayorder_default,
+				), $prefs);
 		}
 
 		return($args);
@@ -385,7 +398,7 @@ class carddav extends rcube_plugin
 
 		// add a new address book?	
 		$new = get_input_value('new_cd_name', RCUBE_INPUT_POST);
-		if (!$prefs['_GLOBAL']['fixed'] && strlen($new) > 0) {
+		if ( (!array_key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) && strlen($new) > 0) {
 			$srv  = get_input_value('new_cd_url', RCUBE_INPUT_POST);
 			$usr  = get_input_value('new_cd_username', RCUBE_INPUT_POST);
 			$pass = get_input_value('new_cd_password', RCUBE_INPUT_POST);
