@@ -1,4 +1,7 @@
-Changes from 0.6.0 to x.x.x:
+Changes from 0.6.0 to 0.6.1:
+ * merge branch: multipleaddressbooks
+ * support multiple authorization header elements, patch by Michael Stilkerich
+ * adapt config file and its handling to new multiple addressbook feature
  * fix FS#25 attaching photo
  * fix FS#27 use surname lastname if no nickname provided
  * fix FS#29 displayname/nickname handling
