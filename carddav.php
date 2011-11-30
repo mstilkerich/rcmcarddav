@@ -115,8 +115,7 @@ class carddav extends rcube_plugin
 		} else { // create
 			$preset['presetname'] = $presetname;
 			self::insert_abook($preset);
-		if ($key == '_GLOBAL')
-			continue;
+		}
 	}}
 
 	// delete existing preset addressbooks that where removed by admin

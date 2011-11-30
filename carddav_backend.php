@@ -61,7 +61,6 @@ function migrateconfig($sub = 'CardDAV'){{{
 	if(!$prefs_all) {
 		return;
 	}
-	$retval['fromconfig'] = false;
 
 	// migrate to the multiple addressbook schema first if needed
 	if ($prefs_all['db_version'] == 1 || !array_key_exists('db_version', $prefs_all)){
