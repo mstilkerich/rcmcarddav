@@ -21,7 +21,9 @@ require_once(dirname(__FILE__) . '/carddav_backend.php');
 
 class carddav extends rcube_plugin
 {
-	public $task = 'addressbook|login|mail|settings';
+	// the dummy task is used by the calendar plugin, which requires
+	// the addressbook to be initialized
+	public $task = 'addressbook|login|mail|settings|dummy';
 
 	// available types of sorting
 	const sortorder_default = 'surname';

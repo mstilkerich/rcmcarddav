@@ -1025,6 +1025,12 @@ class carddav_backend extends rcube_addressbook
 				self::warn("Couldn't parse vcard ".$contact['vcard']);
 				continue;
 			}
+
+			// needed by the calendar plugin
+			if(in_array('vcard', $cols)) {
+				$save_data['save_data']['vcard'] = $contact['vcard'];
+			}
+
 			$save_data = $save_data['save_data'];
 		} else {
 			$save_data = array();
@@ -1320,6 +1326,7 @@ class carddav_backend extends rcube_addressbook
 	 */
   private function create_vcard_from_save_data($save_data, $vcf=null)
   {{{
+	unset($save_data['vcard']);
 	if(!$vcf) { // create fresh minimal vcard
 		$vcfstr = array(
 			'BEGIN:VCARD',
