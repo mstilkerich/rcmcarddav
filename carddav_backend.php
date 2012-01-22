@@ -700,6 +700,8 @@ class carddav_backend extends rcube_addressbook
 			if ($error == ""){
 				$error = $http->ReadWholeReplyBody($body);
 				if ($error == ""){
+					$body = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $body);
+					$body = preg_replace('/[a-zA-Z]+:([a-zA-Z]+[=>])/', '', $body);
 					$reply["status"] = $http->response_status;
 					$reply["headers"] = $headers;
 					$reply["body"] = $body;
@@ -850,7 +852,7 @@ class carddav_backend extends rcube_addressbook
 
 	$xmlquery =
 		'<?xml version="1.0" encoding="utf-8" ?'.'>
-			<a:propfind xmlns:a="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">>
+			<a:propfind xmlns:a="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
 				<a:prop>
 					<C:addressbook-home-set/>
 				</a:prop>
@@ -869,10 +871,16 @@ class carddav_backend extends rcube_addressbook
 
 	$xml = new SimpleXMLElement($reply['body']);
 	$abookhome = $xml->response->propstat->prop->{'addressbook-home-set'}->href;
+	if (strlen($abookhome) == 0){
+		$abookhome = $xml->response->href;
+	}
 	self::debug("find_addressbook addressbook home: $abookhome");
 
-	if(!preg_match(';^[^/]+://[^/]+;', $abookhome, $match))
+	if (strlen($abookhome) == 0)
 		return false;
+	if (!preg_match(';^[^/]+://[^/]+;', $abookhome)){
+		$abookhome = concaturl($config['url'], $xml->response->href);
+	}
 	$serverpart = $match[0];
 
 	$xmlquery =
@@ -896,6 +904,9 @@ class carddav_backend extends rcube_addressbook
 	foreach($xml->response as $coll) {
 		if($coll->propstat->prop->resourcetype->addressbook) {
 			$serverpart .= $coll->href;
+			if (!preg_match(';^[^/]+://[^/]+;', $serverpart)){
+				$serverpart = concaturl($config['url'], $serverpart);
+			}
 			self::debug("find_addressbook found: $serverpart");
 			return $serverpart;
 		}
