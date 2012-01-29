@@ -1,11 +1,13 @@
 <?php
-$labels['cd_title'] = 'CardDAV';
-$labels['cd_active'] = 'Utilizza rubrica CardDAV';
-$labels['cd_username'] = 'Nome utente';
-$labels['cd_password'] = 'Password';
-$labels['cd_url'] = 'Indirizzo server (URL)';
-$labels['cd_php_too_old'] = "E' necessario aggiornare PHP alla versione 5.3.0 o superiore! Attualmente hai la versione:";
-$labels['cd_name'] = "Nome nuova rubrica";
-$labels['cd_delete'] = "Elimina rubrica";
-$labels['cd_name_new'] = "Crea una nuova rubrica";
+$labels = Array(
+	'cd_title' => 'CardDAV',
+	'cd_active' => 'Utilizza rubrica CardDAV',
+	'cd_username' => 'Nome utente',
+	'cd_password' => 'Password',
+	'cd_url' => 'Indirizzo server (URL)',
+	'cd_php_too_old' => "E' necessario aggiornare PHP alla versione 5.3.0 o superiore! Attualmente hai la versione:",
+	'cd_name' => "Nome nuova rubrica",
+	'cd_delete' => "Elimina rubrica",
+	'cd_name_new' => "Crea una nuova rubrica"
+);
 ?>
