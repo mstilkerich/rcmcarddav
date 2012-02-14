@@ -405,13 +405,14 @@ class carddav extends rcube_plugin
 			$usr  = get_input_value('new_cd_username', RCUBE_INPUT_POST);
 			$pass = get_input_value('new_cd_password', RCUBE_INPUT_POST);
 
-			$srv = carddav_backend::find_addressbook(array('url'=>$srv,'password'=>$pass,'username'=>$usr));
-			if($srv) {
+			$srvs = carddav_backend::find_addressbook(array('url'=>$srv,'password'=>$pass,'username'=>$usr));
+			foreach($srvs as $key => $srv){
+				//'name'     => get_input_value('new_cd_name', RCUBE_INPUT_POST),
 				self::insert_abook(array(
-					'name'     => get_input_value('new_cd_name', RCUBE_INPUT_POST),
+					'name'     => $srv[name],
 					'username' => $usr,
 					'password' => $pass,
-					'url'      => $srv,
+					'url'      => $srv[href],
 					'displayorder' => get_input_value('new_cd_displayorder', RCUBE_INPUT_POST),
 					'sortorder' => get_input_value('new_cd_sortorder', RCUBE_INPUT_POST),
 					'refresh_time' => get_input_value('new_cd_refresh_time', RCUBE_INPUT_POST)

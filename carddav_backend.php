@@ -128,23 +128,23 @@ function endElement_addvcards($parser, $n) {{{
 
 	$n = str_replace("SYNC-", "", $n);
 	$ctag = preg_replace(";\|\|$n$;", "", $ctag);
-	if ($n == "DAV::RESPONSE"){
+	if ($n == "RESPONSE"){
 		$vcards[] = $cur_vcard;
 		$cur_vcard = array('vcf'=>'','etag'=>'');
 	}
 }}}
 function characterData_addvcards($parser, $data) {{{
 	global $ctag; global $cur_vcard;
-	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::HREF"){
+	if ($ctag == "||MULTISTATUS||RESPONSE||HREF"){
 		$cur_vcard['href'] = $data;
 	}
-	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||URN:IETF:PARAMS:XML:NS:CARDDAV:ADDRESS-DATA"){
+	if ($ctag == "||MULTISTATUS||RESPONSE||PROPSTAT||PROP||ADDRESS-DATA"){
 		$cur_vcard['vcf'] .= $data;
 	}
-	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETETAG"){
+	if ($ctag == "||MULTISTATUS||RESPONSE||PROPSTAT||PROP||GETETAG"){
 		$cur_vcard['etag'] .= $data;
 	}
-	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETCONTENTTYPE"){
+	if ($ctag == "||MULTISTATUS||RESPONSE||PROPSTAT||PROP||GETCONTENTTYPE"){
 		$cur_vcard['content-type'] = $data;
 	}
 }}}
@@ -167,7 +167,7 @@ class carddav_backend extends rcube_addressbook
 	private $xlabels;
 
 	const DEBUG      = true; // set to true for basic debugging
-	const DEBUG_HTTP = true; // set to true for debugging raw http stream
+	const DEBUG_HTTP = false; // set to true for debugging raw http stream
 
 	// contains a the URIs, db ids and etags of the locally stored cards whenever
 	// a refresh from the server is attempted. This is used to avoid a separate
@@ -700,8 +700,14 @@ class carddav_backend extends rcube_addressbook
 			if ($error == ""){
 				$error = $http->ReadWholeReplyBody($body);
 				if ($error == ""){
-					$body = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $body);
-					$body = preg_replace('/[a-zA-Z]+:([a-zA-Z]+[=>])/', '', $body);
+					//xmlns="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"
+					if (preg_match_all(',xmlns:([^=]+)=,', $body, $ns, PREG_SET_ORDER)){
+						foreach($ns as $match){
+							$body = preg_replace(",<(/?)$match[1]:,", "<\\1", $body);
+						}
+						$body = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $body);
+					}
+					//$body = preg_replace('/[a-zA-Z0-9]+:([a-zA-Z]+[=>])/', '', $body);
 					$reply["status"] = $http->response_status;
 					$reply["headers"] = $headers;
 					$reply["body"] = $body;
@@ -885,9 +891,8 @@ class carddav_backend extends rcube_addressbook
 
 	$xmlquery =
 		'<?xml version="1.0" encoding="utf-8"?'.'>
-		<D:propfind xmlns:D="DAV:"><D:prop>
-  		<D:resourcetype />
-		</D:prop></D:propfind>';
+		<D:propfind xmlns:D="DAV:"><D:allprop/>
+		</D:propfind>';
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
@@ -900,18 +905,22 @@ class carddav_backend extends rcube_addressbook
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
 
+	$retVal = array();
+
 	$xml = new SimpleXMLElement($reply['body']);
 	foreach($xml->response as $coll) {
 		if($coll->propstat->prop->resourcetype->addressbook) {
-			$serverpart .= $coll->href;
-			if (!preg_match(';^[^/]+://[^/]+;', $serverpart)){
-				$serverpart = concaturl($config['url'], $serverpart);
+			$aBook = array();
+			$aBook[href] = $serverpart . $coll->href;
+			$aBook[name] = $coll->propstat->prop->displayname;
+			if (!preg_match(';^[^/]+://[^/]+;', $aBook[href])){
+				$aBook[href] = concaturl($config['url'], $aBook[href]);
 			}
-			self::debug("find_addressbook found: $serverpart");
-			return $serverpart;
+			self::debug("find_addressbook found: ".$aBook[name]." at ".$aBook[href]);
+			$retVal[] = $aBook;
 		}
 	}
-	return false;
+	return $retVal;
 	}}}
 
   /**
@@ -944,7 +953,7 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	$reply = self::cdfopen("list_records_sync_collection", "", $opts, $this->config);
+	$reply = self::cdfopen("list_records_sync_collection", $this->config['url'], $opts, $this->config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return -1;
 
@@ -1093,7 +1102,7 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
-	$reply = self::cdfopen("query_addressbook_multiget", "", $optsREPORT, $this->config);
+	$reply = self::cdfopen("query_addressbook_multiget", $this->config['url'], $optsREPORT, $this->config);
 	return $reply;
   }}}
 
