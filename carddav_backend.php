@@ -27,9 +27,10 @@ function carddavconfig($abookid){{{
 
 	// cludge, agreed, but the MDB abstraction seems to have no way of
 	// doing time calculations...
-	$timequery = ($dbh->db_provider === 'sqlite')
-		? "(datetime('now') > datetime(last_updated,refresh_time))" 
-		: '('.$dbh->now().'>last_updated+refresh_time)';
+	$timequery = '('. $dbh->now() . ' > ' .
+		(($dbh->db_provider === 'sqlite')
+		? ' datetime(last_updated,refresh_time))'
+		: ' last_updated+refresh_time)');
 
 	$abookrow = carddav_backend::get_dbrecord($abookid,
 		'id as abookid,name,username,password,url,presetname,displayorder,sortorder,'
