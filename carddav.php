@@ -407,9 +407,12 @@ class carddav extends rcube_plugin
 
 			$srvs = carddav_backend::find_addressbook(array('url'=>$srv,'password'=>$pass,'username'=>$usr));
 			foreach($srvs as $key => $srv){
-				//'name'     => get_input_value('new_cd_name', RCUBE_INPUT_POST),
+				$abname = get_input_value('new_cd_name', RCUBE_INPUT_POST);
+				if($srv[name]) {
+					$abname .= ' (' . $srv[name] . ')';
+				}
 				self::insert_abook(array(
-					'name'     => $srv[name],
+					'name'     => $abname,
 					'username' => $usr,
 					'password' => $pass,
 					'url'      => $srv[href],
@@ -441,7 +444,7 @@ class carddav extends rcube_plugin
 	private static function insert_abook($pa)
 	{{{
 	$dbh = rcmail::get_instance()->db;
-	
+
 	// check parameters
 	$pa['refresh_time'] = self::process_cd_time($pa['refresh_time']);
 	$pa['sortorder']    = self::process_sortorder($pa['sortorder']);

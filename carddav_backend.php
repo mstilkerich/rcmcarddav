@@ -894,8 +894,10 @@ class carddav_backend extends rcube_addressbook
 
 	$xmlquery =
 		'<?xml version="1.0" encoding="utf-8"?'.'>
-		<D:propfind xmlns:D="DAV:"><D:allprop/>
-		</D:propfind>';
+		<D:propfind xmlns:D="DAV:"><D:prop>
+		<D:resourcetype />
+		<D:displayname />
+		</D:prop></D:propfind>';
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
