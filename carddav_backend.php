@@ -798,7 +798,7 @@ class carddav_backend extends rcube_addressbook
 	 * @param  boolean True to skip the count query (select only)
 	 * @return array   Indexed list of contact records, each a hash array
 	 */
-  public function list_records($cols=null, $subset=0, $nocount=false)
+  public function list_records($cols=array(), $subset=0, $nocount=false)
 	{{{
 	// refresh from server if refresh interval passed
 	if ( $this->config['needs_update'] == 1 )
@@ -1191,7 +1191,7 @@ class carddav_backend extends rcube_addressbook
   }}}
 
 	// Determines and returns the number of cards matching the current search criteria
-	private function _count($cols=null)
+	private function _count($cols=array())
 	{{{
 	if($this->total_cards < 0) {
 		$dbh = rcmail::get_instance()->db;
