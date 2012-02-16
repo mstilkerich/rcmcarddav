@@ -131,23 +131,23 @@ function endElement_addvcards($parser, $n) {{{
 
 	$n = str_replace("SYNC-", "", $n);
 	$ctag = preg_replace(";\|\|$n$;", "", $ctag);
-	if ($n == "RESPONSE"){
+	if ($n == "DAV::RESPONSE"){
 		$vcards[] = $cur_vcard;
 		$cur_vcard = array('vcf'=>'','etag'=>'');
 	}
 }}}
 function characterData_addvcards($parser, $data) {{{
 	global $ctag; global $cur_vcard;
-	if ($ctag == "||MULTISTATUS||RESPONSE||HREF"){
+	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::HREF"){
 		$cur_vcard['href'] = $data;
 	}
-	if ($ctag == "||MULTISTATUS||RESPONSE||PROPSTAT||PROP||ADDRESS-DATA"){
+	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||URN:IETF:PARAMS:XML:NS:CARDDAV:ADDRESS-DATA"){
 		$cur_vcard['vcf'] .= $data;
 	}
-	if ($ctag == "||MULTISTATUS||RESPONSE||PROPSTAT||PROP||GETETAG"){
+	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETETAG"){
 		$cur_vcard['etag'] .= $data;
 	}
-	if ($ctag == "||MULTISTATUS||RESPONSE||PROPSTAT||PROP||GETCONTENTTYPE"){
+	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETCONTENTTYPE"){
 		$cur_vcard['content-type'] = $data;
 	}
 }}}
@@ -704,12 +704,12 @@ class carddav_backend extends rcube_addressbook
 				$error = $http->ReadWholeReplyBody($body);
 				if ($error == ""){
 					//xmlns="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"
-					if (preg_match_all(',xmlns:([^=]+)=,', $body, $ns, PREG_SET_ORDER)){
-						foreach($ns as $match){
-							$body = preg_replace(",<(/?)$match[1]:,", "<\\1", $body);
-						}
-						$body = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $body);
-					}
+//				if (preg_match_all(',xmlns:([^=]+)=,', $body, $ns, PREG_SET_ORDER)){
+//					foreach($ns as $match){
+//						$body = preg_replace(",<(/?)$match[1]:,", "<\\1", $body);
+//					}
+//					$body = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $body);
+//				}
 					//$body = preg_replace('/[a-zA-Z0-9]+:([a-zA-Z]+[=>])/', '', $body);
 					$reply["status"] = $http->response_status;
 					$reply["headers"] = $headers;
@@ -836,6 +836,7 @@ class carddav_backend extends rcube_addressbook
 	 */
 	public static function find_addressbook($config)
 	{{{
+	// Retrieve Principal URL
 	$xmlquery =
 		'<?xml version="1.0" encoding="utf-8" ?'.'>
 			<a:propfind xmlns:a="DAV:">
@@ -856,9 +857,15 @@ class carddav_backend extends rcube_addressbook
 		return false;
 
 	$xml = new SimpleXMLElement($reply['body']);
-	$princurl = $xml->response->propstat->prop->{'current-user-principal'}->href;
+	$xml->registerXPathNamespace('D', 'DAV:');
+	$xpresult = $xml->xpath('//D:current-user-principal/D:href');
+	if(count($xpresult) == 0)
+		return false;
+
+	$princurl = $xpresult[0];
 	self::debug("find_addressbook Principal URL: $princurl");
 
+	// Find Addressbook Home Path of Principal
 	$xmlquery =
 		'<?xml version="1.0" encoding="utf-8" ?'.'>
 			<a:propfind xmlns:a="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
@@ -879,19 +886,28 @@ class carddav_backend extends rcube_addressbook
 		return false;
 
 	$xml = new SimpleXMLElement($reply['body']);
-	$abookhome = $xml->response->propstat->prop->{'addressbook-home-set'}->href;
-	if (strlen($abookhome) == 0){
-		$abookhome = $xml->response->href;
+	$namespaces = $xml->getNameSpaces(true);
+	$resp = $xml->children($namespaces['DAV:'])->response;
+
+	$xml->registerXPathNamespace('C', 'urn:ietf:params:xml:ns:carddav');
+	$xml->registerXPathNamespace('D', 'DAV:');
+	$xpresult = $xml->xpath('//C:addressbook-home-set/D:href');
+	if(count($xpresult) > 0) {
+		$abookhome = $xpresult[0];
+	} else {
+		$abookhome = $princurl;
 	}
 	self::debug("find_addressbook addressbook home: $abookhome");
 
 	if (strlen($abookhome) == 0)
 		return false;
+
 	if (!preg_match(';^[^/]+://[^/]+;', $abookhome)){
-		$abookhome = concaturl($config['url'], $xml->response->href);
+		$abookhome = concaturl($config['url'], $abookhome);
 	}
 	$serverpart = $match[0];
 
+	// Read Addressbooks
 	$xmlquery =
 		'<?xml version="1.0" encoding="utf-8"?'.'>
 		<D:propfind xmlns:D="DAV:"><D:prop>
@@ -913,11 +929,21 @@ class carddav_backend extends rcube_addressbook
 	$retVal = array();
 
 	$xml = new SimpleXMLElement($reply['body']);
-	foreach($xml->response as $coll) {
-		if($coll->propstat->prop->resourcetype->addressbook) {
+	$namespaces = $xml->getNameSpaces(true);
+
+	foreach($xml->children($namespaces['DAV:'])->response as $coll) {
+		if($coll->children($namespaces['DAV:'])
+			->propstat->children($namespaces['DAV:'])
+			->prop->children($namespaces['DAV:'])
+			->resourcetype->children($namespaces['DAV:'])
+			->addressbook) {
 			$aBook = array();
-			$aBook[href] = $serverpart . $coll->href;
-			$aBook[name] = $coll->propstat->prop->displayname;
+			$aBook[href] = $serverpart . $coll->children($namespaces['DAV:'])->href;
+			$aBook[name] = $coll->children($namespaces['DAV:'])
+				->propstat->children($namespaces['DAV:'])
+				->prop->children($namespaces['DAV:'])				
+				->displayname;
+
 			if (!preg_match(';^[^/]+://[^/]+;', $aBook[href])){
 				$aBook[href] = concaturl($config['url'], $aBook[href]);
 			}
