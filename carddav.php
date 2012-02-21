@@ -518,7 +518,7 @@ class carddav extends rcube_plugin
 		$dbh->query('UPDATE ' .
 			get_table_name('carddav_contacts') .
 			" SET name=($dostr) " .
-			" WHERE abook_id=? AND showas=''",
+			" WHERE abook_id=? AND (showas='' OR showas='INDIVIDUAL')",
 			$abookid);
 	}
 
@@ -532,7 +532,7 @@ class carddav extends rcube_plugin
 		$dbh->query('UPDATE ' .
 			get_table_name('carddav_contacts') .
 			" SET sortname=($dostr) " .
-			" WHERE abook_id=? AND showas=''",
+			" WHERE abook_id=? AND (showas='' OR showas='INDIVIDUAL')",
 			$abookid);
 	}
 	}}}	

@@ -1726,7 +1726,7 @@ class carddav_backend extends rcube_addressbook
 	}
 	// organization not set but showas==company => show as regular
 	if(!$save_data['organization'] && $save_data['showas']==='COMPANY') {
-		$save_data['showas'] = '';
+		$save_data['showas'] = 'INDIVIDUAL';
 	}
 	
 	// generate display name according to display order setting
