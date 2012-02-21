@@ -886,9 +886,6 @@ class carddav_backend extends rcube_addressbook
 		return false;
 
 	$xml = new SimpleXMLElement($reply['body']);
-	$namespaces = $xml->getNameSpaces(true);
-	$resp = $xml->children($namespaces['DAV:'])->response;
-
 	$xml->registerXPathNamespace('C', 'urn:ietf:params:xml:ns:carddav');
 	$xml->registerXPathNamespace('D', 'DAV:');
 	$xpresult = $xml->xpath('//C:addressbook-home-set/D:href');
@@ -929,19 +926,19 @@ class carddav_backend extends rcube_addressbook
 	$retVal = array();
 
 	$xml = new SimpleXMLElement($reply['body']);
-	$namespaces = $xml->getNameSpaces(true);
 
-	foreach($xml->children($namespaces['DAV:'])->response as $coll) {
-		if($coll->children($namespaces['DAV:'])
-			->propstat->children($namespaces['DAV:'])
-			->prop->children($namespaces['DAV:'])
-			->resourcetype->children($namespaces['DAV:'])
+	foreach($xml->children('DAV:')->response as $coll) {
+		if($coll->children('DAV:')
+			->propstat->children('DAV:')
+			->prop->children('DAV:')
+			->resourcetype->children('urn:ietf:params:xml:ns:carddav')
 			->addressbook) {
+
 			$aBook = array();
-			$aBook[href] = $serverpart . $coll->children($namespaces['DAV:'])->href;
-			$aBook[name] = $coll->children($namespaces['DAV:'])
-				->propstat->children($namespaces['DAV:'])
-				->prop->children($namespaces['DAV:'])				
+			$aBook[href] = $serverpart . $coll->children('DAV:')->href;
+			$aBook[name] = $coll->children('DAV:')
+				->propstat->children('DAV:')
+				->prop->children('DAV:')				
 				->displayname;
 
 			if (!preg_match(';^[^/]+://[^/]+;', $aBook[href])){
