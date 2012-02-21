@@ -438,7 +438,7 @@ class carddav_backend extends rcube_addressbook
 	if(strcasecmp($save_data['showas'], 'COMPANY') == 0) {
 		$save_data['name']     = $save_data['organization'];
 		$save_data['sortname'] = $save_data['organization'];
-	} else if(array_key_exists('kind', $save_data) && strcasecmp($save_data['kind'],'group')!==0 ) {
+	} else if(!array_key_exists('kind', $save_data) || strcasecmp($save_data['kind'],'group')!==0 ) {
 		if($this->config['displayorder'] === 'lastfirst') {
 			$save_data['name'] = $save_data['surname'].", ".$save_data['firstname'];
 		} else {
