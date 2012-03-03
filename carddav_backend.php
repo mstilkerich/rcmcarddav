@@ -145,7 +145,7 @@ function characterData_addvcards($parser, $data) {{{
 		$cur_vcard['vcf'] .= $data;
 	}
 	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETETAG"){
-		$cur_vcard['etag'] .= $data;
+		$cur_vcard['etag'] = $data;
 	}
 	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETCONTENTTYPE"){
 		$cur_vcard['content-type'] = $data;
