@@ -32,13 +32,6 @@ class carddav extends rcube_plugin
 		'firstname' => 'First Name',
 	);
 
-	// available types of name display
-	const displayorder_default = 'firstlast';
-	private static $displayorders = array(
-		'firstlast' => 'First Name, Last Name',
-		'lastfirst' => 'Last Name, First Name',
-	);
-
 	// these fields can only be changed by the admin for presets with fixed=1
 	private static $preset_adminonly = array('username','url');
 
@@ -86,7 +79,7 @@ class carddav extends rcube_plugin
 	$prefs = carddav_backend::get_adminsettings();
 
 	// read existing presets from DB
-	$sql_result = $dbh->query('SELECT id,presetname,displayorder,sortorder FROM ' .
+	$sql_result = $dbh->query('SELECT id,presetname,sortorder FROM ' .
 		get_table_name('carddav_addressbooks') .
 		' WHERE user_id=? AND presetname is not null',
 		$_SESSION['user_id']);
@@ -109,7 +102,7 @@ class carddav extends rcube_plugin
 						$pa[$k] = $preset[$k];
 				}
 				$ep = $existing_presets[$presetname];
-				self::update_abook($ep['id'],$ep['displayorder'],$ep['sortorder'],$pa);
+				self::update_abook($ep['id'],$ep['sortorder'],$pa);
 			}
 
 			unset($existing_presets[$presetname]);
@@ -186,13 +179,6 @@ class carddav extends rcube_plugin
 		return self::sortorder_default;
 	}}}
 
-	private static function process_displayorder($displayorder)
-	{{{
-		if($displayorder && array_key_exists($displayorder, self::$displayorders))
-			return $displayorder;
-		return self::displayorder_default;
-	}}}
-
 	private static function no_override($pref, $abook, $prefs) {
 		$pn = $abook['presetname'];
 		return ($pn && $prefs[$pn]['fixed'] && in_array($pref,self::$preset_adminonly));
@@ -253,17 +239,6 @@ class carddav extends rcube_plugin
 			$content_name = $input->show();
 		}
 
-		// dropdown for display order
-		if (self::no_override('displayorder', $abook, $prefs)) {
-			$content_displayorder = self::$displayorders[$abook['displayorder']];
-		} else {
-			$input = new html_select(array('name' => $abookid.'_cd_displayorder'));
-			foreach(self::$displayorders as $k => $desc) {
-				$input->add($desc,$k);
-			}
-			$content_displayorder = $input->show($abook['displayorder']);
-		}
-
 		// dropdown for sort order
 		if (self::no_override('sortorder', $abook, $prefs)) {
 			$content_sortorder = self::$sortorders[$abook['sortorder']];
@@ -283,7 +258,6 @@ class carddav extends rcube_plugin
 				array('title'=> Q($this->gettext('cd_password')), 'content' => $content_password),
 				array('title'=> Q($this->gettext('cd_url')), 'content' => $content_url),
 				array('title'=> Q($this->gettext('cd_refresh_time')), 'content' => $content_refresh_time),
-				array('title'=> Q($this->gettext('cd_displayorder')), 'content' => $content_displayorder),
 				array('title'=> Q($this->gettext('cd_sortorder')), 'content' => $content_sortorder),
 			),
 			'name' => $blockheader
@@ -338,7 +312,6 @@ class carddav extends rcube_plugin
 					'refresh_time' => 1,
 					'presetname'   => '',
 					'sortorder'    => self::sortorder_default,
-					'displayorder' => self::displayorder_default,
 				), $prefs);
 		}
 
@@ -364,7 +337,7 @@ class carddav extends rcube_plugin
 		$prefs = carddav_backend::get_adminsettings();
 
 		// update existing in DB
-		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'id,presetname,sortorder,displayorder',
+		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'id,presetname,sortorder',
 			'addressbooks', false, 'user_id');
 
 		foreach($abooks as $abook) {
@@ -373,7 +346,6 @@ class carddav extends rcube_plugin
 				self::delete_abook($abookid);
 
 			} else {
-				$olddisplayorder = $abook['displayorder'];
 				$oldsortorder = $abook['sortorder'];
 
 				$newset = array (
@@ -381,7 +353,6 @@ class carddav extends rcube_plugin
 					'username' => get_input_value($abookid."_cd_username", RCUBE_INPUT_POST),
 					'url' => get_input_value($abookid."_cd_url", RCUBE_INPUT_POST),
 					'active' => isset($_POST[$abookid.'_cd_active']) ? 1 : 0,
-					'displayorder' => get_input_value($abookid."_cd_displayorder", RCUBE_INPUT_POST),
 					'sortorder' => get_input_value($abookid."_cd_sortorder", RCUBE_INPUT_POST),
 					'refresh_time' => get_input_value($abookid."_cd_refresh_time", RCUBE_INPUT_POST),
 				);
@@ -399,7 +370,7 @@ class carddav extends rcube_plugin
 					}
 				}
 
-				self::update_abook($abookid, $olddisplayorder, $oldsortorder, $newset);
+				self::update_abook($abookid, $oldsortorder, $newset);
 			}
 		}
 
@@ -421,7 +392,6 @@ class carddav extends rcube_plugin
 					'username' => $usr,
 					'password' => $pass,
 					'url'      => $srv[href],
-					'displayorder' => get_input_value('new_cd_displayorder', RCUBE_INPUT_POST),
 					'sortorder' => get_input_value('new_cd_sortorder', RCUBE_INPUT_POST),
 					'refresh_time' => get_input_value('new_cd_refresh_time', RCUBE_INPUT_POST)
 				));
@@ -453,11 +423,10 @@ class carddav extends rcube_plugin
 	// check parameters
 	$pa['refresh_time'] = self::process_cd_time($pa['refresh_time']);
 	$pa['sortorder']    = self::process_sortorder($pa['sortorder']);
-	$pa['displayorder'] = self::process_displayorder($pa['displayorder']);
 	$pa['user_id']      = $_SESSION['user_id'];
 
 	// required fields
-	$qf=array('name','username','password','url','displayorder','sortorder','refresh_time','user_id');
+	$qf=array('name','username','password','url','sortorder','refresh_time','user_id');
 	$qv=array();
 	foreach($qf as $f) {
 		if(!array_key_exists($f,$pa)) return false;
@@ -480,7 +449,7 @@ class carddav extends rcube_plugin
 	);
 	}}}	
 	
-	private static function update_abook($abookid, $olddisplayorder, $oldsortorder, $pa)
+	private static function update_abook($abookid, $oldsortorder, $pa)
 	{{{
 	$dbh = rcmail::get_instance()->db;
 
@@ -489,11 +458,9 @@ class carddav extends rcube_plugin
 		$pa['refresh_time'] = self::process_cd_time($pa['refresh_time']);
 	if(array_key_exists('sortorder', $pa))
 		$pa['sortorder']    = self::process_sortorder($pa['sortorder']);
-	if(array_key_exists('displayorder', $pa))
-		$pa['displayorder'] = self::process_displayorder($pa['displayorder']);
 
 	// optional fields
-	$qfo=array('name','username','password','url','active','refresh_time','sortorder','displayorder');
+	$qfo=array('name','username','password','url','active','refresh_time','sortorder');
 	$qf=array();
 	$qv=array();
 
@@ -512,20 +479,6 @@ class carddav extends rcube_plugin
 		' WHERE id=?',
 		$qv
 	);
-
-	// update display names if changed
-	if(array_key_exists('displayorder', $pa) &&
-		$olddisplayorder !== $pa['displayorder']) {
-		$dostr = ($pa['displayorder']==='firstlast') ?
-			$dbh->concat('firstname', "' '" ,'surname') :
-			$dbh->concat('surname', "', '" ,'firstname') ;
-
-		$dbh->query('UPDATE ' .
-			get_table_name('carddav_contacts') .
-			" SET name=($dostr) " .
-			" WHERE abook_id=? AND (showas='' OR showas='INDIVIDUAL')",
-			$abookid);
-	}
 
 	// update sort names if setting changed
 	if(array_key_exists('sortorder', $pa) &&
