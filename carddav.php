@@ -149,6 +149,11 @@ class carddav extends rcube_plugin
 			'readonly' => $ro,
 		);
 	}
+	if (@array_key_exists(0, $p['sources'])){
+		$x = array_shift($p['sources']);
+		$p['sources']["zzzpleasebethelastentryzzz"] = $x;
+	}
+	write_log("carddav", var_export($p, true));
 	return $p;
 	}}}
 
