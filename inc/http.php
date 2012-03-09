@@ -1612,6 +1612,40 @@ class http_class
 		return("");
 	}
 
+	Function parseWWWAuthenticateHeader($authenticate_header)
+	{
+		// Example: Basic realm="Michaels-Mac.local", digest nonce="913626301160077166112719125044069770555892749270918049999", realm="Michaels-Mac.local", algorithm="md5"
+		$ret = array();
+		$tokens=explode(" ", $authenticate_header);
+
+		while(count($tokens) > 0) {
+			$mech = array_shift($tokens);
+
+			// append parameters
+			while(count($tokens > 0) && strpos($tokens[0], '=') > 0) {
+				$param = array_shift($tokens);
+				$mech .= " $param";
+	
+				// handle quoted strings with whitespaces
+				$tpos = strpos($param, '="');
+				if($tpos>0 && strrpos($param, '"') === ($tpos+1)) {
+					do {
+						$param = array_shift($tokens);
+						$mech .= " $param";
+					} while(strpos($param, '"') === FALSE);
+				}
+			}
+
+			// if there are further mechs, we need to strip the trailing comma
+			if(strrpos($mech, ',')+1 === strlen($mech)) {
+				$mech = substr($mech, 0, strlen($mech)-1);
+			}
+			$ret[] = $mech;
+		}
+
+		return $ret;
+	}
+
 	Function Authenticate(&$headers, $proxy, &$proxy_authorization, &$user, &$password, &$realm, &$workstation)
 	{
 		if($proxy)
@@ -1636,7 +1670,7 @@ class http_class
 			if(GetType($headers[$authenticate_header])=="array"){
 				$authenticate=$headers[$authenticate_header];
 			} else {
-				$authenticate=explode(", ", $headers[$authenticate_header]);
+				$authenticate=$this->parseWWWAuthenticateHeader($headers[$authenticate_header]);
 			}
 			for($response="", $mechanisms=array(),$m=0;$m<count($authenticate);$m++)
 			{
@@ -1718,7 +1752,7 @@ class http_class
 				elseif(GetType($headers[$authenticate_header])=="array")
 					$authenticate=$headers[$authenticate_header];
 				else
-					$authenticate=explode(", ", $headers[$authenticate_header]);
+					$authenticate=$this->parseWWWAuthenticateHeader($headers[$authenticate_header]);
 				for($mechanism=0;$mechanism<count($authenticate);$mechanism++)
 				{
 					if(!strcmp($this->Tokenize($authenticate[$mechanism]," "),$sasl->mechanism))
@@ -1788,7 +1822,7 @@ class http_class
 								if(GetType($headers[$authenticate_header])=="array")
 									$authenticate=$headers[$authenticate_header];
 								else
-									$authenticate=explode(", ", $headers[$authenticate_header]);
+									$authenticate=$this->parseWWWAuthenticateHeader($headers[$authenticate_header]);
 								for($response="",$mechanism=0;$mechanism<count($authenticate);$mechanism++)
 								{
 									if(!strcmp($this->Tokenize($authenticate[$mechanism]," "),$sasl->mechanism))
