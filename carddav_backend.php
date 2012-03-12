@@ -169,7 +169,7 @@ class carddav_backend extends rcube_addressbook
 	// custom labels defined in the addressbook
 	private $xlabels;
 
-	const DEBUG      = true; // set to true for basic debugging
+	const DEBUG      = false; // set to true for basic debugging
 	const DEBUG_HTTP = false; // set to true for debugging raw http stream
 
 	// contains a the URIs, db ids and etags of the locally stored cards whenever
@@ -698,14 +698,6 @@ class carddav_backend extends rcube_addressbook
 			if ($error == ""){
 				$error = $http->ReadWholeReplyBody($body);
 				if ($error == ""){
-					//xmlns="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"
-//				if (preg_match_all(',xmlns:([^=]+)=,', $body, $ns, PREG_SET_ORDER)){
-//					foreach($ns as $match){
-//						$body = preg_replace(",<(/?)$match[1]:,", "<\\1", $body);
-//					}
-//					$body = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $body);
-//				}
-					//$body = preg_replace('/[a-zA-Z0-9]+:([a-zA-Z]+[=>])/', '', $body);
 					$reply["status"] = $http->response_status;
 					$reply["headers"] = $headers;
 					$reply["body"] = $body;
@@ -831,6 +823,8 @@ class carddav_backend extends rcube_addressbook
 	 */
 	public static function find_addressbook($config)
 	{{{
+
+	if (!preg_match(';^([^/]+://[^/]+)/.+;', $config['url'], $match)) {
 	// Retrieve Principal URL
 	$xmlquery =
 		'<?xml version="1.0" encoding="utf-8" ?'.'>
@@ -894,10 +888,14 @@ class carddav_backend extends rcube_addressbook
 	if (strlen($abookhome) == 0)
 		return false;
 
-	if (!preg_match(';^[^/]+://[^/]+;', $abookhome)){
+	if (!preg_match(';^[^/]+://[^/]+;', $abookhome,$match)){
 		$abookhome = concaturl($config['url'], $abookhome);
 	}
 	$serverpart = $match[0];
+	} else {
+		$abookhome = $config['url'];
+		$serverpart = $match[1];
+	}
 
 	// Read Addressbooks
 	$xmlquery =

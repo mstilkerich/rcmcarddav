@@ -146,7 +146,6 @@ class carddav extends rcube_plugin
 		$x = array_shift($p['sources']);
 		$p['sources']["zzzpleasebethelastentryzzz"] = $x;
 	}
-	write_log("carddav", var_export($p, true));
 	return $p;
 	}}}
 
