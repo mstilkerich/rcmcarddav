@@ -110,7 +110,7 @@ function concaturl($str, $cat){{{
 	// $cat is a full path, the append it to the
 	// hostpart only
 	} else {
-		$urlpart = "$cat";
+		$urlpart = $cat;
 	}
 
 	// remove // in the path
@@ -665,7 +665,7 @@ class carddav_backend extends rcube_addressbook
 	$http->redirection_limit=5;
 	$http->prefer_curl=1;
 
-	if(!strpos($url, '://')) {
+	if(strpos($url, '://') === FALSE) {
 		$url = concaturl($carddav['url'], $url);
 	}
 
@@ -823,8 +823,50 @@ class carddav_backend extends rcube_addressbook
 	 */
 	public static function find_addressbook($config)
 	{{{
+	$retVal = array();
 
-	if (!preg_match(';^([^/]+://[^/]+)/.+;', $config['url'], $match)) {
+	// check if the given URL points to an addressbook
+	$xmlquery =
+		'<?xml version="1.0" encoding="utf-8"?'.'>
+		<D:propfind xmlns:D="DAV:"><D:prop>
+		<D:resourcetype />
+		<D:displayname />
+		</D:prop></D:propfind>';
+	$opts = array(
+		'http'=>array(
+			'method'=>"PROPFIND",
+			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
+			'content'=> $xmlquery
+		)
+	);
+	
+	$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config);
+	if ($reply == -1) // error occured, as opposed to "" which means empty reply
+		return false;
+
+
+	$xml = new SimpleXMLElement($reply['body']);
+	if($xml->children('DAV:')
+		->response->children('DAV:')
+		->propstat->children('DAV:')
+		->prop->children('DAV:')
+		->resourcetype->children('urn:ietf:params:xml:ns:carddav')
+		->addressbook) {
+			
+			$aBook = array();
+			$aBook[href] = $config['url'];
+			$aBook[name] = $xml->children('DAV:')
+				->response->children('DAV:')
+				->propstat->children('DAV:')
+				->prop->children('DAV:')				
+				->displayname;
+			
+			self::debug("find_addressbook found: ".$aBook[name]." at ".$aBook[href]);
+			$retVal[] = $aBook;
+			return $retVal;
+	}
+
+	// No addressbook found, try to auto-determine addressbook locations
 	// Retrieve Principal URL
 	$xmlquery =
 		'<?xml version="1.0" encoding="utf-8" ?'.'>
@@ -836,12 +878,12 @@ class carddav_backend extends rcube_addressbook
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\""),
+			'header'=>array("Depth: 1", "Content-Type: application/xml; charset=\"utf-8\""),
 			'content'=> $xmlquery
 		)
 	);
 
-	$reply = self::cdfopen("geturl", "/", $opts, $config);
+	$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
 
@@ -865,12 +907,12 @@ class carddav_backend extends rcube_addressbook
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\""),
+			'header'=>array("Depth: 1", "Content-Type: application/xml; charset=\"utf-8\""),
 			'content'=> $xmlquery
 		)
 	);
 	
-	$reply = self::cdfopen("geturl", $princurl, $opts, $config);
+	$reply = self::cdfopen("find_addressbook", $princurl, $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
 
@@ -892,10 +934,6 @@ class carddav_backend extends rcube_addressbook
 		$abookhome = concaturl($config['url'], $abookhome);
 	}
 	$serverpart = $match[0];
-	} else {
-		$abookhome = $config['url'];
-		$serverpart = $match[1];
-	}
 
 	// Read Addressbooks
 	$xmlquery =
@@ -907,16 +945,14 @@ class carddav_backend extends rcube_addressbook
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\""),
+			'header'=>array("Depth: 1", "Content-Type: application/xml; charset=\"utf-8\""),
 			'content'=> $xmlquery
 		)
 	);
 	
-	$reply = self::cdfopen("geturl", $abookhome, $opts, $config);
+	$reply = self::cdfopen("find_addressbook", $abookhome, $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
-
-	$retVal = array();
 
 	$xml = new SimpleXMLElement($reply['body']);
 
@@ -969,7 +1005,7 @@ class carddav_backend extends rcube_addressbook
 	$opts = array(
 		'http'=>array(
 			'method'=>"REPORT",
-			'header'=>array("Depth: infinite", "Content-Type: text/xml; charset=\"utf-8\""),
+			'header'=>array("Depth: infinite", "Content-Type: application/xml; charset=\"utf-8\""),
 			'content'=> $xmlquery
 		)
 	);
@@ -1118,7 +1154,7 @@ class carddav_backend extends rcube_addressbook
 	$optsREPORT = array(
 		'http' => array(
 			'method'=>"REPORT",
-			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\""),
+			'header'=>array("Depth: 1", "Content-Type: application/xml; charset=\"utf-8\""),
 			'content'=>$xmlquery
 		)
 	);
@@ -1140,7 +1176,7 @@ class carddav_backend extends rcube_addressbook
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", "Content-Type: text/xml; charset=\"utf-8\""),
+			'header'=>array("Depth: 1", "Content-Type: application/xml; charset=\"utf-8\""),
 			'content'=> $xmlquery
 		)
 	);
