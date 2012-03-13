@@ -786,6 +786,18 @@ class carddav_backend extends rcube_addressbook
 	if ( $this->config['needs_update'] == 1 )
 		$this->refreshdb_from_server();
 
+	// XXX workaround for a roundcube bug to support roundcube's displayname setting
+	// Reported as Roundcube Ticket #1488394
+	if(count($cols)>0) {
+		if(!in_array('firstname', $cols)) {
+			$cols[] = 'firstname';
+		}
+		if(!in_array('surname', $cols)) {
+			$cols[] = 'surname';
+		}
+	}
+	// XXX workaround for a roundcube bug to support roundcube's displayname setting
+
 	// if the count is not requested we can save one query
 	if($nocount)
 		$this->result = new rcube_result_set();
