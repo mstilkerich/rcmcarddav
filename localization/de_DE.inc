@@ -9,8 +9,6 @@ $labels = Array(
 	'cd_name' => "Name des Adressbuches",
 	'cd_delete' => "Dieses Adressbuch entfernen",
 	'cd_name_new' => "Neues Adressbuch konfigurieren",
-	'cd_displayorder' => "Namens-Darstellung",
-	'cd_sortorder' => "Sortierschlüssel",
 	'cd_refresh_time' => "Aktualisierungsintervall (Stunden)"
 );
 ?>

@@ -9,8 +9,6 @@ $labels = Array(
 	'cd_name' => "Name of the addressbook",
 	'cd_delete' => "Remove this addressbook",
 	'cd_name_new' => "Configure new addressbook",
-	'cd_displayorder' => "Display order",
-	'cd_sortorder' => "Sort order",
 	'cd_refresh_time' => "Update interval (hours)",
 );
 ?>

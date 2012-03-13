@@ -12,8 +12,6 @@ $prefs['Personal']['active']       = true;  // if true: addressbook enabled by d
 $prefs['Personal']['readonly']     = false; // if true: contacts can be added/deleted/edited
 $prefs['Personal']['fixed']        = true;  // if true: some settings cannot be edited by the
                                             //     user (see $preset_adminonly in carddav.php)
-$prefs['Personal']['displayorder'] = 'firstlast'; // default type to display names
-$prefs['Personal']['sortorder']    = 'surname';   // default variant to sort cards
 $prefs['Personal']['refresh_time'] = '2'; // refresh time (HH[:MM[:SS]])
 
 //// Preset 2: Corporate

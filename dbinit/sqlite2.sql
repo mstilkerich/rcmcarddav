@@ -9,7 +9,6 @@ CREATE TABLE carddav_addressbooks (
 	user_id      integer NOT NULL,
 	last_updated DATETIME NOT NULL DEFAULT 0,  -- time stamp of the last update of the local database
 	refresh_time TIME NOT NULL DEFAULT '1:00', -- time span after that the local database will be refreshed
-	sortorder    VARCHAR(64) NOT NULL DEFAULT 'surname',
 
 	presetname   VARCHAR(64),                  -- presetname
 
@@ -23,7 +22,6 @@ CREATE TABLE carddav_contacts (
 	id           integer NOT NULL PRIMARY KEY,
 	abook_id     integer NOT NULL,
 	name         VARCHAR(255) NOT NULL, -- display name
-	sortname     VARCHAR(255) NOT NULL, -- sort name
 	email        VARCHAR(255),          -- ", " separated list of mail addresses
 	firstname    VARCHAR(255),
 	surname      VARCHAR(255),

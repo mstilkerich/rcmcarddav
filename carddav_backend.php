@@ -35,7 +35,7 @@ function carddavconfig($abookid){{{
 	}
 
 	$abookrow = carddav_backend::get_dbrecord($abookid,
-		'id as abookid,name,username,password,url,presetname,sortorder,'
+		'id as abookid,name,username,password,url,presetname,'
 		. $timequery . ' as needs_update', 'addressbooks');
 	
 	if(! $abookrow) {
@@ -437,13 +437,6 @@ class carddav_backend extends rcube_addressbook
 	{{{
 	if(strcasecmp($save_data['showas'], 'COMPANY') == 0) {
 		$save_data['name']     = $save_data['organization'];
-		$save_data['sortname'] = $save_data['organization'];
-	} else if(!array_key_exists('kind', $save_data) || strcasecmp($save_data['kind'],'group')!==0 ) {
-		if($this->config['sortorder'] === 'firstname') {
-			$save_data['sortname'] = $save_data['firstname'].$save_data['surname'];
-		} else {
-			$save_data['sortname'] = $save_data['surname'].$save_data['firstname'];
-		}
 	}
 	}}}
 
@@ -527,7 +520,7 @@ class carddav_backend extends rcube_addressbook
 	$save_data['email']	= implode(', ', $email_addrs);
 
 	// extra columns for the contacts table
-	$xcol_all=array('firstname','surname','organization','sortname','showas','email');
+	$xcol_all=array('firstname','surname','organization','showas','email');
 	$xcol=array();
 	$xval=array();
 	foreach($xcol_all as $k) {
@@ -1088,7 +1081,8 @@ class carddav_backend extends rcube_addressbook
 		get_table_name('carddav_contacts') . $xfrom .
 		' WHERE abook_id=? ' . $xwhere .
 		$this->search_filter .
-		' ORDER BY sortname ASC',
+		" ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $this->sort_col . " END) "
+		. $this->sort_order,
 		$limit_index,
 		$limit_rows,
 		$this->id

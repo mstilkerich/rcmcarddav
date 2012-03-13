@@ -16,8 +16,7 @@ CREATE TABLE carddav_addressbooks (
 	user_id integer NOT NULL REFERENCES users (user_id) ON DELETE CASCADE ON UPDATE CASCADE,
 	last_updated TIMESTAMP NOT NULL DEFAULT '-infinity', -- time stamp of the last update of the local database
 	refresh_time INTERVAL NOT NULL DEFAULT '1:00', -- time span after that the local database will be refreshed, default 1h
-	sortorder VARCHAR(64) NOT NULL DEFAULT 'surname',
-	
+
 	presetname VARCHAR(64), -- presetname
 	UNIQUE (user_id,presetname)
 );
@@ -32,7 +31,6 @@ CREATE TABLE carddav_contacts (
 	id integer DEFAULT nextval('carddav_contact_ids'::text) PRIMARY KEY,
 	abook_id integer NOT NULL REFERENCES carddav_addressbooks (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	name VARCHAR(255)     NOT NULL, -- display name
-	sortname VARCHAR(255) NOT NULL, -- sort name
 	email VARCHAR(255), -- ", " separated list of mail addresses
 	firstname VARCHAR(255),
 	surname VARCHAR(255),

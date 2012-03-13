@@ -9,8 +9,7 @@ CREATE TABLE IF NOT EXISTS carddav_addressbooks (
 	user_id INT(10) UNSIGNED NOT NULL,
 	last_updated TIMESTAMP NOT NULL DEFAULT 0, -- time stamp of the last update of the local database
 	refresh_time TIME NOT NULL DEFAULT '1:00', -- time span after that the local database will be refreshed, default 1h
-	sortorder VARCHAR(64) NOT NULL default 'surname',
-	
+
 	presetname   VARCHAR(64), -- presetname
 
 	PRIMARY KEY(id),
@@ -22,7 +21,6 @@ CREATE TABLE IF NOT EXISTS carddav_contacts (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
 	abook_id INT UNSIGNED NOT NULL,
 	name VARCHAR(255)     NOT NULL, -- display name
-	sortname VARCHAR(255) NOT NULL, -- sort name
 	email VARCHAR(255), -- ", " separated list of mail addresses
 	firstname VARCHAR(255),
 	surname VARCHAR(255),
