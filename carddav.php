@@ -320,14 +320,14 @@ class carddav extends rcube_plugin
 			} else {
 				$newset = array (
 					'name' => get_input_value($abookid."_cd_name", RCUBE_INPUT_POST),
-					'username' => get_input_value($abookid."_cd_username", RCUBE_INPUT_POST),
+					'username' => get_input_value($abookid."_cd_username", RCUBE_INPUT_POST, true),
 					'url' => get_input_value($abookid."_cd_url", RCUBE_INPUT_POST),
 					'active' => isset($_POST[$abookid.'_cd_active']) ? 1 : 0,
 					'refresh_time' => get_input_value($abookid."_cd_refresh_time", RCUBE_INPUT_POST),
 				);
 
 				// only set the password if the user entered a new one
-				$password = get_input_value($abookid."_cd_password", RCUBE_INPUT_POST);
+				$password = get_input_value($abookid."_cd_password", RCUBE_INPUT_POST, true);
 				if(strlen($password) > 0) {
 					$newset['password'] = $password;
 				}
@@ -347,8 +347,8 @@ class carddav extends rcube_plugin
 		$new = get_input_value('new_cd_name', RCUBE_INPUT_POST);
 		if ( (!array_key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) && strlen($new) > 0) {
 			$srv  = get_input_value('new_cd_url', RCUBE_INPUT_POST);
-			$usr  = get_input_value('new_cd_username', RCUBE_INPUT_POST);
-			$pass = get_input_value('new_cd_password', RCUBE_INPUT_POST);
+			$usr  = get_input_value('new_cd_username', RCUBE_INPUT_POST, true);
+			$pass = get_input_value('new_cd_password', RCUBE_INPUT_POST, true);
 
 			$srvs = carddav_backend::find_addressbook(array('url'=>$srv,'password'=>$pass,'username'=>$usr));
 			foreach($srvs as $key => $srv){
