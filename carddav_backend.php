@@ -79,7 +79,7 @@ function migrateconfig($sub = 'CardDAV'){{{
 	if ($prefs_all['db_version'] == 1 || !array_key_exists('db_version', $prefs_all)){
 		write_log("carddav", "migrateconfig: DB1 to DB2");
 		unset($prefs_all['db_version']);
-		// FIXME $p does not seem to be initialized
+		$p = array();
 		$p['CardDAV'] = $prefs_all;
 		$p['db_version'] = 2;
 		$prefs_all = $p;
@@ -92,7 +92,7 @@ function migrateconfig($sub = 'CardDAV'){{{
 			continue;
 		}
 
-		$crypt_password = self::encrypt_password($prefs['password']);
+		$crypt_password = carddav_backend::encrypt_password($prefs['password']);
 
 		write_log("carddav", "migrateconfig: move addressbook $desc");
 		$dbh->query('INSERT INTO ' .
