@@ -329,6 +329,7 @@ class carddav extends rcube_plugin
 				// only set the password if the user entered a new one
 				$password = get_input_value($abookid."_cd_password", RCUBE_INPUT_POST, true);
 				if(strlen($password) > 0) {
+					$password = carddav_backend::encrypt_password($password);
 					$newset['password'] = $password;
 				}
 
@@ -349,6 +350,7 @@ class carddav extends rcube_plugin
 			$srv  = get_input_value('new_cd_url', RCUBE_INPUT_POST);
 			$usr  = get_input_value('new_cd_username', RCUBE_INPUT_POST, true);
 			$pass = get_input_value('new_cd_password', RCUBE_INPUT_POST, true);
+			$pass = carddav_backend::encrypt_password($pass);
 
 			$srvs = carddav_backend::find_addressbook(array('url'=>$srv,'password'=>$pass,'username'=>$usr));
 			foreach($srvs as $key => $srv){

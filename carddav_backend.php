@@ -43,6 +43,16 @@ function carddavconfig($abookid){{{
 		return false;
 	}
 
+	// encrypt passwords of addressbooks with unencrypted password
+	if(strpos($abookrow['password'], '{ENCRYPTED}') !== 0) {
+		$abookrow['password'] = carddav_backend::encrypt_password($abookrow['password']);
+		$dbh->query('UPDATE ' .
+			get_table_name('carddav_addressbooks') .
+			' SET password=? WHERE id=?',
+				$abookrow['password'],
+				$abookid);
+	}
+
 	// postgres will return 't'/'f' here for true/false, normalize it to 1/0
 	$nu = $abookrow['needs_update'];
 	$nu = ($nu==1 || $nu=='t')?1:0;
@@ -82,12 +92,14 @@ function migrateconfig($sub = 'CardDAV'){{{
 			continue;
 		}
 
+		$crypt_password = self::encrypt_password($prefs['password']);
+
 		write_log("carddav", "migrateconfig: move addressbook $desc");
 		$dbh->query('INSERT INTO ' .
 			get_table_name('carddav_addressbooks') .
 			'(name,username,password,url,active,user_id) ' .
 			'VALUES (?, ?, ?, ?, ?, ?)',
-				$desc, $prefs['username'], $prefs['password'], $prefs['url'],
+				$desc, $prefs['username'], $crypt_password, $prefs['url'],
 				$prefs['use_carddav'], $_SESSION['user_id']);
 	}
 
@@ -657,6 +669,8 @@ class carddav_backend extends rcube_addressbook
 	$http->follow_redirect=1;
 	$http->redirection_limit=5;
 	$http->prefer_curl=1;
+
+	$carddav['password'] = self::decrypt_password($carddav['password']);
 
 	if(strpos($url, '://') === FALSE) {
 		$url = concaturl($carddav['url'], $url);
@@ -2080,6 +2094,50 @@ class carddav_backend extends rcube_addressbook
 	return $newname;
   }}}
 		
+	private static function carddav_des_key()
+	{{{
+	$rcmail = rcmail::get_instance();
+	$imap_password = $rcmail->decrypt($_SESSION['password']);
+	while(strlen($imap_password)<24) {
+		$imap_password .= $imap_password;
+	}
+	return substr($imap_password, 0, 24);
+	}}}
+
+	public static function encrypt_password($clear)
+	{{{
+	$rcmail = rcmail::get_instance();
+
+	$imap_password = self::carddav_des_key();
+	$deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
+
+	$crypted = $rcmail->encrypt($clear, 'carddav_des_key');
+
+	// there seems to be no way to unset a preference
+	$deskey_backup = $rcmail->config->set('carddav_des_key', '');
+
+	return '{ENCRYPTED}'.$crypted;
+	}}}
+	
+	public static function decrypt_password($crypt)
+	{{{
+	if(strpos($crypt, '{ENCRYPTED}') !== 0) {
+		return $crypt;
+	}
+	$crypt = substr($crypt, strlen('{ENCRYPTED}'));
+	$rcmail = rcmail::get_instance();
+
+	$imap_password = self::carddav_des_key();
+	$deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
+
+	$clear = $rcmail->decrypt($crypt, 'carddav_des_key');
+
+	// there seems to be no way to unset a preference
+	$deskey_backup = $rcmail->config->set('carddav_des_key', '');
+
+	return $clear;
+	}}}
+
 	public static function get_adminsettings()
 	{{{
 	$rcmail = rcmail::get_instance();
