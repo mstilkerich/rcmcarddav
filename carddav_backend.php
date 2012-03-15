@@ -221,6 +221,7 @@ class carddav_backend extends rcube_addressbook
 			'X-GENDER' => 'gender',
 			'X-MANAGER' => 'manager',
 			'X-SPOUSE' => 'spouse',
+			'X-DEPARTMENT' => 'department',
 			// the two kind attributes should not occur both in the same vcard
 			//'KIND' => 'kind',   // VCard v4
 			'X-ADDRESSBOOKSERVER-KIND' => 'kind', // Apple Addressbook extension
@@ -276,6 +277,7 @@ class carddav_backend extends rcube_addressbook
 		'suffix'       => array('type' => 'text', 'size' => 8,  'maxlength' => 20, 'limit' => 1, 'label' => rcube_label('namesuffix'), 'category' => 'main'),
 		'nickname'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('nickname'), 'category' => 'main'),
 		'jobtitle'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('jobtitle'), 'category' => 'main'),
+		'department' => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('department'), 'category' => 'main'),
 		'organization' => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('organization'), 'category' => 'main'),
 		'gender'       => array('type' => 'select', 'limit' => 1, 'label' => rcube_label('gender'), 'options' => array('male' => rcube_label('male'), 'female' => rcube_label('female')), 'category' => 'personal'),
 		'phone'        => array('type' => 'text', 'size' => 40, 'maxlength' => 20, 'label' => rcube_label('phone'), 'subtypes' => array('home','home2','work','work2','mobile','cell','main','homefax','workfax','car','pager','video','assistant','other'), 'category' => 'main'),
