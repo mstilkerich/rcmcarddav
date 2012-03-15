@@ -1115,12 +1115,16 @@ class carddav_backend extends rcube_addressbook
 		$xwhere = ' AND id=contact_id AND group_id=' . $dbh->quote($this->group_id) . ' ';
 	}
 
+	// Workaround for Roundcube versions < 0.7.2
+	$sort_column = $this->sort_col ? $this->sort_col : 'surname';
+	$sort_order  = $this->sort_order ? $this->sort_order : 'ASC';
+
 	$sql_result = $dbh->limitquery("SELECT id,name,$dbattr FROM " .
 		get_table_name('carddav_contacts') . $xfrom .
 		' WHERE abook_id=? ' . $xwhere .
 		$this->search_filter .
-		" ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $this->sort_col . " END) "
-		. $this->sort_order,
+		" ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $sort_column . " END) "
+		. $sort_order,
 		$limit_index,
 		$limit_rows,
 		$this->id

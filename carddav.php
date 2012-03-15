@@ -382,6 +382,7 @@ class carddav extends rcube_plugin
 			$pass = carddav_backend::encrypt_password($pass);
 
 			$srvs = carddav_backend::find_addressbook(array('url'=>$srv,'password'=>$pass,'username'=>$usr));
+			if(is_array($srvs)) {
 			foreach($srvs as $key => $srv){
 				$abname = get_input_value('new_cd_name', RCUBE_INPUT_POST);
 				if($srv[name]) {
@@ -394,7 +395,7 @@ class carddav extends rcube_plugin
 					'url'      => $srv[href],
 					'refresh_time' => get_input_value('new_cd_refresh_time', RCUBE_INPUT_POST)
 				));
-			}
+			}}
 		}
 
 		return($args);
