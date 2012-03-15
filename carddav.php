@@ -25,9 +25,6 @@ class carddav extends rcube_plugin
 	// the addressbook to be initialized
 	public $task = 'addressbook|login|mail|settings|dummy';
 
-	// these fields can only be changed by the admin for presets with fixed=1
-	private static $preset_adminonly = array('username','url');
-
 	public function init()
 	{{{
 		$this->add_hook('addressbooks_list', array($this, 'address_sources'));
@@ -79,36 +76,64 @@ class carddav extends rcube_plugin
 
 	$existing_presets = array( );
 	while ($abookrow = $dbh->fetch_assoc($sql_result)) {
-		$existing_presets[$abookrow['presetname']] = $abookrow;
+		$pn = $abookrow['presetname'];
+		if(!array_key_exists($pn,$existing_presets)) {
+			$existing_presets[$pn] = array();
+		}
+		$existing_presets[$pn][] = $abookrow['id'];
 	}
 
 	// add not existing preset addressbooks
 	if($prefs) {
 	foreach($prefs as $presetname => $preset) {
+		if($presetname === '_GLOBAL') continue;
+
+		// addressbooks exist for this preset => update settings
 		if(array_key_exists($presetname, $existing_presets)) {
-			if($preset['fixed']) {
+			if(is_array($preset['fixed'])) {
 				// update: only admin fix keys, only if it's fixed
 				// otherwise there may be user changes that should not be destroyed
 				$pa = array();
-				foreach(self::$preset_adminonly as $k) {
+				foreach($preset['fixed'] as $k) {
 					if(array_key_exists($k,$preset))
 						$pa[$k] = $preset[$k];
 				}
-				$ep = $existing_presets[$presetname];
-				self::update_abook($ep['id'],$pa);
+
+				// update all existing addressbooks for this preset	
+				foreach($existing_presets[$presetname] as $abookid) {
+					self::update_abook($abookid,$pa);
+				}
 			}
 
 			unset($existing_presets[$presetname]);
 
-		} else { // create
+		} else { // create new
 			$preset['presetname'] = $presetname;
-			self::insert_abook($preset);
+			$preset['password']   = carddav_backend::encrypt_password($preset['password']);
+			$abname = $preset['name'];
+
+			$srvs = carddav_backend::find_addressbook($preset);
+			if(is_array($srvs)) {
+			foreach($srvs as $key => $srv){
+				if($srv[name]) {
+					if($preset[carddav_name_only])
+						$preset['name'] = $srv[name];
+					else
+						$preset['name'] = "$abname (" . $srv[name] . ')';
+				} else {
+					$preset['name'] = $abname;
+				}
+				$preset['url'] = $srv['href'];
+				self::insert_abook($preset);
+			}}
 		}
 	}}
 
 	// delete existing preset addressbooks that where removed by admin
 	foreach($existing_presets as $ep) {
-		self::delete_abook($ep['id']);
+		foreach($ep as $abookid) {
+			self::delete_abook($abookid);
+		}
 	}
 	}}}
 
@@ -166,7 +191,10 @@ class carddav extends rcube_plugin
 
 	private static function no_override($pref, $abook, $prefs) {
 		$pn = $abook['presetname'];
-		return ($pn && $prefs[$pn]['fixed'] && in_array($pref,self::$preset_adminonly));
+		if(!$pn) return false;
+		if(!is_array($prefs[$pn])) return false;
+
+		return in_array($pref,$prefs[$pn]);
 	}
 
 	/**
@@ -333,9 +361,10 @@ class carddav extends rcube_plugin
 					$newset['password'] = $password;
 				}
 
-				if($abook['presetname'] && $prefs[$abook['presetname']]['fixed']) {
+				$pn = $abook['presetname'];
+				if($pn && is_array($prefs[$pn]['fixed'])) {
 					// remove admin only settings
-					foreach(self::$preset_adminonly as $p) {
+					foreach($prefs[$pn]['fixed'] as $p) {
 						unset($newset[$p]);
 					}
 				}
@@ -391,11 +420,13 @@ class carddav extends rcube_plugin
 	$dbh = rcmail::get_instance()->db;
 
 	// check parameters
-	$pa['refresh_time'] = self::process_cd_time($pa['refresh_time']);
+	if(array_key_exists('refresh_time', $pa)) {
+		$pa['refresh_time'] = self::process_cd_time($pa['refresh_time']);
+	}
 	$pa['user_id']      = $_SESSION['user_id'];
 
 	// required fields
-	$qf=array('name','username','password','url','refresh_time','user_id');
+	$qf=array('name','username','password','url','user_id');
 	$qv=array();
 	foreach($qf as $f) {
 		if(!array_key_exists($f,$pa)) return false;
@@ -403,7 +434,7 @@ class carddav extends rcube_plugin
 	}
 
 	// optional fields
-	$qfo = array('active','presetname');
+	$qfo = array('active','presetname','refresh_time');
 	foreach($qfo as $f) {
 		if(array_key_exists($f,$pa)) {
 			$qf[] = $f;

@@ -8,12 +8,11 @@ CREATE TABLE IF NOT EXISTS carddav_addressbooks (
 	active TINYINT UNSIGNED NOT NULL DEFAULT 1,
 	user_id INT(10) UNSIGNED NOT NULL,
 	last_updated TIMESTAMP NOT NULL DEFAULT 0, -- time stamp of the last update of the local database
-	refresh_time TIME NOT NULL DEFAULT '1:00', -- time span after that the local database will be refreshed, default 1h
+	refresh_time TIME NOT NULL DEFAULT '01:00:00', -- time span after that the local database will be refreshed, default 1h
 
 	presetname   VARCHAR(64), -- presetname
 
 	PRIMARY KEY(id),
-	UNIQUE INDEX(user_id,presetname),
 	FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE
 ) /*!40000 ENGINE=INNODB */;
 

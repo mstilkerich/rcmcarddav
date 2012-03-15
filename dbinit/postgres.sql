@@ -15,10 +15,9 @@ CREATE TABLE carddav_addressbooks (
 	active SMALLINT NOT NULL DEFAULT 1,
 	user_id integer NOT NULL REFERENCES users (user_id) ON DELETE CASCADE ON UPDATE CASCADE,
 	last_updated TIMESTAMP NOT NULL DEFAULT '-infinity', -- time stamp of the last update of the local database
-	refresh_time INTERVAL NOT NULL DEFAULT '1:00', -- time span after that the local database will be refreshed, default 1h
+	refresh_time INTERVAL NOT NULL DEFAULT '01:00:00', -- time span after that the local database will be refreshed, default 1h
 
 	presetname VARCHAR(64), -- presetname
-	UNIQUE (user_id,presetname)
 );
 
 CREATE SEQUENCE carddav_contact_ids

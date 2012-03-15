@@ -18,6 +18,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+// requires Roundcubemail 0.7.2 or later
+
 require("inc/http.php");
 require("inc/sasl.php");
 require("inc/vcard.php");
@@ -37,7 +39,7 @@ function carddavconfig($abookid){{{
 	$abookrow = carddav_backend::get_dbrecord($abookid,
 		'id as abookid,name,username,password,url,presetname,'
 		. $timequery . ' as needs_update', 'addressbooks');
-	
+
 	if(! $abookrow) {
 		carddav_backend::warn("FATAL! Request for non-existent configuration $abookid");
 		return false;
@@ -865,6 +867,8 @@ class carddav_backend extends rcube_addressbook
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
 
+	if(!preg_match(';(text|application)/xml;', $reply['headers']['content-type']))
+		return false;
 
 	$xml = new SimpleXMLElement($reply['body']);
 	if($xml->children('DAV:')
@@ -907,6 +911,8 @@ class carddav_backend extends rcube_addressbook
 	$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
+	if(!preg_match(';(text|application)/xml;', $reply['headers']['content-type']))
+		return false;
 
 	$xml = new SimpleXMLElement($reply['body']);
 	$xml->registerXPathNamespace('D', 'DAV:');
@@ -935,6 +941,8 @@ class carddav_backend extends rcube_addressbook
 	
 	$reply = self::cdfopen("find_addressbook", $princurl, $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
+		return false;
+	if(!preg_match(';(text|application)/xml;', $reply['headers']['content-type']))
 		return false;
 
 	$xml = new SimpleXMLElement($reply['body']);
@@ -973,6 +981,8 @@ class carddav_backend extends rcube_addressbook
 	
 	$reply = self::cdfopen("find_addressbook", $abookhome, $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
+		return false;
+	if(!preg_match(';(text|application)/xml;', $reply['headers']['content-type']))
 		return false;
 
 	$xml = new SimpleXMLElement($reply['body']);

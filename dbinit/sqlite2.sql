@@ -8,11 +8,9 @@ CREATE TABLE carddav_addressbooks (
 	active       TINYINT UNSIGNED NOT NULL DEFAULT 1,
 	user_id      integer NOT NULL,
 	last_updated DATETIME NOT NULL DEFAULT 0,  -- time stamp of the last update of the local database
-	refresh_time TIME NOT NULL DEFAULT '1:00', -- time span after that the local database will be refreshed
+	refresh_time TIME NOT NULL DEFAULT '01:00:00', -- time span after that the local database will be refreshed
 
 	presetname   VARCHAR(64),                  -- presetname
-
-	UNIQUE(user_id,presetname),
 
 	-- not enforced by sqlite < 3.6.19
 	FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE
