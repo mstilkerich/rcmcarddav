@@ -213,7 +213,6 @@ class carddav_backend extends rcube_addressbook
 			'FN' => 'name',
 			'NICKNAME' => 'nickname',
 			'NOTE' => 'notes',
-			'ORG' => 'organization',
 			'PHOTO' => 'photo',
 			'TITLE' => 'jobtitle',
 			'UID' => 'cuid',
@@ -223,7 +222,6 @@ class carddav_backend extends rcube_addressbook
 			'X-GENDER' => 'gender',
 			'X-MANAGER' => 'manager',
 			'X-SPOUSE' => 'spouse',
-			'X-DEPARTMENT' => 'department',
 			// the two kind attributes should not occur both in the same vcard
 			//'KIND' => 'kind',   // VCard v4
 			'X-ADDRESSBOOKSERVER-KIND' => 'kind', // Apple Addressbook extension
@@ -279,8 +277,8 @@ class carddav_backend extends rcube_addressbook
 		'suffix'       => array('type' => 'text', 'size' => 8,  'maxlength' => 20, 'limit' => 1, 'label' => rcube_label('namesuffix'), 'category' => 'main'),
 		'nickname'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('nickname'), 'category' => 'main'),
 		'jobtitle'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('jobtitle'), 'category' => 'main'),
-		'department' => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('department'), 'category' => 'main'),
 		'organization' => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('organization'), 'category' => 'main'),
+		'department'   => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('department'), 'category' => 'main'),
 		'gender'       => array('type' => 'select', 'limit' => 1, 'label' => rcube_label('gender'), 'options' => array('male' => rcube_label('male'), 'female' => rcube_label('female')), 'category' => 'personal'),
 		'phone'        => array('type' => 'text', 'size' => 40, 'maxlength' => 20, 'label' => rcube_label('phone'), 'subtypes' => array('home','home2','work','work2','mobile','cell','main','homefax','workfax','car','pager','video','assistant','other'), 'category' => 'main'),
 		'address'      => array('type' => 'composite', 'label' => rcube_label('address'), 'subtypes' => array('home','work','other'), 'childs' => array(
@@ -1476,6 +1474,23 @@ class carddav_backend extends rcube_addressbook
 		$vcf->setProperty("N", $save_data['suffix'],    0,4);
 	}
 
+	if (array_key_exists("organization", $save_data)){
+		$vcf->setProperty("ORG", $save_data['organization'], 0, 0);
+	}
+	if (array_key_exists("department", $save_data)){
+		if (is_array($save_data['department'])){
+			$i = 0;
+			foreach ($save_data['department'] AS $key => $value){
+				$i++;
+				$vcf->setProperty("ORG", $value, 0, $i);
+			}
+		} else {
+			if (strlen($save_data['department']) > 0){
+				$vcf->setProperty("ORG", $save_data['department'], 0, 1);
+			}
+		}
+	}
+
 	// process all simple attributes
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
 		if (array_key_exists($rckey, $save_data)) {
@@ -1700,6 +1715,15 @@ class carddav_backend extends rcube_addressbook
 			$save_data['middlename'] = $N[2];
 			$save_data['prefix']     = $N[3];
 			$save_data['suffix']     = $N[4];
+		}
+	}
+
+	$property = $vcf->getProperty("ORG");
+	if ($property){
+		$ORG = $property->getComponents();
+		$save_data['organization'] = $ORG[0];
+		for ($i = 1; $i <= count($ORG); $i++){
+			$save_data['department'][] = $ORG[$i];
 		}
 	}
 
