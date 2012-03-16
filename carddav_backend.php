@@ -1389,7 +1389,7 @@ class carddav_backend extends rcube_addressbook
   }}}
 
   private function put_record_to_carddav($id, $vcf, $etag='')
-	{{{
+  {{{
 	$this->result = $this->count();
 	$matchhdr = $etag ?
 		"If-Match: $etag" :
@@ -1407,7 +1407,14 @@ class carddav_backend extends rcube_addressbook
 	);
 	$reply = self::cdfopen("put_record_to_carddav", $id, $opts, $this->config);
 	if ($reply!==-1 && $reply["status"] >= 200 && $reply["status"] < 300) {
-		return $reply["headers"]["etag"];
+		$etag = $reply["headers"]["etag"];
+		if ("$etag" == ""){
+			// Server did not reply an etag
+			$retval = $this->get_record_from_carddav($id);
+			self::debug(var_export($retval, true));
+			$etag = $retval["etag"];
+		}
+		return $etag;
 	}
 
 	return false;
