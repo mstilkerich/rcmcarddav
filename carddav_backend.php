@@ -45,16 +45,6 @@ function carddavconfig($abookid){{{
 		return false;
 	}
 
-	// encrypt passwords of addressbooks with unencrypted password
-	if(strpos($abookrow['password'], '{ENCRYPTED}') !== 0) {
-		$abookrow['password'] = carddav_backend::encrypt_password($abookrow['password']);
-		$dbh->query('UPDATE ' .
-			get_table_name('carddav_addressbooks') .
-			' SET password=? WHERE id=?',
-				$abookrow['password'],
-				$abookid);
-	}
-
 	// postgres will return 't'/'f' here for true/false, normalize it to 1/0
 	$nu = $abookrow['needs_update'];
 	$nu = ($nu==1 || $nu=='t')?1:0;
@@ -71,8 +61,27 @@ function migrateconfig($sub = 'CardDAV'){{{
 	$rcmail = rcmail::get_instance();
 	$prefs_all = $rcmail->config->get('carddav', 0);
 	$dbh = $rcmail->db;
+	
+	// adopt password storing scheme if stored password differs from configured scheme
+	$sql_result = $dbh->query('SELECT id,password FROM ' . 
+		get_table_name('carddav_addressbooks') .
+		' WHERE user_id=?', $_SESSION['user_id']);
 
-	// any old settings to migrate?
+	while ($abookrow = $dbh->fetch_assoc($sql_result)) {
+		$pw_scheme = carddav_backend::password_scheme($abookrow['password']);
+		if(strcasecmp($pw_scheme, carddav_backend::$pwstore_scheme) !== 0) {
+			$abookrow['password'] = carddav_backend::decrypt_password($abookrow['password']);
+			$abookrow['password'] = carddav_backend::encrypt_password($abookrow['password']);
+			$dbh->query('UPDATE ' .
+				get_table_name('carddav_addressbooks') .
+				' SET password=? WHERE id=?',
+				$abookrow['password'],
+				$abookrow['id']);
+		}
+	}
+
+
+	// any old (Pre-DB) settings to migrate?
 	if(!$prefs_all) {
 		return;
 	}
@@ -120,7 +129,7 @@ function concaturl($str, $cat){{{
 	// then attach it to the URL
 	if (substr($cat, 0, 1) != "/"){
 		$urlpart .= "/$cat";
-	
+
 	// $cat is a full path, the append it to the
 	// hostpart only
 	} else {
@@ -182,6 +191,10 @@ class carddav_backend extends rcube_addressbook
 	private $config;
 	// custom labels defined in the addressbook
 	private $xlabels;
+	// admin settings from config.inc.php
+	public static $admin_settings;
+	// encryption scheme
+	public static $pwstore_scheme = 'base64';
 
 	const DEBUG      = false; // set to true for basic debugging
 	const DEBUG_HTTP = false; // set to true for debugging raw http stream
@@ -261,9 +274,9 @@ class carddav_backend extends rcube_addressbook
 	$this->id       = $dbid;
 
 	$this->config = carddavconfig($dbid);
+
 	if($this->config['presetname']) {
-		$prefs = self::get_adminsettings();
-		if($prefs[$this->config['presetname']]['readonly'])
+		if(self::$admin_settings[$this->config['presetname']]['readonly'])
 			$this->readonly = true;
 	}
 
@@ -503,7 +516,7 @@ class carddav_backend extends rcube_addressbook
 		$seqname = preg_replace('/s$/', '', $table);
 		$dbid = $dbh->insert_id("carddav_$seqname"."_ids");
 	}
-	
+
 	if($dbh->is_error()) {
 		$this->set_error(self::ERROR_SAVING, $dbh->is_error());
 		return false;
@@ -559,10 +572,10 @@ class carddav_backend extends rcube_addressbook
 	{{{
 	if(!array_key_exists($uri, $cache))
 		return false;
-	
+
 	$dbrec = $cache[$uri];
 	$dbid  = $dbrec['id'];
-		
+
 	// delete from the cache, cards left are known to be deleted from the server
 	unset($cache[$uri]);
 
@@ -617,7 +630,7 @@ class carddav_backend extends rcube_addressbook
 		if($save_data['needs_update'])
 			$vcard['vcf'] = $vcf->toString();
 		$save_data = $save_data['save_data'];
-	
+
 		if($save_data['kind'] === 'group') {
 			self::debug('Processing Group ' . $save_data['name']);
 			// delete current group members (will be reinserted if needed below)	
@@ -777,7 +790,7 @@ class carddav_backend extends rcube_addressbook
 	unset($this->users_to_add);
 	$this->existing_card_cache = array();
 	$this->existing_grpcard_cache = array();
-	
+
 	// set last_updated timestamp
 	$dbh->query('UPDATE ' .
 		get_table_name('carddav_addressbooks') .
@@ -860,7 +873,7 @@ class carddav_backend extends rcube_addressbook
 			'content'=> $xmlquery
 		)
 	);
-	
+
 	$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
@@ -875,7 +888,7 @@ class carddav_backend extends rcube_addressbook
 		->prop->children('DAV:')
 		->resourcetype->children('urn:ietf:params:xml:ns:carddav')
 		->addressbook) {
-			
+
 			$aBook = array();
 			$aBook[href] = $config['url'];
 			$aBook[name] = $xml->children('DAV:')
@@ -883,7 +896,7 @@ class carddav_backend extends rcube_addressbook
 				->propstat->children('DAV:')
 				->prop->children('DAV:')				
 				->displayname;
-			
+
 			self::debug("find_addressbook found: ".$aBook[name]." at ".$aBook[href]);
 			$retVal[] = $aBook;
 			return $retVal;
@@ -936,7 +949,7 @@ class carddav_backend extends rcube_addressbook
 			'content'=> $xmlquery
 		)
 	);
-	
+
 	$reply = self::cdfopen("find_addressbook", $princurl, $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
@@ -976,7 +989,7 @@ class carddav_backend extends rcube_addressbook
 			'content'=> $xmlquery
 		)
 	);
-	
+
 	$reply = self::cdfopen("find_addressbook", $abookhome, $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
@@ -1293,7 +1306,7 @@ class carddav_backend extends rcube_addressbook
 				$this->search_filter,
 				$this->id
 			);
-	
+
 			$resultrow = $dbh->fetch_assoc($sql_result);
 			$this->total_cards = $resultrow['total_cards'];
 
@@ -1317,7 +1330,7 @@ class carddav_backend extends rcube_addressbook
 
 		// determine whether we have to parse the vcard or if only db cols are requested
 		$read_vcard = !$cols || count(array_intersect($cols, $this->table_cols)) < count($cols);
-		
+
 		// determine result subset needed
 		$firstrow = ($subset>=0) ?
 			$this->result->first : ($this->result->first+$this->page_size+$subset);
@@ -1370,7 +1383,7 @@ class carddav_backend extends rcube_addressbook
   public function get_record($oid, $assoc_return=false)
   {{{
 	$this->result = $this->count();
-	
+
 	$contact = self::get_dbrecord($oid, 'vcard');
 	if(!$contact) return false;
 
@@ -1604,7 +1617,7 @@ class carddav_backend extends rcube_addressbook
 			in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
 				return $xlabel;
 		}
-		
+
 		// check for a custom label using Apple's X-ABLabel extension
 		$group = $pvalue->getGroup();
 		if($group) {
@@ -1824,7 +1837,7 @@ class carddav_backend extends rcube_addressbook
 	if(!$save_data['organization'] && $save_data['showas']==='COMPANY') {
 		$save_data['showas'] = 'INDIVIDUAL';
 	}
-	
+
 	// generate display name according to display order setting
 	$this->set_displayname($save_data);
 	}}}
@@ -1985,7 +1998,7 @@ class carddav_backend extends rcube_addressbook
 
 	if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
 		return false;
-	
+
 	self::delete_dbrecord($ids,'group_user','contact_id');
 	return $deleted;
   }}}
@@ -2069,7 +2082,7 @@ class carddav_backend extends rcube_addressbook
 		'kind' => 'group',
 		'cuid' => $cuid,
 	);
-	
+
 	$vcf = $this->create_vcard_from_save_data($save_data);
 	if (!$vcf) return false;
 	$vcfstr = $vcf->toString();
@@ -2096,7 +2109,7 @@ class carddav_backend extends rcube_addressbook
 	// get current DB data
 	$group = self::get_dbrecord($group_id,'uri','groups');
 	if(!$group)	return false;
-	
+
 	if($this->delete_record_from_carddav($group['uri'])) {
 		self::delete_dbrecord($group_id, 'groups');
 		self::delete_dbrecord($group_id, 'group_user', 'group_id');
@@ -2120,7 +2133,7 @@ class carddav_backend extends rcube_addressbook
 	$group = self::get_dbrecord($group_id,'uri,etag,vcard,name,cuid','groups');
 	if(!$group)	return false;
 	$group['name'] = $newname;
-	
+
 	// create vcard from current DB data to be updated with the new data
 	$vcf = new VCard;
 	if(!$vcf->parse($group['vcard'])){
@@ -2140,7 +2153,7 @@ class carddav_backend extends rcube_addressbook
 
 	return $newname;
   }}}
-		
+
 	private static function carddav_des_key()
 	{{{
 	$rcmail = rcmail::get_instance();
@@ -2153,36 +2166,65 @@ class carddav_backend extends rcube_addressbook
 
 	public static function encrypt_password($clear)
 	{{{
-	$rcmail = rcmail::get_instance();
+	if(strcasecmp(self::$pwstore_scheme, 'plain')===0)
+		return $clear;
 
-	$imap_password = self::carddav_des_key();
-	$deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
+	if(strcasecmp(self::$pwstore_scheme, 'encrypted')===0) {
 
-	$crypted = $rcmail->encrypt($clear, 'carddav_des_key');
+		// encrypted with IMAP password
+		$rcmail = rcmail::get_instance();
 
-	// there seems to be no way to unset a preference
-	$deskey_backup = $rcmail->config->set('carddav_des_key', '');
+		$imap_password = self::carddav_des_key();
+		$deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
 
-	return '{ENCRYPTED}'.$crypted;
+		$crypted = $rcmail->encrypt($clear, 'carddav_des_key');
+
+		// there seems to be no way to unset a preference
+		$deskey_backup = $rcmail->config->set('carddav_des_key', '');
+
+		return '{ENCRYPTED}'.$crypted;
+	}
+
+	// default: base64-coded password
+	return '{BASE64}'.base64_encode($clear);
 	}}}
-	
+
+	public static function password_scheme($crypt)
+	{{{
+	if(strpos($crypt, '{ENCRYPTED}') === 0)
+		return 'encrypted';
+
+	if(strpos($crypt, '{BASE64}') === 0)
+		return 'base64';
+
+	// unknown scheme, assume cleartext
+	return 'plain';
+	}}}
+
 	public static function decrypt_password($crypt)
 	{{{
-	if(strpos($crypt, '{ENCRYPTED}') !== 0) {
-		return $crypt;
+	if(strpos($crypt, '{ENCRYPTED}') === 0) {
+		$crypt = substr($crypt, strlen('{ENCRYPTED}'));
+		$rcmail = rcmail::get_instance();
+
+		$imap_password = self::carddav_des_key();
+		$deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
+
+		$clear = $rcmail->decrypt($crypt, 'carddav_des_key');
+
+		// there seems to be no way to unset a preference
+		$deskey_backup = $rcmail->config->set('carddav_des_key', '');
+
+		return $clear;
 	}
-	$crypt = substr($crypt, strlen('{ENCRYPTED}'));
-	$rcmail = rcmail::get_instance();
 
-	$imap_password = self::carddav_des_key();
-	$deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
+	if(strpos($crypt, '{BASE64}') === 0) {
+		$crypt = substr($crypt, strlen('{BASE64}'));
+		return base64_decode($crypt);
+	}
 
-	$clear = $rcmail->decrypt($crypt, 'carddav_des_key');
-
-	// there seems to be no way to unset a preference
-	$deskey_backup = $rcmail->config->set('carddav_des_key', '');
-
-	return $clear;
+	// unknown scheme, assume cleartext
+	return $crypt;
 	}}}
 
 	public static function get_adminsettings()
@@ -2191,6 +2233,13 @@ class carddav_backend extends rcube_addressbook
 	$prefs = array();
 	if (file_exists("plugins/carddav/config.inc.php"))
 		require("plugins/carddav/config.inc.php");
+	self::$admin_settings = $prefs;
+
+	if(is_array($prefs['_GLOBAL'])) {
+		$scheme = $prefs['_GLOBAL']['pwstore_scheme'];
+		if(preg_match("/^(plain|base64|encrypted)$/", $scheme))
+			self::$pwstore_scheme = $scheme;
+	}
 	return $prefs;
 	}}}
 
@@ -2211,7 +2260,7 @@ class carddav_backend extends rcube_addressbook
 		$ret[] = $row;
 	return $ret;
 	}}}
-		
+
 	public static function delete_dbrecord($ids, $table='contacts', $idfield='id')
 	{{{
 	$dbh = rcmail::get_instance()->db;
@@ -2232,3 +2281,6 @@ class carddav_backend extends rcube_addressbook
 	return $dbh->affected_rows($sql_result);
 	}}}
 }
+
+carddav_backend::get_adminsettings();
+

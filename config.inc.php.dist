@@ -13,6 +13,16 @@
 // are not affected.
 // $prefs['_GLOBAL']['fixed'] = true;
 
+// Scheme for storing the CardDAV passwords.
+// Options:
+// plain: store as plaintext
+// base64: store encoded with base64 (default)
+// encrypted: store encrypted with IMAP password of the user
+//            NOTE: if the IMAP password of the user changes, the stored
+//             CardDAV passwords cannot be decrypted anymore and the user
+//             needs to reenter them.
+// $prefs['_GLOBAL']['pwstore_scheme'] = 'base64';
+
 //// ** ADDRESSBOOK PRESETS
 
 // Each addressbook preset takes the following form:
@@ -98,6 +108,20 @@ $prefs['<Presetname>'] = array(
 //               anyway). Still only parameters listed as fixed will
 //               automatically updated if the preset is changed.
 //               Default: empty, all settings modifiable by user
+//
+//               !!! WARNING: Only add 'url' to the list of fixed addressbooks
+//                if it _directly_ points to an address book collection.
+//                Otherwise, the plugin will initially lookup the URLs for the
+//                collections on the server, and at the next login overwrite it
+//                with the fixed value stored here. Therefore, if you change the
+//                URL, you have two options:
+//                1) If the new URL is a variation of the old one (e.g. hostname
+//                 change), you can run an SQL UPDATE query directly in the
+//                 database to adopt all addressbooks.
+//                2) If the new URL is not easily derivable from the old one,
+//                 change the key of the preset and change the URL. Addressbooks
+//                 belonging to the old preset will be deleted upon the next
+//                 login of the user and freshly created.
 
 
 // How Preset Updates work
@@ -119,7 +143,7 @@ $prefs['Personal'] = array(
 	'readonly'     =>  false,
 	'refresh_time' => '02:00:00',
 
-	'fixed'        =>  array( 'username', 'url' ),
+	'fixed'        =>  array( 'username' ),
 );
 */
 
@@ -131,6 +155,6 @@ $prefs['Work'] = array(
   'password'     =>  'C0rpPasswo2d',
   'url'          =>  'https://ical.example.org/caldav.php/%u/Corporate',
 	
-	'fixed'        =>  array( 'name', 'username', 'password', 'url' ),
+	'fixed'        =>  array( 'name', 'username', 'password' ),
 );
 */

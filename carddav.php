@@ -66,10 +66,8 @@ class carddav extends rcube_plugin
 	// migrate old settings
 	migrateconfig();
 
-	$prefs = carddav_backend::get_adminsettings();
-
 	// read existing presets from DB
-	$sql_result = $dbh->query('SELECT id,presetname FROM ' .
+	$sql_result = $dbh->query('SELECT * FROM ' .
 		get_table_name('carddav_addressbooks') .
 		' WHERE user_id=? AND presetname is not null',
 		$_SESSION['user_id']);
@@ -80,28 +78,38 @@ class carddav extends rcube_plugin
 		if(!array_key_exists($pn,$existing_presets)) {
 			$existing_presets[$pn] = array();
 		}
-		$existing_presets[$pn][] = $abookrow['id'];
+		$existing_presets[$pn][] = $abookrow;
 	}
 
 	// add not existing preset addressbooks
-	if($prefs) {
-	foreach($prefs as $presetname => $preset) {
+	foreach(carddav_backend::$admin_settings as $presetname => $preset) {
 		if($presetname === '_GLOBAL') continue;
 
 		// addressbooks exist for this preset => update settings
 		if(array_key_exists($presetname, $existing_presets)) {
 			if(is_array($preset['fixed'])) {
+				// decrypt password so that the comparison works
+				$abookrow['password'] = carddav_backend::decrypt_password($abookrow['password']);
+
 				// update: only admin fix keys, only if it's fixed
 				// otherwise there may be user changes that should not be destroyed
 				$pa = array();
 				foreach($preset['fixed'] as $k) {
-					if(array_key_exists($k,$preset))
+					if(array_key_exists($k, $abookrow) &&	array_key_exists($k,$preset) && $abookrow[$k] != $preset[$k])
 						$pa[$k] = $preset[$k];
 				}
 
+				// only update if something changed
+				if(count($pa)===0) continue;
+
+				// encrypt the password before storing it
+				if(array_key_exists('password', $pa)) {
+					$pa['password'] = carddav_backend::encrypt_password($pa['password']);
+				}
+
 				// update all existing addressbooks for this preset	
-				foreach($existing_presets[$presetname] as $abookid) {
-					self::update_abook($abookid,$pa);
+				foreach($existing_presets[$presetname] as $abookrow) {
+					self::update_abook($abookrow['id'],$pa);
 				}
 			}
 
@@ -127,12 +135,12 @@ class carddav extends rcube_plugin
 				self::insert_abook($preset);
 			}}
 		}
-	}}
+	}
 
 	// delete existing preset addressbooks that where removed by admin
 	foreach($existing_presets as $ep) {
-		foreach($ep as $abookid) {
-			self::delete_abook($abookid);
+		foreach($ep as $abookrow) {
+			self::delete_abook($abookrow['id']);
 		}
 	}
 	}}}
@@ -140,7 +148,7 @@ class carddav extends rcube_plugin
 	public function address_sources($p)
 	{{{
 	$dbh = rcmail::get_instance()->db;
-	$prefs = carddav_backend::get_adminsettings();
+	$prefs = carddav_backend::$admin_settings;
 
 	$sql_result = $dbh->query('SELECT id,name,presetname FROM ' . 
 		get_table_name('carddav_addressbooks') .
@@ -280,7 +288,7 @@ class carddav extends rcube_plugin
 			return;
 
 		$this->add_texts('localization/', false);
-		$prefs = carddav_backend::get_adminsettings();
+		$prefs = carddav_backend::$admin_settings;
 
 		if (version_compare(PHP_VERSION, '5.3.0') < 0) {
 			$args['blocks']['cd_preferences'] = array(
@@ -328,13 +336,13 @@ class carddav extends rcube_plugin
 		);
 		return($args);
 	}}}
-	
+
 	// save preferences
 	function cd_save($args)
 	{{{
 		if($args['section'] != 'cd_preferences')
 			return;
-		$prefs = carddav_backend::get_adminsettings();
+		$prefs = carddav_backend::$admin_settings;
 
 		// update existing in DB
 		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'id,presetname',
