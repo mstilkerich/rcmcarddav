@@ -88,27 +88,44 @@ class carddav extends rcube_plugin
 		// addressbooks exist for this preset => update settings
 		if(array_key_exists($presetname, $existing_presets)) {
 			if(is_array($preset['fixed'])) {
-				// decrypt password so that the comparison works
-				$abookrow['password'] = carddav_backend::decrypt_password($abookrow['password']);
-
-				// update: only admin fix keys, only if it's fixed
-				// otherwise there may be user changes that should not be destroyed
-				$pa = array();
-				foreach($preset['fixed'] as $k) {
-					if(array_key_exists($k, $abookrow) &&	array_key_exists($k,$preset) && $abookrow[$k] != $preset[$k])
-						$pa[$k] = $preset[$k];
-				}
-
-				// only update if something changed
-				if(count($pa)===0) continue;
-
-				// encrypt the password before storing it
-				if(array_key_exists('password', $pa)) {
-					$pa['password'] = carddav_backend::encrypt_password($pa['password']);
-				}
-
 				// update all existing addressbooks for this preset	
 				foreach($existing_presets[$presetname] as $abookrow) {
+					// decrypt password so that the comparison works
+					$abookrow['password'] = carddav_backend::decrypt_password($abookrow['password']);
+
+					// update: only admin fix keys, only if it's fixed
+					// otherwise there may be user changes that should not be destroyed
+					$pa = array();
+
+					foreach($preset['fixed'] as $k) {
+						if(array_key_exists($k, $abookrow) &&	array_key_exists($k,$preset)) {
+
+							// only update the name if it is used
+							if($k === 'name') {
+								if(!$preset['carddav_name_only']) {
+									$fullname = $abookrow['name'];
+									$cnpos = strpos($fullname, ' (');
+									if($cnpos === FALSE && strcmp($preset['name'],$fullname)!==0) {
+										$pa['name'] = $preset['name'];
+									} else if($cnpos !== FALSE && strcmp($preset['name'],substr($fullname,0,$cnpos))!==0) {
+										$pa['name'] = $preset['name'] . substr($fullname, $cnpos);
+									}
+								}
+
+							} else if ($abookrow[$k] != $preset[$k]) {
+								$pa[$k] = $preset[$k];
+							}
+						}
+					}
+
+					// only update if something changed
+					if(count($pa)===0) continue;
+
+					// encrypt the password before storing it
+					if(array_key_exists('password', $pa)) {
+						$pa['password'] = carddav_backend::encrypt_password($pa['password']);
+					}
+
 					self::update_abook($abookrow['id'],$pa);
 				}
 			}
@@ -200,9 +217,14 @@ class carddav extends rcube_plugin
 	private static function no_override($pref, $abook, $prefs) {
 		$pn = $abook['presetname'];
 		if(!$pn) return false;
-		if(!is_array($prefs[$pn])) return false;
 
-		return in_array($pref,$prefs[$pn]);
+		// never enable user change for preset URLs
+		if($pref === 'url') return true;
+
+		if(!is_array($prefs[$pn])) return false;
+		if(!is_array($prefs[$pn]['fixed'])) return false;
+
+		return in_array($pref,$prefs[$pn]['fixed']);
 	}
 
 	/**
