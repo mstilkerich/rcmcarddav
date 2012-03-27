@@ -874,6 +874,8 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 
+	$config['url'] = str_replace("%u", $config['username'], $config['url']);
+
 	$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
