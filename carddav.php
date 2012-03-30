@@ -82,7 +82,8 @@ class carddav extends rcube_plugin
 	}
 
 	// add not existing preset addressbooks
-	foreach(carddav_backend::$admin_settings as $presetname => $preset) {
+	$prefs = carddav_backend::get_adminsettings();
+	foreach($prefs as $presetname => $preset) {
 		if($presetname === '_GLOBAL') continue;
 
 		// addressbooks exist for this preset => update settings
@@ -165,7 +166,7 @@ class carddav extends rcube_plugin
 	public function address_sources($p)
 	{{{
 	$dbh = rcmail::get_instance()->db;
-	$prefs = carddav_backend::$admin_settings;
+	$prefs = carddav_backend::get_adminsettings();
 
 	$sql_result = $dbh->query('SELECT id,name,presetname FROM ' . 
 		get_table_name('carddav_addressbooks') .
@@ -243,7 +244,8 @@ class carddav extends rcube_plugin
 		}
 
 		if (self::no_override('username', $abook, $prefs)) {
-			$content_username = $abook['username'];
+			$content_username = $abook['username'] === '%u' ? $_SESSION['username'] : $abook['username'];
+
 		} else {
 			// input box for username
 			$input = new html_inputfield(array('name' => $abookid.'_cd_username', 'type' => 'text', 'autocomplete' => 'off', 'value' => $abook['username']));
@@ -310,7 +312,7 @@ class carddav extends rcube_plugin
 			return;
 
 		$this->add_texts('localization/', false);
-		$prefs = carddav_backend::$admin_settings;
+		$prefs = carddav_backend::get_adminsettings();
 
 		if (version_compare(PHP_VERSION, '5.3.0') < 0) {
 			$args['blocks']['cd_preferences'] = array(
@@ -364,7 +366,7 @@ class carddav extends rcube_plugin
 	{{{
 		if($args['section'] != 'cd_preferences')
 			return;
-		$prefs = carddav_backend::$admin_settings;
+		$prefs = carddav_backend::get_adminsettings();
 
 		// update existing in DB
 		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'id,presetname',

@@ -61,18 +61,20 @@ $prefs['<Presetname>'] = array(
 //               preset, it will be appended in brackets to this name, except
 //               if carddav_name_only is true (see below).
 //
-// username:     CardDAV username to access the addressbook. You can use the
-//               roundcube username for this; see the examples below.
+// username:     CardDAV username to access the addressbook. Set this setting
+//               to '%u' to use the roundcube username.
 //
-// password:     CardDAV password to access the addressbook. You can use the
-//               roundcube password for this; see the examples below.
+// password:     CardDAV password to access the addressbook. Set this setting
+//               to '%p' to use the roundcube password. The password will not
+//               be stored in the database when using %p.
 //
 // url:          URL where to find the CardDAV addressbook(s). If the given URL
 //               refers directly to an addressbook, only this single
 //               addressbook will be added. If the URL points somewhere in the
 //               CardDAV space, but _not_ to the location of a particular
 //               addressbook, the server will be queried for the available
-//               addressbooks and all of them will be added.
+//               addressbooks and all of them will be added. You can use %u
+//               within the URL as a placeholder for the CardDAV username.
 //
 // The following parameters are OPTIONAL and need to be specified only if the default
 // value is not acceptable.
@@ -135,8 +137,11 @@ $prefs['<Presetname>'] = array(
 $prefs['Personal'] = array(
 	// required attributes
 	'name'         =>  'Personal',
-  'username'     =>  $_SESSION['username'],
-  'password'     =>  $rcmail->decrypt($_SESSION['password']),
+	// will be substituted for the roundcube username
+  'username'     =>  '%u', 
+	// will be substituted for the roundcube password
+  'password'     =>  '%p',
+	// %u will be substituted for the CardDAV username
   'url'          =>  'https://ical.example.org/caldav.php/%u/Personal',
 
   'active'       =>  true,

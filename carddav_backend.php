@@ -50,7 +50,6 @@ function carddavconfig($abookid){{{
 	$nu = ($nu==1 || $nu=='t')?1:0;
 	$abookrow['needs_update'] = $nu;
 
-	$abookrow['url'] = str_replace("%u", $abookrow['username'], $abookrow['url']);
 	return $abookrow;
 }}}
 
@@ -192,7 +191,7 @@ class carddav_backend extends rcube_addressbook
 	// custom labels defined in the addressbook
 	private $xlabels;
 	// admin settings from config.inc.php
-	public static $admin_settings;
+	private static $admin_settings;
 	// encryption scheme
 	public static $pwstore_scheme = 'base64';
 
@@ -275,8 +274,9 @@ class carddav_backend extends rcube_addressbook
 
 	$this->config = carddavconfig($dbid);
 
+	$prefs = self::get_adminsettings();
 	if($this->config['presetname']) {
-		if(self::$admin_settings[$this->config['presetname']]['readonly'])
+		if($prefs[$this->config['presetname']]['readonly'])
 			$this->readonly = true;
 	}
 
@@ -677,6 +677,8 @@ class carddav_backend extends rcube_addressbook
 	 */
   public static function cdfopen($caller, $url, $opts, $carddav)
   {{{
+	$rcmail = rcmail::get_instance();
+
 	$http=new http_class;
 	$http->timeout=10;
 	$http->data_timeout=0;
@@ -686,6 +688,13 @@ class carddav_backend extends rcube_addressbook
 	$http->prefer_curl=1;
 
 	$carddav['password'] = self::decrypt_password($carddav['password']);
+
+	// Substitute Placeholders
+	if($carddav['username'] === '%u')
+		$carddav['username'] = $_SESSION['username'];
+	if($carddav['password'] === '%p')
+		$carddav['password'] = $rcmail->decrypt($_SESSION['password']);
+	$carddav['url'] = str_replace("%u", $carddav['username'], $carddav['url']);
 
 	if(strpos($url, '://') === FALSE) {
 		$url = concaturl($carddav['url'], $url);
@@ -873,8 +882,6 @@ class carddav_backend extends rcube_addressbook
 			'content'=> $xmlquery
 		)
 	);
-
-	$config['url'] = str_replace("%u", $config['username'], $config['url']);
 
 	$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
@@ -2231,6 +2238,9 @@ class carddav_backend extends rcube_addressbook
 
 	public static function get_adminsettings()
 	{{{
+	if(is_array(self::$admin_settings))
+		return self::$admin_settings;
+
 	$rcmail = rcmail::get_instance();
 	$prefs = array();
 	if (file_exists("plugins/carddav/config.inc.php"))
@@ -2283,6 +2293,3 @@ class carddav_backend extends rcube_addressbook
 	return $dbh->affected_rows($sql_result);
 	}}}
 }
-
-carddav_backend::get_adminsettings();
-
