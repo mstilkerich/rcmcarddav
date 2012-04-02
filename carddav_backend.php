@@ -687,6 +687,11 @@ class carddav_backend extends rcube_addressbook
 	$http->redirection_limit=5;
 	$http->prefer_curl=1;
 
+	// if $url is relative, prepend the base url
+	if(strpos($url, '://') === FALSE) {
+		$url = concaturl($carddav['url'], $url);
+	}
+
 	$carddav['password'] = self::decrypt_password($carddav['password']);
 
 	// Substitute Placeholders
@@ -694,11 +699,7 @@ class carddav_backend extends rcube_addressbook
 		$carddav['username'] = $_SESSION['username'];
 	if($carddav['password'] === '%p')
 		$carddav['password'] = $rcmail->decrypt($_SESSION['password']);
-	$carddav['url'] = str_replace("%u", $carddav['username'], $carddav['url']);
-
-	if(strpos($url, '://') === FALSE) {
-		$url = concaturl($carddav['url'], $url);
-	}
+	$url = str_replace("%u", $carddav['username'], $url);
 
 	self::debug("cdfopen: $caller requesting $url");
 
