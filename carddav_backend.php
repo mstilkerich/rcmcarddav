@@ -1833,7 +1833,11 @@ class carddav_backend extends rcube_addressbook
 	 */
 	private function preprocess_rc_savedata(&$save_data)
 	{{{
-	if (array_key_exists('photo', $save_data)) {
+	if (array_key_exists('photo', $save_data)
+		// photos uploaded via the addressbook interface are provided in binary form
+		// photos from other addressbooks (at least roundcubes builtin one) are base64 encoded
+		&& base64_decode($save_data['photo'], true) === FALSE)
+	{
 		$save_data['photo'] = base64_encode($save_data['photo']);
 	}
 
