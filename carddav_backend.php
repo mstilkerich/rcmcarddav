@@ -1214,7 +1214,7 @@ class carddav_backend extends rcube_addressbook
 	$optsREPORT = array(
 		'http' => array(
 			'method'=>"REPORT",
-			'header'=>array("Depth: 1", "Content-Type: application/xml; charset=\"utf-8\""),
+			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
 			'content'=>$xmlquery
 		)
 	);
