@@ -713,7 +713,10 @@ class carddav_backend extends rcube_addressbook
 		if (is_array($opts['http']['header'])){
 			foreach ($opts['http']['header'] as $key => $value){
 				$h = explode(": ", $value);
-				$arguments["Headers"][$h[0]] = $h[1];
+				if (strlen($h[0]) > 0 && strlen($h[1]) > 0){
+					// Only append headers with key AND value
+					$arguments["Headers"][$h[0]] = $h[1];
+				}
 			}
 		} else {
 			$h = explode(": ", $opts['http']['header']);
