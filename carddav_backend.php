@@ -1164,7 +1164,7 @@ class carddav_backend extends rcube_addressbook
 			}
 
 			// needed by the calendar plugin
-			if(in_array('vcard', $cols)) {
+			if(is_array($cols) && in_array('vcard', $cols)) {
 				$save_data['save_data']['vcard'] = $contact['vcard'];
 			}
 
@@ -1536,11 +1536,15 @@ class carddav_backend extends rcube_addressbook
 		// to an address in the save data, as subtypes may have changed
 		$vcf->deleteProperty($vkey);
 
+		$stmap = array( $rckey => 'other' );
 		foreach ($this->coltypes[$rckey]['subtypes'] AS $subtype){
-			$rcqkey = $rckey.':'.$subtype;
+			$stmap[ $rckey.':'.$subtype ] = $subtype;
+		}
 
+		foreach ($stmap as $rcqkey => $subtype){
 			if(array_key_exists($rcqkey, $save_data)) {
-			foreach($save_data[$rcqkey] as $evalue) {
+			$avalues = is_array($save_data[$rcqkey]) ? $save_data[$rcqkey] : array($save_data[$rcqkey]);
+			foreach($avalues as $evalue) {
 				if (strlen($evalue) > 0){
 					$propidx = $vcf->setProperty($vkey, $evalue, -1);
 					$props = $vcf->getProperties($vkey);
