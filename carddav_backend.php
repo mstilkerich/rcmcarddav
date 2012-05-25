@@ -682,7 +682,7 @@ class carddav_backend extends rcube_addressbook
 	$http=new http_class;
 	$http->timeout=10;
 	$http->data_timeout=0;
-	$http->user_agent="RCM CardDAV plugin/TRUNK";
+	$http->user_agent="RCM CardDAV plugin/0.7.0";
 	$http->follow_redirect=1;
 	$http->redirection_limit=5;
 	$http->prefer_curl=1;
