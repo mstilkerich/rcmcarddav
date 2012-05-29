@@ -122,11 +122,6 @@ class carddav extends rcube_plugin
 					// only update if something changed
 					if(count($pa)===0) continue;
 
-					// encrypt the password before storing it
-					if(array_key_exists('password', $pa)) {
-						$pa['password'] = carddav_backend::encrypt_password($pa['password']);
-					}
-
 					self::update_abook($abookrow['id'],$pa);
 				}
 			}
@@ -385,15 +380,13 @@ class carddav extends rcube_plugin
 				// only set the password if the user entered a new one
 				$password = get_input_value($abookid."_cd_password", RCUBE_INPUT_POST, true);
 				if(strlen($password) > 0) {
-					$password = carddav_backend::encrypt_password($password);
 					$newset['password'] = $password;
 				}
 
-				$pn = $abook['presetname'];
-				if($pn && is_array($prefs[$pn]['fixed'])) {
-					// remove admin only settings
-					foreach($prefs[$pn]['fixed'] as $p) {
-						unset($newset[$p]);
+				// remove admin only settings
+				foreach($newset as $pref => $value) {
+					if(self::no_override($pref, $abook, $prefs)) {
+						unset($newset[$pref]);
 					}
 				}
 
@@ -485,6 +478,10 @@ class carddav extends rcube_plugin
 	// check parameters
 	if(array_key_exists('refresh_time', $pa))
 		$pa['refresh_time'] = self::process_cd_time($pa['refresh_time']);
+
+	// encrypt the password before storing it
+	if(array_key_exists('password', $pa))
+		$pa['password'] = carddav_backend::encrypt_password($pa['password']);
 
 	// optional fields
 	$qfo=array('name','username','password','url','active','refresh_time');
