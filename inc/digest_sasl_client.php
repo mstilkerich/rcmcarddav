@@ -62,7 +62,7 @@ class digest_sasl_client_class
 		switch($this->state)
 		{
 			case SASL_DIGEST_STATE_RESPOND_CHALLENGE:
-				$values=explode(', ',$response);
+				$values=explode(',',$response);
 				$parameters=array();
 				for($v=0; $v<count($values); $v++)
 					$parameters[strtok(trim($values[$v]), '=')]=strtok('');
