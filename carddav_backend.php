@@ -616,9 +616,8 @@ class carddav_backend extends rcube_addressbook
 
 		// check existing card caches, also determines kind of existing cards
 		$dbid = 0;
-		if(	($ret = self::checkcache($this->existing_grpcard_cache,$vcard['href'],$vcard['etag']))
-			|| ($ret = self::checkcache($this->existing_card_cache,$vcard['href'],$vcard['etag'])) ) {
-
+		if(	($ret = self::checkcache($this->existing_card_cache,$vcard['href'],$vcard['etag']))
+			|| ($ret = self::checkcache($this->existing_grpcard_cache,$vcard['href'],$vcard['etag'])) ) {
 			$dbid = $ret['dbid'];
 			// card has not changed
 			if(!$ret['needs_update']) continue;
