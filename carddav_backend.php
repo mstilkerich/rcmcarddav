@@ -487,6 +487,10 @@ class carddav_backend extends rcube_addressbook
 	{{{
 	$dbh = rcmail::get_instance()->db;
 
+	// get rid of the %u placeholder in the URI, otherwise the refresh operation
+	// will not be able to match local cards with those provided by the server
+	$uri = str_replace("%u", $this->config['username'], $uri);
+
 	$xcol[]='name';  $xval[]=$save_data['name'];
 	$xcol[]='etag';  $xval[]=$etag;
 	$xcol[]='vcard'; $xval[]=$vcfstr;
@@ -593,7 +597,7 @@ class carddav_backend extends rcube_addressbook
 	 * Parses a textual list of VCards and creates a local copy.
 	 *
 	 * @param  string String representation of one or more VCards.
-	 * @return int    The number of cards successfully parsed and stored.
+	 * @return int    The number of cards successfully parsed and stored, -1 on error.
 	 */
   private function addvcards($reply, $try = 0)
   {{{
@@ -606,6 +610,7 @@ class carddav_backend extends rcube_addressbook
 	xml_parse($xml_parser, $reply, true);
 	xml_parser_free($xml_parser);
 	$tryagain = array();
+	$numcards = 0;
 
 	foreach ($vcards as $vcard) {
 		if (!preg_match(";BEGIN;", $vcard['vcf'])){
@@ -637,7 +642,7 @@ class carddav_backend extends rcube_addressbook
 
 			// store group card
 			if(!($dbid = $this->dbstore_group($vcard['etag'],$vcard['href'],$vcard['vcf'],$save_data,$dbid)))
-				return false;
+				return -1;
 
 			// record group members for deferred store
 			$this->users_to_add[$dbid] = array();
@@ -655,17 +660,18 @@ class carddav_backend extends rcube_addressbook
 
 		} else { // individual/other
 			if(!$this->dbstore_contact($vcard['etag'],$vcard['href'],$vcard['vcf'],$save_data,$dbid))
-				return false;
+				return -1;
 		}
 	}
 
 	if ($try < 3 && count($tryagain) > 0){
 		$reply = $this->query_addressbook_multiget($tryagain);
 		$reply = $reply["body"];
-		$numcards = $this->addvcards($reply, ++$try);
-		if(!$numcards) return false;
+		$newnumcards = $this->addvcards($reply, ++$try);
+		if($newnumcards < 0) return -1;
+		$numcards += $newnumcards;
 	}
-	return true;
+	return $numcards;
   }}}
 
 	/**
@@ -782,6 +788,8 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	// delete cards not present on the server anymore
+	// do not delete the cards if an error occurred during the sync,
+	// because the caches will not be consistent in that case
 	if ($records >= 0) {
 		$del = self::delete_dbrecord(array_values($this->existing_card_cache));
 		self::debug("deleted $del contacts during server refresh");
@@ -811,6 +819,9 @@ class carddav_backend extends rcube_addressbook
 
 	$duration = time() - $duration;
 	self::debug("server refresh took $duration seconds");
+	if($records < 0) {
+		self::warn("Errors occurred during the refresh of addressbook " . $this->id);
+	}
 	}}}
 
 	/**
@@ -1259,7 +1270,7 @@ class carddav_backend extends rcube_addressbook
 		}
 		$reply = $this->query_addressbook_multiget($urls);
 		$reply = $reply["body"];
-		$records += $this->addvcards($reply);
+		$records = $this->addvcards($reply);
 	}
 	return $records;
   }}}
