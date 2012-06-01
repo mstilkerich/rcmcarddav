@@ -462,7 +462,7 @@ class carddav_backend extends rcube_addressbook
 	 */
 	private function set_displayname(&$save_data)
 	{{{
-	if(strcasecmp($save_data['showas'], 'COMPANY') == 0) {
+	if(strcasecmp($save_data['showas'], 'COMPANY') == 0 && strlen($save_data['organization'])>0) {
 		$save_data['name']     = $save_data['organization'];
 	}
 	}}}
