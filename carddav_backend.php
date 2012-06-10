@@ -245,6 +245,8 @@ class carddav_backend extends rcube_addressbook
 		),
 	);
 
+	// array with list of potential date fields for formatting
+	private $datefields = array('birthday', 'anniversary');
 
 	// log helpers
 	public static function warn() {
@@ -1520,10 +1522,16 @@ class carddav_backend extends rcube_addressbook
 				$i++;
 				$vcf->setProperty("ORG", $value, 0, $i);
 			}
-		} else {
-			if (strlen($save_data['department']) > 0){
-				$vcf->setProperty("ORG", $save_data['department'], 0, 1);
-			}
+		} else if (strlen($save_data['department']) > 0){
+			$vcf->setProperty("ORG", $save_data['department'], 0, 1);
+		}
+	}
+
+	// normalize date fields to RFC2425 YYYY-MM-DD date values
+	foreach ($this->datefields as $key) {
+		if (array_key_exists($key, $save_data)) {
+			$val = rcube_strtotime($save_data[$key]);
+			$save_data[$key] = date('Y-m-d',$val);
 		}
 	}
 
