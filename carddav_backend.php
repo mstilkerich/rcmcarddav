@@ -1757,12 +1757,17 @@ class carddav_backend extends rcube_addressbook
 	$property = $vcf->getProperty("N");
 	if ($property){
 		$N = $property->getComponents();
-		if(count($N)==5) {
-			$save_data['surname']    = $N[0];
-			$save_data['firstname']  = $N[1];
-			$save_data['middlename'] = $N[2];
-			$save_data['prefix']     = $N[3];
-			$save_data['suffix']     = $N[4];
+		switch(count($N)){
+			case 5:
+				$save_data['suffix']     = $N[4];
+			case 4:
+				$save_data['prefix']     = $N[3];
+			case 3:
+				$save_data['middlename'] = $N[2];
+			case 2:
+				$save_data['firstname']  = $N[1];
+			case 1:
+				$save_data['surname']    = $N[0];
 		}
 	}
 
