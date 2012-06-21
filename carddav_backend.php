@@ -1444,7 +1444,7 @@ class carddav_backend extends rcube_addressbook
 			'method'=>"PUT",
 			'content'=>$vcf,
 			'header'=> array(
-				"Content-Type: text/vcard",
+				"Content-Type: text/vcard;charset=utf-8",
 				$matchhdr,
 			),
 		)
