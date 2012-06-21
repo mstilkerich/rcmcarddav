@@ -507,6 +507,13 @@ class carddav_backend extends rcube_addressbook
 
 	} else {
 		self::debug("dbstore: INSERT card $uri");
+		if ("x".$save_data['cuid'] == "x"){
+			// There is no contact UID in the VCARD, try to create one
+			$cuid = $uri;
+			$cuid = preg_replace(';^.*/;', "", $cuid);
+			$cuid = preg_replace(';\.vcf$;', "", $cuid);
+			$save_data['cuid'] = $cuid;
+		}
 		$xcol[]='abook_id'; $xval[]=$this->id;
 		$xcol[]='uri';      $xval[]=$uri;
 		$xcol[]='cuid';     $xval[]=$save_data['cuid'];
