@@ -524,6 +524,7 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	if($dbh->is_error()) {
+		self::warn($dbh->is_error());
 		$this->set_error(self::ERROR_SAVING, $dbh->is_error());
 		return false;
 	}
