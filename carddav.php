@@ -62,6 +62,7 @@ class carddav extends rcube_plugin
 	public function init_presets()
 	{{{
 	$dbh = rcmail::get_instance()->db;
+	$prefs = carddav_backend::get_adminsettings();
 
 	// migrate old settings
 	migrateconfig();
@@ -82,7 +83,6 @@ class carddav extends rcube_plugin
 	}
 
 	// add not existing preset addressbooks
-	$prefs = carddav_backend::get_adminsettings();
 	foreach($prefs as $presetname => $preset) {
 		if($presetname === '_GLOBAL') continue;
 
