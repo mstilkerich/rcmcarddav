@@ -1537,7 +1537,7 @@ class carddav_backend extends rcube_addressbook
 
 	// normalize date fields to RFC2425 YYYY-MM-DD date values
 	foreach ($this->datefields as $key) {
-		if (array_key_exists($key, $save_data)) {
+		if (array_key_exists($key, $save_data) && strlen($save_data[$key])>0) {
 			$val = rcube_strtotime($save_data[$key]);
 			$save_data[$key] = date('Y-m-d',$val);
 		}
