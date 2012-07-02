@@ -491,7 +491,10 @@ class carddav_backend extends rcube_addressbook
 
 	// get rid of the %u placeholder in the URI, otherwise the refresh operation
 	// will not be able to match local cards with those provided by the server
-	$uri = str_replace("%u", $this->config['username'], $uri);
+	$username = $this->config['username'];
+	if($username === "%u")
+		$username = $_SESSION['username'];
+	$uri = str_replace("%u", $username, $uri);
 
 	$xcol[]='name';  $xval[]=$save_data['name'];
 	$xcol[]='etag';  $xval[]=$etag;
