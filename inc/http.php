@@ -1622,7 +1622,7 @@ class http_class
 			$mech = array_shift($tokens);
 
 			// append parameters
-			while(count($tokens > 0) && strpos($tokens[0], '=') > 0) {
+			while(count($tokens) > 0 && strpos($tokens[0], '=') > 0) {
 				$param = array_shift($tokens);
 				$mech .= " $param";
 	

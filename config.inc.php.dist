@@ -30,12 +30,12 @@
 $prefs['<Presetname>'] = array(
 	// required attributes
 	'name'         =>  '<Addressbook Name>',
-  'username'     =>  '<CardDAV Username>',
-  'password'     =>  '<CardDAV Password>',
-  'url'          =>  '<CardDAV URL>',
+	'username'     =>  '<CardDAV Username>',
+	'password'     =>  '<CardDAV Password>',
+	'url'          =>  '<CardDAV URL>',
 
 	// optional attributes
-  'active'       =>  <true or false>,
+	'active'       =>  <true or false>,
 	'readonly'     =>  <true or false>,
 	'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
 
@@ -138,13 +138,13 @@ $prefs['Personal'] = array(
 	// required attributes
 	'name'         =>  'Personal',
 	// will be substituted for the roundcube username
-  'username'     =>  '%u', 
+	'username'     =>  '%u', 
 	// will be substituted for the roundcube password
-  'password'     =>  '%p',
+	'password'     =>  '%p',
 	// %u will be substituted for the CardDAV username
-  'url'          =>  'https://ical.example.org/caldav.php/%u/Personal',
+	'url'          =>  'https://ical.example.org/caldav.php/%u/Personal',
 
-  'active'       =>  true,
+	'active'       =>  true,
 	'readonly'     =>  false,
 	'refresh_time' => '02:00:00',
 
@@ -156,10 +156,10 @@ $prefs['Personal'] = array(
 /*
 $prefs['Work'] = array(
 	'name'         =>  'Corporate',
-  'username'     =>  'CorpUser',
-  'password'     =>  'C0rpPasswo2d',
-  'url'          =>  'https://ical.example.org/caldav.php/%u/Corporate',
-	
+	'username'     =>  'CorpUser',
+	'password'     =>  'C0rpPasswo2d',
+	'url'          =>  'https://ical.example.org/caldav.php/%u/Corporate',
+
 	'fixed'        =>  array( 'name', 'username', 'password' ),
 );
 */

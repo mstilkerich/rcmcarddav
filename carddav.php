@@ -206,7 +206,8 @@ class carddav extends rcube_plugin
 	return $refresht;
 	}}}
 
-	private static function no_override($pref, $abook, $prefs) {
+	private static function no_override($pref, $abook, $prefs)
+	{{{
 		$pn = $abook['presetname'];
 		if(!$pn) return false;
 
@@ -217,7 +218,7 @@ class carddav extends rcube_plugin
 		if(!is_array($prefs[$pn]['fixed'])) return false;
 
 		return in_array($pref,$prefs[$pn]['fixed']);
-	}
+	}}}
 
 	/**
 	 * Builds a setting block for one address book for the preference page.
