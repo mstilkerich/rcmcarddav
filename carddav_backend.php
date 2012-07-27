@@ -404,6 +404,40 @@ class carddav_backend extends rcube_addressbook
 	if(strcasecmp($save_data['showas'], 'COMPANY') == 0 && strlen($save_data['organization'])>0) {
 		$save_data['name']     = $save_data['organization'];
 	}
+
+	// we need a displayname; if we do not have one, try to make one up
+	if(strlen($save_data['name']) == 0) {
+		$dname = array();
+		if(strlen($save_data['firstname'])>0)
+			$dname[] = $save_data['firstname'];
+		if(strlen($save_data['surname'])>0)
+			$dname[] = $save_data['surname'];
+
+		if(count($dname) > 0) {
+			$save_data['name'] = implode(' ', $dname); 
+
+		} else { // no name? try email and phone
+			$ep_keys = array_keys($save_data);
+			$ep_keys = preg_grep(";^(email|phone):;", $ep_keys);
+			sort($ep_keys, SORT_STRING);
+			foreach($ep_keys as $ep_key) {
+				self::debug("Check Key $ep_key");
+				$ep_vals = $save_data[$ep_key];
+				if(!is_array($ep_vals)) $ep_vals = array($ep_vals);
+
+				foreach($ep_vals as $ep_val) {
+					if(strlen($ep_val)>0) {
+						$save_data['name'] = $ep_val;
+						break 2;
+					}
+				}
+			}
+		}
+
+		// still no name? set to unknown and hope the user will fix it
+		if(strlen($save_data['name']) == 0)
+			$save_data['name'] = 'Unset Displayname';
+	}
 	}}}
 
 	/**
