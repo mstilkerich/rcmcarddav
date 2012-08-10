@@ -21,12 +21,13 @@
 		<user>mike2k</user>
 		<email>ms@mike2k.de</email>
 		<active>yes</yes>
+	</developer>
 	<date>2012-08-10</date>
 	<version>
-		<release>0.8.0</release>
+		<release>0.8.0-dev</release>
 	</version>
 	<stability>
-		<release>stable</release>
+		<release>development</release>
 	</stability>
 	<license uri="http://www.gnu.org/licenses/gpl-2.0.html">GNU GPLv2</license>
 	<notes>-</notes>
