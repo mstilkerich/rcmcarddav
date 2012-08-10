@@ -20,14 +20,14 @@
 		<name>Michael Stilkerich</name>
 		<user>mike2k</user>
 		<email>ms@mike2k.de</email>
-		<active>yes</yes>
+		<active>yes</active>
 	</developer>
 	<date>2012-08-10</date>
 	<version>
 		<release>0.8.0-dev</release>
 	</version>
 	<stability>
-		<release>development</release>
+		<release>devel</release>
 	</stability>
 	<license uri="http://www.gnu.org/licenses/gpl-2.0.html">GNU GPLv2</license>
 	<notes>-</notes>
