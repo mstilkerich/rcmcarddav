@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS carddav_xsubtypes (
 	FOREIGN KEY (abook_id) REFERENCES carddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) /*!40000 ENGINE=INNODB */;
 
-CREATE TABLE carddav_groups (
+CREATE TABLE IF NOT EXISTS carddav_groups (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
 	abook_id INT UNSIGNED NOT NULL,
 	name VARCHAR(255) NOT NULL, -- display name
@@ -63,7 +63,7 @@ CREATE TABLE carddav_groups (
 	FOREIGN KEY (abook_id) REFERENCES carddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) /*!40000 ENGINE=INNODB */;
 
-CREATE TABLE carddav_group_user (
+CREATE TABLE IF NOT EXISTS carddav_group_user (
 	group_id   INT UNSIGNED NOT NULL,
 	contact_id INT UNSIGNED NOT NULL,
 
