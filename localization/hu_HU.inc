@@ -2,6 +2,7 @@
 $labels = Array(
 	'cd_title'=> "CardDAV",
 	'cd_active'=> "CardDAV címjegyzék aktiválása",
+	'cd_newabboxtitle'=> "Add new addressbook",
 	'cd_username'=> "Felhasználónév",
 	'cd_password'=> "Jelszó",
 	'cd_url'=> "URL",

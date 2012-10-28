@@ -327,7 +327,7 @@ class carddav extends rcube_plugin
 
 		if(!array_key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) {
 			$args['blocks']['cd_preferences_section_new'] = $this->cd_preferences_buildblock(
-				'Configure new addressbook',
+				Q($this->gettext('cd_newabboxtitle')),
 				array(
 					'id'           => 'new',
 					'active'       => 1,
