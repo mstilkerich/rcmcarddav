@@ -268,7 +268,7 @@ class VCardProperty
 			$line = rtrim($line);
 			$tmp = split_quoted_string(":", $line, 2);
 			if (count($tmp) == 2) {
-				$this->value = $tmp[1];
+				$this->value=preg_replace('/\\\\r\\\\n|\\\\n|\\\\r/',"\n",$tmp[1]);
 				// parameter values can be case sensitive
 				$tmp = split_quoted_string(";", $tmp[0]);
 				$this->name = $tmp[0];
@@ -307,6 +307,7 @@ class VCardProperty
 				$line .= ";$pname=". dquote($value);
 			}
 		}
+		$this->value=preg_replace("/\r\n|\r|\n/","\\n",$this->value);
 		$line .= ':' . $this->value;
 
 		// fold lines to 75 characters length
