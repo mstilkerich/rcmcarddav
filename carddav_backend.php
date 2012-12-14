@@ -1066,6 +1066,7 @@ class carddav_backend extends rcube_addressbook
 		'<?xml version="1.0" encoding="utf-8" ?'.'>
 			<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
 			<D:sync-token></D:sync-token>
+			<D:sync-level>1</D:sync-level>
 			<D:prop>
 				<D:getcontenttype/>
 				<D:getetag/>
@@ -1079,7 +1080,7 @@ class carddav_backend extends rcube_addressbook
 	$opts = array(
 		'http'=>array(
 			'method'=>"REPORT",
-			'header'=>array("Depth: infinite", "Content-Type: application/xml; charset=\"utf-8\""),
+			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
 			'content'=> $xmlquery
 		)
 	);
