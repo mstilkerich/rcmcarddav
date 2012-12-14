@@ -3,7 +3,7 @@ CREATE TABLE carddav_addressbooks (
 	id           integer NOT NULL PRIMARY KEY,
 	name         VARCHAR(64) NOT NULL,
 	username     VARCHAR(64) NOT NULL,
-	password     VARCHAR(64) NOT NULL,
+	password     VARCHAR(255) NOT NULL,
 	url          VARCHAR(255) NOT NULL,
 	active       TINYINT UNSIGNED NOT NULL DEFAULT 1,
 	user_id      integer NOT NULL,
