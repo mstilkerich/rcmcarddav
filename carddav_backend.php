@@ -872,6 +872,7 @@ class carddav_backend extends rcube_addressbook
 		<D:propfind xmlns:D="DAV:"><D:prop>
 		<D:resourcetype />
 		<D:displayname />
+		<D:supported-report-set />
 		</D:prop></D:propfind>';
 	$opts = array(
 		'http'=>array(
@@ -988,6 +989,7 @@ class carddav_backend extends rcube_addressbook
 		<D:propfind xmlns:D="DAV:"><D:prop>
 		<D:resourcetype />
 		<D:displayname />
+		<D:supported-report-set />
 		</D:prop></D:propfind>';
 	$opts = array(
 		'http'=>array(
