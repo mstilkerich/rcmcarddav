@@ -1228,7 +1228,9 @@ class carddav_backend extends rcube_addressbook
 		xml_parser_free($xml_parser);
 		$urls = array();
 		foreach($vcards as $vcard){
-			$urls[] = $vcard['href'];
+			if($vcard['href'][strlen($vcard['href'])-1] != '/') {
+				$urls[] = $vcard['href'];
+			}
 		}
 		$reply = $this->query_addressbook_multiget($urls);
 		$reply = $reply["body"];
