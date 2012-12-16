@@ -38,7 +38,7 @@ function carddavconfig($abookid){{{
 
 	$abookrow = carddav_backend::get_dbrecord($abookid,
 		'id as abookid,name,username,password,url,presetname,'
-		. $timequery . ' as needs_update', 'addressbooks');
+		. $timequery . ' as needs_update', 'addressbooks'); // add sync_token field later
 
 	if(! $abookrow) {
 		carddav_backend::warn("FATAL! Request for non-existent configuration $abookid");
@@ -159,7 +159,10 @@ function endElement_addvcards($parser, $n) {{{
 	}
 }}}
 function characterData_addvcards($parser, $data) {{{
-	global $ctag; global $cur_vcard;
+	global $ctag; global $cur_vcard; global $sync_token;
+	if ($ctag == "||DAV::MULTISTATUS||DAV::TOKEN"){
+		$sync_token = $data;
+	}
 	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::HREF"){
 		$cur_vcard['href'] = $data;
 	}
@@ -587,12 +590,23 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$dbh = rcmail::get_instance()->db;
 	global $vcards;
+	global $sync_token;
 	$vcards = array();
+	$sync_token = "";
 	$xml_parser = xml_parser_create_ns();
 	xml_set_element_handler($xml_parser, "startElement_addvcards", "endElement_addvcards");
 	xml_set_character_data_handler($xml_parser, "characterData_addvcards");
 	xml_parse($xml_parser, $reply, true);
 	xml_parser_free($xml_parser);
+
+	/* For later use
+	if (strlen($sync_token) > 0){
+		$dbh->query('UPDATE '.get_table_name('carddav_addressbooks').' '.
+			'SET sync_token = ? '.
+			'WHERE id = ?', $sync_token, $this->id);
+	}
+	 */
+
 	$tryagain = array();
 	$numcards = 0;
 
@@ -1085,6 +1099,7 @@ class carddav_backend extends rcube_addressbook
   private function list_records_sync_collection()
   {{{
 	$records = 0;
+	// For later use: <D:sync-token>'.$this->config['sync_token'].'</D:sync-token>
 	$xmlquery =
 		'<?xml version="1.0" encoding="utf-8" ?'.'>
 			<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
