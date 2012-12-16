@@ -785,7 +785,7 @@ class carddav_backend extends rcube_addressbook
 	);
 	$reply = self::cdfopen("refreshdb_from_server", $this->config['url'], $opts, $this->config);
 	# Quick and dirty...
-	if (preg_match(",<sync-collection/>,i", $reply)){
+	if (preg_match(",<sync-collection/>,i", join($reply))){
 		$records = $this->list_records_sync_collection();
 	} else {
 		$records = -1;
