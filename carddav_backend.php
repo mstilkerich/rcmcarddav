@@ -766,7 +766,30 @@ class carddav_backend extends rcube_addressbook
 	// used to record which users need to be added to which groups
 	$this->users_to_add = array();
 
-	$records = $this->list_records_sync_collection();
+	// Check for supported-report-set and only use sync-collection if server advertises it.
+	// This suppresses 501 Not implemented errors with ownCloud.
+	$xmlquery =
+		'<?xml version="1.0" encoding="UTF-8" ?'.'>
+		<propfind xmlns="DAV:">
+		 <prop>
+		  <supported-live-property-set/>
+		  <supported-report-set/>
+		 </prop>
+		</propfind>';
+	$opts = array(
+		'http'=>array(
+			'method'=>"PROPFIND",
+			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
+			'content'=> $xmlquery
+		)
+	);
+	$reply = self::cdfopen("refreshdb_from_server", $this->config['url'], $opts, $this->config);
+	# Quick and dirty...
+	if (preg_match(",<sync-collection/>,i", $reply)){
+		$records = $this->list_records_sync_collection();
+	} else {
+		$records = -1;
+	}
 	if ($records < 0){ // returned error -1
 		$records = $this->list_records_propfind_resourcetype();
 	}
