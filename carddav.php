@@ -477,7 +477,7 @@ class carddav extends rcube_plugin
 	);
 	}}}	
 	
-	private static function update_abook($abookid, $pa)
+	public static function update_abook($abookid, $pa)
 	{{{
 	$dbh = rcmail::get_instance()->db;
 
@@ -490,7 +490,7 @@ class carddav extends rcube_plugin
 		$pa['password'] = carddav_backend::encrypt_password($pa['password']);
 
 	// optional fields
-	$qfo=array('name','username','password','url','active','refresh_time');
+	$qfo=array('name','username','password','url','active','refresh_time','sync_token');
 	$qf=array();
 	$qv=array();
 

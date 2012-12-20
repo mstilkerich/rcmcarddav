@@ -644,9 +644,7 @@ class carddav_backend extends rcube_addressbook
 
 	/* For later use
 	if (strlen($sync_token) > 0){
-		$dbh->query('UPDATE '.get_table_name('carddav_addressbooks').' '.
-			'SET sync_token = ? '.
-			'WHERE id = ?', $sync_token, $this->id);
+		carddav::update_abook($this->id, array('sync_token' => $sync_token));
 	}
 	 */
 
