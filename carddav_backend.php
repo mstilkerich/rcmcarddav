@@ -271,6 +271,13 @@ class carddav_backend extends rcube_addressbook
 		}
 	}
 
+	private static function parseXML($xmlstr) {
+		$xml = new SimpleXMLElement($xmlstr);
+		$xml->registerXPathNamespace('C', self::NSCARDDAV);
+		$xml->registerXPathNamespace('D', self::NSDAV);
+		return $xml;
+	}
+
 	public function __construct($dbid)
 	{{{
 	$dbh = rcmail::get_instance()->db;
@@ -409,7 +416,6 @@ class carddav_backend extends rcube_addressbook
 		<D:propfind xmlns:D="DAV:"><D:prop>
 		<D:resourcetype />
 		<D:displayname />
-		<D:supported-report-set />
 		</D:prop></D:propfind>';
 	$opts = array(
 		'http'=>array(
@@ -827,7 +833,6 @@ class carddav_backend extends rcube_addressbook
 		'<?xml version="1.0" encoding="UTF-8" ?'.'>
 		<propfind xmlns="DAV:">
 		 <prop>
-		  <supported-live-property-set/>
 		  <supported-report-set/>
 		 </prop>
 		</propfind>';
@@ -839,13 +844,18 @@ class carddav_backend extends rcube_addressbook
 		)
 	);
 	$reply = self::cdfopen("refreshdb_from_server", $this->config['url'], $opts, $this->config);
-	# Quick and dirty...
-	if (preg_match(",<sync-collection/>,i", join($reply))){
-		$records = $this->list_records_sync_collection();
-	} else {
-		$records = -1;
+
+	$records = -1;
+	if(self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;')) {
+		$xml = self::parseXML($reply['body']);
+		$xpresult = $xml->xpath('//D:supported-report/D:report/D:sync-collection');
+		if(count($xpresult) > 0) {
+			$records = $this->list_records_sync_collection();
+		}
 	}
-	if ($records < 0){ // returned error -1
+ 
+	// sync-collection not supported or returned error
+	if ($records < 0){
 		$records = $this->list_records_propfind_resourcetype();
 	}
 
@@ -992,8 +1002,7 @@ class carddav_backend extends rcube_addressbook
 	if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
 		return false;
 
-	$xml = new SimpleXMLElement($reply['body']);
-	$xml->registerXPathNamespace('D', self::NSDAV);
+	$xml = self::parseXML($reply['body']);
 	$xpresult = $xml->xpath('//D:current-user-principal/D:href');
 	if(count($xpresult) == 0) {
 		self::debug("find_addressbook no principal URL found");
@@ -1026,9 +1035,7 @@ class carddav_backend extends rcube_addressbook
 	if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
 		return false;
 
-	$xml = new SimpleXMLElement($reply['body']);
-	$xml->registerXPathNamespace('C', self::NSCARDDAV);
-	$xml->registerXPathNamespace('D', self::NSDAV);
+	$xml = self::parseXML($reply['body']);
 	$xpresult = $xml->xpath('//C:addressbook-home-set/D:href');
 	if(count($xpresult) > 0) {
 		$abookhome = $xpresult[0];
@@ -1051,7 +1058,6 @@ class carddav_backend extends rcube_addressbook
 		<D:propfind xmlns:D="DAV:"><D:prop>
 		<D:resourcetype />
 		<D:displayname />
-		<D:supported-report-set />
 		</D:prop></D:propfind>';
 	$opts = array(
 		'http'=>array(
