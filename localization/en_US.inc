@@ -11,5 +11,6 @@ $labels = Array(
 	'cd_delete' => "Remove this addressbook",
 	'cd_name_new' => "Configure new addressbook",
 	'cd_refresh_time' => "Update interval (hours)",
+	'cd_err_noabfound' => 'no addressbook found',
 );
 ?>

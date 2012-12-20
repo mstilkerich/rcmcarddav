@@ -356,6 +356,7 @@ class carddav extends rcube_plugin
 	// save preferences
 	function cd_save($args)
 	{{{
+		$this->add_texts('localization/', false);
 		if($args['section'] != 'cd_preferences')
 			return;
 		$prefs = carddav_backend::get_adminsettings();
@@ -402,22 +403,26 @@ class carddav extends rcube_plugin
 			$usr  = get_input_value('new_cd_username', RCUBE_INPUT_POST, true);
 			$pass = get_input_value('new_cd_password', RCUBE_INPUT_POST, true);
 			$pass = carddav_backend::encrypt_password($pass);
+			$abname = get_input_value('new_cd_name', RCUBE_INPUT_POST);
 
 			$srvs = carddav_backend::find_addressbook(array('url'=>$srv,'password'=>$pass,'username'=>$usr));
 			if(is_array($srvs)) {
 			foreach($srvs as $key => $srv){
-				$abname = get_input_value('new_cd_name', RCUBE_INPUT_POST);
+				$this_abname = $abname;
 				if($srv[name]) {
-					$abname .= ' (' . $srv[name] . ')';
+					$this_abname .= ' (' . $srv['name'] . ')';
 				}
 				self::insert_abook(array(
-					'name'     => $abname,
+					'name'     => $this_abname,
 					'username' => $usr,
 					'password' => $pass,
-					'url'      => $srv[href],
+					'url'      => $srv['href'],
 					'refresh_time' => get_input_value('new_cd_refresh_time', RCUBE_INPUT_POST)
 				));
-			}}
+			}} else {
+				$args['abort'] = true;
+				$args['message'] = $abname . ': ' . $this->gettext('cd_err_noabfound');
+			}
 		}
 
 		return($args);

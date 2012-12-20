@@ -13,5 +13,6 @@ $labels = Array(
 	'cd_displayorder'=> "Namens-Darstellung",
 	'cd_sortorder'=> "Sortierschlüssel",
 	'cd_refresh_time'=> "Aktualisierungsintervall (Stunden)",
+	'cd_err_noabfound' => 'kein Adressbuch gefunden',
 );
 ?>
