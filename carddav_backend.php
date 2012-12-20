@@ -200,6 +200,9 @@ class carddav_backend extends rcube_addressbook
 
 	const SEPARATOR = ',';
 
+	const NSDAV = 'DAV:';
+	const NSCARDDAV = 'urn:ietf:params:xml:ns:carddav';
+
 	const DEBUG      = false; // set to true for basic debugging
 	const DEBUG_HTTP = false; // set to true for debugging raw http stream
 
@@ -397,6 +400,47 @@ class carddav_backend extends rcube_addressbook
 	$this->filter = null;
 	$this->total_cards = -1;
   }}}
+
+	private static function retrieve_addressbook_properties($url, $config)
+	{{{
+	// check if the given URL points to an addressbook
+	$xmlquery =
+		'<?xml version="1.0" encoding="utf-8"?'.'>
+		<D:propfind xmlns:D="DAV:"><D:prop>
+		<D:resourcetype />
+		<D:displayname />
+		<D:supported-report-set />
+		</D:prop></D:propfind>';
+	$opts = array(
+		'http'=>array(
+			'method'=>"PROPFIND",
+			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
+			'content'=> $xmlquery
+		)
+	);
+
+	$reply = self::cdfopen("find_addressbook", $url, $opts, $config);
+	if ($reply == -1) // error occured, as opposed to "" which means empty reply
+		return false;
+
+	if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
+		return false;
+
+	$xml = new SimpleXMLElement($reply['body']);
+	$xml = $xml->children(self::NSDAV)
+		->response->children(self::NSDAV)
+		->propstat->children(self::NSDAV)
+		->prop->children(self::NSDAV);
+
+	$aBook = array();
+	if($xml->resourcetype
+		->children(self::NSCARDDAV)->addressbook) {
+
+			$aBook[href] = $config['url'];
+			$aBook[name] = $xml->displayname;
+	}
+	return $aBook;
+	}}}
 
 	/**
 	 * Determines the name to be displayed for a contact. The routine
@@ -894,6 +938,20 @@ class carddav_backend extends rcube_addressbook
 	return false;
   }}}
 
+	public static function check_contenttype($ctheader, $expectedct)
+	{{{
+	if(!is_array($ctheader)) {
+		$ctheader = array($ctheader);
+	}
+
+	foreach($ctheader as $ct) {
+		if(preg_match($expectedct, $ct))
+			return true;
+	}
+
+	return false;
+	}}}
+
 	/**
 	 * Determines the location of the addressbook for the current user on the
 	 * CardDAV server.
@@ -902,50 +960,11 @@ class carddav_backend extends rcube_addressbook
 	{{{
 	$retVal = array();
 
-	// check if the given URL points to an addressbook
-	$xmlquery =
-		'<?xml version="1.0" encoding="utf-8"?'.'>
-		<D:propfind xmlns:D="DAV:"><D:prop>
-		<D:resourcetype />
-		<D:displayname />
-		<D:supported-report-set />
-		</D:prop></D:propfind>';
-	$opts = array(
-		'http'=>array(
-			'method'=>"PROPFIND",
-			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
-			'content'=> $xmlquery
-		)
-	);
-
-	$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config);
-	if ($reply == -1) // error occured, as opposed to "" which means empty reply
+	$rap_result = self::retrieve_addressbook_properties($config['url'], $config);
+	if(!is_array($rap_result))
 		return false;
 
-	if(is_array($reply['headers']['content-type'])) {
-		if(!preg_match(';(text|application)/xml;', $reply['headers']['content-type'][0]))
-			return false;
-	} else {
-		if(!preg_match(';(text|application)/xml;', $reply['headers']['content-type']))
-			return false;
-	}
-
-	$xml = new SimpleXMLElement($reply['body']);
-	if($xml->children('DAV:')
-		->response->children('DAV:')
-		->propstat->children('DAV:')
-		->prop->children('DAV:')
-		->resourcetype->children('urn:ietf:params:xml:ns:carddav')
-		->addressbook) {
-
-			$aBook = array();
-			$aBook[href] = $config['url'];
-			$aBook[name] = $xml->children('DAV:')
-				->response->children('DAV:')
-				->propstat->children('DAV:')
-				->prop->children('DAV:')				
-				->displayname;
-
+	if(array_key_exists('href', $rap_result)) {
 			self::debug("find_addressbook found: ".$aBook[name]." at ".$aBook[href]);
 			$retVal[] = $aBook;
 			return $retVal;
@@ -972,19 +991,16 @@ class carddav_backend extends rcube_addressbook
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
 
-	if(is_array($reply['headers']['content-type'])) {
-		if(!preg_match(';(text|application)/xml;', $reply['headers']['content-type'][0]))
-			return false;
-	} else {
-		if(!preg_match(';(text|application)/xml;', $reply['headers']['content-type']))
-			return false;
-	}
+	if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
+		return false;
 
 	$xml = new SimpleXMLElement($reply['body']);
-	$xml->registerXPathNamespace('D', 'DAV:');
+	$xml->registerXPathNamespace('D', self::NSDAV);
 	$xpresult = $xml->xpath('//D:current-user-principal/D:href');
-	if(count($xpresult) == 0)
+	if(count($xpresult) == 0) {
+		self::debug("find_addressbook no principal URL found");
 		return false;
+	}
 
 	$princurl = $xpresult[0];
 	self::debug("find_addressbook Principal URL: $princurl");
@@ -1008,18 +1024,13 @@ class carddav_backend extends rcube_addressbook
 	$reply = self::cdfopen("find_addressbook", $princurl, $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
-	
-	if(is_array($reply['headers']['content-type'])) {
-		if(!preg_match(';(text|application)/xml;', $reply['headers']['content-type'][0]))
-			return false;
-	} else {
-		if(!preg_match(';(text|application)/xml;', $reply['headers']['content-type']))
-			return false;
-	}
+
+	if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
+		return false;
 
 	$xml = new SimpleXMLElement($reply['body']);
-	$xml->registerXPathNamespace('C', 'urn:ietf:params:xml:ns:carddav');
-	$xml->registerXPathNamespace('D', 'DAV:');
+	$xml->registerXPathNamespace('C', self::NSCARDDAV);
+	$xml->registerXPathNamespace('D', self::NSDAV);
 	$xpresult = $xml->xpath('//C:addressbook-home-set/D:href');
 	if(count($xpresult) > 0) {
 		$abookhome = $xpresult[0];
@@ -1056,29 +1067,22 @@ class carddav_backend extends rcube_addressbook
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
 
-	if(is_array($reply['headers']['content-type'])) {
-		if(!preg_match(';(text|application)/xml;', $reply['headers']['content-type'][0]))
-			return false;
-	} else {
-		if(!preg_match(';(text|application)/xml;', $reply['headers']['content-type']))
-			return false;
-	}
+	if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
+		return false;
 
 	$xml = new SimpleXMLElement($reply['body']);
 
-	foreach($xml->children('DAV:')->response as $coll) {
-		if($coll->children('DAV:')
-			->propstat->children('DAV:')
-			->prop->children('DAV:')
-			->resourcetype->children('urn:ietf:params:xml:ns:carddav')
-			->addressbook) {
+	foreach($xml->children(self::NSDAV)->response as $coll) {
+		$coll = $coll->children(self::NSDAV)
+			->propstat->children(self::NSDAV)
+			->prop->children(self::NSDAV);
+
+		if($coll->resourcetype
+			->children(self::NSCARDDAV)->addressbook) {
 
 			$aBook = array();
-			$aBook[href] = $serverpart . $coll->children('DAV:')->href;
-			$aBook[name] = $coll->children('DAV:')
-				->propstat->children('DAV:')
-				->prop->children('DAV:')				
-				->displayname;
+			$aBook[href] = $serverpart . $coll->children(self::NSDAV)->href;
+			$aBook[name] = $coll->displayname;
 
 			if (!preg_match(';^[^/]+://[^/]+;', $aBook[href])){
 				$aBook[href] = concaturl($config['url'], $aBook[href]);
