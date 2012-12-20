@@ -60,9 +60,9 @@ function migrateconfig($sub = 'CardDAV'){{{
 	$rcmail = rcmail::get_instance();
 	$prefs_all = $rcmail->config->get('carddav', 0);
 	$dbh = $rcmail->db;
-	
+
 	// adopt password storing scheme if stored password differs from configured scheme
-	$sql_result = $dbh->query('SELECT id,password FROM ' . 
+	$sql_result = $dbh->query('SELECT id,password FROM ' .
 		get_table_name('carddav_addressbooks') .
 		' WHERE user_id=?', $_SESSION['user_id']);
 
@@ -165,14 +165,14 @@ function characterData_addvcards($parser, $data) {{{
 	}
 	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::HREF"){
 		$cur_vcard['href'] = $data;
-	}
-	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||URN:IETF:PARAMS:XML:NS:CARDDAV:ADDRESS-DATA"){
+
+	} else if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||URN:IETF:PARAMS:XML:NS:CARDDAV:ADDRESS-DATA"){
 		$cur_vcard['vcf'] .= $data;
-	}
-	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETETAG"){
+
+	} else if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETETAG"){
 		$cur_vcard['etag'] = $data;
-	}
-	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETCONTENTTYPE"){
+
+	} else if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETCONTENTTYPE"){
 		$cur_vcard['content-type'] = $data;
 	}
 }}}
@@ -197,7 +197,7 @@ class carddav_backend extends rcube_addressbook
 	private static $admin_settings;
 	// encryption scheme
 	public static $pwstore_scheme = 'base64';
-	
+
 	const SEPARATOR = ',';
 
 	const DEBUG      = false; // set to true for basic debugging
@@ -417,14 +417,13 @@ class carddav_backend extends rcube_addressbook
 			$dname[] = $save_data['surname'];
 
 		if(count($dname) > 0) {
-			$save_data['name'] = implode(' ', $dname); 
+			$save_data['name'] = implode(' ', $dname);
 
 		} else { // no name? try email and phone
 			$ep_keys = array_keys($save_data);
 			$ep_keys = preg_grep(";^(email|phone):;", $ep_keys);
 			sort($ep_keys, SORT_STRING);
 			foreach($ep_keys as $ep_key) {
-				self::debug("Check Key $ep_key");
 				$ep_vals = $save_data[$ep_key];
 				if(!is_array($ep_vals)) $ep_vals = array($ep_vals);
 
@@ -459,7 +458,7 @@ class carddav_backend extends rcube_addressbook
 	return $this->dbstore_base('groups',$etag,$uri,$vcfstr,$save_data,$dbid);
 	}}}
 
-	private function dbstore_base($table, $etag, $uri, $vcfstr, $save_data, $dbid=0, $xcol=array(), $xval=array()) 
+	private function dbstore_base($table, $etag, $uri, $vcfstr, $save_data, $dbid=0, $xcol=array(), $xval=array())
 	{{{
 	$dbh = rcmail::get_instance()->db;
 
@@ -553,7 +552,7 @@ class carddav_backend extends rcube_addressbook
 	/**
 	 * Checks if the given local card cache (for contacts or groups) contains
 	 * a card with the given URI. If not, the function returns false.
-	 * If yes, the card is removed from the cache, and the cached etag is 
+	 * If yes, the card is removed from the cache, and the cached etag is
 	 * compared with the given one. The function returns an associative array
 	 * with the database id of the existing card (key dbid) and a boolean that
 	 * indicates whether the card needs a server refresh as determined by the
@@ -635,7 +634,7 @@ class carddav_backend extends rcube_addressbook
 
 		if($save_data['kind'] === 'group') {
 			self::debug('Processing Group ' . $save_data['name']);
-			// delete current group members (will be reinserted if needed below)	
+			// delete current group members (will be reinserted if needed below)
 			if($dbid) self::delete_dbrecord($dbid,'group_user','group_id');
 
 			// store group card
@@ -1197,7 +1196,7 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	if(!$count_only) {
-		// create results for roundcube	
+		// create results for roundcube
 		foreach($addresses as $a) {
 			$a['save_data']['ID'] = $a['ID'];
 			$this->result->add($a['save_data']);
@@ -1743,7 +1742,7 @@ class carddav_backend extends rcube_addressbook
 			}
 
 			$vcard->setProperty('X-ABLabel', $newlabel, -1, 0, $group);
-			return true;	
+			return true;
 		}
 
 		// Standard Label
@@ -1797,7 +1796,7 @@ class carddav_backend extends rcube_addressbook
 			if(preg_match(';_\$!<(.*)>!\$_;', $xlabel, $matches)) {
 				$match = strtolower($matches[1]);
 				if(in_array($match, $this->coltypes[$attrname]['subtypes']))
-				 return $match;	
+				 return $match;
 				return 'other';
 			}
 
@@ -1858,7 +1857,7 @@ class carddav_backend extends rcube_addressbook
 	$save_data = array(
 		// DEFAULTS
 		'kind'   => 'individual',
-		'showas' => 'INDIVIDUAL', 
+		'showas' => 'INDIVIDUAL',
 	);
 
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
@@ -1980,7 +1979,7 @@ class carddav_backend extends rcube_addressbook
 	if(!$dbid) return false;
 
 	if($this->total_cards != -1)
-		$this->total_cards++; 
+		$this->total_cards++;
 	return $dbid;
   }}}
 
@@ -2077,7 +2076,7 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	if($this->total_cards != -1)
-		$this->total_cards -= $deleted; 
+		$this->total_cards -= $deleted;
 	return $deleted;
   }}}
 
