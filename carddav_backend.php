@@ -123,6 +123,11 @@ function concaturl($str, $cat){{{
 	preg_match(";(^https?://[^/]+)(.*);", $str, $match);
 	$hostpart = $match[1];
 	$urlpart  = $match[2];
+	
+	// is $cat already a full URL?
+	if(strpos($cat, '://') !== FALSE) {
+		return $cat;
+	}
 
 	// is $cat a simple filename?
 	// then attach it to the URL
@@ -273,9 +278,13 @@ class carddav_backend extends rcube_addressbook
 
 	private static function parseXML($xmlstr) {
 		$xml = new SimpleXMLElement($xmlstr);
+		self::registerNamespaces($xml);
+		return $xml;
+	}
+	
+	private static function registerNamespaces($xml) {
 		$xml->registerXPathNamespace('C', self::NSCARDDAV);
 		$xml->registerXPathNamespace('D', self::NSDAV);
-		return $xml;
 	}
 
 	public function __construct($dbid)
@@ -408,44 +417,49 @@ class carddav_backend extends rcube_addressbook
 	$this->total_cards = -1;
   }}}
 
-	private static function retrieve_addressbook_properties($url, $config)
+	private static function retrieve_addressbook_properties($url, $serverpart, $config)
 	{{{
 	// check if the given URL points to an addressbook
-	$xmlquery =
-		'<?xml version="1.0" encoding="utf-8"?'.'>
-		<D:propfind xmlns:D="DAV:"><D:prop>
-		<D:resourcetype />
-		<D:displayname />
-		</D:prop></D:propfind>';
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
-			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
-			'content'=> $xmlquery
+			'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
+			'content'=> <<<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<D:propfind xmlns:D="DAV:"><D:prop>
+    <D:resourcetype />
+    <D:displayname />
+</D:prop></D:propfind>
+EOF
 		)
 	);
 
-	$reply = self::cdfopen("find_addressbook", $url, $opts, $config);
+	$reply = self::cdfopen("retrieve_addressbook_properties", $url, $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
 
 	if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
 		return false;
 
-	$xml = new SimpleXMLElement($reply['body']);
-	$xml = $xml->children(self::NSDAV)
-		->response->children(self::NSDAV)
-		->propstat->children(self::NSDAV)
-		->prop->children(self::NSDAV);
+	$xml = self::parseXML($reply['body']);
 
-	$aBook = array();
-	if($xml->resourcetype
-		->children(self::NSCARDDAV)->addressbook) {
+	$aBooks = array();
 
-			$aBook[href] = $config['url'];
-			$aBook[name] = $xml->displayname;
+	$xpresult = $xml->xpath('//D:response[descendant::D:resourcetype/C:addressbook]');
+	foreach($xpresult as $ab) {
+		self::registerNamespaces($ab);
+		$aBook = array();
+		list($aBook['href']) = $ab->xpath('child::D:href');
+		list($aBook['name']) = $ab->xpath('descendant::D:displayname');
+
+		if(strlen($aBook['href']) > 0) {
+			$aBook['href'] = concaturl($serverpart, $aBook['href']);
+			self::debug("retrieve_addressbook_properties found: ".$aBook['name']." at ".$aBook['href']);
+			$aBooks[] = $aBook;
+		}
 	}
-	return $aBook;
+
+	return $aBooks;
 	}}}
 
 	/**
@@ -738,9 +752,7 @@ class carddav_backend extends rcube_addressbook
 	$http->prefer_curl=1;
 
 	// if $url is relative, prepend the base url
-	if(strpos($url, '://') === FALSE) {
-		$url = concaturl($carddav['url'], $url);
-	}
+	$url = concaturl($carddav['url'], $url);
 
 	$carddav['password'] = self::decrypt_password($carddav['password']);
 
@@ -829,18 +841,16 @@ class carddav_backend extends rcube_addressbook
 
 	// Check for supported-report-set and only use sync-collection if server advertises it.
 	// This suppresses 501 Not implemented errors with ownCloud.
-	$xmlquery =
-		'<?xml version="1.0" encoding="UTF-8" ?'.'>
-		<propfind xmlns="DAV:">
-		 <prop>
-		  <supported-report-set/>
-		 </prop>
-		</propfind>';
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
 			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
-			'content'=> $xmlquery
+			'content'=> <<<EOF
+<?xml version="1.0" encoding="UTF-8" ?>
+<propfind xmlns="DAV:"> <prop>
+    <supported-report-set/>
+</prop> </propfind>
+EOF
 		)
 	);
 	$reply = self::cdfopen("refreshdb_from_server", $this->config['url'], $opts, $this->config);
@@ -966,32 +976,26 @@ class carddav_backend extends rcube_addressbook
 	 */
 	public static function find_addressbook($config)
 	{{{
-	$retVal = array();
-
-	$rap_result = self::retrieve_addressbook_properties($config['url'], $config);
-	if(!is_array($rap_result))
+	if (!preg_match(';^[^/]+://[^/]+;', $config['url'], $match))
 		return false;
+	$serverpart = $match[0];
 
-	if(array_key_exists('href', $rap_result)) {
-			self::debug("find_addressbook found: ".$aBook[name]." at ".$aBook[href]);
-			$retVal[] = $aBook;
-			return $retVal;
-	}
+	$retVal = self::retrieve_addressbook_properties($config['url'], $serverpart, $config);
+	if(is_array($retVal) && count($retVal)>0)
+		return $retVal;
 
 	// No addressbook found, try to auto-determine addressbook locations
 	// Retrieve Principal URL
-	$xmlquery =
-		'<?xml version="1.0" encoding="utf-8" ?'.'>
-			<a:propfind xmlns:a="DAV:">
-				<a:prop>
-					<a:current-user-principal/>
-				</a:prop>
-			</a:propfind>';
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", "Content-Type: application/xml; charset=\"utf-8\""),
-			'content'=> $xmlquery
+			'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
+			'content'=> <<<EOF
+<?xml version="1.0" encoding="utf-8" ?>
+<a:propfind xmlns:a="DAV:"> <a:prop>
+    <a:current-user-principal/>
+</a:prop> </a:propfind>
+EOF
 		)
 	);
 
@@ -1003,32 +1007,30 @@ class carddav_backend extends rcube_addressbook
 		return false;
 
 	$xml = self::parseXML($reply['body']);
-	$xpresult = $xml->xpath('//D:current-user-principal/D:href');
-	if(count($xpresult) == 0) {
+	list($princurl) = $xml->xpath('//D:current-user-principal/D:href');
+	if(strlen($princurl) == 0) {
 		self::debug("find_addressbook no principal URL found");
 		return false;
 	}
-
-	$princurl = $xpresult[0];
 	self::debug("find_addressbook Principal URL: $princurl");
+	if (preg_match(';^[^/]+://[^/]+;', $princurl, $match))
+		$serverpart = $match[0];
 
-	// Find Addressbook Home Path of Principal
-	$xmlquery =
-		'<?xml version="1.0" encoding="utf-8" ?'.'>
-			<a:propfind xmlns:a="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
-				<a:prop>
-					<C:addressbook-home-set/>
-				</a:prop>
-			</a:propfind>';
+	// Find Addressbook Home Path of Principal	
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", "Content-Type: application/xml; charset=\"utf-8\""),
-			'content'=> $xmlquery
+			'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
+			'content'=>  <<<EOF
+<?xml version="1.0" encoding="utf-8" ?>
+<a:propfind xmlns:a="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <a:prop>
+    <C:addressbook-home-set/>
+</a:prop> </a:propfind>
+EOF
 		)
 	);
 
-	$reply = self::cdfopen("find_addressbook", $princurl, $opts, $config);
+	$reply = self::cdfopen("find_addressbook", concaturl($serverpart,$princurl), $opts, $config);
 	if ($reply == -1) // error occured, as opposed to "" which means empty reply
 		return false;
 
@@ -1036,65 +1038,15 @@ class carddav_backend extends rcube_addressbook
 		return false;
 
 	$xml = self::parseXML($reply['body']);
-	$xpresult = $xml->xpath('//C:addressbook-home-set/D:href');
-	if(count($xpresult) > 0) {
-		$abookhome = $xpresult[0];
-	} else {
+	list($abookhome) = $xml->xpath('//C:addressbook-home-set/D:href');
+	if(strlen($abookhome) == 0) {
 		$abookhome = $princurl;
+	} else if (preg_match(';^[^/]+://[^/]+;', $abookhome, $match)) {
+		$serverpart = $match[0];
 	}
 	self::debug("find_addressbook addressbook home: $abookhome");
 
-	if (strlen($abookhome) == 0)
-		return false;
-
-	if (!preg_match(';^[^/]+://[^/]+;', $abookhome,$match)){
-		$abookhome = concaturl($config['url'], $abookhome);
-	}
-	$serverpart = $match[0];
-
-	// Read Addressbooks
-	$xmlquery =
-		'<?xml version="1.0" encoding="utf-8"?'.'>
-		<D:propfind xmlns:D="DAV:"><D:prop>
-		<D:resourcetype />
-		<D:displayname />
-		</D:prop></D:propfind>';
-	$opts = array(
-		'http'=>array(
-			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", "Content-Type: application/xml; charset=\"utf-8\""),
-			'content'=> $xmlquery
-		)
-	);
-
-	$reply = self::cdfopen("find_addressbook", $abookhome, $opts, $config);
-	if ($reply == -1) // error occured, as opposed to "" which means empty reply
-		return false;
-
-	if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
-		return false;
-
-	$xml = new SimpleXMLElement($reply['body']);
-
-	foreach($xml->children(self::NSDAV)->response as $coll) {
-		$coll = $coll->children(self::NSDAV)
-			->propstat->children(self::NSDAV)
-			->prop->children(self::NSDAV);
-
-		if($coll->resourcetype
-			->children(self::NSCARDDAV)->addressbook) {
-
-			$aBook = array();
-			$aBook[href] = $serverpart . $coll->children(self::NSDAV)->href;
-			$aBook[name] = $coll->displayname;
-
-			if (!preg_match(';^[^/]+://[^/]+;', $aBook[href])){
-				$aBook[href] = concaturl($config['url'], $aBook[href]);
-			}
-			self::debug("find_addressbook found: ".$aBook[name]." at ".$aBook[href]);
-			$retVal[] = $aBook;
-		}
-	}
+	$retVal = self::retrieve_addressbook_properties(concaturl($serverpart,$abookhome), $serverpart, $config);
 	return $retVal;
 	}}}
 
@@ -1107,26 +1059,26 @@ class carddav_backend extends rcube_addressbook
   {{{
 	$records = 0;
 	// For later use: <D:sync-token>'.$this->config['sync_token'].'</D:sync-token>
-	$xmlquery =
-		'<?xml version="1.0" encoding="utf-8" ?'.'>
-			<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
-			<D:sync-token></D:sync-token>
-			<D:sync-level>1</D:sync-level>
-			<D:prop>
-				<D:getcontenttype/>
-				<D:getetag/>
-				<D:allprop/>
-				<C:address-data>
-					<C:allprop/>
-				</C:address-data>
-			</D:prop>
-			<C:filter/>
-			</D:sync-collection>';
 	$opts = array(
 		'http'=>array(
 			'method'=>"REPORT",
 			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
-			'content'=> $xmlquery
+			'content'=> <<<EOF
+<?xml version="1.0" encoding="utf-8" ?>
+<D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+    <D:sync-token></D:sync-token>
+    <D:sync-level>1</D:sync-level>
+    <D:prop>
+        <D:getcontenttype/>
+        <D:getetag/>
+        <D:allprop/>
+        <C:address-data>
+            <C:allprop/>
+        </C:address-data>
+    </D:prop>
+    <C:filter/>
+</D:sync-collection>
+EOF
 		)
 	);
 
@@ -1215,25 +1167,27 @@ class carddav_backend extends rcube_addressbook
 
   private function query_addressbook_multiget($hrefs)
   {{{
-	$xmlquery =
-		'<?xml version="1.0" encoding="utf-8" ?'.'>
-			<C:addressbook-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
-				<D:prop>
-					<D:getetag/>
-					<C:address-data>
-						<C:allprop/>
-					</C:address-data>
-				</D:prop> ';
-	foreach ($hrefs as $href){
-		$xmlquery .= "<D:href>$href</D:href> ";
+	$hrefstr = '';
+	foreach ($hrefs as $href) {
+		$hrefstr .= "<D:href>$href</D:href>\n";
 	}
-	$xmlquery .= "</C:addressbook-multiget>";
 
 	$optsREPORT = array(
 		'http' => array(
 			'method'=>"REPORT",
 			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
-			'content'=>$xmlquery
+			'content'=> <<<EOF
+<?xml version="1.0" encoding="utf-8" ?>
+<C:addressbook-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
+<D:prop>
+    <D:getetag/>
+    <C:address-data>
+        <C:allprop/>
+    </C:address-data>
+</D:prop>
+$hrefstr
+</C:addressbook-multiget>
+EOF
 		)
 	);
 
@@ -1244,18 +1198,16 @@ class carddav_backend extends rcube_addressbook
 	private function list_records_propfind_resourcetype()
   {{{
 	$records = 0;
-	$xmlquery =
-		'<?xml version="1.0" encoding="utf-8" ?'.'>
-			<a:propfind xmlns:a="DAV:">
-				<a:prop>
-					<a:resourcetype/>
-				</a:prop>
-			</a:propfind>';
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
 			'header'=>array("Depth: 1", "Content-Type: application/xml; charset=\"utf-8\""),
-			'content'=> $xmlquery
+			'content'=> <<<EOF
+<?xml version="1.0" encoding="utf-8" ?>
+<a:propfind xmlns:a="DAV:"> <a:prop>
+    <a:resourcetype/>
+</a:prop> </a:propfind>
+EOF
 		)
 	);
 
