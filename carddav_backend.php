@@ -123,7 +123,7 @@ function concaturl($str, $cat){{{
 	preg_match(";(^https?://[^/]+)(.*);", $str, $match);
 	$hostpart = $match[1];
 	$urlpart  = $match[2];
-	
+
 	// is $cat already a full URL?
 	if(strpos($cat, '://') !== FALSE) {
 		return $cat;
@@ -143,43 +143,6 @@ function concaturl($str, $cat){{{
 	// remove // in the path
 	$urlpart = preg_replace(';//+;','/',$urlpart);
 	return $hostpart.$urlpart;
-}}}
-
-function startElement_addvcards($parser, $n, $attrs) {{{
-	global $ctag;
-
-	$n = str_replace("SYNC-", "", $n);
-	if (strlen($n)>0){ $ctag .= "||$n";}
-}}}
-function endElement_addvcards($parser, $n) {{{
-	global $ctag;
-	global $vcards;
-	global $cur_vcard;
-
-	$n = str_replace("SYNC-", "", $n);
-	$ctag = preg_replace(";\|\|$n$;", "", $ctag);
-	if ($n == "DAV::RESPONSE"){
-		$vcards[] = $cur_vcard;
-		$cur_vcard = array('vcf'=>'','etag'=>'');
-	}
-}}}
-function characterData_addvcards($parser, $data) {{{
-	global $ctag; global $cur_vcard; global $sync_token;
-	if ($ctag == "||DAV::MULTISTATUS||DAV::TOKEN"){
-		$sync_token = $data;
-	}
-	if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::HREF"){
-		$cur_vcard['href'] = $data;
-
-	} else if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||URN:IETF:PARAMS:XML:NS:CARDDAV:ADDRESS-DATA"){
-		$cur_vcard['vcf'] .= $data;
-
-	} else if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETETAG"){
-		$cur_vcard['etag'] = $data;
-
-	} else if ($ctag == "||DAV::MULTISTATUS||DAV::RESPONSE||DAV::PROPSTAT||DAV::PROP||DAV::GETCONTENTTYPE"){
-		$cur_vcard['content-type'] = $data;
-	}
 }}}
 
 class carddav_backend extends rcube_addressbook
@@ -276,12 +239,18 @@ class carddav_backend extends rcube_addressbook
 		}
 	}
 
-	private static function parseXML($xmlstr) {
-		$xml = new SimpleXMLElement($xmlstr);
-		self::registerNamespaces($xml);
-		return $xml;
+	private static function checkAndParseXML($reply) {
+	  if(!is_array($reply))
+		return false;
+
+	  if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
+		return false;
+
+	  $xml = new SimpleXMLElement($reply['body']);
+	  self::registerNamespaces($xml);
+	  return $xml;
 	}
-	
+
 	private static function registerNamespaces($xml) {
 		$xml->registerXPathNamespace('C', self::NSCARDDAV);
 		$xml->registerXPathNamespace('D', self::NSDAV);
@@ -335,7 +304,7 @@ class carddav_backend extends rcube_addressbook
 		// TODO: define fields for vcards like GEO, KEY
 	); /* }}} */
 	$this->addextrasubtypes();
-  }}}
+	}}}
 
 	/**
 	 * Stores a custom label in the database (X-ABLabel extension).
@@ -377,45 +346,45 @@ class carddav_backend extends rcube_addressbook
 	}
 	}}}
 
-  /**
+	/**
 	 * Returns addressbook name (e.g. for addressbooks listing).
 	 *
 	 * @return string name of this addressbook
-   */
+	 */
 	public function get_name()
 	{{{
 	return $this->config['name'];
 	}}}
 
-  /**
-   * Save a search string for future listings.
-   *
-   * @param mixed Search params to use in listing method, obtained by get_search_set()
-   */
-  public function set_search_set($filter)
-  {{{
+	/**
+	 * Save a search string for future listings.
+	 *
+	 * @param mixed Search params to use in listing method, obtained by get_search_set()
+	 */
+	public function set_search_set($filter)
+	{{{
 	$this->filter = $filter;
-  }}}
+	}}}
 
-  /**
-   * Getter for saved search properties
-   *
-   * @return mixed Search properties used by this class
-   */
-  public function get_search_set()
-  {{{
+	/**
+	 * Getter for saved search properties
+	 *
+	 * @return mixed Search properties used by this class
+	 */
+	public function get_search_set()
+	{{{
 	return $this->filter;
-  }}}
+	}}}
 
-  /**
-   * Reset saved results and search parameters
-   */
-  public function reset()
-  {{{
+	/**
+	 * Reset saved results and search parameters
+	 */
+	public function reset()
+	{{{
 	$this->result = null;
 	$this->filter = null;
 	$this->total_cards = -1;
-  }}}
+	}}}
 
 	private static function retrieve_addressbook_properties($url, $serverpart, $config)
 	{{{
@@ -435,13 +404,8 @@ EOF
 	);
 
 	$reply = self::cdfopen("retrieve_addressbook_properties", $url, $opts, $config);
-	if ($reply == -1) // error occured, as opposed to "" which means empty reply
-		return false;
-
-	if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
-		return false;
-
-	$xml = self::parseXML($reply['body']);
+	$xml = self::checkAndParseXML($reply);
+	if($xml === false) return false;
 
 	$aBooks = array();
 
@@ -616,22 +580,21 @@ EOF
 	/**
 	 * Checks if the given local card cache (for contacts or groups) contains
 	 * a card with the given URI. If not, the function returns false.
-	 * If yes, the card is removed from the cache, and the cached etag is
+	 * If yes, the card is marked seen in the cache, and the cached etag is
 	 * compared with the given one. The function returns an associative array
 	 * with the database id of the existing card (key dbid) and a boolean that
 	 * indicates whether the card needs a server refresh as determined by the
-	 * etag comparison (keey needs_update).
+	 * etag comparison (key needs_update).
 	 */
 	private static function checkcache(&$cache, $uri, $etag)
 	{{{
 	if(!array_key_exists($uri, $cache))
 		return false;
 
+	$cache[$uri]['seen'] = true;
+
 	$dbrec = $cache[$uri];
 	$dbid  = $dbrec['id'];
-
-	// delete from the cache, cards left are known to be deleted from the server
-	unset($cache[$uri]);
 
 	$needsupd = true;
 
@@ -644,103 +607,13 @@ EOF
 	}}}
 
 	/**
-	 * Parses a textual list of VCards and creates a local copy.
-	 *
-	 * @param  string String representation of one or more VCards.
-	 * @return int    The number of cards successfully parsed and stored, -1 on error.
-	 */
-  private function addvcards($reply, $try = 0)
-  {{{
-	$dbh = rcmail::get_instance()->db;
-	global $vcards;
-	global $sync_token;
-	$vcards = array();
-	$sync_token = "";
-	$xml_parser = xml_parser_create_ns();
-	xml_set_element_handler($xml_parser, "startElement_addvcards", "endElement_addvcards");
-	xml_set_character_data_handler($xml_parser, "characterData_addvcards");
-	xml_parse($xml_parser, $reply, true);
-	xml_parser_free($xml_parser);
-
-	/* For later use
-	if (strlen($sync_token) > 0){
-		carddav::update_abook($this->id, array('sync_token' => $sync_token));
-	}
-	 */
-
-	$tryagain = array();
-	$numcards = 0;
-
-	foreach ($vcards as $vcard) {
-		if (!preg_match(";BEGIN;", $vcard['vcf'])){
-			// Seems like the server didn't give us the vcf data
-			$tryagain[] = $vcard['href'];
-			continue;
-		}
-
-		// check existing card caches, also determines kind of existing cards
-		$dbid = 0;
-		if(	($ret = self::checkcache($this->existing_card_cache,$vcard['href'],$vcard['etag']))
-			|| ($ret = self::checkcache($this->existing_grpcard_cache,$vcard['href'],$vcard['etag'])) ) {
-			$dbid = $ret['dbid'];
-			// card has not changed
-			if(!$ret['needs_update']) continue;
-		}
-
-		// changed on server, parse VCF
-		$save_data = $this->create_save_data_from_vcard($vcard['vcf']);
-		$vcf = $save_data['vcf'];
-		if($save_data['needs_update'])
-			$vcard['vcf'] = $vcf->toString();
-		$save_data = $save_data['save_data'];
-
-		if($save_data['kind'] === 'group') {
-			self::debug('Processing Group ' . $save_data['name']);
-			// delete current group members (will be reinserted if needed below)
-			if($dbid) self::delete_dbrecord($dbid,'group_user','group_id');
-
-			// store group card
-			if(!($dbid = $this->dbstore_group($vcard['etag'],$vcard['href'],$vcard['vcf'],$save_data,$dbid)))
-				return -1;
-
-			// record group members for deferred store
-			$this->users_to_add[$dbid] = array();
-			$members = $vcf->getProperties('X-ADDRESSBOOKSERVER-MEMBER');
-			self::debug("Group $dbid has " . count($members) . " members");
-			foreach($members as $mbr) {
-				$mbr = $mbr->getComponents(':');
-				if(!$mbr) continue;
-				if(count($mbr)!=3 || $mbr[0] !== 'urn' || $mbr[1] !== 'uuid') {
-					self::warn("don't know how to interpret group membership: " . implode(':', $mbr));
-					continue;
-				}
-				$this->users_to_add[$dbid][] = $dbh->quote($mbr[2]);
-			}
-
-		} else { // individual/other
-			if(!$this->dbstore_contact($vcard['etag'],$vcard['href'],$vcard['vcf'],$save_data,$dbid))
-				return -1;
-		}
-	}
-
-	if ($try < 3 && count($tryagain) > 0){
-		$reply = $this->query_addressbook_multiget($tryagain);
-		$reply = $reply["body"];
-		$newnumcards = $this->addvcards($reply, ++$try);
-		if($newnumcards < 0) return -1;
-		$numcards += $newnumcards;
-	}
-	return $numcards;
-  }}}
-
-	/**
 	 * @param array config array containing at least the keys
 	 *             - url: base url if $url is a relative url
 	 *             - username
 	 *             - password
 	 */
-  public static function cdfopen($caller, $url, $opts, $carddav)
-  {{{
+	public static function cdfopen($caller, $url, $opts, $carddav)
+	{{{
 	$rcmail = rcmail::get_instance();
 
 	$http=new http_class;
@@ -814,7 +687,7 @@ EOF
 		self::debug_http("cdfopen failed: ".var_export($http, true));
 	}
 	return -1;
-  }}}
+	}}}
 
 	/**
 	 * Synchronizes the local card store with the CardDAV server.
@@ -844,7 +717,7 @@ EOF
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
-			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
+			'header'=>array("Depth: 0", 'Content-Type: application/xml; charset="utf-8"'),
 			'content'=> <<<EOF
 <?xml version="1.0" encoding="UTF-8" ?>
 <propfind xmlns="DAV:"> <prop>
@@ -856,27 +729,18 @@ EOF
 	$reply = self::cdfopen("refreshdb_from_server", $this->config['url'], $opts, $this->config);
 
 	$records = -1;
-	if(self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;')) {
-		$xml = self::parseXML($reply['body']);
-		$xpresult = $xml->xpath('//D:supported-report/D:report/D:sync-collection');
-		if(count($xpresult) > 0) {
-			$records = $this->list_records_sync_collection();
-		}
-	}
- 
-	// sync-collection not supported or returned error
-	if ($records < 0){
-		$records = $this->list_records_propfind_resourcetype();
+
+	$xml = self::checkAndParseXML($reply);
+	if($xml !== false) {
+	  $xpresult = $xml->xpath('//D:supported-report/D:report/D:sync-collection');
+	  if(count($xpresult) > 0) {
+		$records = $this->list_records_sync_collection();
+	  }
 	}
 
-	// delete cards not present on the server anymore
-	// do not delete the cards if an error occurred during the sync,
-	// because the caches will not be consistent in that case
-	if ($records >= 0) {
-		$del = self::delete_dbrecord(array_values($this->existing_card_cache));
-		self::debug("deleted $del contacts during server refresh");
-		$del = self::delete_dbrecord(array_values($this->existing_grpcard_cache),'groups');
-		self::debug("deleted $del groups during server refresh");
+	// sync-collection not supported or returned error
+	if ($records < 0){
+		$records = $this->list_records_propfind();
 	}
 
 	foreach($this->users_to_add as $dbid => $cuids) {
@@ -914,7 +778,7 @@ EOF
 	 * @param  boolean True to skip the count query (select only)
 	 * @return array   Indexed list of contact records, each a hash array
 	 */
-  public function list_records($cols=array(), $subset=0, $nocount=false)
+	public function list_records($cols=array(), $subset=0, $nocount=false)
 	{{{
 	// refresh from server if refresh interval passed
 	if ( $this->config['needs_update'] == 1 )
@@ -954,7 +818,7 @@ EOF
 	}
 
 	return false;
-  }}}
+	}}}
 
 	public static function check_contenttype($ctheader, $expectedct)
 	{{{
@@ -1000,13 +864,9 @@ EOF
 	);
 
 	$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config);
-	if ($reply == -1) // error occured, as opposed to "" which means empty reply
-		return false;
+	$xml = self::checkAndParseXML($reply);
+	if($xml === false) return false;
 
-	if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
-		return false;
-
-	$xml = self::parseXML($reply['body']);
 	list($princurl) = $xml->xpath('//D:current-user-principal/D:href');
 	if(strlen($princurl) == 0) {
 		self::debug("find_addressbook no principal URL found");
@@ -1016,7 +876,7 @@ EOF
 	if (preg_match(';^[^/]+://[^/]+;', $princurl, $match))
 		$serverpart = $match[0];
 
-	// Find Addressbook Home Path of Principal	
+	// Find Addressbook Home Path of Principal
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
@@ -1031,13 +891,9 @@ EOF
 	);
 
 	$reply = self::cdfopen("find_addressbook", concaturl($serverpart,$princurl), $opts, $config);
-	if ($reply == -1) // error occured, as opposed to "" which means empty reply
-		return false;
+	$xml = self::checkAndParseXML($reply);
+	if($xml === false) return false;
 
-	if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
-		return false;
-
-	$xml = self::parseXML($reply['body']);
 	list($abookhome) = $xml->xpath('//C:addressbook-home-set/D:href');
 	if(strlen($abookhome) == 0) {
 		$abookhome = $princurl;
@@ -1050,19 +906,19 @@ EOF
 	return $retVal;
 	}}}
 
-  /**
-   * Retrieves the Card URIs from the CardDAV server
-   *
-   * @return int  number of cards in collection, -1 on error
-   */
-  private function list_records_sync_collection()
-  {{{
+	/**
+	 * Retrieves the Card URIs from the CardDAV server
+	 *
+	 * @return int  number of cards in collection, -1 on error
+	 */
+	private function list_records_sync_collection()
+	{{{
 	$records = 0;
 	// For later use: <D:sync-token>'.$this->config['sync_token'].'</D:sync-token>
 	$opts = array(
 		'http'=>array(
 			'method'=>"REPORT",
-			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
+			'header'=>array("Depth: 0", 'Content-Type: application/xml; charset="utf-8"'),
 			'content'=> <<<EOF
 <?xml version="1.0" encoding="utf-8" ?>
 <D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
@@ -1071,27 +927,15 @@ EOF
     <D:prop>
         <D:getcontenttype/>
         <D:getetag/>
-        <D:allprop/>
-        <C:address-data>
-            <C:allprop/>
-        </C:address-data>
     </D:prop>
-    <C:filter/>
 </D:sync-collection>
 EOF
 		)
 	);
 
 	$reply = self::cdfopen("list_records_sync_collection", $this->config['url'], $opts, $this->config);
-	if ($reply == -1) // error occured, as opposed to "" which means empty reply
-		return -1;
-
-	$reply = $reply["body"];
-	if (strlen($reply)) {
-		$records = $this->addvcards($reply);
-	}
-	return $records;
-  }}}
+	return $this->fullsync($reply);
+	}}}
 
 	private function list_records_readdb($cols, $subset=0, $count_only=false)
 	{{{
@@ -1165,8 +1009,9 @@ EOF
 	return count($addresses);
 	}}}
 
-  private function query_addressbook_multiget($hrefs)
-  {{{
+	private function query_addressbook_multiget($hrefs)
+	{{{
+	$dbh = rcmail::get_instance()->db;
 	$hrefstr = '';
 	foreach ($hrefs as $href) {
 		$hrefstr .= "<D:href>$href</D:href>\n";
@@ -1175,7 +1020,7 @@ EOF
 	$optsREPORT = array(
 		'http' => array(
 			'method'=>"REPORT",
-			'header'=>array("Depth: 0", "Content-Type: application/xml; charset=\"utf-8\""),
+			'header'=>array("Depth: 0", 'Content-Type: application/xml; charset="utf-8"'),
 			'content'=> <<<EOF
 <?xml version="1.0" encoding="utf-8" ?>
 <C:addressbook-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
@@ -1192,66 +1037,154 @@ EOF
 	);
 
 	$reply = self::cdfopen("query_addressbook_multiget", $this->config['url'], $optsREPORT, $this->config);
-	return $reply;
-  }}}
+	$xml = self::checkAndParseXML($reply);
+	if($xml === false) return -1;
 
-	private function list_records_propfind_resourcetype()
-  {{{
-	$records = 0;
+	$xpresult = $xml->xpath('//D:response[descendant::C:address-data]');
+
+	$numcards = 0;
+	foreach ($xpresult as $vcard) {
+		self::registerNamespaces($vcard);
+		list($href) = $vcard->xpath('child::D:href');
+		list($etag) = $vcard->xpath('descendant::D:getetag');
+		list($vcf)  = $vcard->xpath('descendant::C:address-data');
+
+		// determine database ID of existing cards by checking the cache
+		$dbid = 0;
+		if(	($ret = self::checkcache($this->existing_card_cache,"$href","$etag"))
+			|| ($ret = self::checkcache($this->existing_grpcard_cache,"$href","$etag")) ) {
+			$dbid = $ret['dbid'];
+		}
+
+		// changed on server, parse VCF
+		$save_data = $this->create_save_data_from_vcard("$vcf");
+		$vcfobj = $save_data['vcf'];
+		if($save_data['needs_update'])
+			$vcf = $vcfobj->toString();
+		$save_data = $save_data['save_data'];
+
+		if($save_data['kind'] === 'group') {
+			self::debug('Processing Group ' . $save_data['name']);
+			// delete current group members (will be reinserted if needed below)
+			if($dbid) self::delete_dbrecord($dbid,'group_user','group_id');
+
+			// store group card
+			if(!($dbid = $this->dbstore_group("$etag","$href","$vcf",$save_data,$dbid)))
+				return -1;
+
+			// record group members for deferred store
+			$this->users_to_add[$dbid] = array();
+			$members = $vcfobj->getProperties('X-ADDRESSBOOKSERVER-MEMBER');
+			self::debug("Group $dbid has " . count($members) . " members");
+			foreach($members as $mbr) {
+				$mbr = $mbr->getComponents(':');
+				if(!$mbr) continue;
+				if(count($mbr)!=3 || $mbr[0] !== 'urn' || $mbr[1] !== 'uuid') {
+					self::warn("don't know how to interpret group membership: " . implode(':', $mbr));
+					continue;
+				}
+				$this->users_to_add[$dbid][] = $dbh->quote($mbr[2]);
+			}
+
+		} else { // individual/other
+			if(!$this->dbstore_contact("$etag","$href","$vcf",$save_data,$dbid))
+				return -1;
+		}
+		$numcards++;
+	}
+	return $numcards;
+	}}}
+
+	private function list_records_propfind()
+	{{{
 	$opts = array(
 		'http'=>array(
 			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", "Content-Type: application/xml; charset=\"utf-8\""),
+			'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
 			'content'=> <<<EOF
 <?xml version="1.0" encoding="utf-8" ?>
 <a:propfind xmlns:a="DAV:"> <a:prop>
-    <a:resourcetype/>
+    <a:getcontenttype/>
+    <a:getetag/>
 </a:prop> </a:propfind>
 EOF
 		)
 	);
 
-	$reply = self::cdfopen("list_records_propfind_resourcetype", "", $opts, $this->config);
-	if ($reply == -1) // error occured, as opposed to "" which means empty reply
-		return -1;
+	$reply = self::cdfopen("list_records_propfind", "", $opts, $this->config);
+	return $this->fullsync($reply);
+	}}}
 
-	$reply = $reply["body"];
-	if (strlen($reply)) {
-		$xml_parser = xml_parser_create_ns();
-		global $vcards;
-		$vcards = array();
-		xml_set_element_handler($xml_parser, "startElement_addvcards", "endElement_addvcards");
-		xml_set_character_data_handler($xml_parser, "characterData_addvcards");
-		xml_parse($xml_parser, $reply, true);
-		xml_parser_free($xml_parser);
-		$urls = array();
-		foreach($vcards as $vcard){
-			if($vcard['href'][strlen($vcard['href'])-1] != '/') {
-				$urls[] = $vcard['href'];
+	private function fullsync($reply)
+	{{{
+	$xml = self::checkAndParseXML($reply);
+	if($xml === false) return -1;
+
+	$urls = array();
+	$xpresult = $xml->xpath('//D:response[descendant::D:getetag]');
+	foreach ($xpresult as $r) {
+		self::registerNamespaces($r);
+
+		list($href) = $r->xpath('child::D:href');
+		if(preg_match('/\/$/', $href)) continue;
+
+		list($etag) = $r->xpath('descendant::D:getetag');
+
+		$ret = self::checkcache($this->existing_card_cache,"$href","$etag");
+		$retgrp = self::checkcache($this->existing_grpcard_cache,"$href","$etag");
+
+		if(	($ret===false && $retgrp===false)
+			|| (is_array($ret) && $ret['needs_update'])
+			|| (is_array($retgrp) && $retgrp['needs_update']) )
+		{
+			$urls[] = "$href";
+		}
+	}
+
+	if (count($urls) > 0) {
+		$records = $this->query_addressbook_multiget($urls);
+	}
+
+	// delete cards not present on the server anymore
+	// do not delete the cards if an error occurred during the sync,
+	// because the caches will not be consistent in that case
+	if ($records >= 0) {
+		$delids = array();
+		foreach($this->existing_card_cache as $value) {
+			if(!array_key_exists('seen', $value) || !$value['seen']) {
+				$delids[] = $value['id'];
 			}
 		}
-		$reply = $this->query_addressbook_multiget($urls);
-		$reply = $reply["body"];
-		$records = $this->addvcards($reply);
+		$del = self::delete_dbrecord($delids);
+		self::debug("deleted $del contacts during server refresh");
+
+		$delids = array();
+		foreach($this->existing_grpcard_cache as $value) {
+			if(!array_key_exists('seen', $value) || !$value['seen']) {
+				$delids[] = $value['id'];
+			}
+		}
+		$del = self::delete_dbrecord($delids,'groups');
+		self::debug("deleted $del groups during server refresh");
 	}
 	return $records;
-  }}}
+	}}}
 
-  /**
-   * Search contacts
-   *
-   * @param mixed   $fields   The field name of array of field names to search in
-   * @param mixed   $value    Search value (or array of values when $fields is array)
-   * @param int     $mode     Matching mode:
-   *                          0 - partial (*abc*),
-   *                          1 - strict (=),
-   *                          2 - prefix (abc*)
-   * @param boolean $select   True if results are requested, False if count only
-   * @param boolean $nocount  True to skip the count query (select only)
-   * @param array   $required List of fields that cannot be empty
-   *
-   * @return object rcube_result_set Contact records and 'count' value
-   */
+	/**
+	 * Search contacts
+	 *
+	 * @param mixed   $fields   The field name of array of field names to search in
+	 * @param mixed   $value    Search value (or array of values when $fields is array)
+	 * @param int     $mode     Matching mode:
+	 *                          0 - partial (*abc*),
+	 *                          1 - strict (=),
+	 *                          2 - prefix (abc*)
+	 * @param boolean $select   True if results are requested, False if count only
+	 * @param boolean $nocount  True to skip the count query (select only)
+	 * @param array   $required List of fields that cannot be empty
+	 *
+	 * @return object rcube_result_set Contact records and 'count' value
+	 */
 	function search($fields, $value, $mode=0, $select=true, $nocount=false, $required=array())
 	{{{
 	$dbh = rcmail::get_instance()->db;
@@ -1405,18 +1338,18 @@ EOF
 	return $this->result;
 	}}}
 
-  /**
-   * Count number of available contacts in database
-   *
-   * @return rcube_result_set Result set with values for 'count' and 'first'
-   */
-  public function count()
-  {{{
+	/**
+	 * Count number of available contacts in database
+	 *
+	 * @return rcube_result_set Result set with values for 'count' and 'first'
+	 */
+	public function count()
+	{{{
 	if($this->total_cards < 0) {
 		$this->_count();
 	}
 	return new rcube_result_set($this->total_cards, ($this->list_page-1) * $this->page_size);
-  }}}
+	}}}
 
 	// Determines and returns the number of cards matching the current search criteria
 	private function _count($cols=array())
@@ -1447,23 +1380,23 @@ EOF
 		$numrows  = $subset ? abs($subset) : $this->page_size;
 	}
 
-  /**
-   * Return the last result set
-   *
-   * @return rcube_result_set Current result set or NULL if nothing selected yet
-   */
-  public function get_result()
-  {{{
+	/**
+	 * Return the last result set
+	 *
+	 * @return rcube_result_set Current result set or NULL if nothing selected yet
+	 */
+	public function get_result()
+	{{{
 	return $this->result;
-  }}}
+	}}}
 
-  /**
-   * Return the last result set
-   *
-   * @return rcube_result_set Current result set or NULL if nothing selected yet
-   */
-  private function get_record_from_carddav($uid)
-  {{{
+	/**
+	 * Return the last result set
+	 *
+	 * @return rcube_result_set Current result set or NULL if nothing selected yet
+	 */
+	private function get_record_from_carddav($uid)
+	{{{
 	$opts = array(
 		'http'=>array(
 			'method'=>"GET",
@@ -1480,18 +1413,18 @@ EOF
 		'vcf'  => $reply["body"],
 		'etag' => $reply['headers']['etag'],
 	);
-  }}}
+	}}}
 
-  /**
-   * Get a specific contact record
-   *
-   * @param mixed record identifier(s)
-   * @param boolean True to return record as associative array, otherwise a result set is returned
-   *
-   * @return mixed Result object with all record fields or False if not found
-   */
-  public function get_record($oid, $assoc_return=false)
-  {{{
+	/**
+	 * Get a specific contact record
+	 *
+	 * @param mixed record identifier(s)
+	 * @param boolean True to return record as associative array, otherwise a result set is returned
+	 *
+	 * @return mixed Result object with all record fields or False if not found
+	 */
+	public function get_record($oid, $assoc_return=false)
+	{{{
 	$this->result = $this->count();
 
 	$contact = self::get_dbrecord($oid, 'vcard');
@@ -1507,10 +1440,10 @@ EOF
 	$this->result->add($retval);
 	$sql_arr = $assoc_return && $this->result ? $this->result->first() : null;
 	return $assoc_return && $sql_arr ? $sql_arr : $this->result;
-  }}}
+	}}}
 
-  private function put_record_to_carddav($id, $vcf, $etag='')
-  {{{
+	private function put_record_to_carddav($id, $vcf, $etag='')
+	{{{
 	$this->result = $this->count();
 	$matchhdr = $etag ?
 		"If-Match: $etag" :
@@ -1539,10 +1472,10 @@ EOF
 	}
 
 	return false;
-  }}}
+	}}}
 
-  private function delete_record_from_carddav($id)
-  {{{
+	private function delete_record_from_carddav($id)
+	{{{
 	$this->result = $this->count();
 	$opts = array(
 		'http'=>array(
@@ -1555,18 +1488,18 @@ EOF
 		return true;
 	}
 	return false;
-  }}}
+	}}}
 
-  private function guid()
-  {{{
+	private function guid()
+	{{{
 	return sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X', mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(16384, 20479), mt_rand(32768, 49151), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535));
-  }}}
+	}}}
 
 	/**
 	 * Creates a new or updates an existing vcard from save data.
 	 */
-  private function create_vcard_from_save_data($save_data, $vcf=null)
-  {{{
+	private function create_vcard_from_save_data($save_data, $vcf=null)
+	{{{
 	unset($save_data['vcard']);
 	if(!$vcf) { // create fresh minimal vcard
 		$vcfstr = array(
@@ -1682,7 +1615,7 @@ EOF
 	}
 
 	return $vcf;
-  }}}
+	}}}
 
 	private function set_attr_label($vcard, $pvalue, $attrname, $newlabel) {
 		$group = $pvalue->getGroup();
@@ -1805,7 +1738,7 @@ EOF
 	 *           - vcf:          VCard object created from the given VCard
 	 *           - needs_update: boolean that indicates whether the card was modified
 	 */
-  private function create_save_data_from_vcard($vcfstr)
+	private function create_save_data_from_vcard($vcfstr)
 	{{{
 	$vcf = new VCard;
 	if (!$vcf->parse($vcfstr)){
@@ -1897,7 +1830,7 @@ EOF
 		'vcf'          => $vcf,
 		'needs_update' => $needs_update,
 	);
-  }}}
+	}}}
 
 	private function find_free_uid()
 	{{{
@@ -1909,17 +1842,17 @@ EOF
 	return $cuid;
 	}}}
 
-  /**
-   * Create a new contact record
-   *
-   * @param array Assoziative array with save data
-   *  Keys:   Field name with optional section in the form FIELD:SECTION
-   *  Values: Field value. Can be either a string or an array of strings for multiple values
-   * @param boolean True to check for duplicates first
-   * @return mixed The created record ID on success, False on error
-   */
-  public function insert($save_data, $check=false)
-  {{{
+	/**
+	 * Create a new contact record
+	 *
+	 * @param array Assoziative array with save data
+	 *  Keys:   Field name with optional section in the form FIELD:SECTION
+	 *  Values: Field value. Can be either a string or an array of strings for multiple values
+	 * @param boolean True to check for duplicates first
+	 * @return mixed The created record ID on success, False on error
+	 */
+	public function insert($save_data, $check=false)
+	{{{
 	$this->preprocess_rc_savedata($save_data);
 
 	// find an unused UID
@@ -1941,7 +1874,7 @@ EOF
 	if($this->total_cards != -1)
 		$this->total_cards++;
 	return $dbid;
-  }}}
+	}}}
 
 	/**
 	 * Does some common preprocessing with save data created by roundcube.
@@ -1971,17 +1904,17 @@ EOF
 	$this->set_displayname($save_data);
 	}}}
 
-  /**
-   * Update a specific contact record
-   *
-   * @param mixed Record identifier
-   * @param array Assoziative array with save data
-   *  Keys:   Field name with optional section in the form FIELD:SECTION
-   *  Values: Field value. Can be either a string or an array of strings for multiple values
-   * @return boolean True on success, False on error
-   */
-  public function update($id, $save_data)
-  {{{
+	/**
+	 * Update a specific contact record
+	 *
+	 * @param mixed Record identifier
+	 * @param array Assoziative array with save data
+	 *  Keys:   Field name with optional section in the form FIELD:SECTION
+	 *  Values: Field value. Can be either a string or an array of strings for multiple values
+	 * @return boolean True on success, False on error
+	 */
+	public function update($id, $save_data)
+	{{{
 	// get current DB data
 	$contact = self::get_dbrecord($id,'id,cuid,uri,etag,vcard,showas');
 	if(!$contact) return false;
@@ -2010,16 +1943,16 @@ EOF
 	}
 	$id = $this->dbstore_contact($etag,$contact['uri'],$vcfstr,$save_data,$id);
 	return ($id!=0);
-  }}}
+	}}}
 
-  /**
-   * Mark one or more contact records as deleted
-   *
-   * @param array  Record identifiers
-   * @param bool   Remove records irreversible (see self::undelete)
-   */
-  public function delete($ids)
-  {{{
+	/**
+	 * Mark one or more contact records as deleted
+	 *
+	 * @param array  Record identifiers
+	 * @param bool   Remove records irreversible (see self::undelete)
+	 */
+	public function delete($ids)
+	{{{
 	$deleted = 0;
 	foreach ($ids as $dbid) {
 		$contact = self::get_dbrecord($dbid,'uri');
@@ -2038,16 +1971,16 @@ EOF
 	if($this->total_cards != -1)
 		$this->total_cards -= $deleted;
 	return $deleted;
-  }}}
+	}}}
 
-  /**
-   * Add the given contact records the a certain group
-   *
-   * @param string  Group identifier
-   * @param array   List of contact identifiers to be added
-   * @return int    Number of contacts added
-   */
-  public function add_to_group($group_id, $ids)
+	/**
+	 * Add the given contact records the a certain group
+	 *
+	 * @param string  Group identifier
+	 * @param array   List of contact identifiers to be added
+	 * @return int    Number of contacts added
+	 */
+	public function add_to_group($group_id, $ids)
 	{{{
 	if (!is_array($ids))
 		$ids = explode(',', $ids);
@@ -2087,17 +2020,17 @@ EOF
 	}
 
 	return true;
-  }}}
+	}}}
 
-  /**
-   * Remove the given contact records from a certain group
-   *
-   * @param string  Group identifier
-   * @param array   List of contact identifiers to be removed
-   * @return int    Number of deleted group members
-   */
-  public function remove_from_group($group_id, $ids)
-  {{{
+	/**
+	 * Remove the given contact records from a certain group
+	 *
+	 * @param string  Group identifier
+	 * @param array   List of contact identifiers to be removed
+	 * @return int    Number of deleted group members
+	 */
+	public function remove_from_group($group_id, $ids)
+	{{{
 	if (!is_array($ids))
 		$ids = explode(',', $ids);
 
@@ -2130,7 +2063,7 @@ EOF
 
 	self::delete_dbrecord($ids,'group_user','contact_id');
 	return $deleted;
-  }}}
+	}}}
 
 	/**
 	 * Get group assignments of a specific contact record
@@ -2156,22 +2089,22 @@ EOF
 	return $res;
 	}}}
 
-  /**
-   * Setter for the current group
-   */
-  public function set_group($gid)
-  {{{
+	/**
+	 * Setter for the current group
+	 */
+	public function set_group($gid)
+	{{{
 	$this->group_id = $gid;
-  }}}
+	}}}
 
-  /**
-   * List all active contact groups of this source
-   *
-   * @param string  Optional search string to match group name
-   * @return array  Indexed list of contact groups, each a hash array
-   */
-  public function list_groups($search = null)
-  {{{
+	/**
+	 * List all active contact groups of this source
+	 *
+	 * @param string  Optional search string to match group name
+	 * @return array  Indexed list of contact groups, each a hash array
+	 */
+	public function list_groups($search = null)
+	{{{
 	$dbh = rcmail::get_instance()->db;
 
 	$searchextra = $search
@@ -2193,16 +2126,16 @@ EOF
 	}
 
 	return $groups;
-  }}}
+	}}}
 
-  /**
-   * Create a contact group with the given name
-   *
-   * @param string The group name
-   * @return mixed False on error, array with record props in success
-   */
-  public function create_group($name)
-  {{{
+	/**
+	 * Create a contact group with the given name
+	 *
+	 * @param string The group name
+	 * @return mixed False on error, array with record props in success
+	 */
+	public function create_group($name)
+	{{{
 	$cuid = $this->find_free_uid();
 	$uri = "$cuid.vcf";
 
@@ -2225,16 +2158,16 @@ EOF
 		return false;
 
 	return array('id'=>$dbid, 'name'=>$name);
-  }}}
+	}}}
 
-  /**
-   * Delete the given group and all linked group members
-   *
-   * @param string Group identifier
-   * @return boolean True on success, false if no data was changed
-   */
-  public function delete_group($group_id)
-  {{{
+	/**
+	 * Delete the given group and all linked group members
+	 *
+	 * @param string Group identifier
+	 * @return boolean True on success, false if no data was changed
+	 */
+	public function delete_group($group_id)
+	{{{
 	// get current DB data
 	$group = self::get_dbrecord($group_id,'uri','groups');
 	if(!$group)	return false;
@@ -2246,18 +2179,18 @@ EOF
 	}
 
 	return false;
-  }}}
+	}}}
 
-  /**
-   * Rename a specific contact group
-   *
-   * @param string Group identifier
-   * @param string New name to set for this group
-   * @param string New group identifier (if changed, otherwise don't set)
-   * @return boolean New name on success, false if no data was changed
-   */
-  public function rename_group($group_id, $newname)
-  {{{
+	/**
+	 * Rename a specific contact group
+	 *
+	 * @param string Group identifier
+	 * @param string New name to set for this group
+	 * @param string New group identifier (if changed, otherwise don't set)
+	 * @return boolean New name on success, false if no data was changed
+	 */
+	public function rename_group($group_id, $newname)
+	{{{
 	// get current DB data
 	$group = self::get_dbrecord($group_id,'uri,etag,vcard,name,cuid','groups');
 	if(!$group)	return false;
@@ -2281,7 +2214,7 @@ EOF
 		return false;
 
 	return $newname;
-  }}}
+	}}}
 
 	private static function carddav_des_key()
 	{{{
