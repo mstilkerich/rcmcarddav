@@ -37,8 +37,8 @@ function carddavconfig($abookid){{{
 	}
 
 	$abookrow = carddav_backend::get_dbrecord($abookid,
-		'id as abookid,name,username,password,url,presetname,'
-		. $timequery . ' as needs_update', 'addressbooks'); // add sync_token field later
+		'id as abookid,name,username,password,url,presetname,sync_token,'
+		. $timequery . ' as needs_update', 'addressbooks');
 
 	if(! $abookrow) {
 		carddav_backend::warn("FATAL! Request for non-existent configuration $abookid");
@@ -240,15 +240,15 @@ class carddav_backend extends rcube_addressbook
 	}
 
 	private static function checkAndParseXML($reply) {
-	  if(!is_array($reply))
-		return false;
+		if(!is_array($reply))
+			return false;
 
-	  if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
-		return false;
+		if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
+			return false;
 
-	  $xml = new SimpleXMLElement($reply['body']);
-	  self::registerNamespaces($xml);
-	  return $xml;
+		$xml = new SimpleXMLElement($reply['body']);
+		self::registerNamespaces($xml);
+		return $xml;
 	}
 
 	private static function registerNamespaces($xml) {
@@ -732,10 +732,10 @@ EOF
 
 	$xml = self::checkAndParseXML($reply);
 	if($xml !== false) {
-	  $xpresult = $xml->xpath('//D:supported-report/D:report/D:sync-collection');
-	  if(count($xpresult) > 0) {
-		$records = $this->list_records_sync_collection();
-	  }
+		$xpresult = $xml->xpath('//D:supported-report/D:report/D:sync-collection');
+		if(count($xpresult) > 0) {
+			$records = $this->list_records_sync_collection();
+		}
 	}
 
 	// sync-collection not supported or returned error
@@ -913,8 +913,7 @@ EOF
 	 */
 	private function list_records_sync_collection()
 	{{{
-	$records = 0;
-	// For later use: <D:sync-token>'.$this->config['sync_token'].'</D:sync-token>
+	$sync_token = $this->config['sync_token'];
 	$opts = array(
 		'http'=>array(
 			'method'=>"REPORT",
@@ -922,7 +921,7 @@ EOF
 			'content'=> <<<EOF
 <?xml version="1.0" encoding="utf-8" ?>
 <D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
-    <D:sync-token></D:sync-token>
+    <D:sync-token>$sync_token</D:sync-token>
     <D:sync-level>1</D:sync-level>
     <D:prop>
         <D:getcontenttype/>
@@ -934,7 +933,25 @@ EOF
 	);
 
 	$reply = self::cdfopen("list_records_sync_collection", $this->config['url'], $opts, $this->config);
-	return $this->fullsync($reply);
+	$xml = self::checkAndParseXML($reply);
+	if($xml === false) return -1;
+
+	list($new_sync_token) = $xml->xpath('//D:sync-token');
+
+	$records = $this->addvcards($xml);
+
+	if(strlen($sync_token) == 0) {
+		if($records>=0) {
+			$this->delete_unseen();
+		}
+	} else {
+		$this->delete_synccoll($xml);
+	}
+
+	if($records >= 0) {
+		carddav::update_abook($this->config['abookid'], array('sync_token' => "$new_sync_token"));
+	}
+	return $records;
 	}}}
 
 	private function list_records_readdb($cols, $subset=0, $count_only=false)
@@ -1112,16 +1129,20 @@ EOF
 	);
 
 	$reply = self::cdfopen("list_records_propfind", "", $opts, $this->config);
-	return $this->fullsync($reply);
-	}}}
-
-	private function fullsync($reply)
-	{{{
 	$xml = self::checkAndParseXML($reply);
 	if($xml === false) return -1;
+	$records = $this->addvcards($xml);
+	if($records>=0) {
+		$this->delete_unseen();
+	}
 
+	return $records;
+	}}}
+
+	private function addvcards($xml)
+	{{{
 	$urls = array();
-	$xpresult = $xml->xpath('//D:response[descendant::D:getetag]');
+	$xpresult = $xml->xpath('//D:response[contains(descendant::D:status, " 200 OK") and descendant::D:getetag]');
 	foreach ($xpresult as $r) {
 		self::registerNamespaces($r);
 
@@ -1144,30 +1165,53 @@ EOF
 	if (count($urls) > 0) {
 		$records = $this->query_addressbook_multiget($urls);
 	}
+	}}}
 
-	// delete cards not present on the server anymore
-	// do not delete the cards if an error occurred during the sync,
-	// because the caches will not be consistent in that case
-	if ($records >= 0) {
-		$delids = array();
-		foreach($this->existing_card_cache as $value) {
-			if(!array_key_exists('seen', $value) || !$value['seen']) {
-				$delids[] = $value['id'];
-			}
+	/** delete cards not present on the server anymore */
+	private function delete_unseen()
+	{{{
+	$delids = array();
+	foreach($this->existing_card_cache as $value) {
+		if(!array_key_exists('seen', $value) || !$value['seen']) {
+			$delids[] = $value['id'];
 		}
-		$del = self::delete_dbrecord($delids);
-		self::debug("deleted $del contacts during server refresh");
-
-		$delids = array();
-		foreach($this->existing_grpcard_cache as $value) {
-			if(!array_key_exists('seen', $value) || !$value['seen']) {
-				$delids[] = $value['id'];
-			}
-		}
-		$del = self::delete_dbrecord($delids,'groups');
-		self::debug("deleted $del groups during server refresh");
 	}
-	return $records;
+	$del = self::delete_dbrecord($delids);
+	self::debug("deleted $del contacts during server refresh");
+
+	$delids = array();
+	foreach($this->existing_grpcard_cache as $value) {
+		if(!array_key_exists('seen', $value) || !$value['seen']) {
+			$delids[] = $value['id'];
+		}
+	}
+	$del = self::delete_dbrecord($delids,'groups');
+	self::debug("deleted $del groups during server refresh");
+	}}}
+
+	/** delete cards reported deleted by the server */
+	private function delete_synccoll($xml)
+	{{{
+	$xpresult = $xml->xpath('//D:response[contains(descendant::D:status, " 404 Not Found")]');
+	$del_contacts = array();
+	$del_groups = array();
+
+	foreach ($xpresult as $r) {
+		self::registerNamespaces($r);
+
+		list($href) = $r->xpath('child::D:href');
+		if(preg_match('/\/$/', $href)) continue;
+
+		if(isset($this->existing_card_cache["$href"])) {
+			$del_contacts[] = $this->existing_card_cache["$href"]['id'];
+		} else if(isset($this->existing_grpcard_cache["$href"])) {
+			$del_groups[] = $this->existing_grpcard_cache["$href"]['id'];
+		}
+	}
+	$del = self::delete_dbrecord($del_contacts);
+	self::debug("deleted $del contacts during incremental server refresh");
+	$del = self::delete_dbrecord($del_groups,'groups');
+	self::debug("deleted $del groups during incremental server refresh");
 	}}}
 
 	/**
@@ -1689,7 +1733,7 @@ EOF
 			if(preg_match(';_\$!<(.*)>!\$_;', $xlabel, $matches)) {
 				$match = strtolower($matches[1]);
 				if(in_array($match, $this->coltypes[$attrname]['subtypes']))
-				 return $match;
+					return $match;
 				return 'other';
 			}
 

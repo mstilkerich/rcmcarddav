@@ -9,6 +9,7 @@ CREATE TABLE carddav_addressbooks (
 	user_id      integer NOT NULL,
 	last_updated DATETIME NOT NULL DEFAULT 0,  -- time stamp of the last update of the local database
 	refresh_time TIME NOT NULL DEFAULT '01:00:00', -- time span after that the local database will be refreshed
+	sync_token   VARCHAR(255) NOT NULL DEFAULT '', -- sync-token the server sent us for the last sync
 
 	presetname   VARCHAR(64),                  -- presetname
 
