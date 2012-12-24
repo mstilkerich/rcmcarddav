@@ -674,19 +674,20 @@ EOF
 					self::debug_http("cdfopen success: ".var_export($reply, true));
 					return $reply;
 				} else {
-					self::warn("cdfopen: Could not read reply body: ".$error);
+					self::warn("cdfopen: Could not read reply body: $error");
 				}
 			} else {
-				self::warn("cdfopen: Could not read reply header: ".$error);
+				self::warn("cdfopen: Could not read reply header: $error");
 			}
 		} else {
-			self::warn("cdfopen: Could not send request: ".$error);
+			self::warn("cdfopen: Could not send request: $error");
 		}
 	} else {
-		self::warn("cdfopen: Could not open: ".$error);
+		self::warn("cdfopen: Could not open: $error");
 		self::debug_http("cdfopen failed: ".var_export($http, true));
+		return -1;
 	}
-	return -1;
+	return $http->response_status;
 	}}}
 
 	/**
@@ -1447,9 +1448,9 @@ EOF
 		)
 	);
 	$reply = self::cdfopen("get_record_from_carddav", $uid, $opts, $this->config);
-	if (!strlen($reply["body"])) { return false; }
+	if (!is_array($reply) || strlen($reply["body"])==0) { return false; }
 	if ($reply["status"] == 404){
-		self::warn("Request for VCF '$uid' which doesn't exits on the server.");
+		self::warn("Request for VCF '$uid' which doesn't exist on the server.");
 		return false;
 	}
 
@@ -1504,7 +1505,7 @@ EOF
 		)
 	);
 	$reply = self::cdfopen("put_record_to_carddav", $id, $opts, $this->config);
-	if ($reply!==-1 && $reply["status"] >= 200 && $reply["status"] < 300) {
+	if (is_array($reply) && $reply["status"] >= 200 && $reply["status"] < 300) {
 		$etag = $reply["headers"]["etag"];
 		if ("$etag" == ""){
 			// Server did not reply an etag
@@ -1528,7 +1529,7 @@ EOF
 	);
 	$id = preg_replace(";_rcmcddot_;", ".", $id);
 	$reply = self::cdfopen("delete_record_from_carddav", $id, $opts, $this->config);
-	if ($reply["status"] == 204){
+	if (is_array($reply) && $reply["status"] == 204){
 		return true;
 	}
 	return false;
@@ -1757,11 +1758,11 @@ EOF
 	);
 	$uri = $save_data['photo'];
 	$reply = self::cdfopen("download_photo", $uri, $opts, $this->config);
-	if ($reply["status"] == 200){
+	if (is_array($reply) && $reply["status"] == 200){
 		$save_data['photo'] = base64_encode($reply['body']);
 		return true;
 	}
-	self::warn("Downloading $uri failed: " . $reply["status"]);
+	self::warn("Downloading $uri failed: " . (is_array($reply) ? $reply["status"] : $reply) );
 	return false;
 	}}}
 
