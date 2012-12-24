@@ -666,7 +666,13 @@ EOF
 		if ($error == ""){
 			$error=$http->ReadReplyHeaders($headers);
 			if ($error == ""){
-				$error = $http->ReadWholeReplyBody($body);
+				if( ! // These message types must not include a message-body
+					(($http->response_status>=100 && $http->response_status < 200)
+					|| $http->response_status == 204
+					|| $http->response_status == 304)
+				) {
+					$error = $http->ReadWholeReplyBody($body);
+				}
 				if ($error == ""){
 					$reply["status"] = $http->response_status;
 					$reply["headers"] = $headers;
@@ -1550,7 +1556,6 @@ EOF
 			'method'=>"DELETE",
 		)
 	);
-	$id = preg_replace(";_rcmcddot_;", ".", $id);
 	$reply = self::cdfopen("delete_record_from_carddav", $id, $opts, $this->config);
 	if (is_array($reply) && $reply["status"] == 204){
 		return true;
