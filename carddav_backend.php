@@ -915,11 +915,13 @@ EOF
 	private function list_records_sync_collection()
 	{{{
 	$sync_token = $this->config['sync_token'];
-	$opts = array(
-		'http'=>array(
-			'method'=>"REPORT",
-			'header'=>array("Depth: 0", 'Content-Type: application/xml; charset="utf-8"'),
-			'content'=> <<<EOF
+
+	while(true) {
+		$opts = array(
+			'http'=>array(
+				'method'=>"REPORT",
+				'header'=>array("Depth: 0", 'Content-Type: application/xml; charset="utf-8"'),
+				'content'=> <<<EOF
 <?xml version="1.0" encoding="utf-8" ?>
 <D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
     <D:sync-token>$sync_token</D:sync-token>
@@ -930,27 +932,42 @@ EOF
     </D:prop>
 </D:sync-collection>
 EOF
-		)
-	);
+			)
+		);
 
-	$reply = self::cdfopen("list_records_sync_collection", $this->config['url'], $opts, $this->config);
-	$xml = self::checkAndParseXML($reply);
-	if($xml === false) return -1;
+		$reply = self::cdfopen("list_records_sync_collection", $this->config['url'], $opts, $this->config);
 
-	list($new_sync_token) = $xml->xpath('//D:sync-token');
+		$xml = self::checkAndParseXML($reply);
 
-	$records = $this->addvcards($xml);
-
-	if(strlen($sync_token) == 0) {
-		if($records>=0) {
-			$this->delete_unseen();
+		if($xml === false) {
+			// a server may invalidate old sync-tokens, in which case we need to do a full resync
+			if (strlen($sync_token)>0 && $reply == 412){
+				self::warn("Server reported invalid sync-token in sync of addressbook " . $this->config['abookid'] . ". Resorting to full resync.");
+				$sync_token = '';
+				continue;
+			} else {
+				return -1;
+			}
 		}
-	} else {
-		$this->delete_synccoll($xml);
-	}
 
-	if($records >= 0) {
-		carddav::update_abook($this->config['abookid'], array('sync_token' => "$new_sync_token"));
+		list($new_sync_token) = $xml->xpath('//D:sync-token');
+
+		$records = $this->addvcards($xml);
+
+		if(strlen($sync_token) == 0) {
+			if($records>=0) {
+				$this->delete_unseen();
+			}
+		} else {
+			$this->delete_synccoll($xml);
+		}
+
+		if($records >= 0) {
+			carddav::update_abook($this->config['abookid'], array('sync_token' => "$new_sync_token"));
+			$sync_token = "$new_sync_token";
+		}
+
+		break;
 	}
 	return $records;
 	}}}
