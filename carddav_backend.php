@@ -1142,7 +1142,7 @@ EOF
 	private function addvcards($xml)
 	{{{
 	$urls = array();
-	$xpresult = $xml->xpath('//D:response[contains(descendant::D:status, " 200 OK") and descendant::D:getetag]');
+	$xpresult = $xml->xpath('//D:response[contains(child::D:propstat/D:status, " 200 OK") and child::D:propstat/D:prop/D:getetag]');
 	foreach ($xpresult as $r) {
 		self::registerNamespaces($r);
 
@@ -1192,7 +1192,7 @@ EOF
 	/** delete cards reported deleted by the server */
 	private function delete_synccoll($xml)
 	{{{
-	$xpresult = $xml->xpath('//D:response[contains(descendant::D:status, " 404 Not Found")]');
+	$xpresult = $xml->xpath('//D:response[contains(child::D:status, " 404 Not Found")]');
 	$del_contacts = array();
 	$del_groups = array();
 
