@@ -964,7 +964,13 @@ EOF
 
 		if($records >= 0) {
 			carddav::update_abook($this->config['abookid'], array('sync_token' => "$new_sync_token"));
-			$sync_token = "$new_sync_token";
+
+			// if we got a truncated result set continue sync
+			$xpresult = $xml->xpath('//D:response[contains(child::D:status, " 507 Insufficient Storage")]');
+			if(count($xpresult) > 0) {
+				$sync_token = "$new_sync_token";
+				continue;
+			}
 		}
 
 		break;
