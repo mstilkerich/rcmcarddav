@@ -2,7 +2,7 @@
 $labels = Array(
 	'cd_title'=> "CardDAV",
 	'cd_active'=> "Utilizza rubrica CardDAV",
-	'cd_newabboxtitle'=> "Add new addressbook",
+	'cd_newabboktitle'=> "Add new Addressbook",
 	'cd_username'=> "Nome utente",
 	'cd_password'=> "Password",
 	'cd_url'=> "Indirizzo server (URL)",
@@ -13,5 +13,6 @@ $labels = Array(
 	'cd_displayorder'=> "Disposizione",
 	'cd_sortorder'=> "Ordinamento",
 	'cd_refresh_time'=> "Frequenza di aggiornamento (ore)",
+	'cd_err_noabfound' => 'no addressbook found',
 );
 ?>

@@ -2,7 +2,7 @@
 $labels = Array(
 	'cd_title'=> "CardDAV",
 	'cd_active'=> "CardDAV címjegyzék aktiválása",
-	'cd_newabboxtitle'=> "Add new addressbook",
+	'cd_newabboktitle'=> "Add new Addressbook",
 	'cd_username'=> "Felhasználónév",
 	'cd_password'=> "Jelszó",
 	'cd_url'=> "URL",
@@ -13,5 +13,6 @@ $labels = Array(
 	'cd_displayorder'=> "Névjegyek megjelenítési rendje",
 	'cd_sortorder'=> "Rendezési sorrend ",
 	'cd_refresh_time'=> "Frissítési intervallum (óra)",
+	'cd_err_noabfound' => 'no addressbook found',
 );
 ?>
