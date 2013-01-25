@@ -1,3 +1,10 @@
+Changes from 0.7.0 to 0.8.0:
+ * Implement sync_token support for less overhead when syncing
+ * Use XPath XML parsing instead of self-rolled functions
+ * Automatically detect all addressbooks on server
+ * Only use sync methods the server advertises
+ * many small changes
+
 Changes from 0.6.1 to 0.7.0:
  * merge branch: cache
  * support caching of entire addressbooks, thus speeding up repetetive queries
