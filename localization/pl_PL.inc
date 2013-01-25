@@ -2,7 +2,7 @@
 $labels = Array(
 	'cd_title'=> "CardDAV",
 	'cd_active'=> "Aktywuj książkę adresową CardDAV",
-	'cd_newabboktitle'=> "Add new Addressbook",
+	'cd_newabboxtitle'=> "Add new Addressbook",
 	'cd_username'=> "Nazwa użytkownika",
 	'cd_password'=> "Hasło",
 	'cd_url'=> "URL",
