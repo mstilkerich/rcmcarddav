@@ -453,7 +453,7 @@ class VCardProperty
 		static $values = array (
 			'INLINE', 'URL', 'CID');
 		static $encodings = array (
-			'7BIT', 'QUOTED-PRINTABLE', 'BASE64');
+			'B', '7BIT', 'QUOTED-PRINTABLE', 'BASE64');
 		$name = 'UNKNOWN';
 		if (in_array($value, $types)) {
 			$name = 'TYPE';
