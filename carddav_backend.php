@@ -1287,14 +1287,19 @@ EOF
 		if (in_array($col, $this->table_cols)) {
 			switch ($mode) {
 			case 1: // strict
-				$where[] = '(' . $dbh->quoteIdentifier($col) . ' = ' . $dbh->quote($val)
+				$where[] =
+					// exact match 'name@domain.com'
+					'(' . $dbh->ilike($col, $val)
+					// line beginning match 'name@domain.com,%'
 					. ' OR ' . $dbh->ilike($col, $val . $AS . '%')
-					. ' OR ' . $dbh->ilike($col, '%' . $AS . $val . $AS . '%')
-					. ' OR ' . $dbh->ilike($col, '%' . $AS . $val) . ')';
+					// middle match '%, name@domain.com,%'
+					. ' OR ' . $dbh->ilike($col, '%' . $AS . $WS . $val . $AS . '%')
+					// line end match '%, name@domain.com'
+					. ' OR ' . $dbh->ilike($col, '%' . $AS . $WS . $val) . ')';
 				break;
 			case 2: // prefix
 				$where[] = '(' . $dbh->ilike($col, $val . '%')
-					. ' OR ' . $dbh->ilike($col, $AS . $val . '%') . ')';
+					. ' OR ' . $dbh->ilike($col, $AS . $WS . $val . '%') . ')';
 				break;
 			default: // partial
 				$where[] = $dbh->ilike($col, '%' . $val . '%');
@@ -1306,12 +1311,12 @@ EOF
 					switch ($mode) {
 					case 1: // strict
 						$words[] = '(' . $dbh->ilike('vcard', $word . $WS . '%')
-							. ' OR ' . $dbh->ilike('vcard', '%' . $AS . $word . $WS .'%')
-							. ' OR ' . $dbh->ilike('vcard', '%' . $AS . $word) . ')';
+							. ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word . $WS .'%')
+							. ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word) . ')';
 						break;
 					case 2: // prefix
 						$words[] = '(' . $dbh->ilike('vcard', $word . '%')
-							. ' OR ' . $dbh->ilike('vcard', $AS . $word . '%') . ')';
+							. ' OR ' . $dbh->ilike('vcard', $AS . $WS . $word . '%') . ')';
 						break;
 					default: // partial
 						$words[] = $dbh->ilike('vcard', '%' . $word . '%');
