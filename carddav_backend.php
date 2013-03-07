@@ -150,6 +150,7 @@ class carddav_backend extends rcube_addressbook
 	// database primary key, used by RC to search by ID
 	public $primary_key = 'id';
 	public $coltypes;
+	private $fallbacktypes = array( 'email' => array('internet') );
 
 	// database ID of the addressbook
 	private $id;
@@ -1738,16 +1739,29 @@ EOF
 		return false;
 	}
 
+
 	private function get_attr_label($vcard, $pvalue, $attrname) {
 		// prefer a known standard label if available
 		$xlabel = '';
+		$fallback = null;
+
 		if(array_key_exists('TYPE', $pvalue->params)) {
-			$xlabel = strtolower($pvalue->params['TYPE'][0]);
+			foreach($pvalue->params['TYPE'] as $type)
+			{
+				$type = strtolower($type);
+				if( in_array($type, $this->coltypes[$attrname]['subtypes']) )
+				{
+					$fallback = $type;
+					if(!(is_array($this->fallbacktypes[$attrname])
+						&& in_array($type, $this->fallbacktypes[$attrname])))
+					{
+						return $type;
+					}
+				}
+			}
 		}
-		if(strlen($xlabel)>0 &&
-			in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
-				return $xlabel;
-		}
+
+		if($fallback) { return $fallback; }
 
 		// check for a custom label using Apple's X-ABLabel extension
 		$group = $pvalue->getGroup();
