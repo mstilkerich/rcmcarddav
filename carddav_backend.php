@@ -150,6 +150,7 @@ class carddav_backend extends rcube_addressbook
 	// database primary key, used by RC to search by ID
 	public $primary_key = 'id';
 	public $coltypes;
+	private $fallbacktypes = array( 'email' => array('internet') );
 
 	// database ID of the addressbook
 	private $id;
@@ -1287,14 +1288,19 @@ EOF
 		if (in_array($col, $this->table_cols)) {
 			switch ($mode) {
 			case 1: // strict
-				$where[] = '(' . $dbh->quoteIdentifier($col) . ' = ' . $dbh->quote($val)
+				$where[] =
+					// exact match 'name@domain.com'
+					'(' . $dbh->ilike($col, $val)
+					// line beginning match 'name@domain.com,%'
 					. ' OR ' . $dbh->ilike($col, $val . $AS . '%')
-					. ' OR ' . $dbh->ilike($col, '%' . $AS . $val . $AS . '%')
-					. ' OR ' . $dbh->ilike($col, '%' . $AS . $val) . ')';
+					// middle match '%, name@domain.com,%'
+					. ' OR ' . $dbh->ilike($col, '%' . $AS . $WS . $val . $AS . '%')
+					// line end match '%, name@domain.com'
+					. ' OR ' . $dbh->ilike($col, '%' . $AS . $WS . $val) . ')';
 				break;
 			case 2: // prefix
 				$where[] = '(' . $dbh->ilike($col, $val . '%')
-					. ' OR ' . $dbh->ilike($col, $AS . $val . '%') . ')';
+					. ' OR ' . $dbh->ilike($col, $AS . $WS . $val . '%') . ')';
 				break;
 			default: // partial
 				$where[] = $dbh->ilike($col, '%' . $val . '%');
@@ -1306,12 +1312,12 @@ EOF
 					switch ($mode) {
 					case 1: // strict
 						$words[] = '(' . $dbh->ilike('vcard', $word . $WS . '%')
-							. ' OR ' . $dbh->ilike('vcard', '%' . $AS . $word . $WS .'%')
-							. ' OR ' . $dbh->ilike('vcard', '%' . $AS . $word) . ')';
+							. ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word . $WS .'%')
+							. ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word) . ')';
 						break;
 					case 2: // prefix
 						$words[] = '(' . $dbh->ilike('vcard', $word . '%')
-							. ' OR ' . $dbh->ilike('vcard', $AS . $word . '%') . ')';
+							. ' OR ' . $dbh->ilike('vcard', $AS . $WS . $word . '%') . ')';
 						break;
 					default: // partial
 						$words[] = $dbh->ilike('vcard', '%' . $word . '%');
@@ -1733,16 +1739,29 @@ EOF
 		return false;
 	}
 
+
 	private function get_attr_label($vcard, $pvalue, $attrname) {
 		// prefer a known standard label if available
 		$xlabel = '';
+		$fallback = null;
+
 		if(array_key_exists('TYPE', $pvalue->params)) {
-			$xlabel = strtolower($pvalue->params['TYPE'][0]);
+			foreach($pvalue->params['TYPE'] as $type)
+			{
+				$type = strtolower($type);
+				if( in_array($type, $this->coltypes[$attrname]['subtypes']) )
+				{
+					$fallback = $type;
+					if(!(is_array($this->fallbacktypes[$attrname])
+						&& in_array($type, $this->fallbacktypes[$attrname])))
+					{
+						return $type;
+					}
+				}
+			}
 		}
-		if(strlen($xlabel)>0 &&
-			in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
-				return $xlabel;
-		}
+
+		if($fallback) { return $fallback; }
 
 		// check for a custom label using Apple's X-ABLabel extension
 		$group = $pvalue->getGroup();

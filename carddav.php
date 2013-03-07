@@ -35,7 +35,7 @@ class carddav extends rcube_plugin
 		$this->add_hook('preferences_sections_list',array($this, 'cd_preferences_section'));
 
 		$this->add_hook('login_after',array($this, 'init_presets'));
-		
+
 		if(!array_key_exists('user_id', $_SESSION))
 			return;
 
@@ -45,7 +45,7 @@ class carddav extends rcube_plugin
 		$sources = (array) $config->get('autocomplete_addressbooks', array('sql'));
 
 		$dbh = rcmail::get_instance()->db;
-		$sql_result = $dbh->query('SELECT id FROM ' . 
+		$sql_result = $dbh->query('SELECT id FROM ' .
 			get_table_name('carddav_addressbooks') .
 			' WHERE user_id=? AND active=1',
 			$_SESSION['user_id']);
@@ -89,7 +89,7 @@ class carddav extends rcube_plugin
 		// addressbooks exist for this preset => update settings
 		if(array_key_exists($presetname, $existing_presets)) {
 			if(is_array($preset['fixed'])) {
-				// update all existing addressbooks for this preset	
+				// update all existing addressbooks for this preset
 				foreach($existing_presets[$presetname] as $abookrow) {
 					// decrypt password so that the comparison works
 					$abookrow['password'] = carddav_backend::decrypt_password($abookrow['password']);
@@ -163,7 +163,7 @@ class carddav extends rcube_plugin
 	$dbh = rcmail::get_instance()->db;
 	$prefs = carddav_backend::get_adminsettings();
 
-	$sql_result = $dbh->query('SELECT id,name,presetname FROM ' . 
+	$sql_result = $dbh->query('SELECT id,name,presetname FROM ' .
 		get_table_name('carddav_addressbooks') .
 		' WHERE user_id=? AND active=1',
 		$_SESSION['user_id']);
@@ -279,8 +279,8 @@ class carddav extends rcube_plugin
 		$retval = array(
 			'options' => array(
 				array('title'=> Q($this->gettext('cd_name')), 'content' => $content_name),
-				array('title'=> Q($this->gettext('cd_active')), 'content' => $content_active), 
-				array('title'=> Q($this->gettext('cd_username')), 'content' => $content_username), 
+				array('title'=> Q($this->gettext('cd_active')), 'content' => $content_active),
+				array('title'=> Q($this->gettext('cd_username')), 'content' => $content_username),
 				array('title'=> Q($this->gettext('cd_password')), 'content' => $content_password),
 				array('title'=> Q($this->gettext('cd_url')), 'content' => $content_url),
 				array('title'=> Q($this->gettext('cd_refresh_time')), 'content' => $content_refresh_time),
@@ -396,7 +396,7 @@ class carddav extends rcube_plugin
 			}
 		}
 
-		// add a new address book?	
+		// add a new address book?
 		$new = get_input_value('new_cd_name', RCUBE_INPUT_POST);
 		if ( (!array_key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) && strlen($new) > 0) {
 			$srv  = get_input_value('new_cd_url', RCUBE_INPUT_POST);
@@ -406,7 +406,7 @@ class carddav extends rcube_plugin
 			$abname = get_input_value('new_cd_name', RCUBE_INPUT_POST);
 
 			$srvs = carddav_backend::find_addressbook(array('url'=>$srv,'password'=>$pass,'username'=>$usr));
-			if(is_array($srvs)) {
+			if(is_array($srvs) && count($srvs)>0) {
 			foreach($srvs as $key => $srv){
 				$this_abname = $abname;
 				if($srv[name]) {
@@ -427,7 +427,7 @@ class carddav extends rcube_plugin
 
 		return($args);
 	}}}
-		
+
 	private static function delete_abook($abookid)
 	{{{
 	carddav_backend::delete_dbrecord($abookid,'addressbooks');
@@ -441,8 +441,8 @@ class carddav extends rcube_plugin
 	$delgroups = carddav_backend::get_dbrecord($abookid, 'id as group_id', 'groups', false, 'abook_id');
 	carddav_backend::delete_dbrecord($abookid,'groups','abook_id');
 	carddav_backend::delete_dbrecord($delgroups,'group_user','group_id');
-	}}}	
-		
+	}}}
+
 	private static function insert_abook($pa)
 	{{{
 	$dbh = rcmail::get_instance()->db;
@@ -475,8 +475,8 @@ class carddav extends rcube_plugin
 		'VALUES (?'. str_repeat(',?', count($qf)-1) . ')',
 		$qv
 	);
-	}}}	
-	
+	}}}
+
 	public static function update_abook($abookid, $pa)
 	{{{
 	$dbh = rcmail::get_instance()->db;
@@ -509,5 +509,5 @@ class carddav extends rcube_plugin
 		' WHERE id=?',
 		$qv
 	);
-	}}}	
+	}}}
 }
