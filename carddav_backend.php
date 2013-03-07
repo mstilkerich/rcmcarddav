@@ -1639,8 +1639,10 @@ EOF
 	}
 
 	// Special handling for PHOTO
-	$vcf->getProperty("PHOTO")->setParam("ENCODING", "B", 0);
-	$vcf->getProperty("PHOTO")->setParam("VALUE", "BINARY", 0);
+	if ($property = $vcf->getProperty){
+		$property->setParam("ENCODING", "B", 0);
+		$property->setParam("VALUE", "BINARY", 0);
+	}
 
 	// process all multi-value attributes
 	foreach ($this->vcf2rc['multi'] as $vkey => $rckey){
