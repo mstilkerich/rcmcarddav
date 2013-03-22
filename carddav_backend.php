@@ -1173,7 +1173,7 @@ EOF
 	private function addvcards($xml)
 	{{{
 	$urls = array();
-	$xpresult = $xml->xpath('//D:response[contains(translate(child::D:propstat/D:status, "ABCDEFGHJIKLMNOPQRSTUVWXYZ", "abcdefghjiklmnopqrstuvwxyz"), " 200 ok") and child::D:propstat/D:prop/D:getetag]');
+	$xpresult = $xml->xpath('//D:response[starts-with(translate(child::D:propstat/D:status, "ABCDEFGHJIKLMNOPQRSTUVWXYZ", "abcdefghjiklmnopqrstuvwxyz"), "http/1.1 200 ") and child::D:propstat/D:prop/D:getetag]');
 	foreach ($xpresult as $r) {
 		self::registerNamespaces($r);
 
