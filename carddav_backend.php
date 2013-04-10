@@ -1645,7 +1645,7 @@ EOF
 	}
 
 	// Special handling for PHOTO
-	if ($property = $vcf->getProperty){
+	if ($property = $vcf->getProperty('PHOTO')){
 		$property->setParam("ENCODING", "B", 0);
 		$property->setParam("VALUE", "BINARY", 0);
 	}
