@@ -404,7 +404,7 @@ EOF
 		)
 	);
 
-	$reply = self::cdfopen("retrieve_addressbook_properties", $url, $opts, $config);
+	$reply = self::cdfopen("retrieve_addressbook_properties", $url, $opts, $config,0);
 	$xml = self::checkAndParseXML($reply);
 	if($xml === false) return false;
 
@@ -613,17 +613,11 @@ EOF
 	 *             - username
 	 *             - password
 	 */
-	public static function cdfopen($caller, $url, $opts, $carddav)
+	public static function cdfopen($caller, $url, $opts, $carddav, $autoredirect=1)
 	{{{
 	$rcmail = rcmail::get_instance();
 
-	$http=new http_class;
-	$http->timeout=10;
-	$http->data_timeout=0;
-	$http->user_agent="RCM CardDAV plugin/TRUNK";
-	$http->follow_redirect=1;
-	$http->redirection_limit=5;
-	$http->prefer_curl=1;
+	$redirect_limit = 5;
 
 	// if $url is relative, prepend the base url
 	$url = concaturl($carddav['url'], $url);
@@ -637,63 +631,78 @@ EOF
 		$carddav['password'] = $rcmail->decrypt($_SESSION['password']);
 	$url = str_replace("%u", $carddav['username'], $url);
 
-	self::debug("cdfopen: $caller requesting $url");
+	do {
+		$http=new http_class;
+		$http->timeout=10;
+		$http->data_timeout=0;
+		$http->user_agent="RCM CardDAV plugin/TRUNK";
+		$http->prefer_curl=1;
+		$http->redirection_limit=5;
+		$http->follow_redirect=$autoredirect;
+		self::debug("cdfopen: $caller requesting $url [RL $redirect_limit]");
 
-	$url = preg_replace(";://;", "://".urlencode($carddav['username']).":".urlencode($carddav['password'])."@", $url);
-	$error = $http->GetRequestArguments($url,$arguments);
-	$arguments["RequestMethod"] = $opts['http']['method'];
-	if (array_key_exists('content',$opts['http']) && strlen($opts['http']['content']) > 0 && $opts['http']['method'] != "GET"){
-		$arguments["Body"] = $opts['http']['content']."\r\n";
-	}
-	if(array_key_exists('header',$opts['http'])) {
-		if (is_array($opts['http']['header'])){
-			foreach ($opts['http']['header'] as $key => $value){
-				$h = explode(": ", $value);
-				if (strlen($h[0]) > 0 && strlen($h[1]) > 0){
-					// Only append headers with key AND value
-					$arguments["Headers"][$h[0]] = $h[1];
-				}
-			}
-		} else {
-			$h = explode(": ", $opts['http']['header']);
-			$arguments["Headers"][$h[0]] = $h[1];
+		$url = preg_replace(";://;", "://".urlencode($carddav['username']).":".urlencode($carddav['password'])."@", $url);
+		$error = $http->GetRequestArguments($url,$arguments);
+		$arguments["RequestMethod"] = $opts['http']['method'];
+		if (array_key_exists('content',$opts['http']) && strlen($opts['http']['content']) > 0 && $opts['http']['method'] != "GET"){
+			$arguments["Body"] = $opts['http']['content']."\r\n";
 		}
-	}
-	$error = $http->Open($arguments);
-	if ($error == ""){
-		$error=$http->SendRequest($arguments);
-		self::debug_http("cdfopen SendRequest: ".var_export($http, true));
-
-		if ($error == ""){
-			$error=$http->ReadReplyHeaders($headers);
-			if ($error == ""){
-				if( ! // These message types must not include a message-body
-					(($http->response_status>=100 && $http->response_status < 200)
-					|| $http->response_status == 204
-					|| $http->response_status == 304)
-				) {
-					$error = $http->ReadWholeReplyBody($body);
-				}
-				if ($error == ""){
-					$reply["status"] = $http->response_status;
-					$reply["headers"] = $headers;
-					$reply["body"] = $body;
-					self::debug_http("cdfopen success: ".var_export($reply, true));
-					return $reply;
-				} else {
-					self::warn("cdfopen: Could not read reply body: $error");
+		if(array_key_exists('header',$opts['http'])) {
+			if (is_array($opts['http']['header'])){
+				foreach ($opts['http']['header'] as $key => $value){
+					$h = explode(": ", $value);
+					if (strlen($h[0]) > 0 && strlen($h[1]) > 0){
+						// Only append headers with key AND value
+						$arguments["Headers"][$h[0]] = $h[1];
+					}
 				}
 			} else {
-				self::warn("cdfopen: Could not read reply header: $error");
+				$h = explode(": ", $opts['http']['header']);
+				$arguments["Headers"][$h[0]] = $h[1];
+			}
+		}
+		$error = $http->Open($arguments);
+		if ($error == ""){
+			$error=$http->SendRequest($arguments);
+			self::debug_http("cdfopen SendRequest: ".var_export($http, true));
+
+			if ($error == ""){
+				$error=$http->ReadReplyHeaders($headers);
+				if ($error == ""){
+					if( ! // These message types must not include a message-body
+						(($http->response_status>=100 && $http->response_status < 200)
+						|| $http->response_status == 204
+						|| $http->response_status == 304)
+					) {
+						$error = $http->ReadWholeReplyBody($body);
+					}
+					if($http->response_status == 301 && strlen($headers['location'])>0) {
+						self::warn("Response Code: " . $http->response_status . ", LOC: " . $headers['location']);
+						$url = concaturl($carddav['url'], $headers['location']);
+
+					} else if ($error == ""){
+						$reply["status"] = $http->response_status;
+						$reply["headers"] = $headers;
+						$reply["body"] = $body;
+						self::debug_http("cdfopen success: ".var_export($reply, true));
+						return $reply;
+					} else {
+						self::warn("cdfopen: Could not read reply body: $error");
+					}
+				} else {
+					self::warn("cdfopen: Could not read reply header: $error");
+				}
+			} else {
+				self::warn("cdfopen: Could not send request: $error");
 			}
 		} else {
-			self::warn("cdfopen: Could not send request: $error");
+			self::warn("cdfopen: Could not open: $error");
+			self::debug_http("cdfopen failed: ".var_export($http, true));
+			return -1;
 		}
-	} else {
-		self::warn("cdfopen: Could not open: $error");
-		self::debug_http("cdfopen failed: ".var_export($http, true));
-		return -1;
-	}
+
+	} while($redirect_limit-->0 && $http->response_status == 301);
+
 	return $http->response_status;
 	}}}
 
@@ -871,7 +880,7 @@ EOF
 		)
 	);
 
-	$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config);
+	$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config,0);
 	$xml = self::checkAndParseXML($reply);
 	if($xml === false) return false;
 
@@ -898,7 +907,7 @@ EOF
 		)
 	);
 
-	$reply = self::cdfopen("find_addressbook", concaturl($serverpart,$princurl), $opts, $config);
+	$reply = self::cdfopen("find_addressbook", concaturl($serverpart,$princurl), $opts, $config,0);
 	$xml = self::checkAndParseXML($reply);
 	if($xml === false) return false;
 
