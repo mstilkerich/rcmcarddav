@@ -172,8 +172,8 @@ class carddav_backend extends rcube_addressbook
 	const NSDAV = 'DAV:';
 	const NSCARDDAV = 'urn:ietf:params:xml:ns:carddav';
 
-	const DEBUG      = false; // set to true for basic debugging
-	const DEBUG_HTTP = false; // set to true for debugging raw http stream
+	const DEBUG      = true; // set to true for basic debugging
+	const DEBUG_HTTP = true; // set to true for debugging raw http stream
 
 	// contains a the URIs, db ids and etags of the locally stored cards whenever
 	// a refresh from the server is attempted. This is used to avoid a separate
@@ -851,76 +851,176 @@ EOF
 	return false;
 	}}}
 
+	public static function find_servers($host, $ssl)
+	{{{
+		$result = array();
+		$srvpfx = $ssl ? '_carddavs' : '_carddav';
+		$srv = "$srvpfx._tcp.$host";
+
+		$defaultport = $ssl ? 443 : 80;
+		$protocol = $ssl ? 'https' : 'http';
+
+		$dnsresults = dns_get_record($srv, DNS_SRV);
+
+		$sortPrioWeight = function($a, $b) {
+			if ($a['pri'] != $b['pri']) {
+				return $b['pri'] - $a['pri'];
+			}
+
+			return $a['weight'] - $b['weight'];
+		};
+
+		usort($dnsresults, $sortPrioWeight);
+
+		foreach($dnsresults as $dnsres) {
+			$target = $dnsres['target'];
+			$port = $dnsres['port'] ? $dnsres['port'] : $defaultport;
+			self::warn("Result $target $port");
+			$baseurl = "$protocol://$target:$port";
+			if($target) {
+				$result[] = array(
+					'host' => $target,
+					'port' => $port,
+					'baseurl' => $baseurl,
+					'dnssrv' => "$srvpfx.$target",
+				);
+			}
+		}
+
+		if(count($result) == 0) {
+			$result[] = array(
+				'host' => $host,
+				'port' => $defaultport,
+				'baseurl' => "$protocol://$host:$defaultport",
+			);
+		}
+		return $result;
+	}}}
+
 	/**
 	 * Determines the location of the addressbook for the current user on the
 	 * CardDAV server.
 	 */
 	public static function find_addressbook($config)
 	{{{
-	if (!preg_match(';^[^/]+://[^/]+;', $config['url'], $match))
+	if (!preg_match(';^(([^:]+)://)?(([^/:]+)(:([0-9]+))?)(.*)$;', $config['url'], $match))
 		return false;
-	$serverpart = $match[0];
 
-	$retVal = self::retrieve_addressbook_properties($config['url'], $serverpart, $config);
-	if(is_array($retVal) && count($retVal)>0)
-		return $retVal;
+	$protocol = $match[2];
+	$host     = $match[4];
+	$port     = $match[6];
+	$path     = $match[7];
 
-	// No addressbook found, try to auto-determine addressbook locations
-	// Retrieve Principal URL
-	$opts = array(
-		'http'=>array(
-			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
-			'content'=> <<<EOF
+	// first determine the available server options using
+	$use_plain = !$protocol || $protocol==="http";
+	$use_ssl   = !$protocol || $protocol==="https";
+
+	if(!($use_plain || $use_ssl))
+		return false;
+
+	$services = array();
+	if($use_ssl) {
+		$services = array_merge($services, self::find_servers($host, true));
+	}
+	if($use_plain) {
+		$services = array_merge($services, self::find_servers($host, false));
+	}
+
+	foreach($services as $service) {
+		self::warn("FOUND service: " . $service['baseurl']);
+	}
+
+
+	// now check each of them until we find something
+	foreach($services as $service) {
+		$baseurl = $service['baseurl'];
+
+		$paths = array();
+
+		if(strlen($path)>0) {
+			$paths[] = $path;
+		}
+
+		$dnsresults = dns_get_record($service['dnssrv'], DNS_TXT);
+		foreach($dnsresults as $dnsresult) {
+			if($dnsresult['host'] === $service['dnssrv']) {
+				foreach($dnsresult['entries'] as $ent) {
+					if (preg_match('^path=(.+)', $ent, $match)) {
+						$paths[] = $match[1];
+					}
+				}
+			}
+		}
+		$paths[] = '/.well-known/carddav';
+		$paths[] = '/';
+
+		foreach($paths as $path) {
+			$config['url'] = "$baseurl/$path";
+			self::warn("TRYING " . $config['url']);
+			$retVal = self::retrieve_addressbook_properties($config['url'], $baseurl, $config);
+			if(is_array($retVal) && count($retVal)>0)
+				return $retVal;
+
+			// No addressbook found, try to auto-determine addressbook locations
+			// Retrieve Principal URL
+			$opts = array(
+				'http'=>array(
+					'method'=>"PROPFIND",
+					'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
+					'content'=> <<<EOF
 <?xml version="1.0" encoding="utf-8" ?>
 <a:propfind xmlns:a="DAV:"> <a:prop>
-    <a:current-user-principal/>
+	<a:current-user-principal/>
 </a:prop> </a:propfind>
 EOF
-		)
-	);
+				)
+			);
 
-	$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config,0);
-	$xml = self::checkAndParseXML($reply);
-	if($xml === false) return false;
+			$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config,0);
+			$xml = self::checkAndParseXML($reply);
+			if($xml === false) continue;
 
-	list($princurl) = $xml->xpath('//D:current-user-principal/D:href');
-	if(strlen($princurl) == 0) {
-		self::debug("find_addressbook no principal URL found");
-		return false;
-	}
-	self::debug("find_addressbook Principal URL: $princurl");
-	if (preg_match(';^[^/]+://[^/]+;', $princurl, $match))
-		$serverpart = $match[0];
+			list($princurl) = $xml->xpath('//D:current-user-principal/D:href');
+			if(strlen($princurl) == 0) {
+				self::debug("find_addressbook no principal URL found");
+				continue;
+			}
+			self::debug("find_addressbook Principal URL: $princurl");
+			if (preg_match(';^[^:]+://[^/]+;', $princurl, $match))
+				$baseurl = $match[0];
 
-	// Find Addressbook Home Path of Principal
-	$opts = array(
-		'http'=>array(
-			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
-			'content'=>  <<<EOF
+			// Find Addressbook Home Path of Principal
+			$opts = array(
+				'http'=>array(
+					'method'=>"PROPFIND",
+					'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
+					'content'=>  <<<EOF
 <?xml version="1.0" encoding="utf-8" ?>
 <a:propfind xmlns:a="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <a:prop>
-    <C:addressbook-home-set/>
+	<C:addressbook-home-set/>
 </a:prop> </a:propfind>
 EOF
-		)
-	);
+			)
+			);
 
-	$reply = self::cdfopen("find_addressbook", concaturl($serverpart,$princurl), $opts, $config,0);
-	$xml = self::checkAndParseXML($reply);
-	if($xml === false) return false;
+			$reply = self::cdfopen("find_addressbook", concaturl($baseurl,$princurl), $opts, $config,0);
+			$xml = self::checkAndParseXML($reply);
+			if($xml === false) continue;
 
-	list($abookhome) = $xml->xpath('//C:addressbook-home-set/D:href');
-	if(strlen($abookhome) == 0) {
-		$abookhome = $princurl;
-	} else if (preg_match(';^[^/]+://[^/]+;', $abookhome, $match)) {
-		$serverpart = $match[0];
+			list($abookhome) = $xml->xpath('//C:addressbook-home-set/D:href');
+			if(strlen($abookhome) == 0) {
+				$abookhome = $princurl;
+			} else if (preg_match(';^[^/]+://[^/]+;', $abookhome, $match)) {
+				$baseurl = $match[0];
+			}
+			self::debug("find_addressbook addressbook home: $abookhome");
+
+			$retVal = self::retrieve_addressbook_properties(concaturl($baseurl,$abookhome), $baseurl, $config);
+			if(is_array($retVal) && count($retVal)>0)
+				return $retVal;
+		}
 	}
-	self::debug("find_addressbook addressbook home: $abookhome");
-
-	$retVal = self::retrieve_addressbook_properties(concaturl($serverpart,$abookhome), $serverpart, $config);
-	return $retVal;
+	return false;
 	}}}
 
 	/**
