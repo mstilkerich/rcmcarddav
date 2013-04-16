@@ -786,7 +786,7 @@ EOF
 	private function addvcards($xml)
 	{{{
 	$urls = array();
-	$xpresult = $xml->xpath('//D:response[contains(child::D:propstat/D:status, " 200 OK") and child::D:propstat/D:prop/D:getetag]');
+	$xpresult = $xml->xpath('//D:response[starts-with(translate(child::D:propstat/D:status, "ABCDEFGHJIKLMNOPQRSTUVWXYZ", "abcdefghjiklmnopqrstuvwxyz"), "http/1.1 200 ") and child::D:propstat/D:prop/D:getetag]');
 	foreach ($xpresult as $r) {
 		self::$helper->registerNamespaces($r);
 
@@ -1245,6 +1245,12 @@ EOF
 				$vcf->deleteProperty($vkey);
 			}
 		}
+	}
+
+	// Special handling for PHOTO
+	if ($property = $vcf->getProperty('PHOTO')){
+		$property->setParam("ENCODING", "B", 0);
+		$property->setParam("VALUE", "BINARY", 0);
 	}
 
 	// process all multi-value attributes
