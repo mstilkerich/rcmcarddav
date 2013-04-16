@@ -1,7 +1,8 @@
 <?php
 /*
     RCM CardDAV Plugin
-    Copyright (C) 2011 Benjamin Schieder <blindcoder@scavenger.homeip.net>
+    Copyright (C) 2011-2013 Benjamin Schieder <blindcoder@scavenger.homeip.net>,
+                            Michael Stilkerich <ms@mike2k.de>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,56 +17,62 @@
     You should have received a copy of the GNU General Public License along
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- */
-require_once(dirname(__FILE__) . '/carddav_backend.php');
+*/
+require_once('carddav_backend.php');
+require_once('carddav_discovery.php');
+require_once('carddav_common.php');
 
 class carddav extends rcube_plugin
 {
+	private static $helper;
+
 	// the dummy task is used by the calendar plugin, which requires
 	// the addressbook to be initialized
 	public $task = 'addressbook|login|mail|settings|dummy';
 
 	public function init()
 	{{{
-		$this->add_hook('addressbooks_list', array($this, 'address_sources'));
-		$this->add_hook('addressbook_get', array($this, 'get_address_book'));
+	self::$helper = new carddav_common('BACKEND: ');
 
-		$this->add_hook('preferences_list', array($this, 'cd_preferences'));
-		$this->add_hook('preferences_save', array($this, 'cd_save'));
-		$this->add_hook('preferences_sections_list',array($this, 'cd_preferences_section'));
+	$this->add_hook('addressbooks_list', array($this, 'address_sources'));
+	$this->add_hook('addressbook_get', array($this, 'get_address_book'));
 
-		$this->add_hook('login_after',array($this, 'init_presets'));
+	$this->add_hook('preferences_list', array($this, 'cd_preferences'));
+	$this->add_hook('preferences_save', array($this, 'cd_save'));
+	$this->add_hook('preferences_sections_list',array($this, 'cd_preferences_section'));
 
-		if(!array_key_exists('user_id', $_SESSION))
-			return;
+	$this->add_hook('login_after',array($this, 'init_presets'));
 
-		// use this address book for autocompletion queries
-		// (maybe this should be configurable by the user?)
-		$config = rcmail::get_instance()->config;
-		$sources = (array) $config->get('autocomplete_addressbooks', array('sql'));
+	if(!array_key_exists('user_id', $_SESSION))
+		return;
 
-		$dbh = rcmail::get_instance()->db;
-		$sql_result = $dbh->query('SELECT id FROM ' .
-			get_table_name('carddav_addressbooks') .
-			' WHERE user_id=? AND active=1',
-			$_SESSION['user_id']);
+	// use this address book for autocompletion queries
+	// (maybe this should be configurable by the user?)
+	$config = rcmail::get_instance()->config;
+	$sources = (array) $config->get('autocomplete_addressbooks', array('sql'));
 
-		while ($abookrow = $dbh->fetch_assoc($sql_result)) {
-			$abookname = "carddav_" . $abookrow['id'];
-			if (!in_array($abookname, $sources)) {
-				$sources[] = $abookname;
-			}
+	$dbh = rcmail::get_instance()->db;
+	$sql_result = $dbh->query('SELECT id FROM ' .
+		get_table_name('carddav_addressbooks') .
+		' WHERE user_id=? AND active=1',
+		$_SESSION['user_id']);
+
+	while ($abookrow = $dbh->fetch_assoc($sql_result)) {
+		$abookname = "carddav_" . $abookrow['id'];
+		if (!in_array($abookname, $sources)) {
+			$sources[] = $abookname;
 		}
-		$config->set('autocomplete_addressbooks', $sources);
+	}
+	$config->set('autocomplete_addressbooks', $sources);
 	}}}
 
 	public function init_presets()
 	{{{
 	$dbh = rcmail::get_instance()->db;
-	$prefs = carddav_backend::get_adminsettings();
+	$prefs = carddav_common::get_adminsettings();
 
 	// migrate old settings
-	migrateconfig();
+	carddav_backend::migrateconfig();
 
 	// read existing presets from DB
 	$sql_result = $dbh->query('SELECT * FROM ' .
@@ -92,7 +99,7 @@ class carddav extends rcube_plugin
 				// update all existing addressbooks for this preset
 				foreach($existing_presets[$presetname] as $abookrow) {
 					// decrypt password so that the comparison works
-					$abookrow['password'] = carddav_backend::decrypt_password($abookrow['password']);
+					$abookrow['password'] = self::$helper->decrypt_password($abookrow['password']);
 
 					// update: only admin fix keys, only if it's fixed
 					// otherwise there may be user changes that should not be destroyed
@@ -130,12 +137,14 @@ class carddav extends rcube_plugin
 
 		} else { // create new
 			$preset['presetname'] = $presetname;
-			$preset['password']   = carddav_backend::encrypt_password($preset['password']);
+			$preset['password']   = self::$helper->encrypt_password($preset['password']);
 			$abname = $preset['name'];
 
-			$srvs = carddav_backend::find_addressbook($preset);
+			$discovery = new carddav_discovery();
+			$srvs = $discovery->find_addressbooks($preset['url'], $preset['username'], $preset['password']);
+
 			if(is_array($srvs)) {
-			foreach($srvs as $key => $srv){
+			foreach($srvs as $srv){
 				if($srv[name]) {
 					if($preset[carddav_name_only])
 						$preset['name'] = $srv[name];
@@ -161,7 +170,7 @@ class carddav extends rcube_plugin
 	public function address_sources($p)
 	{{{
 	$dbh = rcmail::get_instance()->db;
-	$prefs = carddav_backend::get_adminsettings();
+	$prefs = carddav_common::get_adminsettings();
 
 	$sql_result = $dbh->query('SELECT id,name,presetname FROM ' .
 		get_table_name('carddav_addressbooks') .
@@ -200,7 +209,6 @@ class carddav extends rcube_plugin
 			count($match)>3 ? $match[3] : 0,
 			count($match)>5 ? $match[5] : 0);
 	} else {
-		write_log("carddav.warn", "Could not parse given refresh time '$refresht'");
 		$refresht = '01:00:00';
 	}
 	return $refresht;
@@ -304,7 +312,7 @@ class carddav extends rcube_plugin
 			return;
 
 		$this->add_texts('localization/', false);
-		$prefs = carddav_backend::get_adminsettings();
+		$prefs = carddav_common::get_adminsettings();
 
 		if (version_compare(PHP_VERSION, '5.3.0') < 0) {
 			$args['blocks']['cd_preferences'] = array(
@@ -359,7 +367,7 @@ class carddav extends rcube_plugin
 		$this->add_texts('localization/', false);
 		if($args['section'] != 'cd_preferences')
 			return;
-		$prefs = carddav_backend::get_adminsettings();
+		$prefs = carddav_common::get_adminsettings();
 
 		// update existing in DB
 		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'id,presetname',
@@ -399,27 +407,31 @@ class carddav extends rcube_plugin
 		// add a new address book?
 		$new = get_input_value('new_cd_name', RCUBE_INPUT_POST);
 		if ( (!array_key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) && strlen($new) > 0) {
-			$srv  = get_input_value('new_cd_url', RCUBE_INPUT_POST);
-			$usr  = get_input_value('new_cd_username', RCUBE_INPUT_POST, true);
-			$pass = get_input_value('new_cd_password', RCUBE_INPUT_POST, true);
-			$pass = carddav_backend::encrypt_password($pass);
+			$srv    = get_input_value('new_cd_url', RCUBE_INPUT_POST);
+			$usr    = get_input_value('new_cd_username', RCUBE_INPUT_POST, true);
+			$pass   = get_input_value('new_cd_password', RCUBE_INPUT_POST, true);
+			$pass = self::$helper->encrypt_password($pass);
 			$abname = get_input_value('new_cd_name', RCUBE_INPUT_POST);
 
-			$srvs = carddav_backend::find_addressbook(array('url'=>$srv,'password'=>$pass,'username'=>$usr));
+			$discovery = new carddav_discovery();
+			$srvs = $discovery->find_addressbooks($srv, $usr, $pass);
+
 			if(is_array($srvs) && count($srvs)>0) {
-			foreach($srvs as $key => $srv){
-				$this_abname = $abname;
-				if($srv[name]) {
-					$this_abname .= ' (' . $srv['name'] . ')';
+				foreach($srvs as $srv){
+					self::$helper->debug("ADDING ABOOK " . print_r($srv,true));
+					$this_abname = $abname;
+					if($srv['name']) {
+						$this_abname .= ' (' . $srv['name'] . ')';
+					}
+					self::insert_abook(array(
+						'name'     => $this_abname,
+						'username' => $usr,
+						'password' => $pass,
+						'url'      => $srv['href'],
+						'refresh_time' => get_input_value('new_cd_refresh_time', RCUBE_INPUT_POST)
+					));
 				}
-				self::insert_abook(array(
-					'name'     => $this_abname,
-					'username' => $usr,
-					'password' => $pass,
-					'url'      => $srv['href'],
-					'refresh_time' => get_input_value('new_cd_refresh_time', RCUBE_INPUT_POST)
-				));
-			}} else {
+			} else {
 				$args['abort'] = true;
 				$args['message'] = $abname . ': ' . $this->gettext('cd_err_noabfound');
 			}
@@ -487,7 +499,7 @@ class carddav extends rcube_plugin
 
 	// encrypt the password before storing it
 	if(array_key_exists('password', $pa))
-		$pa['password'] = carddav_backend::encrypt_password($pa['password']);
+		$pa['password'] = self::$helper->encrypt_password($pa['password']);
 
 	// optional fields
 	$qfo=array('name','username','password','url','active','refresh_time','sync_token');
@@ -511,3 +523,5 @@ class carddav extends rcube_plugin
 	);
 	}}}
 }
+
+?>
