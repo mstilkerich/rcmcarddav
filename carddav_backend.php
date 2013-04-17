@@ -1,7 +1,8 @@
 <?php
 /*
     RCM CardDAV Plugin
-    Copyright (C) 2011 Benjamin Schieder <blindcoder@scavenger.homeip.net>
+    Copyright (C) 2011-2013 Benjamin Schieder <blindcoder@scavenger.homeip.net>,
+                            Michael Stilkerich <ms@mike2k.de>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,137 +17,17 @@
     You should have received a copy of the GNU General Public License along
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- */
+*/
 
 // requires Roundcubemail 0.7.2 or later
 
-require("inc/http.php");
-require("inc/sasl.php");
-require("inc/vcard.php");
-
-function carddavconfig($abookid){{{
-	$dbh = rcmail::get_instance()->db;
-
-	// cludge, agreed, but the MDB abstraction seems to have no way of
-	// doing time calculations...
-	$timequery = '('. $dbh->now() . ' > ';
-	if ($dbh->db_provider === 'sqlite') {
-		$timequery .= ' datetime(last_updated,refresh_time))';
-	} else {
-		$timequery .= ' last_updated+refresh_time)';
-	}
-
-	$abookrow = carddav_backend::get_dbrecord($abookid,
-		'id as abookid,name,username,password,url,presetname,sync_token,'
-		. $timequery . ' as needs_update', 'addressbooks');
-
-	if(! $abookrow) {
-		carddav_backend::warn("FATAL! Request for non-existent configuration $abookid");
-		return false;
-	}
-
-	// postgres will return 't'/'f' here for true/false, normalize it to 1/0
-	$nu = $abookrow['needs_update'];
-	$nu = ($nu==1 || $nu=='t')?1:0;
-	$abookrow['needs_update'] = $nu;
-
-	return $abookrow;
-}}}
-
-/**
- * Migrates settings to a separate addressbook table.
- */
-function migrateconfig($sub = 'CardDAV'){{{
-	$rcmail = rcmail::get_instance();
-	$prefs_all = $rcmail->config->get('carddav', 0);
-	$dbh = $rcmail->db;
-
-	// adopt password storing scheme if stored password differs from configured scheme
-	$sql_result = $dbh->query('SELECT id,password FROM ' .
-		get_table_name('carddav_addressbooks') .
-		' WHERE user_id=?', $_SESSION['user_id']);
-
-	while ($abookrow = $dbh->fetch_assoc($sql_result)) {
-		$pw_scheme = carddav_backend::password_scheme($abookrow['password']);
-		if(strcasecmp($pw_scheme, carddav_backend::$pwstore_scheme) !== 0) {
-			$abookrow['password'] = carddav_backend::decrypt_password($abookrow['password']);
-			$abookrow['password'] = carddav_backend::encrypt_password($abookrow['password']);
-			$dbh->query('UPDATE ' .
-				get_table_name('carddav_addressbooks') .
-				' SET password=? WHERE id=?',
-				$abookrow['password'],
-				$abookrow['id']);
-		}
-	}
-
-
-	// any old (Pre-DB) settings to migrate?
-	if(!$prefs_all) {
-		return;
-	}
-
-	// migrate to the multiple addressbook schema first if needed
-	if ($prefs_all['db_version'] == 1 || !array_key_exists('db_version', $prefs_all)){
-		write_log("carddav", "migrateconfig: DB1 to DB2");
-		unset($prefs_all['db_version']);
-		$p = array();
-		$p['CardDAV'] = $prefs_all;
-		$p['db_version'] = 2;
-		$prefs_all = $p;
-	}
-
-	// migrate settings to database
-	foreach ($prefs_all as $desc => $prefs){
-		// skip non address book attributes
-		if (!is_array($prefs)){
-			continue;
-		}
-
-		$crypt_password = carddav_backend::encrypt_password($prefs['password']);
-
-		write_log("carddav", "migrateconfig: move addressbook $desc");
-		$dbh->query('INSERT INTO ' .
-			get_table_name('carddav_addressbooks') .
-			'(name,username,password,url,active,user_id) ' .
-			'VALUES (?, ?, ?, ?, ?, ?)',
-				$desc, $prefs['username'], $crypt_password, $prefs['url'],
-				$prefs['use_carddav'], $_SESSION['user_id']);
-	}
-
-	// delete old settings
-	$usettings = $rcmail->user->get_prefs();
-	$usettings['carddav'] = array();
-	write_log("carddav", "migrateconfig: delete old prefs: " . $rcmail->user->save_prefs($usettings));
-}}}
-
-function concaturl($str, $cat){{{
-	preg_match(";(^https?://[^/]+)(.*);", $str, $match);
-	$hostpart = $match[1];
-	$urlpart  = $match[2];
-
-	// is $cat already a full URL?
-	if(strpos($cat, '://') !== FALSE) {
-		return $cat;
-	}
-
-	// is $cat a simple filename?
-	// then attach it to the URL
-	if (substr($cat, 0, 1) != "/"){
-		$urlpart .= "/$cat";
-
-	// $cat is a full path, the append it to the
-	// hostpart only
-	} else {
-		$urlpart = $cat;
-	}
-
-	// remove // in the path
-	$urlpart = preg_replace(';//+;','/',$urlpart);
-	return $hostpart.$urlpart;
-}}}
+require_once("inc/vcard.php");
+require_once("carddav_common.php");
 
 class carddav_backend extends rcube_addressbook
 {
+	private static $helper;
+
 	// database primary key, used by RC to search by ID
 	public $primary_key = 'id';
 	public $coltypes;
@@ -162,18 +43,8 @@ class carddav_backend extends rcube_addressbook
 	private $config;
 	// custom labels defined in the addressbook
 	private $xlabels;
-	// admin settings from config.inc.php
-	private static $admin_settings;
-	// encryption scheme
-	public static $pwstore_scheme = 'base64';
 
 	const SEPARATOR = ',';
-
-	const NSDAV = 'DAV:';
-	const NSCARDDAV = 'urn:ietf:params:xml:ns:carddav';
-
-	const DEBUG      = false; // set to true for basic debugging
-	const DEBUG_HTTP = false; // set to true for debugging raw http stream
 
 	// contains a the URIs, db ids and etags of the locally stored cards whenever
 	// a refresh from the server is attempted. This is used to avoid a separate
@@ -223,40 +94,6 @@ class carddav_backend extends rcube_addressbook
 	// array with list of potential date fields for formatting
 	private $datefields = array('birthday', 'anniversary');
 
-	// log helpers
-	public static function warn() {
-		write_log("carddav.warn", implode(' ', func_get_args()));
-	}
-
-	public static function debug() {
-		if(self::DEBUG) {
-			write_log("carddav", implode(' ', func_get_args()));
-		}
-	}
-
-	public static function debug_http() {
-		if(self::DEBUG_HTTP) {
-			write_log("carddav", implode(' ', func_get_args()));
-		}
-	}
-
-	private static function checkAndParseXML($reply) {
-		if(!is_array($reply))
-			return false;
-
-		if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
-			return false;
-
-		$xml = new SimpleXMLElement($reply['body']);
-		self::registerNamespaces($xml);
-		return $xml;
-	}
-
-	private static function registerNamespaces($xml) {
-		$xml->registerXPathNamespace('C', self::NSCARDDAV);
-		$xml->registerXPathNamespace('D', self::NSDAV);
-	}
-
 	public function __construct($dbid)
 	{{{
 	$dbh = rcmail::get_instance()->db;
@@ -266,9 +103,9 @@ class carddav_backend extends rcube_addressbook
 	$this->readonly = false;
 	$this->id       = $dbid;
 
-	$this->config = carddavconfig($dbid);
+	$this->config = self::carddavconfig($dbid);
 
-	$prefs = self::get_adminsettings();
+	$prefs = carddav_common::get_adminsettings();
 	if($this->config['presetname']) {
 		if($prefs[$this->config['presetname']]['readonly'])
 			$this->readonly = true;
@@ -387,46 +224,6 @@ class carddav_backend extends rcube_addressbook
 	$this->total_cards = -1;
 	}}}
 
-	private static function retrieve_addressbook_properties($url, $serverpart, $config)
-	{{{
-	// check if the given URL points to an addressbook
-	$opts = array(
-		'http'=>array(
-			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
-			'content'=> <<<EOF
-<?xml version="1.0" encoding="utf-8"?>
-<D:propfind xmlns:D="DAV:"><D:prop>
-    <D:resourcetype />
-    <D:displayname />
-</D:prop></D:propfind>
-EOF
-		)
-	);
-
-	$reply = self::cdfopen("retrieve_addressbook_properties", $url, $opts, $config);
-	$xml = self::checkAndParseXML($reply);
-	if($xml === false) return false;
-
-	$aBooks = array();
-
-	$xpresult = $xml->xpath('//D:response[descendant::D:resourcetype/C:addressbook]');
-	foreach($xpresult as $ab) {
-		self::registerNamespaces($ab);
-		$aBook = array();
-		list($aBook['href']) = $ab->xpath('child::D:href');
-		list($aBook['name']) = $ab->xpath('descendant::D:displayname');
-
-		if(strlen($aBook['href']) > 0) {
-			$aBook['href'] = concaturl($serverpart, $aBook['href']);
-			self::debug("retrieve_addressbook_properties found: ".$aBook['name']." at ".$aBook['href']);
-			$aBooks[] = $aBook;
-		}
-	}
-
-	return $aBooks;
-	}}}
-
 	/**
 	 * Determines the name to be displayed for a contact. The routine
 	 * distinguishes contact cards for individuals from organizations.
@@ -503,7 +300,7 @@ EOF
 	$xcol[]='vcard'; $xval[]=$vcfstr;
 
 	if($dbid) {
-		self::debug("dbstore: UPDATE card $uri");
+		self::$helper->debug("UPDATE card $uri");
 		$xval[]=$dbid;
 		$sql_result = $dbh->query('UPDATE ' .
 			get_table_name("carddav_$table") .
@@ -511,7 +308,7 @@ EOF
 			' WHERE id=?', $xval);
 
 	} else {
-		self::debug("dbstore: INSERT card $uri");
+		self::$helper->debug("INSERT card $uri");
 		if ("x".$save_data['cuid'] == "x"){
 			// There is no contact UID in the VCARD, try to create one
 			$cuid = $uri;
@@ -536,7 +333,7 @@ EOF
 	}
 
 	if($dbh->is_error()) {
-		self::warn($dbh->is_error());
+		self::$helper->warn($dbh->is_error());
 		$this->set_error(self::ERROR_SAVING, $dbh->is_error());
 		return false;
 	}
@@ -558,10 +355,10 @@ EOF
 	private function dbstore_contact($etag, $uri, $vcfstr, $save_data, $dbid=0)
 	{{{
 	// build email search string
-	$email_keys = preg_grep('/^email:/', array_keys($save_data));
+	$email_keys = preg_grep('/^email(:|$)/', array_keys($save_data));
 	$email_addrs = array();
 	foreach($email_keys as $email_key) {
-		$email_addrs[] = implode(", ", $save_data[$email_key]);
+		$email_addrs = array_merge($email_addrs, (array) $save_data[$email_key]);
 	}
 	$save_data['email']	= implode(', ', $email_addrs);
 
@@ -601,100 +398,10 @@ EOF
 
 	// abort if card has not changed
 	if($etag === $dbrec['etag']) {
-		self::debug("checkcache: UNCHANGED card $uri");
+		self::$helper->debug("UNCHANGED card $uri");
 		$needsupd = false;
 	}
 	return array('needs_update'=>$needsupd, 'dbid'=>$dbid);
-	}}}
-
-	/**
-	 * @param array config array containing at least the keys
-	 *             - url: base url if $url is a relative url
-	 *             - username
-	 *             - password
-	 */
-	public static function cdfopen($caller, $url, $opts, $carddav)
-	{{{
-	$rcmail = rcmail::get_instance();
-
-	$http=new http_class;
-	$http->timeout=10;
-	$http->data_timeout=0;
-	$http->user_agent="RCM CardDAV plugin/TRUNK";
-	$http->follow_redirect=1;
-	$http->redirection_limit=5;
-	$http->prefer_curl=1;
-
-	// if $url is relative, prepend the base url
-	$url = concaturl($carddav['url'], $url);
-
-	$carddav['password'] = self::decrypt_password($carddav['password']);
-
-	// Substitute Placeholders
-	if($carddav['username'] === '%u')
-		$carddav['username'] = $_SESSION['username'];
-	if($carddav['password'] === '%p')
-		$carddav['password'] = $rcmail->decrypt($_SESSION['password']);
-	$url = str_replace("%u", $carddav['username'], $url);
-
-	self::debug("cdfopen: $caller requesting $url");
-
-	$url = preg_replace(";://;", "://".urlencode($carddav['username']).":".urlencode($carddav['password'])."@", $url);
-	$error = $http->GetRequestArguments($url,$arguments);
-	$arguments["RequestMethod"] = $opts['http']['method'];
-	if (array_key_exists('content',$opts['http']) && strlen($opts['http']['content']) > 0 && $opts['http']['method'] != "GET"){
-		$arguments["Body"] = $opts['http']['content']."\r\n";
-	}
-	if(array_key_exists('header',$opts['http'])) {
-		if (is_array($opts['http']['header'])){
-			foreach ($opts['http']['header'] as $key => $value){
-				$h = explode(": ", $value);
-				if (strlen($h[0]) > 0 && strlen($h[1]) > 0){
-					// Only append headers with key AND value
-					$arguments["Headers"][$h[0]] = $h[1];
-				}
-			}
-		} else {
-			$h = explode(": ", $opts['http']['header']);
-			$arguments["Headers"][$h[0]] = $h[1];
-		}
-	}
-	$error = $http->Open($arguments);
-	if ($error == ""){
-		$error=$http->SendRequest($arguments);
-		self::debug_http("cdfopen SendRequest: ".var_export($http, true));
-
-		if ($error == ""){
-			$error=$http->ReadReplyHeaders($headers);
-			if ($error == ""){
-				if( ! // These message types must not include a message-body
-					(($http->response_status>=100 && $http->response_status < 200)
-					|| $http->response_status == 204
-					|| $http->response_status == 304)
-				) {
-					$error = $http->ReadWholeReplyBody($body);
-				}
-				if ($error == ""){
-					$reply["status"] = $http->response_status;
-					$reply["headers"] = $headers;
-					$reply["body"] = $body;
-					self::debug_http("cdfopen success: ".var_export($reply, true));
-					return $reply;
-				} else {
-					self::warn("cdfopen: Could not read reply body: $error");
-				}
-			} else {
-				self::warn("cdfopen: Could not read reply header: $error");
-			}
-		} else {
-			self::warn("cdfopen: Could not send request: $error");
-		}
-	} else {
-		self::warn("cdfopen: Could not open: $error");
-		self::debug_http("cdfopen failed: ".var_export($http, true));
-		return -1;
-	}
-	return $http->response_status;
 	}}}
 
 	/**
@@ -723,22 +430,20 @@ EOF
 	// Check for supported-report-set and only use sync-collection if server advertises it.
 	// This suppresses 501 Not implemented errors with ownCloud.
 	$opts = array(
-		'http'=>array(
-			'method'=>"PROPFIND",
-			'header'=>array("Depth: 0", 'Content-Type: application/xml; charset="utf-8"'),
-			'content'=> <<<EOF
+		'method'=>"PROPFIND",
+		'header'=>array("Depth: 0", 'Content-Type: application/xml; charset="utf-8"'),
+		'content'=> <<<EOF
 <?xml version="1.0" encoding="UTF-8" ?>
 <propfind xmlns="DAV:"> <prop>
     <supported-report-set/>
 </prop> </propfind>
 EOF
-		)
 	);
-	$reply = self::cdfopen("refreshdb_from_server", $this->config['url'], $opts, $this->config);
+	$reply = self::$helper->cdfopen($this->config['url'], $opts, $this->config);
 
 	$records = -1;
 
-	$xml = self::checkAndParseXML($reply);
+	$xml = self::$helper->checkAndParseXML($reply);
 	if($xml !== false) {
 		$xpresult = $xml->xpath('//D:supported-report/D:report/D:sync-collection');
 		if(count($xpresult) > 0) {
@@ -758,7 +463,7 @@ EOF
 			' (group_id,contact_id) SELECT ?,id from ' .
 			get_table_name('carddav_contacts') .
 			' WHERE abook_id=? AND cuid IN (' . implode(',', $cuids) . ')', $dbid, $this->id);
-		self::debug("Added " . $dbh->affected_rows($sql_result) . " contacts to group $dbid");
+		self::$helper->debug("Added " . $dbh->affected_rows($sql_result) . " contacts to group $dbid");
 	}
 
 	unset($this->users_to_add);
@@ -772,9 +477,9 @@ EOF
 			$this->id);
 
 	$duration = time() - $duration;
-	self::debug("server refresh took $duration seconds");
+	self::$helper->debug("server refresh took $duration seconds");
 	if($records < 0) {
-		self::warn("Errors occurred during the refresh of addressbook " . $this->id);
+		self::$helper->warn("Errors occurred during the refresh of addressbook " . $this->id);
 	}
 	}}}
 
@@ -828,92 +533,6 @@ EOF
 	return false;
 	}}}
 
-	public static function check_contenttype($ctheader, $expectedct)
-	{{{
-	if(!is_array($ctheader)) {
-		$ctheader = array($ctheader);
-	}
-
-	foreach($ctheader as $ct) {
-		if(preg_match($expectedct, $ct))
-			return true;
-	}
-
-	return false;
-	}}}
-
-	/**
-	 * Determines the location of the addressbook for the current user on the
-	 * CardDAV server.
-	 */
-	public static function find_addressbook($config)
-	{{{
-	if (!preg_match(';^[^/]+://[^/]+;', $config['url'], $match))
-		return false;
-	$serverpart = $match[0];
-
-	$retVal = self::retrieve_addressbook_properties($config['url'], $serverpart, $config);
-	if(is_array($retVal) && count($retVal)>0)
-		return $retVal;
-
-	// No addressbook found, try to auto-determine addressbook locations
-	// Retrieve Principal URL
-	$opts = array(
-		'http'=>array(
-			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
-			'content'=> <<<EOF
-<?xml version="1.0" encoding="utf-8" ?>
-<a:propfind xmlns:a="DAV:"> <a:prop>
-    <a:current-user-principal/>
-</a:prop> </a:propfind>
-EOF
-		)
-	);
-
-	$reply = self::cdfopen("find_addressbook", $config['url'], $opts, $config);
-	$xml = self::checkAndParseXML($reply);
-	if($xml === false) return false;
-
-	list($princurl) = $xml->xpath('//D:current-user-principal/D:href');
-	if(strlen($princurl) == 0) {
-		self::debug("find_addressbook no principal URL found");
-		return false;
-	}
-	self::debug("find_addressbook Principal URL: $princurl");
-	if (preg_match(';^[^/]+://[^/]+;', $princurl, $match))
-		$serverpart = $match[0];
-
-	// Find Addressbook Home Path of Principal
-	$opts = array(
-		'http'=>array(
-			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
-			'content'=>  <<<EOF
-<?xml version="1.0" encoding="utf-8" ?>
-<a:propfind xmlns:a="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"> <a:prop>
-    <C:addressbook-home-set/>
-</a:prop> </a:propfind>
-EOF
-		)
-	);
-
-	$reply = self::cdfopen("find_addressbook", concaturl($serverpart,$princurl), $opts, $config);
-	$xml = self::checkAndParseXML($reply);
-	if($xml === false) return false;
-
-	list($abookhome) = $xml->xpath('//C:addressbook-home-set/D:href');
-	if(strlen($abookhome) == 0) {
-		$abookhome = $princurl;
-	} else if (preg_match(';^[^/]+://[^/]+;', $abookhome, $match)) {
-		$serverpart = $match[0];
-	}
-	self::debug("find_addressbook addressbook home: $abookhome");
-
-	$retVal = self::retrieve_addressbook_properties(concaturl($serverpart,$abookhome), $serverpart, $config);
-	return $retVal;
-	}}}
-
 	/**
 	 * Retrieves the Card URIs from the CardDAV server
 	 *
@@ -925,10 +544,9 @@ EOF
 
 	while(true) {
 		$opts = array(
-			'http'=>array(
-				'method'=>"REPORT",
-				'header'=>array("Depth: 0", 'Content-Type: application/xml; charset="utf-8"'),
-				'content'=> <<<EOF
+			'method'=>"REPORT",
+			'header'=>array("Depth: 0", 'Content-Type: application/xml; charset="utf-8"'),
+			'content'=> <<<EOF
 <?xml version="1.0" encoding="utf-8" ?>
 <D:sync-collection xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
     <D:sync-token>$sync_token</D:sync-token>
@@ -939,17 +557,16 @@ EOF
     </D:prop>
 </D:sync-collection>
 EOF
-			)
 		);
 
-		$reply = self::cdfopen("list_records_sync_collection", $this->config['url'], $opts, $this->config);
+		$reply = self::$helper->cdfopen($this->config['url'], $opts, $this->config);
 
-		$xml = self::checkAndParseXML($reply);
+		$xml = self::$helper->checkAndParseXML($reply);
 
 		if($xml === false) {
 			// a server may invalidate old sync-tokens, in which case we need to do a full resync
 			if (strlen($sync_token)>0 && $reply == 412){
-				self::warn("Server reported invalid sync-token in sync of addressbook " . $this->config['abookid'] . ". Resorting to full resync.");
+				self::$helper->warn("Server reported invalid sync-token in sync of addressbook " . $this->config['abookid'] . ". Resorting to full resync.");
 				$sync_token = '';
 				continue;
 			} else {
@@ -1025,7 +642,7 @@ EOF
 		if($read_vcard) {
 			$save_data = $this->create_save_data_from_vcard($contact['vcard']);
 			if (!$save_data){
-				self::warn("Couldn't parse vcard ".$contact['vcard']);
+				self::$helper->warn("Couldn't parse vcard ".$contact['vcard']);
 				continue;
 			}
 
@@ -1066,10 +683,9 @@ EOF
 	}
 
 	$optsREPORT = array(
-		'http' => array(
-			'method'=>"REPORT",
-			'header'=>array("Depth: 0", 'Content-Type: application/xml; charset="utf-8"'),
-			'content'=> <<<EOF
+		'method'=>"REPORT",
+		'header'=>array("Depth: 0", 'Content-Type: application/xml; charset="utf-8"'),
+		'content'=> <<<EOF
 <?xml version="1.0" encoding="utf-8" ?>
 <C:addressbook-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav">
 <D:prop>
@@ -1081,18 +697,17 @@ EOF
 $hrefstr
 </C:addressbook-multiget>
 EOF
-		)
 	);
 
-	$reply = self::cdfopen("query_addressbook_multiget", $this->config['url'], $optsREPORT, $this->config);
-	$xml = self::checkAndParseXML($reply);
+	$reply = self::$helper->cdfopen($this->config['url'], $optsREPORT, $this->config);
+	$xml = self::$helper->checkAndParseXML($reply);
 	if($xml === false) return -1;
 
 	$xpresult = $xml->xpath('//D:response[descendant::C:address-data]');
 
 	$numcards = 0;
 	foreach ($xpresult as $vcard) {
-		self::registerNamespaces($vcard);
+		self::$helper->registerNamespaces($vcard);
 		list($href) = $vcard->xpath('child::D:href');
 		list($etag) = $vcard->xpath('descendant::D:getetag');
 		list($vcf)  = $vcard->xpath('descendant::C:address-data');
@@ -1112,7 +727,7 @@ EOF
 		$save_data = $save_data['save_data'];
 
 		if($save_data['kind'] === 'group') {
-			self::debug('Processing Group ' . $save_data['name']);
+			self::$helper->debug('Processing Group ' . $save_data['name']);
 			// delete current group members (will be reinserted if needed below)
 			if($dbid) self::delete_dbrecord($dbid,'group_user','group_id');
 
@@ -1123,12 +738,12 @@ EOF
 			// record group members for deferred store
 			$this->users_to_add[$dbid] = array();
 			$members = $vcfobj->getProperties('X-ADDRESSBOOKSERVER-MEMBER');
-			self::debug("Group $dbid has " . count($members) . " members");
+			self::$helper->debug("Group $dbid has " . count($members) . " members");
 			foreach($members as $mbr) {
 				$mbr = $mbr->getComponents(':');
 				if(!$mbr) continue;
 				if(count($mbr)!=3 || $mbr[0] !== 'urn' || $mbr[1] !== 'uuid') {
-					self::warn("don't know how to interpret group membership: " . implode(':', $mbr));
+					self::$helper->warn("don't know how to interpret group membership: " . implode(':', $mbr));
 					continue;
 				}
 				$this->users_to_add[$dbid][] = $dbh->quote($mbr[2]);
@@ -1146,21 +761,19 @@ EOF
 	private function list_records_propfind()
 	{{{
 	$opts = array(
-		'http'=>array(
-			'method'=>"PROPFIND",
-			'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
-			'content'=> <<<EOF
+		'method'=>"PROPFIND",
+		'header'=>array("Depth: 1", 'Content-Type: application/xml; charset="utf-8"'),
+		'content'=> <<<EOF
 <?xml version="1.0" encoding="utf-8" ?>
 <a:propfind xmlns:a="DAV:"> <a:prop>
     <a:getcontenttype/>
     <a:getetag/>
 </a:prop> </a:propfind>
 EOF
-		)
 	);
 
-	$reply = self::cdfopen("list_records_propfind", "", $opts, $this->config);
-	$xml = self::checkAndParseXML($reply);
+	$reply = self::$helper->cdfopen("", $opts, $this->config);
+	$xml = self::$helper->checkAndParseXML($reply);
 	if($xml === false) return -1;
 	$records = $this->addvcards($xml);
 	if($records>=0) {
@@ -1175,7 +788,7 @@ EOF
 	$urls = array();
 	$xpresult = $xml->xpath('//D:response[starts-with(translate(child::D:propstat/D:status, "ABCDEFGHJIKLMNOPQRSTUVWXYZ", "abcdefghjiklmnopqrstuvwxyz"), "http/1.1 200 ") and child::D:propstat/D:prop/D:getetag]');
 	foreach ($xpresult as $r) {
-		self::registerNamespaces($r);
+		self::$helper->registerNamespaces($r);
 
 		list($href) = $r->xpath('child::D:href');
 		if(preg_match('/\/$/', $href)) continue;
@@ -1208,7 +821,7 @@ EOF
 		}
 	}
 	$del = self::delete_dbrecord($delids);
-	self::debug("deleted $del contacts during server refresh");
+	self::$helper->debug("deleted $del contacts during server refresh");
 
 	$delids = array();
 	foreach($this->existing_grpcard_cache as $value) {
@@ -1217,7 +830,7 @@ EOF
 		}
 	}
 	$del = self::delete_dbrecord($delids,'groups');
-	self::debug("deleted $del groups during server refresh");
+	self::$helper->debug("deleted $del groups during server refresh");
 	}}}
 
 	/** delete cards reported deleted by the server */
@@ -1228,7 +841,7 @@ EOF
 	$del_groups = array();
 
 	foreach ($xpresult as $r) {
-		self::registerNamespaces($r);
+		self::$helper->registerNamespaces($r);
 
 		list($href) = $r->xpath('child::D:href');
 		if(preg_match('/\/$/', $href)) continue;
@@ -1240,9 +853,9 @@ EOF
 		}
 	}
 	$del = self::delete_dbrecord($del_contacts);
-	self::debug("deleted $del contacts during incremental server refresh");
+	self::$helper->debug("deleted $del contacts during incremental server refresh");
 	$del = self::delete_dbrecord($del_groups,'groups');
-	self::debug("deleted $del groups during incremental server refresh");
+	self::$helper->debug("deleted $del groups during incremental server refresh");
 	}}}
 
 	/**
@@ -1477,15 +1090,11 @@ EOF
 	 */
 	private function get_record_from_carddav($uid)
 	{{{
-	$opts = array(
-		'http'=>array(
-			'method'=>"GET",
-		)
-	);
-	$reply = self::cdfopen("get_record_from_carddav", $uid, $opts, $this->config);
+	$opts = array( 'method'=>"GET" );
+	$reply = self::$helper->cdfopen($uid, $opts, $this->config);
 	if (!is_array($reply) || strlen($reply["body"])==0) { return false; }
 	if ($reply["status"] == 404){
-		self::warn("Request for VCF '$uid' which doesn't exist on the server.");
+		self::$helper->warn("Request for VCF '$uid' which doesn't exist on the server.");
 		return false;
 	}
 
@@ -1530,22 +1139,20 @@ EOF
 		"If-None-Match: *";
 
 	$opts = array(
-		'http'=>array(
-			'method'=>"PUT",
-			'content'=>$vcf,
-			'header'=> array(
-				"Content-Type: text/vcard;charset=utf-8",
-				$matchhdr,
-			),
-		)
+		'method'=>"PUT",
+		'content'=>$vcf,
+		'header'=> array(
+			"Content-Type: text/vcard;charset=utf-8",
+			$matchhdr,
+		),
 	);
-	$reply = self::cdfopen("put_record_to_carddav", $id, $opts, $this->config);
+	$reply = self::$helper->cdfopen($id, $opts, $this->config);
 	if (is_array($reply) && $reply["status"] >= 200 && $reply["status"] < 300) {
 		$etag = $reply["headers"]["etag"];
 		if ("$etag" == ""){
 			// Server did not reply an etag
 			$retval = $this->get_record_from_carddav($id);
-			self::debug(var_export($retval, true));
+			self::$helper->debug(var_export($retval, true));
 			$etag = $retval["etag"];
 		}
 		return $etag;
@@ -1557,12 +1164,8 @@ EOF
 	private function delete_record_from_carddav($id)
 	{{{
 	$this->result = $this->count();
-	$opts = array(
-		'http'=>array(
-			'method'=>"DELETE",
-		)
-	);
-	$reply = self::cdfopen("delete_record_from_carddav", $id, $opts, $this->config);
+	$opts = array( 'method'=>"DELETE" );
+	$reply = self::$helper->cdfopen($id, $opts, $this->config);
 	if (is_array($reply) && $reply["status"] == 204){
 		return true;
 	}
@@ -1591,7 +1194,7 @@ EOF
 
 		$vcf = new VCard;
 		if(!$vcf->parse($vcfstr)) {
-			self::warn("Couldn't parse newly created vcard " . implode("\n", $vcfstr));
+			self::$helper->warn("Couldn't parse newly created vcard " . implode("\n", $vcfstr));
 			return false;
 		}
 	} else { // update revision
@@ -1645,7 +1248,7 @@ EOF
 	}
 
 	// Special handling for PHOTO
-	if ($property = $vcf->getProperty){
+	if ($property = $vcf->getProperty('PHOTO')){
 		$property->setParam("ENCODING", "B", 0);
 		$property->setParam("VALUE", "BINARY", 0);
 	}
@@ -1804,18 +1407,14 @@ EOF
 
 	private function download_photo(&$save_data)
 	{{{
-	$opts = array(
-		'http'=>array(
-			'method'=>"GET",
-		)
-	);
+	$opts = array( 'method'=>"GET" );
 	$uri = $save_data['photo'];
-	$reply = self::cdfopen("download_photo", $uri, $opts, $this->config);
+	$reply = self::$helper->cdfopen($uri, $opts, $this->config);
 	if (is_array($reply) && $reply["status"] == 200){
 		$save_data['photo'] = base64_encode($reply['body']);
 		return true;
 	}
-	self::warn("Downloading $uri failed: " . (is_array($reply) ? $reply["status"] : $reply) );
+	self::$helper->warn("Downloading $uri failed: " . (is_array($reply) ? $reply["status"] : $reply) );
 	return false;
 	}}}
 
@@ -1840,7 +1439,7 @@ EOF
 	{{{
 	$vcf = new VCard;
 	if (!$vcf->parse($vcfstr)){
-		self::warn("Couldn't parse vcard: $vcfstr");
+		self::$helper->warn("Couldn't parse vcard: $vcfstr");
 		return false;
 	}
 
@@ -1964,7 +1563,7 @@ EOF
 	if(!($etag = $this->put_record_to_carddav($uri, $vcfstr)))
 		return false;
 
-	$url = concaturl($this->config['url'], $uri);
+	$url = carddav_common::concaturl($this->config['url'], $uri);
 	$url = preg_replace(';https?://[^/]+;', '', $url);
 	$dbid = $this->dbstore_contact($etag,$url,$vcfstr,$save_data);
 	if(!$dbid) return false;
@@ -2024,19 +1623,19 @@ EOF
 	// create vcard from current DB data to be updated with the new data
 	$vcf = new VCard;
 	if(!$vcf->parse($contact['vcard'])){
-		self::warn("Update: Couldn't parse local vcard: ".$contact['vcard']);
+		self::$helper->warn("Update: Couldn't parse local vcard: ".$contact['vcard']);
 		return false;
 	}
 
 	$vcf = $this->create_vcard_from_save_data($save_data, $vcf);
 	if(!$vcf) {
-		self::warn("Update: Couldn't adopt local vcard to new settings");
+		self::$helper->warn("Update: Couldn't adopt local vcard to new settings");
 		return false;
 	}
 
 	$vcfstr = $vcf->toString();
 	if(!($etag=$this->put_record_to_carddav($contact['uri'], $vcfstr, $contact['etag']))) {
-		self::warn("Updating card on server failed");
+		self::$helper->warn("Updating card on server failed");
 		return false;
 	}
 	$id = $this->dbstore_contact($etag,$contact['uri'],$vcfstr,$save_data,$id);
@@ -2090,7 +1689,7 @@ EOF
 	// create vcard from current DB data to be updated with the new data
 	$vcf = new VCard;
 	if(!$vcf->parse($group['vcard'])){
-		self::warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
+		self::$helper->warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
 		return false;
 	}
 
@@ -2139,7 +1738,7 @@ EOF
 	// create vcard from current DB data to be updated with the new data
 	$vcf = new VCard;
 	if(!$vcf->parse($group['vcard'])){
-		self::warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
+		self::$helper->warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
 		return false;
 	}
 
@@ -2250,7 +1849,7 @@ EOF
 	if (!($etag = $this->put_record_to_carddav($uri, $vcfstr)))
 		return false;
 
-	$url = concaturl($this->config['url'], $uri);
+	$url = carddav_common::concaturl($this->config['url'], $uri);
 	$url = preg_replace(';https?://[^/]+;', '', $url);
 	if(!($dbid = $this->dbstore_group($etag,$url,$vcfstr,$save_data)))
 		return false;
@@ -2297,7 +1896,7 @@ EOF
 	// create vcard from current DB data to be updated with the new data
 	$vcf = new VCard;
 	if(!$vcf->parse($group['vcard'])){
-		self::warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
+		self::$helper->warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
 		return false;
 	}
 
@@ -2312,98 +1911,6 @@ EOF
 		return false;
 
 	return $newname;
-	}}}
-
-	private static function carddav_des_key()
-	{{{
-	$rcmail = rcmail::get_instance();
-	$imap_password = $rcmail->decrypt($_SESSION['password']);
-	while(strlen($imap_password)<24) {
-		$imap_password .= $imap_password;
-	}
-	return substr($imap_password, 0, 24);
-	}}}
-
-	public static function encrypt_password($clear)
-	{{{
-	if(strcasecmp(self::$pwstore_scheme, 'plain')===0)
-		return $clear;
-
-	if(strcasecmp(self::$pwstore_scheme, 'encrypted')===0) {
-
-		// encrypted with IMAP password
-		$rcmail = rcmail::get_instance();
-
-		$imap_password = self::carddav_des_key();
-		$deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
-
-		$crypted = $rcmail->encrypt($clear, 'carddav_des_key');
-
-		// there seems to be no way to unset a preference
-		$deskey_backup = $rcmail->config->set('carddav_des_key', '');
-
-		return '{ENCRYPTED}'.$crypted;
-	}
-
-	// default: base64-coded password
-	return '{BASE64}'.base64_encode($clear);
-	}}}
-
-	public static function password_scheme($crypt)
-	{{{
-	if(strpos($crypt, '{ENCRYPTED}') === 0)
-		return 'encrypted';
-
-	if(strpos($crypt, '{BASE64}') === 0)
-		return 'base64';
-
-	// unknown scheme, assume cleartext
-	return 'plain';
-	}}}
-
-	public static function decrypt_password($crypt)
-	{{{
-	if(strpos($crypt, '{ENCRYPTED}') === 0) {
-		$crypt = substr($crypt, strlen('{ENCRYPTED}'));
-		$rcmail = rcmail::get_instance();
-
-		$imap_password = self::carddav_des_key();
-		$deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
-
-		$clear = $rcmail->decrypt($crypt, 'carddav_des_key');
-
-		// there seems to be no way to unset a preference
-		$deskey_backup = $rcmail->config->set('carddav_des_key', '');
-
-		return $clear;
-	}
-
-	if(strpos($crypt, '{BASE64}') === 0) {
-		$crypt = substr($crypt, strlen('{BASE64}'));
-		return base64_decode($crypt);
-	}
-
-	// unknown scheme, assume cleartext
-	return $crypt;
-	}}}
-
-	public static function get_adminsettings()
-	{{{
-	if(is_array(self::$admin_settings))
-		return self::$admin_settings;
-
-	$rcmail = rcmail::get_instance();
-	$prefs = array();
-	if (file_exists("plugins/carddav/config.inc.php"))
-		require("plugins/carddav/config.inc.php");
-	self::$admin_settings = $prefs;
-
-	if(is_array($prefs['_GLOBAL'])) {
-		$scheme = $prefs['_GLOBAL']['pwstore_scheme'];
-		if(preg_match("/^(plain|base64|encrypted)$/", $scheme))
-			self::$pwstore_scheme = $scheme;
-	}
-	return $prefs;
 	}}}
 
 	public static function get_dbrecord($id, $cols='*', $table='contacts', $retsingle=true, $idfield='id')
@@ -2443,4 +1950,109 @@ EOF
 		" WHERE $idfield $dspec" );
 	return $dbh->affected_rows($sql_result);
 	}}}
+
+	public static function carddavconfig($abookid)
+	{{{
+	$dbh = rcmail::get_instance()->db;
+
+	// cludge, agreed, but the MDB abstraction seems to have no way of
+	// doing time calculations...
+	$timequery = '('. $dbh->now() . ' > ';
+	if ($dbh->db_provider === 'sqlite') {
+		$timequery .= ' datetime(last_updated,refresh_time))';
+	} else {
+		$timequery .= ' last_updated+refresh_time)';
+	}
+
+	$abookrow = self::get_dbrecord($abookid,
+		'id as abookid,name,username,password,url,presetname,sync_token,'
+		. $timequery . ' as needs_update', 'addressbooks');
+
+	if(! $abookrow) {
+		self::$helper->warn("FATAL! Request for non-existent configuration $abookid");
+		return false;
+	}
+
+	// postgres will return 't'/'f' here for true/false, normalize it to 1/0
+	$nu = $abookrow['needs_update'];
+	$nu = ($nu==1 || $nu=='t')?1:0;
+	$abookrow['needs_update'] = $nu;
+
+	return $abookrow;
+	}}}
+
+	/**
+	 * Migrates settings to a separate addressbook table.
+	 */
+	public static function migrateconfig($sub = 'CardDAV')
+	{{{
+	$rcmail = rcmail::get_instance();
+	$prefs_all = $rcmail->config->get('carddav', 0);
+	$dbh = $rcmail->db;
+
+	// adopt password storing scheme if stored password differs from configured scheme
+	$sql_result = $dbh->query('SELECT id,password FROM ' .
+		get_table_name('carddav_addressbooks') .
+		' WHERE user_id=?', $_SESSION['user_id']);
+
+	while ($abookrow = $dbh->fetch_assoc($sql_result)) {
+		$pw_scheme = self::$helper->password_scheme($abookrow['password']);
+		if(strcasecmp($pw_scheme, carddav_common::$pwstore_scheme) !== 0) {
+			$abookrow['password'] = self::$helper->decrypt_password($abookrow['password']);
+			$abookrow['password'] = self::$helper->encrypt_password($abookrow['password']);
+			$dbh->query('UPDATE ' .
+				get_table_name('carddav_addressbooks') .
+				' SET password=? WHERE id=?',
+				$abookrow['password'],
+				$abookrow['id']);
+		}
+	}
+
+	// any old (Pre-DB) settings to migrate?
+	if(!$prefs_all) {
+		return;
+	}
+
+	// migrate to the multiple addressbook schema first if needed
+	if ($prefs_all['db_version'] == 1 || !array_key_exists('db_version', $prefs_all)){
+		self::$helper->debug("migrating DB1 to DB2");
+		unset($prefs_all['db_version']);
+		$p = array();
+		$p['CardDAV'] = $prefs_all;
+		$p['db_version'] = 2;
+		$prefs_all = $p;
+	}
+
+	// migrate settings to database
+	foreach ($prefs_all as $desc => $prefs){
+		// skip non address book attributes
+		if (!is_array($prefs)){
+			continue;
+		}
+
+		$crypt_password = self::$helper->encrypt_password($prefs['password']);
+
+		self::$helper->debug("move addressbook $desc");
+		$dbh->query('INSERT INTO ' .
+			get_table_name('carddav_addressbooks') .
+			'(name,username,password,url,active,user_id) ' .
+			'VALUES (?, ?, ?, ?, ?, ?)',
+				$desc, $prefs['username'], $crypt_password, $prefs['url'],
+				$prefs['use_carddav'], $_SESSION['user_id']);
+	}
+
+	// delete old settings
+	$usettings = $rcmail->user->get_prefs();
+	$usettings['carddav'] = array();
+	self::$helper->debug("delete old prefs: " . $rcmail->user->save_prefs($usettings));
+	}}}
+
+	public static function initClass()
+	{{{
+	self::$helper = new carddav_common('BACKEND: ');
+	}}}
 }
+
+carddav_backend::initClass();
+
+?>

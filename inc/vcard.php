@@ -14,6 +14,9 @@
  *      Use the following URL to display the help text:
  *
  *              http://host/path/vcard.php
+ *
+ * License:
+ *      BSD
  */
 
 /**
@@ -151,7 +154,7 @@ class VCard
 	}
 
 	// changes the value of a property or creates the property if it does not exist
-	function setProperty($name, $value, $idx=0, $pvidx=0, $group='',$pvdelim=';') 
+	function setProperty($name, $value, $idx=0, $pvidx=0, $group='',$pvdelim=';')
 	{
 		$name = strtoupper($name);
 		// does the mapping exist at all?
@@ -163,7 +166,7 @@ class VCard
 		if($idx < 0)
 			$idx = count($this->_map[$name]);
 
-		// do we need to create a new property?	
+		// do we need to create a new property?
 		if(count($this->_map[$name]) <= $idx) {
 			$idx = count($this->_map[$name]);
 			$this->_map[$name][] = new VCardProperty();
@@ -344,7 +347,7 @@ class VCardProperty
 				$numelem = count($this->params[$name]) - $from;
 
 			array_splice($this->params[$name], $from, $numelem);
-			if(count($this->params[$name]) == 0)	
+			if(count($this->params[$name]) == 0)
 				unset($this->params[$name]);
 		}
 	}
@@ -375,7 +378,7 @@ class VCardProperty
 		$p = &$this->params[$name];
 		$value = dquote($value);
 
-		if($which == -2) {	
+		if($which == -2) {
 			array_unshift($p, $value);
 		} else if($which<0 || $which>=count($p)) {
 			$p[] = $value;
@@ -403,7 +406,7 @@ class VCardProperty
 	function getGroup() {
 		return $this->group;
 	}
-	
+
 	function setGroup($group) {
 		return $this->group = $group;
 	}
@@ -425,7 +428,7 @@ class VCardProperty
 			$this->params[$name][] = $value;
 		} else {
 			$name = strtoupper($tmp[0]);
-			$values = split_quoted_string(',', $tmp[1]); 
+			$values = split_quoted_string(',', $tmp[1]);
 			foreach ($values as $value) {
 				$this->params[$name][] = $value;
 			}
