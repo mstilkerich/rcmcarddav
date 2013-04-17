@@ -3,7 +3,6 @@ This license applies to the following files distributed with RCMCardDAV:
   - basic_sasl_client.php
   - cram_md5_sasl_client.php
   - digest_sasl_client.php
-  - LICENSE-sasl
   - login_sasl_client.php
   - ntlm_sasl_client.php
   - plain_sasl_client.php
