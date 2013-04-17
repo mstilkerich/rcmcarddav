@@ -355,10 +355,10 @@ class carddav_backend extends rcube_addressbook
 	private function dbstore_contact($etag, $uri, $vcfstr, $save_data, $dbid=0)
 	{{{
 	// build email search string
-	$email_keys = preg_grep('/^email:/', array_keys($save_data));
+	$email_keys = preg_grep('/^email(:|$)/', array_keys($save_data));
 	$email_addrs = array();
 	foreach($email_keys as $email_key) {
-		$email_addrs[] = implode(", ", $save_data[$email_key]);
+		$email_addrs = array_merge($email_addrs, (array) $save_data[$email_key]);
 	}
 	$save_data['email']	= implode(', ', $email_addrs);
 
