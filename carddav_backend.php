@@ -1792,6 +1792,8 @@ EOF
 	public function set_group($gid)
 	{{{
 	$this->group_id = $gid;
+	$this->filter = "EXISTS(SELECT * FROM ".get_table_name("carddav_group_user")."
+		WHERE group_id = '{$gid}' AND contact_id = ".get_table_name("carddav_contacts").".id)";
 	}}}
 
 	/**
