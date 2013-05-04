@@ -1568,6 +1568,9 @@ EOF
 	$dbid = $this->dbstore_contact($etag,$url,$vcfstr,$save_data);
 	if(!$dbid) return false;
 
+	if ($this->groupd != -1)
+		$this->add_to_group($this->group_id, $dbid);
+
 	if($this->total_cards != -1)
 		$this->total_cards++;
 	return $dbid;
