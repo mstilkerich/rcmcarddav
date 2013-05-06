@@ -74,7 +74,11 @@ class carddav_common
 	private function getCaller()
 	{{{
 	// determine calling function for debug output
-	$caller=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS,3);
+	if (version_compare(PHP_VERSION, "5.4", ">=")){
+		$caller=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS,3);
+	} else {
+		$caller=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+	}
 	$caller=$caller[2]['function'];
 	return $caller;
 	}}}
