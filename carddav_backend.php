@@ -1063,7 +1063,8 @@ EOF
 	return $this->total_cards;
 	}}}
 
-	private function determine_filter_params($cols, $subset, &$firstrow, &$numrows, &$read_vcard) {
+	private function determine_filter_params($cols, $subset, &$firstrow, &$numrows, &$read_vcard)
+	{{{
 		// determine whether we have to parse the vcard or if only db cols are requested
 		$read_vcard = !$cols || count(array_intersect($cols, $this->table_cols)) < count($cols);
 
@@ -1071,7 +1072,7 @@ EOF
 		$firstrow = ($subset>=0) ?
 			$this->result->first : ($this->result->first+$this->page_size+$subset);
 		$numrows  = $subset ? abs($subset) : $this->page_size;
-	}
+	}}}
 
 	/**
 	 * Return the last result set
@@ -1305,7 +1306,8 @@ EOF
 	return $vcf;
 	}}}
 
-	private function set_attr_label($vcard, $pvalue, $attrname, $newlabel) {
+	private function set_attr_label($vcard, $pvalue, $attrname, $newlabel)
+	{{{
 		$group = $pvalue->getGroup();
 
 		// X-ABLabel?
@@ -1346,10 +1348,10 @@ EOF
 		}
 
 		return false;
-	}
+	}}}
 
-
-	private function get_attr_label($vcard, $pvalue, $attrname) {
+	private function get_attr_label($vcard, $pvalue, $attrname)
+	{{{
 		// prefer a known standard label if available
 		$xlabel = '';
 		$fallback = null;
@@ -1403,7 +1405,7 @@ EOF
 		}
 
 		return 'other';
-	}
+	}}}
 
 	private function download_photo(&$save_data)
 	{{{
