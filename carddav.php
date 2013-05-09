@@ -25,6 +25,7 @@ require_once('carddav_common.php');
 class carddav extends rcube_plugin
 {
 	private static $helper;
+	private $hide_preferences;
 
 	// the dummy task is used by the calendar plugin, which requires
 	// the addressbook to be initialized
@@ -353,11 +354,14 @@ class carddav extends rcube_plugin
 	// add a section to the preferences tab
 	function cd_preferences_section($args)
 	{{{
-		$this->add_texts('localization/', false);
-		$args['list']['cd_preferences'] = array(
-			'id'      => 'cd_preferences',
-			'section' => Q($this->gettext('cd_title'))
-		);
+		$prefs = carddav_common::get_adminsettings();
+		if (!isset($prefs['_GLOBAL']['hide_preferences']) || $prefs['_GLOBAL']['hide_preferences'] === FALSE) {
+			$this->add_texts('localization/', false);
+			$args['list']['cd_preferences'] = array(
+				'id'      => 'cd_preferences',
+				'section' => Q($this->gettext('cd_title'))
+			);
+		}
 		return($args);
 	}}}
 
@@ -368,6 +372,9 @@ class carddav extends rcube_plugin
 		if($args['section'] != 'cd_preferences')
 			return;
 		$prefs = carddav_common::get_adminsettings();
+		if (isset($prefs['_GLOBAL']['hide_preferences']) && $prefs['_GLOBAL']['hide_preferences'] === TRUE) {
+			return;
+		}
 
 		// update existing in DB
 		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'id,presetname',
