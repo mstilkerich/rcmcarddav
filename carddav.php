@@ -25,7 +25,6 @@ require_once('carddav_common.php');
 class carddav extends rcube_plugin
 {
 	private static $helper;
-	private $hide_preferences;
 
 	// the dummy task is used by the calendar plugin, which requires
 	// the addressbook to be initialized
