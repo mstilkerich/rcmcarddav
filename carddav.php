@@ -326,11 +326,15 @@ class carddav extends rcube_plugin
 
 		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'*','addressbooks',false,'user_id');
 		foreach($abooks as $abook) {
-			$abookid = $abook['id'];
-			$blockhdr = $abook['name'];
-			if($abook['presetname'])
-				$blockhdr .= ' (from preset ' . $abook['presetname'] . ')';
-			$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($blockhdr,$abook,$prefs);
+			$presetname = $abook['presetname'];
+			if (!empty($presetname) &&
+				(!isset($prefs[$presetname]['hide']) || $prefs[$presetname]['hide'] === FALSE)) {
+				$abookid = $abook['id'];
+				$blockhdr = $abook['name'];
+				if($abook['presetname'])
+					$blockhdr .= ' (from preset ' . $abook['presetname'] . ')';
+				$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($blockhdr,$abook,$prefs);
+			}
 		}
 
 		if(!array_key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) {
