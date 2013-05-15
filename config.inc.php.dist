@@ -46,9 +46,9 @@ $prefs['<Presetname>'] = array(
 	// auto-updated for this preset
 	'fixed'        =>  array( < 0 or more of the other attribute keys > ),
 
-    // hide this preset from CalDAV preferences section so users can't even
-    // see it
-    'hide' => <true or false>,
+	// hide this preset from CalDAV preferences section so users can't even
+	// see it
+	'hide' => <true or false>,
 );
 */
 
