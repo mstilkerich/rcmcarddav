@@ -238,7 +238,7 @@ class carddav extends rcube_plugin
 		$abookid = $abook['id'];
 
 		if (self::no_override('active', $abook, $prefs)) {
-			$content_active = $prefs[$abook['presetname']] ? "Enabled" : "Disabled";
+			$content_active = $prefs[$abook['presetname']] ? $this->gettext('cd_enabled') : $this->gettext('cd_disabled');
 		} else {
 			// check box for activating
 			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_active', 'value' => 1));
