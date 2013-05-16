@@ -64,6 +64,8 @@ class carddav extends rcube_plugin
 		}
 	}
 	$config->set('autocomplete_addressbooks', $sources);
+	$skin_path = $this->local_skin_path();
+	$this->include_stylesheet($skin_path . '/carddav.css');
 	}}}
 
 	public function init_presets()
