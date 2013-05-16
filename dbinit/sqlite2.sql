@@ -1,3 +1,10 @@
+DROP TABLE IF EXISTS carddav_addressbooks;
+DROP INDEX IF EXISTS carddav_contacts_abook_id_idx;
+DROP TABLE IF EXISTS carddav_contacts;
+DROP TABLE IF EXISTS carddav_xsubtypes;
+DROP TABLE IF EXISTS carddav_groups;
+DROP TABLE IF EXISTS carddav_group_user;
+
 -- table to store the configured address books
 CREATE TABLE carddav_addressbooks (
 	id           integer NOT NULL PRIMARY KEY,
@@ -6,6 +13,7 @@ CREATE TABLE carddav_addressbooks (
 	password     VARCHAR(255) NOT NULL,
 	url          VARCHAR(255) NOT NULL,
 	active       TINYINT UNSIGNED NOT NULL DEFAULT 1,
+	use_categories       TINYINT UNSIGNED NOT NULL DEFAULT 0,
 	user_id      integer NOT NULL,
 	last_updated DATETIME NOT NULL DEFAULT 0,  -- time stamp of the last update of the local database
 	refresh_time TIME NOT NULL DEFAULT '01:00:00', -- time span after that the local database will be refreshed

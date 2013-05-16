@@ -8,6 +8,7 @@ $labels = Array(
 	'cd_url'=> "URL",
 	'cd_php_too_old'=> "Votre version de PHP est trop ancienne. Veuillez mettre à jour avec la version 5.3.0 minimum! La version actuellement installée est :",
 	'cd_name'=> "Nom du carnet d'adresses",
+	'cd_use_categories' => "Utilise les categories comme des groupes",
 	'cd_delete'=> "Supprimer ce carnet d'adresses",
 	'cd_name_new'=> "Ajouter un nouveau carnet d'adresses",
 	'cd_refresh_time'=> "Validité du cache local (en heures)",
