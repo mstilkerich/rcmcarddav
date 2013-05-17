@@ -760,8 +760,20 @@ EOF
 					if($category !== "All" && $category !== "Unfiled") {
 						$record = self::get_dbrecord($category, 'id', 'groups', true, 'name');
 						if(!$record) {
+							$cuid = $this->find_free_uid();
+							$uri = "$cuid.vcf";
+
+							$save_data = array(
+								'name' => $category,
+								'kind' => 'group',
+								'cuid' => $cuid,
+							);
+							$url = carddav_common::concaturl($this->config['url'], $uri);
+							$url = preg_replace(';https?://[^/]+;', '', $url);
 							// store group card
-							if(!($database = $this->dbstore_group("dummy","$database","dummy",array("name" => "$category", "cuid" => "$database"))))
+							$vcfg = $this->create_vcard_from_save_data($save_data);
+							$vcfgstr = $vcfg->toString();
+							if(!($database = $this->dbstore_group("dummy",$url,$vcfgstr,$save_data)))
 								return -1;
 						} else {
 							$database = $record['id'];
