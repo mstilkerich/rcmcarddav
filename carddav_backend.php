@@ -763,7 +763,7 @@ EOF
 							$cuid = $this->find_free_uid();
 							$uri = "$cuid.vcf";
 
-							$save_data = array(
+							$gsave_data = array(
 								'name' => $category,
 								'kind' => 'group',
 								'cuid' => $cuid,
@@ -771,9 +771,9 @@ EOF
 							$url = carddav_common::concaturl($this->config['url'], $uri);
 							$url = preg_replace(';https?://[^/]+;', '', $url);
 							// store group card
-							$vcfg = $this->create_vcard_from_save_data($save_data);
+							$vcfg = $this->create_vcard_from_save_data($gsave_data);
 							$vcfgstr = $vcfg->toString();
-							if(!($database = $this->dbstore_group("dummy",$url,$vcfgstr,$save_data)))
+							if(!($database = $this->dbstore_group("dummy",$url,$vcfgstr,$gsave_data)))
 								return -1;
 						} else {
 							$database = $record['id'];
