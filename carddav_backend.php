@@ -445,7 +445,7 @@ EOF
 
 	$xml = self::$helper->checkAndParseXML($reply);
 	if($xml !== false) {
-		$xpresult = $xml->xpath('//D:supported-report/D:report/D:sync-collection');
+		$xpresult = $xml->xpath('//RCMCD:supported-report/RCMCD:report/RCMCD:sync-collection');
 		if(count($xpresult) > 0) {
 			$records = $this->list_records_sync_collection();
 		}
@@ -574,7 +574,7 @@ EOF
 			}
 		}
 
-		list($new_sync_token) = $xml->xpath('//D:sync-token');
+		list($new_sync_token) = $xml->xpath('//RCMCD:sync-token');
 
 		$records = $this->addvcards($xml);
 
@@ -590,7 +590,7 @@ EOF
 			carddav::update_abook($this->config['abookid'], array('sync_token' => "$new_sync_token"));
 
 			// if we got a truncated result set continue sync
-			$xpresult = $xml->xpath('//D:response[contains(child::D:status, " 507 Insufficient Storage")]');
+			$xpresult = $xml->xpath('//RCMCD:response[contains(child::RCMCD:status, " 507 Insufficient Storage")]');
 			if(count($xpresult) > 0) {
 				$sync_token = "$new_sync_token";
 				continue;
@@ -703,14 +703,14 @@ EOF
 	$xml = self::$helper->checkAndParseXML($reply);
 	if($xml === false) return -1;
 
-	$xpresult = $xml->xpath('//D:response[descendant::C:address-data]');
+	$xpresult = $xml->xpath('//RCMCD:response[descendant::RCMCC:address-data]');
 
 	$numcards = 0;
 	foreach ($xpresult as $vcard) {
 		self::$helper->registerNamespaces($vcard);
-		list($href) = $vcard->xpath('child::D:href');
-		list($etag) = $vcard->xpath('descendant::D:getetag');
-		list($vcf)  = $vcard->xpath('descendant::C:address-data');
+		list($href) = $vcard->xpath('child::RCMCD:href');
+		list($etag) = $vcard->xpath('descendant::RCMCD:getetag');
+		list($vcf)  = $vcard->xpath('descendant::RCMCC:address-data');
 
 		// determine database ID of existing cards by checking the cache
 		$dbid = 0;
@@ -786,14 +786,14 @@ EOF
 	private function addvcards($xml)
 	{{{
 	$urls = array();
-	$xpresult = $xml->xpath('//D:response[starts-with(translate(child::D:propstat/D:status, "ABCDEFGHJIKLMNOPQRSTUVWXYZ", "abcdefghjiklmnopqrstuvwxyz"), "http/1.1 200 ") and child::D:propstat/D:prop/D:getetag]');
+	$xpresult = $xml->xpath('//RCMCD:response[starts-with(translate(child::RCMCD:propstat/RCMCD:status, "ABCDEFGHJIKLMNOPQRSTUVWXYZ", "abcdefghjiklmnopqrstuvwxyz"), "http/1.1 200 ") and child::RCMCD:propstat/RCMCD:prop/RCMCD:getetag]');
 	foreach ($xpresult as $r) {
 		self::$helper->registerNamespaces($r);
 
-		list($href) = $r->xpath('child::D:href');
+		list($href) = $r->xpath('child::RCMCD:href');
 		if(preg_match('/\/$/', $href)) continue;
 
-		list($etag) = $r->xpath('descendant::D:getetag');
+		list($etag) = $r->xpath('descendant::RCMCD:getetag');
 
 		$ret = self::checkcache($this->existing_card_cache,"$href","$etag");
 		$retgrp = self::checkcache($this->existing_grpcard_cache,"$href","$etag");
@@ -836,14 +836,14 @@ EOF
 	/** delete cards reported deleted by the server */
 	private function delete_synccoll($xml)
 	{{{
-	$xpresult = $xml->xpath('//D:response[contains(child::D:status, " 404 Not Found")]');
+	$xpresult = $xml->xpath('//RCMCD:response[contains(child::RCMCD:status, " 404 Not Found")]');
 	$del_contacts = array();
 	$del_groups = array();
 
 	foreach ($xpresult as $r) {
 		self::$helper->registerNamespaces($r);
 
-		list($href) = $r->xpath('child::D:href');
+		list($href) = $r->xpath('child::RCMCD:href');
 		if(preg_match('/\/$/', $href)) continue;
 
 		if(isset($this->existing_card_cache["$href"])) {

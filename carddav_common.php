@@ -119,8 +119,9 @@ class carddav_common
 	}
 
 	public function registerNamespaces($xml) {
-		$xml->registerXPathNamespace('C', self::NSCARDDAV);
-		$xml->registerXPathNamespace('D', self::NSDAV);
+		// Use slightly complex prefixes to avoid conflicts
+		$xml->registerXPathNamespace('RCMCC', self::NSCARDDAV);
+		$xml->registerXPathNamespace('RCMCD', self::NSDAV);
 	}
 
 	// HTTP helpers
