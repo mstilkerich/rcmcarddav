@@ -133,12 +133,12 @@ EOF
 	$aBooks = array();
 
 	// (1) check if we found addressbooks at the URL
-	$xpresult = $xml->xpath('//D:response[descendant::D:resourcetype/C:addressbook]');
+	$xpresult = $xml->xpath('//RCMCD:response[descendant::RCMCD:resourcetype/RCMCC:addressbook]');
 	foreach($xpresult as $ab) {
 		self::$helper->registerNamespaces($ab);
 		$aBook = array();
-		list($aBook['href']) = $ab->xpath('child::D:href');
-		list($aBook['name']) = $ab->xpath('descendant::D:displayname');
+		list($aBook['href']) = $ab->xpath('child::RCMCD:href');
+		list($aBook['name']) = $ab->xpath('descendant::RCMCD:displayname');
 		$aBook['href'] = (string) $aBook['href'];
 		$aBook['name'] = (string) $aBook['name'];
 
@@ -153,10 +153,10 @@ EOF
 	if(count($aBooks) > 0) return $aBooks;
 
 	// (2) see if the server told us the addressbook home location
-	list($abookhome) = $xml->xpath('//C:addressbook-home-set/D:href');
+	list($abookhome) = $xml->xpath('//RCMCC:addressbook-home-set/RCMCD:href');
 	self::$helper->debug("addressbook home: $abookhome");
 	// (3) see if we got a principal URL
-	list($princurl) = $xml->xpath('//D:current-user-principal/D:href');
+	list($princurl) = $xml->xpath('//RCMCD:current-user-principal/RCMCD:href');
 	self::$helper->debug("principal URL: $princurl");
 
 	foreach(array($abookhome,$princurl) as $url) {
