@@ -98,23 +98,17 @@ class carddav_discovery
 	return false;
 	}}}
 
-	private function retrieve_addressbooks($path, $cdfopen_cfg, $recurse=2)
+	private function retrieve_addressbooks($path, $cdfopen_cfg, $recurse=false)
 	{{{
-	// we only go max two levels to allow the sequence:
-	// recurse==2: query principal URL: found -> query addressbook home
-	// recurse==1: query addressbook home: found -> query addressbooks
-	// recurse==0: query addressbooks: found -> return addressbooks
-	// we check in reverse order to allow the user to provide the concrete path
-	if($recurse < 0) return false;
-
 	$baseurl = $cdfopen_cfg['url'];
 	$url = carddav_common::concaturl($baseurl, $path);
-	self::$helper->debug("SEARCHING $url");
+	$depth = ($recurse ? 1 : 0);
+	self::$helper->debug("SEARCHING $url (Depth: ".$depth.")");
 
 	// check if the given URL points to an addressbook
 	$opts = array(
 		'method'=>"PROPFIND",
-		'header'=>array("Depth: 0", 'Content-Type: application/xml; charset="utf-8"'),
+		'header'=>array("Depth: " . $depth, 'Content-Type: application/xml; charset="utf-8"'),
 		'content'=> <<<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:prop>
@@ -132,7 +126,7 @@ EOF
 
 	$aBooks = array();
 
-	// (1) check if we found addressbooks at the URL
+	// Check if we found addressbooks at the URL
 	$xpresult = $xml->xpath('//RCMCD:response[descendant::RCMCD:resourcetype/RCMCC:addressbook]');
 	foreach($xpresult as $ab) {
 		self::$helper->registerNamespaces($ab);
@@ -152,26 +146,40 @@ EOF
 	// found -> done
 	if(count($aBooks) > 0) return $aBooks;
 
-	// (2) see if the server told us the addressbook home location
-	list($abookhome) = $xml->xpath('//RCMCC:addressbook-home-set/RCMCD:href');
-	self::$helper->debug("addressbook home: $abookhome");
-	// (3) see if we got a principal URL
-	list($princurl) = $xml->xpath('//RCMCD:current-user-principal/RCMCD:href');
-	self::$helper->debug("principal URL: $princurl");
+	if ($recurse === false) {
+		// Check some additional URLs:
+		$additional_urls = array();
 
-	foreach(array($abookhome,$princurl) as $url) {
-		if(strlen($url) <= 0) continue;
+		// (1) original URL
+		$additional_urls[] = $url;
 
-		// if the server returned a full URL, adjust the base url
-		if (preg_match(';^[^/]+://[^/]+;', $url, $match)) {
-			$cdfopen_cfg['url'] = $match[0];
-		} else {
-			// restore original baseurl, may have changed in prev URL check
-			$cdfopen_cfg['url'] = $baseurl;
+		// (2) see if the server told us the addressbook home location
+		$abookhome = $xml->xpath('//RCMCC:addressbook-home-set/RCMCD:href');
+		if (count($abookhome) != 0) {
+			self::$helper->debug("addressbook home: ".$abookhome[0]);
+			$additional_urls[] = $abookhome[0];
 		}
-		$aBooks = $this->retrieve_addressbooks($url, $cdfopen_cfg, $recurse-1);
-		// found -> done
-		if(count($aBooks) > 0) return $aBooks;
+		// (3) see if we got a principal URL
+		$princurl = $xml->xpath('//RCMCD:current-user-principal/RCMCD:href');
+		if (count($princurl) != 0) {
+			self::$helper->debug("principal URL: ".$princurl[0]);
+			$additional_urls[] = $princurl[0];
+		}
+
+		foreach($additional_urls as $other_url) {
+			if(strlen($other_url) <= 0) continue;
+
+			// if the server returned a full URL, adjust the base url
+			if (preg_match(';^[^/]+://[^/]+;', $other_url, $match)) {
+				$cdfopen_cfg['url'] = $match[0];
+			} else {
+				// restore original baseurl, may have changed in prev URL check
+				$cdfopen_cfg['url'] = $baseurl;
+			}
+			$aBooks = $this->retrieve_addressbooks($other_url, $cdfopen_cfg, true);
+			// found -> done
+			if(count($aBooks) > 0) return $aBooks;
+		}
 	}
 
 	// (4) there is no more we can do -> fail
