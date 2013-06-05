@@ -167,6 +167,7 @@ EOF
 		}
 
 		foreach($additional_urls as $other_url) {
+			self::$helper->debug("Searching additional URL: $other_url");
 			if(strlen($other_url) <= 0) continue;
 
 			// if the server returned a full URL, adjust the base url
@@ -178,7 +179,7 @@ EOF
 			}
 			$aBooks = $this->retrieve_addressbooks($other_url, $cdfopen_cfg, true);
 			// found -> done
-			if(count($aBooks) > 0) return $aBooks;
+			if (!($aBooks === false) && count($aBooks) > 0) return $aBooks;
 		}
 	}
 
