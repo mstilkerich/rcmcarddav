@@ -327,8 +327,8 @@ class carddav extends rcube_plugin
 		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'*','addressbooks',false,'user_id');
 		foreach($abooks as $abook) {
 			$presetname = $abook['presetname'];
-			if (!empty($presetname) &&
-				(!isset($prefs[$presetname]['hide']) || $prefs[$presetname]['hide'] === FALSE)) {
+			if (empty($presetname) ||
+				(!isset($prefs[$presetname]['hide']) || (isset($prefs[$presetname]['hide']) && $prefs[$presetname]['hide'] === FALSE))) {
 				$abookid = $abook['id'];
 				$blockhdr = $abook['name'];
 				if($abook['presetname'])
@@ -358,7 +358,7 @@ class carddav extends rcube_plugin
 	function cd_preferences_section($args)
 	{{{
 		$prefs = carddav_common::get_adminsettings();
-		if (!isset($prefs['_GLOBAL']['hide_preferences']) || $prefs['_GLOBAL']['hide_preferences'] === FALSE) {
+		if (!isset($prefs['_GLOBAL']['hide_preferences']) || (isset($prefs['_GLOBAL']['hide_preferences']) && $prefs['_GLOBAL']['hide_preferences'] === FALSE)) {
 			$this->add_texts('localization/', false);
 			$args['list']['cd_preferences'] = array(
 				'id'      => 'cd_preferences',
