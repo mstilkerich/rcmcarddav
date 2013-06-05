@@ -177,7 +177,7 @@ EOF
 				// restore original baseurl, may have changed in prev URL check
 				$cdfopen_cfg['url'] = $baseurl;
 			}
-			$aBooks = $this->retrieve_addressbooks($other_url, $cdfopen_cfg, true);
+			$aBooks = $this->retrieve_addressbooks($other_url, $cdfopen_cfg, $other_url != $princurl[0]);
 			// found -> done
 			if (!($aBooks === false) && count($aBooks) > 0) return $aBooks;
 		}
