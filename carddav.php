@@ -326,11 +326,15 @@ class carddav extends rcube_plugin
 
 		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'*','addressbooks',false,'user_id');
 		foreach($abooks as $abook) {
-			$abookid = $abook['id'];
-			$blockhdr = $abook['name'];
-			if($abook['presetname'])
-				$blockhdr .= ' (from preset ' . $abook['presetname'] . ')';
-			$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($blockhdr,$abook,$prefs);
+			$presetname = $abook['presetname'];
+			if (!empty($presetname) &&
+				(!isset($prefs[$presetname]['hide']) || $prefs[$presetname]['hide'] === FALSE)) {
+				$abookid = $abook['id'];
+				$blockhdr = $abook['name'];
+				if($abook['presetname'])
+					$blockhdr .= ' (from preset ' . $abook['presetname'] . ')';
+				$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($blockhdr,$abook,$prefs);
+			}
 		}
 
 		if(!array_key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) {
@@ -353,11 +357,14 @@ class carddav extends rcube_plugin
 	// add a section to the preferences tab
 	function cd_preferences_section($args)
 	{{{
-		$this->add_texts('localization/', false);
-		$args['list']['cd_preferences'] = array(
-			'id'      => 'cd_preferences',
-			'section' => Q($this->gettext('cd_title'))
-		);
+		$prefs = carddav_common::get_adminsettings();
+		if (!isset($prefs['_GLOBAL']['hide_preferences']) || $prefs['_GLOBAL']['hide_preferences'] === FALSE) {
+			$this->add_texts('localization/', false);
+			$args['list']['cd_preferences'] = array(
+				'id'      => 'cd_preferences',
+				'section' => Q($this->gettext('cd_title'))
+			);
+		}
 		return($args);
 	}}}
 
@@ -368,6 +375,9 @@ class carddav extends rcube_plugin
 		if($args['section'] != 'cd_preferences')
 			return;
 		$prefs = carddav_common::get_adminsettings();
+		if (isset($prefs['_GLOBAL']['hide_preferences']) && $prefs['_GLOBAL']['hide_preferences'] === TRUE) {
+			return;
+		}
 
 		// update existing in DB
 		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'id,presetname',
