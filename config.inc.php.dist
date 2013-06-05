@@ -13,6 +13,9 @@
 // are not affected.
 // $prefs['_GLOBAL']['fixed'] = true;
 
+// When enabled, this option hides the 'CardDAV' section inside Preferences.
+// $prefs['_GLOBAL']['hide_preferences'] = true;
+
 // Scheme for storing the CardDAV passwords.
 // Options:
 // plain: store as plaintext
@@ -42,6 +45,10 @@ $prefs['<Presetname>'] = array(
 	// attributes that are fixed (i.e., not editable by the user) and
 	// auto-updated for this preset
 	'fixed'        =>  array( < 0 or more of the other attribute keys > ),
+
+	// hide this preset from CalDAV preferences section so users can't even
+	// see it
+	'hide' => <true or false>,
 );
 */
 
@@ -124,6 +131,9 @@ $prefs['<Presetname>'] = array(
 //                 change the key of the preset and change the URL. Addressbooks
 //                 belonging to the old preset will be deleted upon the next
 //                 login of the user and freshly created.
+//
+// hide:         Whether this preset should be hidden from the CalDAV listing
+//               on the preferences page.
 
 
 // How Preset Updates work
@@ -149,6 +159,7 @@ $prefs['Personal'] = array(
 	'refresh_time' => '02:00:00',
 
 	'fixed'        =>  array( 'username' ),
+	'hide'        =>  false,
 );
 */
 
@@ -161,5 +172,6 @@ $prefs['Work'] = array(
 	'url'          =>  'https://ical.example.org/caldav.php/%u/Corporate',
 
 	'fixed'        =>  array( 'name', 'username', 'password' ),
+	'hide'        =>  true,
 );
 */
