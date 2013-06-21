@@ -740,10 +740,10 @@ EOF
 
 			// record group members for deferred store
 			$this->users_to_add[$dbid] = array();
-			$members = $vcfobj->getProperties('X-ADDRESSBOOKSERVER-MEMBER');
+			$members = $vcfobj->{'X-ADDRESSBOOKSERVER-MEMBER'};
 			self::$helper->debug("Group $dbid has " . count($members) . " members");
 			foreach($members as $mbr) {
-				$mbr = $mbr->getComponents(':');
+				$mbr = preg_split('/:/', $mbr);
 				if(!$mbr) continue;
 				if(count($mbr)!=3 || $mbr[0] !== 'urn' || $mbr[1] !== 'uuid') {
 					self::$helper->warn("don't know how to interpret group membership: " . implode(':', $mbr));
@@ -1378,11 +1378,11 @@ EOF
 		if($fallback) { return $fallback; }
 
 		// check for a custom label using Apple's X-ABLabel extension
-		$group = $pvalue->getGroup();
+		$group = $pvalue->group;
 		if($group) {
-			$xlabel = $vcard->getProperty('X-ABLabel', $group);
+			$xlabel = $vcard->{$group . '.X-ABLabel'};
 			if($xlabel) {
-				$xlabel = $xlabel->getComponents();
+				$xlabel = $xlabel->getParts();
 				if($xlabel)
 					$xlabel = $xlabel[0];
 			}
@@ -1512,7 +1512,7 @@ EOF
 		}
 	}
 
-	$property = $vcf->ADR;
+	$property = ($vcf->ADR) ? $vcf->ADR : array();
 	foreach ($property as $property_instance){
 		$p = $property_instance->getParts();
 		$label = $this->get_attr_label($vcf, $property_instance, 'address');
