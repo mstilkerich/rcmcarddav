@@ -21,8 +21,11 @@
 
 // requires Roundcubemail 0.7.2 or later
 
-require_once("inc/vcard.php");
+require_once('inc/vcard.php');
+require_once('inc/sabre-vobject-3.0.0-beta3/lib/Sabre/VObject/includes.php');
 require_once("carddav_common.php");
+
+use \Sabre\VObject;
 
 class carddav_backend extends rcube_addressbook
 {
@@ -1356,8 +1359,8 @@ EOF
 		$xlabel = '';
 		$fallback = null;
 
-		if(array_key_exists('TYPE', $pvalue->params)) {
-			foreach($pvalue->params['TYPE'] as $type)
+		if(isset($pvalue->params['TYPE'])) {
+			foreach($pvalue['TYPE'] as $type)
 			{
 				$type = strtolower($type);
 				if( in_array($type, $this->coltypes[$attrname]['subtypes']) )
@@ -1413,7 +1416,7 @@ EOF
 	$uri = $save_data['photo'];
 	$reply = self::$helper->cdfopen($uri, $opts, $this->config);
 	if (is_array($reply) && $reply["status"] == 200){
-		$save_data['photo'] = base64_encode($reply['body']);
+		$save_data['photo'] = $reply['body'];
 		return true;
 	}
 	self::$helper->warn("Downloading $uri failed: " . (is_array($reply) ? $reply["status"] : $reply) );
@@ -1439,8 +1442,9 @@ EOF
 	 */
 	private function create_save_data_from_vcard($vcfstr)
 	{{{
-	$vcf = new VCard;
-	if (!$vcf->parse($vcfstr)){
+	try {
+		$vcf = VObject\Reader::read($vcfstr, VObject\Reader::OPTION_FORGIVING);
+	} catch (Exception $e) {
 		self::$helper->warn("Couldn't parse vcard: $vcfstr");
 		return false;
 	}
@@ -1453,27 +1457,27 @@ EOF
 	);
 
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
-		$property = $vcf->getProperty($vkey);
-		if ($property){
-			$p = $property->getComponents();
+		$property = $vcf->{$vkey};
+		if ($property !== null){
+			$p = $property->getParts();
 			$save_data[$rckey] = $p[0];
 		}
 	}
 
 	// inline photo if external reference
 	if(array_key_exists('photo', $save_data)) {
-		$kind = $vcf->getProperty('PHOTO')->getParam('VALUE',0);
+		$kind = $vcf->PHOTO['VALUE'];
 		if($kind && strcasecmp('uri', $kind)==0) {
 			if($this->download_photo($save_data)) {
-				$vcf->getProperty('PHOTO')->deleteParam('VALUE');
-				$vcf->getProperty('PHOTO')->setParam('ENCODING', 'b', 0);
-				$vcf->getProperty('PHOTO')->setComponent($save_data['photo'],0);
+				unset($vcf->PHOTO['VALUE']);
+				$vcf->PHOTO['ENCODING'] = 'b';
+				$vcf->PHOTO = $save_data['photo'];
 				$needs_update=true;
 	} } }
 
-	$property = $vcf->getProperty("N");
-	if ($property){
-		$N = $property->getComponents();
+	$property = $vcf->N;
+	if ($property !== null){
+		$N = $property->getParts();
 		switch(count($N)){
 			case 5:
 				$save_data['suffix']     = $N[4];
@@ -1488,9 +1492,9 @@ EOF
 		}
 	}
 
-	$property = $vcf->getProperty("ORG");
+	$property = $vcf->ORG;
 	if ($property){
-		$ORG = $property->getComponents();
+		$ORG = $property->getParts();
 		$save_data['organization'] = $ORG[0];
 		for ($i = 1; $i <= count($ORG); $i++){
 			$save_data['department'][] = $ORG[$i];
@@ -1498,17 +1502,20 @@ EOF
 	}
 
 	foreach ($this->vcf2rc['multi'] as $key => $value){
-		$property = $vcf->getProperties($key);
-			foreach ($property as $pkey => $pvalue){
-				$p = $pvalue->getComponents();
-				$label = $this->get_attr_label($vcf, $pvalue, $value);
+		$property = $vcf->{$key};
+		if ($property !== null) {
+			foreach ($property as $property_instance){
+				$p = $property_instance->getParts();
+				$label = $this->get_attr_label($vcf, $property_instance, $value);
 				$save_data[$value.':'.$label][] = $p[0];
-	} }
+			}
+		}
+	}
 
-	$property = $vcf->getProperties("ADR");
-	foreach ($property as $pkey => $pvalue){
-		$p = $pvalue->getComponents();
-		$label = $this->get_attr_label($vcf, $pvalue, 'address');
+	$property = $vcf->ADR;
+	foreach ($property as $property_instance){
+		$p = $property_instance->getParts();
+		$label = $this->get_attr_label($vcf, $property_instance, 'address');
 		$adr = array(
 			'pobox'    => $p[0], // post office box
 			'extended' => $p[1], // extended address
