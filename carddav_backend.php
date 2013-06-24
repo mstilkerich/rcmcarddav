@@ -1359,7 +1359,7 @@ EOF
 		$xlabel = '';
 		$fallback = null;
 
-		if(isset($pvalue->params['TYPE'])) {
+		if(isset($pvalue['TYPE'])) {
 			foreach($pvalue['TYPE'] as $type)
 			{
 				$type = strtolower($type);
