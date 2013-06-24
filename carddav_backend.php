@@ -726,7 +726,7 @@ EOF
 		$save_data = $this->create_save_data_from_vcard("$vcf");
 		$vcfobj = $save_data['vcf'];
 		if($save_data['needs_update'])
-			$vcf = $vcfobj->toString();
+			$vcf = $vcfobj->serialize();
 		$save_data = $save_data['save_data'];
 
 		if($save_data['kind'] === 'group') {
@@ -1188,46 +1188,39 @@ EOF
 	{{{
 	unset($save_data['vcard']);
 	if(!$vcf) { // create fresh minimal vcard
-		$vcfstr = array(
-			'BEGIN:VCARD',
-			'VERSION:3.0',
-			'UID:'.$save_data['cuid'],
-			'REV:'.date('c'),
-			'END:VCARD'
+		$vcf = new VObject\Component\VCard(
+			array(
+				'UID' => $save_data['cuid'],
+				'REV' => date('c'),
+			)
 		);
-
-		$vcf = new VCard;
-		if(!$vcf->parse($vcfstr)) {
-			self::$helper->warn("Couldn't parse newly created vcard " . implode("\n", $vcfstr));
-			return false;
-		}
 	} else { // update revision
-		$vcf->setProperty("REV", date("c"));
+		$vcf->REV = date("c");
 	}
 
 	// N is mandatory
 	if(array_key_exists('kind',$save_data) && $save_data['kind'] === 'group') {
-		$vcf->setProperty("N", $save_data['name'],   0,0);
+		$vcf->N = $save_data['name'];
 	} else {
-		$vcf->setProperty("N", $save_data['surname'],   0,0);
-		$vcf->setProperty("N", $save_data['firstname'], 0,1);
-		$vcf->setProperty("N", $save_data['middlename'],0,2);
-		$vcf->setProperty("N", $save_data['prefix'],    0,3);
-		$vcf->setProperty("N", $save_data['suffix'],    0,4);
+		$vcf->N = array(
+			$save_data['surname'],
+			$save_data['firstname'],
+			$save_data['middlename'],
+			$save_data['prefix'],
+			$save_data['suffix'],
+		);
 	}
 
 	if (array_key_exists("organization", $save_data)){
-		$vcf->setProperty("ORG", $save_data['organization'], 0, 0);
+		$vcf->ORG = $save_data['organization'];
 	}
+
 	if (array_key_exists("department", $save_data)){
 		if (is_array($save_data['department'])){
-			$i = 0;
-			foreach ($save_data['department'] AS $key => $value){
-				$i++;
-				$vcf->setProperty("ORG", $value, 0, $i);
-			}
+			$org_values = array_values($save_data['department']);
+			$vcf->ORG = $org_values;
 		} else if (strlen($save_data['department']) > 0){
-			$vcf->setProperty("ORG", $save_data['department'], 0, 1);
+			$vcf->ORG = $save_data['department'];
 		}
 	}
 
@@ -1243,18 +1236,17 @@ EOF
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
 		if (array_key_exists($rckey, $save_data)) {
 			if (strlen($save_data[$rckey]) > 0) {
-				$vcf->setProperty($vkey, $save_data[$rckey]);
-
+				$vcf->{$vkey} = $save_data[$rckey];
 			} else { // delete the field
-				$vcf->deleteProperty($vkey);
+				unset($vcf->{$vkey});
 			}
 		}
 	}
 
 	// Special handling for PHOTO
-	if ($property = $vcf->getProperty('PHOTO')){
-		$property->setParam("ENCODING", "B", 0);
-		$property->setParam("VALUE", "BINARY", 0);
+	if ($property = $vcf->PHOTO) {
+		$property['ENCODING'] = 'B';
+		$property['VALUE'] = 'BINARY';
 	}
 
 	// process all multi-value attributes
@@ -1262,7 +1254,7 @@ EOF
 		// delete and fully recreate all entries
 		// there is no easy way of mapping an address in the existing card
 		// to an address in the save data, as subtypes may have changed
-		$vcf->deleteProperty($vkey);
+		unset($vcf->{$vkey});
 
 		$stmap = array( $rckey => 'other' );
 		foreach ($this->coltypes[$rckey]['subtypes'] AS $subtype){
@@ -1274,16 +1266,15 @@ EOF
 			$avalues = is_array($save_data[$rcqkey]) ? $save_data[$rcqkey] : array($save_data[$rcqkey]);
 			foreach($avalues as $evalue) {
 				if (strlen($evalue) > 0){
-					$propidx = $vcf->setProperty($vkey, $evalue, -1);
-					$props = $vcf->getProperties($vkey);
-					$this->set_attr_label($vcf, $props[$propidx], $rckey, $subtype); // set label
+					$prop = $vcf->add($vkey, $evalue);
+					$this->set_attr_label($vcf, $prop, $rckey, $subtype); // set label
 				}
-			} }
+			}}
 		}
 	}
 
 	// process address entries
-	$vcf->deleteProperty('ADR');
+	unset($vcfg->ADR);
 	foreach ($this->coltypes['address']['subtypes'] AS $subtype){
 		$rcqkey = 'address:'.$subtype;
 
@@ -1295,12 +1286,16 @@ EOF
 				|| strlen($avalue['zipcode'])
 				|| strlen($avalue['country'])) {
 
-				$propidx = $vcf->setProperty('ADR', $avalue['street'], -1, 2);
-				$vcf->setProperty('ADR', $avalue['locality'], $propidx, 3);
-				$vcf->setProperty('ADR', $avalue['region'],   $propidx, 4);
-				$vcf->setProperty('ADR', $avalue['zipcode'],  $propidx, 5);
-				$vcf->setProperty('ADR', $avalue['country'],  $propidx, 6);
-				$props = $vcf->getProperties('ADR');
+				$vcf->add('ADR', array(
+					'',
+					'',
+					$avalue['street'],
+					$avalue['locality'],
+					$avalue['region'],
+					$avalue['zipcode'],
+					$avalue['country'],
+				));
+				$props = $vcf->ADR;
 				$this->set_attr_label($vcf, $props[$propidx], 'address', $subtype); // set label
 			}
 		} }
@@ -1311,11 +1306,12 @@ EOF
 
 	private function set_attr_label($vcard, $pvalue, $attrname, $newlabel)
 	{{{
-		$group = $pvalue->getGroup();
+		$group = $pvalue->group;
 
 		// X-ABLabel?
 		if(in_array($newlabel, $this->xlabels[$attrname])) {
 			if(!$group) {
+				// TODO group management
 				$group = $vcard->genGroupLabel();
 				$pvalue->setGroup($group);
 
@@ -1327,28 +1323,31 @@ EOF
 				}
 			}
 
-			$vcard->setProperty('X-ABLabel', $newlabel, -1, 0, $group);
+			$vcard->{$group . '.X-ABLabel'} = $newlabel;
 			return true;
 		}
 
 		// Standard Label
 		$had_xlabel = false;
 		if($group) { // delete group label property if present
-			$had_xlabel = $vcard->deletePropertyByGroup('X-ABLabel', $group);
+			$had_xlabel = isset($vcard->{$group . '.X-ABLabel'});
+			unset($vcard->{$group . '.X-ABLabel'});
 		}
 
 		// add or replace?
-		$oldlabel = $pvalue->getParam('TYPE', 0);
+		$oldlabel = $pvalue['TYPE'];
 		if(strlen($oldlabel)>0 &&
 			in_array($oldlabel, $this->coltypes[$attrname]['subtypes'])) {
 				$had_xlabel = false; // replace
 		}
 
-		if($had_xlabel) {
-			$pvalue->setParam('TYPE', $newlabel, -2);
+		if($had_xlabel &&is_array($pvalue['TYPE'])) {
+				$new_type = $pvalue['TYPE'];
+				array_unshift($new_type, $newlabel);
 		} else {
-			$pvalue->setParam('TYPE', $newlabel, 0);
+			$new_type = $newlabel;
 		}
+		$pvalue['TYPE'] = $new_type;
 
 		return false;
 	}}}
@@ -1566,7 +1565,7 @@ EOF
 
 	$vcf = $this->create_vcard_from_save_data($save_data);
 	if(!$vcf) return false;
-	$vcfstr = $vcf->toString();
+	$vcfstr = $vcf->serialize();
 
 	$uri = $save_data['cuid'] . '.vcf';
 	if(!($etag = $this->put_record_to_carddav($uri, $vcfstr)))
@@ -1633,8 +1632,9 @@ EOF
 	$this->preprocess_rc_savedata($save_data);
 
 	// create vcard from current DB data to be updated with the new data
-	$vcf = new VCard;
-	if(!$vcf->parse($contact['vcard'])){
+	try {
+		$vcf = VObject\Reader::read($contact['vcard'], VObject\Reader::OPTION_FORGIVING);
+	} catch (Exception $e) {
 		self::$helper->warn("Update: Couldn't parse local vcard: ".$contact['vcard']);
 		return false;
 	}
@@ -1645,7 +1645,7 @@ EOF
 		return false;
 	}
 
-	$vcfstr = $vcf->toString();
+	$vcfstr = $vcf->serialize();
 	if(!($etag=$this->put_record_to_carddav($contact['uri'], $vcfstr, $contact['etag']))) {
 		self::$helper->warn("Updating card on server failed");
 		return false;
@@ -1699,8 +1699,9 @@ EOF
 	if(!$group)	return false;
 
 	// create vcard from current DB data to be updated with the new data
-	$vcf = new VCard;
-	if(!$vcf->parse($group['vcard'])){
+	try {
+		$vcf = VObject\Reader::read($group['vcard'], VObject\Reader::OPTION_FORGIVING);
+	} catch (Exception $e) {
 		self::$helper->warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
 		return false;
 	}
@@ -1709,11 +1710,10 @@ EOF
 		$contact = self::get_dbrecord($cid,'cuid');
 		if(!$contact) return false;
 
-		$vcf->setProperty('X-ADDRESSBOOKSERVER-MEMBER',
-			"urn:uuid:" . $contact['cuid'], -1);
+		$vcf->{'X-ADDRESSBOOKSERVER-MEMBER'} = "urn:uuid:" . $contact['cuid'];
 	}
 
-	$vcfstr = $vcf->toString();
+	$vcfstr = $vcf->serialize();
 	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
 		return false;
 
@@ -1748,8 +1748,9 @@ EOF
 	if(!$group)	return false;
 
 	// create vcard from current DB data to be updated with the new data
-	$vcf = new VCard;
-	if(!$vcf->parse($group['vcard'])){
+	try {
+		$vcf = VObject\Reader::read($group['vcard'], VObject\Reader::OPTION_FORGIVING);
+	} catch (Exception $e) {
 		self::$helper->warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
 		return false;
 	}
@@ -1759,11 +1760,17 @@ EOF
 		$contact = self::get_dbrecord($cid,'cuid');
 		if(!$contact) return false;
 
-		$vcf->deletePropertyByValue('X-ADDRESSBOOKSERVER-MEMBER',	"urn:uuid:" . $contact['cuid']);
+		$search_for = 'urn:uuid:' . $contact['cuid'];
+		foreach ($vcf->{'X-ADDRESSBOOKSERVER-MEMBER'} as $member) {
+			if ($member == $search_for) {
+				$vcf->remove($member);
+				break;
+			}
+		}
 		$deleted++;
 	}
 
-	$vcfstr = $vcf->toString();
+	$vcfstr = $vcf->serialize();
 	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
 		return false;
 
@@ -1858,7 +1865,7 @@ EOF
 
 	$vcf = $this->create_vcard_from_save_data($save_data);
 	if (!$vcf) return false;
-	$vcfstr = $vcf->toString();
+	$vcfstr = $vcf->serialize();
 
 	if (!($etag = $this->put_record_to_carddav($uri, $vcfstr)))
 		return false;
@@ -1908,15 +1915,16 @@ EOF
 	$group['name'] = $newname;
 
 	// create vcard from current DB data to be updated with the new data
-	$vcf = new VCard;
-	if(!$vcf->parse($group['vcard'])){
+	try {
+		$vcf = VObject\Reader::read($group['vcard'], VObject\Reader::OPTION_FORGIVING);
+	} catch (Exception $e) {
 		self::$helper->warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
 		return false;
 	}
 
-	$vcf->setProperty('FN', $newname);
-	$vcf->setProperty('N', $newname);
-	$vcfstr = $vcf->toString();
+	$vcf->FN = $newname;
+	$vcf->N = $newname;
+	$vcfstr = $vcf->serialize();
 
 	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
 		return false;
