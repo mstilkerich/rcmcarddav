@@ -1211,18 +1211,21 @@ EOF
 		);
 	}
 
+	$new_org_value = array();
 	if (array_key_exists("organization", $save_data)){
-		$vcf->ORG = $save_data['organization'];
+		$new_org_value[] = $save_data['organization'];
 	}
 
 	if (array_key_exists("department", $save_data)){
 		if (is_array($save_data['department'])){
-			$org_values = array_values($save_data['department']);
-			$vcf->ORG = $org_values;
+			foreach ($save_data['department'] as $key => $value) {
+				$new_org_value[] = $value;
+			}
 		} else if (strlen($save_data['department']) > 0){
-			$vcf->ORG = $save_data['department'];
+			$new_org_value[] = $save_data['department'];
 		}
 	}
+	$vcf->ORG = $new_org_value;
 
 	// normalize date fields to RFC2425 YYYY-MM-DD date values
 	foreach ($this->datefields as $key) {
