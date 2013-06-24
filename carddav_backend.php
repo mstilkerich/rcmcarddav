@@ -21,7 +21,6 @@
 
 // requires Roundcubemail 0.7.2 or later
 
-require_once('inc/vcard.php');
 require_once('inc/sabre-vobject/lib/Sabre/VObject/includes.php');
 require_once("carddav_common.php");
 
