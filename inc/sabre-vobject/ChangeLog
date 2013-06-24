@@ -1,3 +1,10 @@
+3.0.0-stable (2013-06-21)
+	* Fixed: includes.php file was still broken. Our tool to generate it had
+	  some bugs.
+
+3.0.0-beta4 (2013-06-21)
+	* Fixed: includes.php was no longer up to date.
+
 3.0.0-beta3 (2013-06-17)
 	* Added: OPTION_FORGIVING now also allows slashes in property names.
 	* Fixed: DateTimeParser no longer fails on dates with years < 1000
@@ -85,7 +92,7 @@
 	* Added: You can add new sub-components much quicker with the magic
 	  setters, and add() method.
 
-2.1.0-stable (2013-??-??)
+2.1.0-stable (2013-06-17)
 	* This version is fully backwards compatible with 2.0.*. However, it
 	  contains a few new API's that mimic the VObject 3 API. This allows it to
 	  be used a 'bridge' version.
