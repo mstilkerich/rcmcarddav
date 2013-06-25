@@ -1224,7 +1224,12 @@ EOF
 			$new_org_value[] = $save_data['department'];
 		}
 	}
-	$vcf->ORG = $new_org_value;
+
+	if (count($new_org_value) > 0) {
+		$vcf->ORG = $new_org_value;
+	} else {
+		unset($vcf->ORG);
+	}
 
 	// normalize date fields to RFC2425 YYYY-MM-DD date values
 	foreach ($this->datefields as $key) {
