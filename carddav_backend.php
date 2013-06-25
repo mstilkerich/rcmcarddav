@@ -1313,15 +1313,17 @@ EOF
 		// X-ABLabel?
 		if(in_array($newlabel, $this->xlabels[$attrname])) {
 			if(!$group) {
-				// TODO group management
-				$group = $vcard->genGroupLabel();
-				$pvalue->setGroup($group);
+				do {
+					$group = $this->guid();
+				} while (null !== $vcard->{$group . '.X-ABLabel'});
+
+				$pvalue->group = $group;
 
 				// delete standard label if we had one
-				$oldlabel = $pvalue->getParam('TYPE', 0);
+				$oldlabel = $pvalue['TYPE'];
 				if(strlen($oldlabel)>0 &&
 					in_array($oldlabel, $this->coltypes[$attrname]['subtypes'])) {
-					$pvalue->deleteParam('TYPE', 0, 1);
+					unset($pvalue['TYPE']);
 				}
 			}
 
