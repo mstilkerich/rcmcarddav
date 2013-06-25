@@ -1211,7 +1211,8 @@ EOF
 	}
 
 	$new_org_value = array();
-	if (array_key_exists("organization", $save_data)){
+	if (array_key_exists("organization", $save_data) &&
+		strlen($save_data['organization']) > 0 ){
 		$new_org_value[] = $save_data['organization'];
 	}
 
