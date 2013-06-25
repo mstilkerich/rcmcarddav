@@ -1281,7 +1281,7 @@ EOF
 	}
 
 	// process address entries
-	unset($vcfg->ADR);
+	unset($vcf->ADR);
 	foreach ($this->coltypes['address']['subtypes'] AS $subtype){
 		$rcqkey = 'address:'.$subtype;
 
@@ -1293,7 +1293,7 @@ EOF
 				|| strlen($avalue['zipcode'])
 				|| strlen($avalue['country'])) {
 
-				$vcf->add('ADR', array(
+				$prop = $vcf->add('ADR', array(
 					'',
 					'',
 					$avalue['street'],
@@ -1302,8 +1302,7 @@ EOF
 					$avalue['zipcode'],
 					$avalue['country'],
 				));
-				$props = $vcf->ADR;
-				$this->set_attr_label($vcf, $props[$propidx], 'address', $subtype); // set label
+				$this->set_attr_label($vcf, $prop, 'address', $subtype); // set label
 			}
 		} }
 	}
