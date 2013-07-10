@@ -1996,7 +1996,7 @@ EOF
 	}
 
 	$abookrow = self::get_dbrecord($abookid,
-		'id as abookid,name,username,password,url,presetname,sync_token,'
+		'id as abookid,name,username,password,url,presetname,sync_token,preemptive_auth,'
 		. $timequery . ' as needs_update', 'addressbooks');
 
 	if(! $abookrow) {

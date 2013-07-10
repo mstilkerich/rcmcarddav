@@ -14,5 +14,6 @@ $labels = Array(
 	'cd_sortorder'=> "Sortierschlüssel",
 	'cd_refresh_time'=> "Aktualisierungsintervall (Stunden)",
 	'cd_err_noabfound' => 'kein Adressbuch gefunden',
+	'cd_preemptive_auth' => 'Immer am Server authentifizieren. F&uuml;r ownCloud aktivieren!',
 );
 ?>
