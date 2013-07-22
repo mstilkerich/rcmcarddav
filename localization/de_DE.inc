@@ -10,9 +10,8 @@ $labels = Array(
 	'cd_name'=> "Name des Adressbuches",
 	'cd_delete'=> "Dieses Adressbuch entfernen",
 	'cd_name_new'=> "Neues Adressbuch konfigurieren",
-	'cd_displayorder'=> "Namens-Darstellung",
-	'cd_sortorder'=> "Sortierschlüssel",
 	'cd_refresh_time'=> "Aktualisierungsintervall (Stunden)",
-	'cd_err_noabfound' => 'kein Adressbuch gefunden',
+	'cd_err_noabfound'=> "Kein Adressbuch gefunden.",
+	'cd_preemptive_auth'=> "Immer am Server authentifizieren. F&uuml;r ownCloud aktivieren!",
 );
 ?>

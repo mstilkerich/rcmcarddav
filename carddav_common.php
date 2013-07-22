@@ -185,6 +185,9 @@ class carddav_common
 				}
 			}
 		}
+		if ($carddav["preemptive_auth"] == '1'){
+			$arguments["Headers"]["Authorization"] = "Basic ".base64_encode($username.":".$password);
+		}
 		$error = $http->Open($arguments);
 		if ($error == ""){
 			$error=$http->SendRequest($arguments);

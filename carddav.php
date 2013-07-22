@@ -284,6 +284,13 @@ class carddav extends rcube_plugin
 			$content_name = $input->show();
 		}
 
+		if (self::no_override('preemptive_auth', $abook, $prefs)) {
+			$content_preemptive_auth = ($abook['preemptive_auth'] == 1 ? "yes" : "no");
+		} else {
+			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_preemptive_auth', 'value' => 1));
+			$content_preemptive_auth = $checkbox->show($abook['preemptive_auth']);
+		}
+
 		$retval = array(
 			'options' => array(
 				array('title'=> Q($this->gettext('cd_name')), 'content' => $content_name),
@@ -292,6 +299,7 @@ class carddav extends rcube_plugin
 				array('title'=> Q($this->gettext('cd_password')), 'content' => $content_password),
 				array('title'=> Q($this->gettext('cd_url')), 'content' => $content_url),
 				array('title'=> Q($this->gettext('cd_refresh_time')), 'content' => $content_refresh_time),
+				array('title'=> Q($this->gettext('cd_preemptive_auth')), 'content' => $content_preemptive_auth),
 			),
 			'name' => $blockheader
 		);
@@ -395,6 +403,7 @@ class carddav extends rcube_plugin
 					'url' => get_input_value($abookid."_cd_url", RCUBE_INPUT_POST),
 					'active' => isset($_POST[$abookid.'_cd_active']) ? 1 : 0,
 					'refresh_time' => get_input_value($abookid."_cd_refresh_time", RCUBE_INPUT_POST),
+					'preemptive_auth' => isset($_POST[$abookid."_cd_preemptive_auth"]) ? 1 : 0,
 				);
 
 				// only set the password if the user entered a new one
@@ -484,7 +493,7 @@ class carddav extends rcube_plugin
 	}
 
 	// optional fields
-	$qfo = array('active','presetname','refresh_time');
+	$qfo = array('active','presetname','refresh_time','preemptive_auth');
 	foreach($qfo as $f) {
 		if(array_key_exists($f,$pa)) {
 			$qf[] = $f;
@@ -512,7 +521,7 @@ class carddav extends rcube_plugin
 		$pa['password'] = self::$helper->encrypt_password($pa['password']);
 
 	// optional fields
-	$qfo=array('name','username','password','url','active','refresh_time','sync_token');
+	$qfo=array('name','username','password','url','active','refresh_time','sync_token','preemptive_auth');
 	$qf=array();
 	$qv=array();
 
