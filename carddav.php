@@ -431,7 +431,7 @@ class carddav extends rcube_plugin
 			$pass   = get_input_value('new_cd_password', RCUBE_INPUT_POST, true);
 			$pass = self::$helper->encrypt_password($pass);
 			$abname = get_input_value('new_cd_name', RCUBE_INPUT_POST);
-			$preemptive_auth = isset($_POST[$abookid."_cd_preemptive_auth"]) ? 1 : 0;
+			$preemptive_auth = isset($_POST["new_cd_preemptive_auth"]) ? 1 : 0;
 
 			$discovery = new carddav_discovery();
 			$srvs = $discovery->find_addressbooks($srv, $usr, $pass, $preemptive_auth);
