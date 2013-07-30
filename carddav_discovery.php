@@ -37,7 +37,7 @@ class carddav_discovery
 	 *
 	 * On error, false is returned.
 	 */
-	public function find_addressbooks($url, $user, $password)
+	public function find_addressbooks($url, $user, $password, $preemptive_auth = '0')
 	{{{
 	if (!preg_match(';^(([^:]+)://)?(([^/:]+)(:([0-9]+))?)(/?.*)$;', $url, $match))
 		return false;
@@ -83,7 +83,7 @@ class carddav_discovery
 		array_unshift($services, $userspecified);
 	}
 
-	$cdfopen_cfg = array('username'=>$user, 'password'=>$password);
+	$cdfopen_cfg = array('username'=>$user, 'password'=>$password, 'preemptive_auth'=>$preemptive_auth);
 
 	// now check each of them until we find something (or don't)
 	foreach($services as $service) {
