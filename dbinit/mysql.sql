@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS carddav_addressbooks (
 
 	PRIMARY KEY(id),
 	FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE
-) /*!40000 ENGINE=INNODB */;
+) CHARACTER SET utf8 COLLATE utf8_unicode_ci /*!40000 ENGINE=INNODB */;
 
 CREATE TABLE IF NOT EXISTS carddav_contacts (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS carddav_contacts (
 	UNIQUE INDEX(uri,abook_id),
 	UNIQUE INDEX(cuid,abook_id),
 	FOREIGN KEY (abook_id) REFERENCES carddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
-) /*!40000 ENGINE=INNODB */;
+) CHARACTER SET utf8 COLLATE utf8_unicode_ci /*!40000 ENGINE=INNODB */;
 
 CREATE TABLE IF NOT EXISTS carddav_xsubtypes (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS carddav_xsubtypes (
 	PRIMARY KEY(id),
 	UNIQUE INDEX(typename,subtype,abook_id),
 	FOREIGN KEY (abook_id) REFERENCES carddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
-) /*!40000 ENGINE=INNODB */;
+) CHARACTER SET utf8 COLLATE utf8_unicode_ci /*!40000 ENGINE=INNODB */;
 
 CREATE TABLE IF NOT EXISTS carddav_groups (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS carddav_groups (
 	UNIQUE(cuid,abook_id),
 
 	FOREIGN KEY (abook_id) REFERENCES carddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
-) /*!40000 ENGINE=INNODB */;
+) CHARACTER SET utf8 COLLATE utf8_unicode_ci /*!40000 ENGINE=INNODB */;
 
 CREATE TABLE IF NOT EXISTS carddav_group_user (
 	group_id   INT UNSIGNED NOT NULL,
@@ -72,5 +72,5 @@ CREATE TABLE IF NOT EXISTS carddav_group_user (
 	PRIMARY KEY(group_id,contact_id),
 	FOREIGN KEY(group_id) REFERENCES carddav_groups(id) ON DELETE CASCADE ON UPDATE CASCADE,
 	FOREIGN KEY(contact_id) REFERENCES carddav_contacts(id) ON DELETE CASCADE ON UPDATE CASCADE
-) /*!40000 ENGINE=INNODB */;
+) CHARACTER SET utf8 COLLATE utf8_unicode_ci /*!40000 ENGINE=INNODB */;
 
