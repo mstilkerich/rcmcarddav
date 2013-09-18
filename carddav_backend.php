@@ -204,6 +204,7 @@ class carddav_backend extends rcube_addressbook
 	public function set_search_set($filter)
 	{{{
 	$this->filter = $filter;
+	$this->total_cards = -1;
 	}}}
 
 	/**
@@ -1820,6 +1821,7 @@ EOF
 	public function set_group($gid)
 	{{{
 	$this->group_id = $gid;
+	$this->total_cards = -1;
 	$this->filter = "EXISTS(SELECT * FROM ".get_table_name("carddav_group_user")."
 		WHERE group_id = '{$gid}' AND contact_id = ".get_table_name("carddav_contacts").".id)";
 	}}}
