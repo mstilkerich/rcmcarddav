@@ -195,30 +195,37 @@ class carddav_common
 
 			if ($error == ""){
 				$error=$http->ReadReplyHeaders($headers);
-				if ($error == ""){
-					$scode = $http->response_status;
-					$isRedirect = ($scode>300 && $scode<304) || $scode==307;
-					if( ! // These message types must not include a message-body
-						(($scode>=100 && $scode < 200)
-						|| $scode == 204
-						|| $scode == 304)
-					) {
-						$error = $http->ReadWholeReplyBody($body);
-					}
-					if($isRedirect && strlen($headers['location'])>0) {
-						$url = self::concaturl($baseurl, $headers['location']);
-
-					} else if ($error == ""){
-						$reply["status"] = $scode;
-						$reply["headers"] = $headers;
-						$reply["body"] = $body;
-						$this->debug_http("success: ".var_export($reply, true));
-						return $reply;
-					} else {
-						$this->warn("Could not read reply body: $error");
-					}
+				if ($http->response_status == 401){ # Should be handled by http class, but sometimes isn't...
+					$this->debug("retrying forcefully");
+					$isRedirect = true;
+					$carddav["preemptive_auth"] = "1";
 				} else {
-					$this->warn("Could not read reply header: $error");
+					if ($error == ""){
+						$scode = $http->response_status;
+						$this->debug("Code: $scode");
+						$isRedirect = ($scode>300 && $scode<304) || $scode==307;
+						if( ! // These message types must not include a message-body
+							(($scode>=100 && $scode < 200)
+							|| $scode == 204
+							|| $scode == 304)
+						) {
+							$error = $http->ReadWholeReplyBody($body);
+						}
+						if($isRedirect && strlen($headers['location'])>0) {
+							$url = self::concaturl($baseurl, $headers['location']);
+
+						} else if ($error == ""){
+							$reply["status"] = $scode;
+							$reply["headers"] = $headers;
+							$reply["body"] = $body;
+							$this->debug_http("success: ".var_export($reply, true));
+							return $reply;
+						} else {
+							$this->warn("Could not read reply body: $error");
+						}
+					} else {
+						$this->warn("Could not read reply header: $error");
+					}
 				}
 			} else {
 				$this->warn("Could not send request: $error");
