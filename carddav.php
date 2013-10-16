@@ -141,7 +141,7 @@ class carddav extends rcube_plugin
 			$abname = $preset['name'];
 
 			$discovery = new carddav_discovery();
-			$srvs = $discovery->find_addressbooks($preset['url'], $preset['username'], $preset['password']);
+			$srvs = $discovery->find_addressbooks($preset['url'], $preset['username'], $preset['password'], $preset['preemptive_auth']);
 
 			if(is_array($srvs)) {
 			foreach($srvs as $srv){
@@ -430,10 +430,11 @@ class carddav extends rcube_plugin
 			$usr    = get_input_value('new_cd_username', RCUBE_INPUT_POST, true);
 			$pass   = get_input_value('new_cd_password', RCUBE_INPUT_POST, true);
 			$pass = self::$helper->encrypt_password($pass);
+			$preemptive_auth = get_input_value('new_cd_preemptive_auth', RCUBE_INPUT_POST);
 			$abname = get_input_value('new_cd_name', RCUBE_INPUT_POST);
 
 			$discovery = new carddav_discovery();
-			$srvs = $discovery->find_addressbooks($srv, $usr, $pass);
+			$srvs = $discovery->find_addressbooks($srv, $usr, $pass, $preemptive_auth);
 
 			if(is_array($srvs) && count($srvs)>0) {
 				foreach($srvs as $srv){
