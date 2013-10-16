@@ -107,6 +107,9 @@ $prefs['<Presetname>'] = array(
 //               refreshed when the addressbook is accessed the next time.
 //               Default: 01:00:00
 //
+// preemptive_auth: If this parameter is 1 preemptive auth will be used.
+//               Default: 0
+//
 // fixed:        Array of parameter keys that must not be changed by the user.
 //               Note that only fixed parameters will be automatically updated
 //               for existing addressbooks created from presets. Otherwise the
