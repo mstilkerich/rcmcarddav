@@ -319,6 +319,7 @@ class carddav extends rcube_plugin
 		if($args['section'] != 'cd_preferences')
 			return;
 
+		$this->include_stylesheet($this->local_skin_path().'/carddav.css');
 		$this->add_texts('localization/', false);
 		$prefs = carddav_common::get_adminsettings();
 
