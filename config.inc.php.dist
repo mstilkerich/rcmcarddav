@@ -41,6 +41,7 @@ $prefs['<Presetname>'] = array(
 	'active'       =>  <true or false>,
 	'readonly'     =>  <true or false>,
 	'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
+	'preemptive_auth' => <1 or 0>
 
 	// attributes that are fixed (i.e., not editable by the user) and
 	// auto-updated for this preset
@@ -106,6 +107,13 @@ $prefs['<Presetname>'] = array(
 //               passed since the last pull from the server, it will be
 //               refreshed when the addressbook is accessed the next time.
 //               Default: 01:00:00
+//
+// preemptive_auth:
+//               If this parameter is 1, the authentication headers will be sent
+//               automatically with every request, regardless of the server
+//               requesting them or not.
+//               This must be set for ownCloud to work correctly.
+//               Default: 0
 //
 // fixed:        Array of parameter keys that must not be changed by the user.
 //               Note that only fixed parameters will be automatically updated
