@@ -135,6 +135,7 @@ class carddav extends rcube_plugin
 
 	$this->add_hook('login_after',array($this, 'checkMigrations'));
 	$this->add_hook('login_after',array($this, 'init_presets'));
+	$this->add_hook('contact_photo', array($this, 'crop_photo'));
 
 	if(!array_key_exists('user_id', $_SESSION))
 		return;
@@ -674,6 +675,57 @@ class carddav extends rcube_plugin
 		' WHERE id=?',
 		$qv
 	);
+	}}}
+
+	const MAX_PHOTO_SIZE = 256;
+
+	public function contact_photo($args)
+	{{{
+	if (!function_exists('gd_info') || $args['data'] == null) {
+		return $args;
+	}
+	$record = $args['record'];
+	$vcard = null;
+	if (!array_key_exists('__vcf', $record)) {
+		$cid = $record['ID'];
+		$CONTACTS = rcmail_contact_source('carddav_1', true);
+		$record = $CONTACTS->get_record($cid, true);
+		if (array_key_exists('__vcf', $record)) {
+			$vcard = $record['__vcf'];
+		} else {
+			return $args;
+		}
+	} else {
+		$vcard = $record['__vcf'];
+	}
+	$photo = $vcard->getProperty('PHOTO');
+	if ($photo == null) {
+		return $args;
+	}
+	$abcrop = $photo->getParam('X-ABCROP-RECTANGLE', 0);
+	if ($abcrop == null) {
+		return $args;
+	}
+
+	$parts = explode('&', $abcrop);
+	$x = intval($parts[1]);
+	$y = intval($parts[2]);
+	$w = intval($parts[3]);
+	$h = intval($parts[4]);
+	$dw = min($w, self::MAX_SIZE);
+	$dh = min($h, self::MAX_SIZE);
+
+	$src = imagecreatefromstring($args['data']);
+	$dst = imagecreatetruecolor($dw, $dh);
+	imagecopyresampled($dst, $src, 0, 0, $x, imagesy($src) - $y - $h, $dw, $dh, $w, $h);
+
+	ob_start();
+	imagepng($dst);
+	$data = ob_get_contents();
+	ob_end_clean();
+	$args['data'] = $data;
+
+	return $args;
 	}}}
 }
 

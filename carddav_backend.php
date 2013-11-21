@@ -1176,7 +1176,9 @@ EOF
 	if(!$retval) {
 		return false;
 	}
+	$vcfobj = $retval['vcf'];
 	$retval = $retval['save_data'];
+	$retval['__vcf'] = $vcfobj;
 
 	$retval['ID'] = $oid;
 	$this->result->add($retval);
