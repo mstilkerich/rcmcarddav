@@ -41,7 +41,7 @@ $prefs['<Presetname>'] = array(
 	'active'       =>  <true or false>,
 	'readonly'     =>  <true or false>,
 	'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
-	'preemptive_auth' => <1 or 0>
+	'preemptive_auth' => <1 or 0>,
 
 	// attributes that are fixed (i.e., not editable by the user) and
 	// auto-updated for this preset
