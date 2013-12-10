@@ -74,7 +74,11 @@ class carddav_common
 	private function getCaller()
 	{{{
 	// determine calling function for debug output
-	$caller=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS,3);
+	if (version_compare(PHP_VERSION, "5.4", ">=")){
+		$caller=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS,3);
+	} else {
+		$caller=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+	}
 	$caller=$caller[2]['function'];
 	return $caller;
 	}}}
@@ -115,8 +119,9 @@ class carddav_common
 	}
 
 	public function registerNamespaces($xml) {
-		$xml->registerXPathNamespace('C', self::NSCARDDAV);
-		$xml->registerXPathNamespace('D', self::NSDAV);
+		// Use slightly complex prefixes to avoid conflicts
+		$xml->registerXPathNamespace('RCMCC', self::NSCARDDAV);
+		$xml->registerXPathNamespace('RCMCD', self::NSDAV);
 	}
 
 	// HTTP helpers
@@ -180,6 +185,9 @@ class carddav_common
 				}
 			}
 		}
+		if ($carddav["preemptive_auth"] == '1'){
+			$arguments["Headers"]["Authorization"] = "Basic ".base64_encode($username.":".$password);
+		}
 		$error = $http->Open($arguments);
 		if ($error == ""){
 			$error=$http->SendRequest($arguments);
@@ -187,30 +195,37 @@ class carddav_common
 
 			if ($error == ""){
 				$error=$http->ReadReplyHeaders($headers);
-				if ($error == ""){
-					$scode = $http->response_status;
-					$isRedirect = ($scode>300 && $scode<304) || $scode==307;
-					if( ! // These message types must not include a message-body
-						(($scode>=100 && $scode < 200)
-						|| $scode == 204
-						|| $scode == 304)
-					) {
-						$error = $http->ReadWholeReplyBody($body);
-					}
-					if($isRedirect && strlen($headers['location'])>0) {
-						$url = self::concaturl($baseurl, $headers['location']);
-
-					} else if ($error == ""){
-						$reply["status"] = $scode;
-						$reply["headers"] = $headers;
-						$reply["body"] = $body;
-						$this->debug_http("success: ".var_export($reply, true));
-						return $reply;
-					} else {
-						$this->warn("Could not read reply body: $error");
-					}
+				if ($http->response_status == 401){ # Should be handled by http class, but sometimes isn't...
+					$this->debug("retrying forcefully");
+					$isRedirect = true;
+					$carddav["preemptive_auth"] = "1";
 				} else {
-					$this->warn("Could not read reply header: $error");
+					if ($error == ""){
+						$scode = $http->response_status;
+						$this->debug("Code: $scode");
+						$isRedirect = ($scode>300 && $scode<304) || $scode==307;
+						if( ! // These message types must not include a message-body
+							(($scode>=100 && $scode < 200)
+							|| $scode == 204
+							|| $scode == 304)
+						) {
+							$error = $http->ReadWholeReplyBody($body);
+						}
+						if($isRedirect && strlen($headers['location'])>0) {
+							$url = self::concaturl($baseurl, $headers['location']);
+
+						} else if ($error == ""){
+							$reply["status"] = $scode;
+							$reply["headers"] = $headers;
+							$reply["body"] = $body;
+							$this->debug_http("success: ".var_export($reply, true));
+							return $reply;
+						} else {
+							$this->warn("Could not read reply body: $error");
+						}
+					} else {
+						$this->warn("Could not read reply header: $error");
+					}
 				}
 			} else {
 				$this->warn("Could not send request: $error");
@@ -322,8 +337,10 @@ class carddav_common
 
 	$rcmail = rcmail::get_instance();
 	$prefs = array();
-	if (file_exists("config.inc.php"))
-		require("config.inc.php");
+	$configfile = dirname(__FILE__)."/config.inc.php";
+	if (file_exists($configfile)){
+		require("$configfile");
+	}
 	self::$admin_settings = $prefs;
 
 	if(is_array($prefs['_GLOBAL'])) {

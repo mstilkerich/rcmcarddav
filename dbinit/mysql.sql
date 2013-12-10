@@ -10,12 +10,13 @@ CREATE TABLE IF NOT EXISTS carddav_addressbooks (
 	last_updated TIMESTAMP NOT NULL DEFAULT 0, -- time stamp of the last update of the local database
 	refresh_time TIME NOT NULL DEFAULT '01:00:00', -- time span after that the local database will be refreshed, default 1h
 	sync_token VARCHAR(255) NOT NULL DEFAULT '', -- sync-token the server sent us for the last sync
+	preemptive_auth INT(1) NOT NULL DEFAULT 0, -- should we send Authorization headers preemptively?
 
 	presetname   VARCHAR(64), -- presetname
 
 	PRIMARY KEY(id),
 	FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE
-) /*!40000 ENGINE=INNODB */;
+) CHARACTER SET utf8 COLLATE utf8_unicode_ci /*!40000 ENGINE=INNODB */;
 
 CREATE TABLE IF NOT EXISTS carddav_contacts (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -36,7 +37,7 @@ CREATE TABLE IF NOT EXISTS carddav_contacts (
 	UNIQUE INDEX(uri,abook_id),
 	UNIQUE INDEX(cuid,abook_id),
 	FOREIGN KEY (abook_id) REFERENCES carddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
-) /*!40000 ENGINE=INNODB */;
+) CHARACTER SET utf8 COLLATE utf8_unicode_ci /*!40000 ENGINE=INNODB */;
 
 CREATE TABLE IF NOT EXISTS carddav_xsubtypes (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -46,7 +47,7 @@ CREATE TABLE IF NOT EXISTS carddav_xsubtypes (
 	PRIMARY KEY(id),
 	UNIQUE INDEX(typename,subtype,abook_id),
 	FOREIGN KEY (abook_id) REFERENCES carddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
-) /*!40000 ENGINE=INNODB */;
+) CHARACTER SET utf8 COLLATE utf8_unicode_ci /*!40000 ENGINE=INNODB */;
 
 CREATE TABLE IF NOT EXISTS carddav_groups (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -62,7 +63,7 @@ CREATE TABLE IF NOT EXISTS carddav_groups (
 	UNIQUE(cuid,abook_id),
 
 	FOREIGN KEY (abook_id) REFERENCES carddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
-) /*!40000 ENGINE=INNODB */;
+) CHARACTER SET utf8 COLLATE utf8_unicode_ci /*!40000 ENGINE=INNODB */;
 
 CREATE TABLE IF NOT EXISTS carddav_group_user (
 	group_id   INT UNSIGNED NOT NULL,
@@ -71,5 +72,5 @@ CREATE TABLE IF NOT EXISTS carddav_group_user (
 	PRIMARY KEY(group_id,contact_id),
 	FOREIGN KEY(group_id) REFERENCES carddav_groups(id) ON DELETE CASCADE ON UPDATE CASCADE,
 	FOREIGN KEY(contact_id) REFERENCES carddav_contacts(id) ON DELETE CASCADE ON UPDATE CASCADE
-) /*!40000 ENGINE=INNODB */;
+) CHARACTER SET utf8 COLLATE utf8_unicode_ci /*!40000 ENGINE=INNODB */;
 

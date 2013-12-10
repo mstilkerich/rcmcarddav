@@ -2,7 +2,7 @@
 $labels = Array(
 	'cd_title'=> "CardDAV",
 	'cd_active'=> "Utilizza rubrica CardDAV",
-	'cd_newabboxtitle'=> "Add new Addressbook",
+	'cd_newabboxtitle'=> "Aggiungi una nuova Rubrica",
 	'cd_username'=> "Nome utente",
 	'cd_password'=> "Password",
 	'cd_url'=> "Indirizzo server (URL)",
@@ -10,9 +10,8 @@ $labels = Array(
 	'cd_name'=> "Nome nuova rubrica",
 	'cd_delete'=> "Elimina rubrica",
 	'cd_name_new'=> "Crea una nuova rubrica",
-	'cd_displayorder'=> "Disposizione",
-	'cd_sortorder'=> "Ordinamento",
 	'cd_refresh_time'=> "Frequenza di aggiornamento (ore)",
-	'cd_err_noabfound' => 'no addressbook found',
+	'cd_err_noabfound'=> "Nessuna Rubrica Trovata",
+	'cd_preemptive_auth'=> "Preemptively authenticate against server. Use for ownCloud!",
 );
 ?>
