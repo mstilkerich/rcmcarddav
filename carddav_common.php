@@ -166,7 +166,7 @@ class carddav_common
 		$http=new http_class;
 		$http->timeout=10;
 		$http->data_timeout=0;
-		$http->user_agent="RCM CardDAV plugin/TRUNK";
+		$http->user_agent="RCM CardDAV plugin/0.9.0";
 		$http->prefer_curl=1;
 		$this->debug("$caller requesting $url [RL $redirect_limit]");
 
