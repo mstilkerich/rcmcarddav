@@ -13,6 +13,7 @@ $labels = Array(
 	'cd_name_new' => "Configure new addressbook",
 	'cd_refresh_time' => "Update interval (hours)",
 	'cd_err_noabfound' => 'no addressbook found',
+	'cd_preemptive_auth' => 'Preemptively authenticate against server. Use for ownCloud!',
 	'cd_enabled'=>'Enabled',
 	'cd_disabled'=>'Disabled',
 );

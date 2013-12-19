@@ -1,4 +1,5 @@
-Copy the whole carddav directory to roundcubemail/plugins/
-Add the name of the directory to the $rcmail_config['plugins'] array in roundcubemail/config/main.inc.php
+Copy/Clone the whole plugin directory to roundcubemail/plugins/
+This plugin directory should be renamed to 'carddav'.
+Add 'carddav' to the $rcmail_config['plugins'] array in roundcubemail/config/main.inc.php
 Finally run the respective SQL file found in dbinit/ for the database backend you are using.
 Finish!

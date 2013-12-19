@@ -2,7 +2,7 @@
 $labels = Array(
 	'cd_title'=> "CardDAV",
 	'cd_active'=> "Aktywuj książkę adresową CardDAV",
-	'cd_newabboxtitle'=> "Add new Addressbook",
+	'cd_newabboxtitle'=> "Dodaj nową książkę adresową",
 	'cd_username'=> "Nazwa użytkownika",
 	'cd_password'=> "Hasło",
 	'cd_url'=> "URL",
@@ -10,9 +10,8 @@ $labels = Array(
 	'cd_name'=> "Nazwa książki adresowej",
 	'cd_delete'=> "Usuń książkę adresową",
 	'cd_name_new'=> "Konfiguracja nowej książki adresowej",
-	'cd_displayorder'=> "Kolejność wyświetlania",
-	'cd_sortorder'=> "Kolejność sortowania",
 	'cd_refresh_time'=> "Interwał aktualizacji (godziny)",
-	'cd_err_noabfound' => 'no addressbook found',
+	'cd_err_noabfound'=> "nie znaleziono książek adresowych",
+	'cd_preemptive_auth'=> "Zapobiegawczo uwierzytelnij z serwerem. Używaj dla ownCloud!",
 );
 ?>

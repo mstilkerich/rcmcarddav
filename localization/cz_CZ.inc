@@ -10,9 +10,8 @@ $labels = Array(
 	'cd_name'=> "Název adresáře kontaktů CardDAV",
 	'cd_delete'=> "Odstranit tento adresář kontaktů",
 	'cd_name_new'=> "Nastavit nový adresář kontaktů",
-	'cd_displayorder'=> "Display order",
-	'cd_sortorder'=> "Sort order",
 	'cd_refresh_time'=> "Interval aktualizace (hodiny)",
-	'cd_err_noabfound' => 'no addressbook found',
+	'cd_err_noabfound'=> "no addressbook found",
+	'cd_preemptive_auth'=> "Preemptively authenticate against server. Use for ownCloud!",
 );
 ?>

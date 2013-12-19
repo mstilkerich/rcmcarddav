@@ -143,7 +143,7 @@ class carddav extends rcube_plugin
 			$abname = $preset['name'];
 
 			$discovery = new carddav_discovery();
-			$srvs = $discovery->find_addressbooks($preset['url'], $preset['username'], $preset['password']);
+			$srvs = $discovery->find_addressbooks($preset['url'], $preset['username'], $preset['password'], $preset['preemptive_auth']);
 
 			if(is_array($srvs)) {
 			foreach($srvs as $srv){
@@ -294,6 +294,13 @@ class carddav extends rcube_plugin
 			$content_name = $input->show();
 		}
 
+		if (self::no_override('preemptive_auth', $abook, $prefs)) {
+			$content_preemptive_auth = ($abook['preemptive_auth'] == 1 ? "yes" : "no");
+		} else {
+			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_preemptive_auth', 'value' => 1));
+			$content_preemptive_auth = $checkbox->show($abook['preemptive_auth']);
+		}
+
 		$retval = array(
 			'options' => array(
 				array('title'=> Q($this->gettext('cd_name')), 'content' => $content_name),
@@ -303,6 +310,7 @@ class carddav extends rcube_plugin
 				array('title'=> Q($this->gettext('cd_password')), 'content' => $content_password),
 				array('title'=> Q($this->gettext('cd_url')), 'content' => $content_url),
 				array('title'=> Q($this->gettext('cd_refresh_time')), 'content' => $content_refresh_time),
+				array('title'=> Q($this->gettext('cd_preemptive_auth')), 'content' => $content_preemptive_auth),
 			),
 			'name' => $blockheader
 		);
@@ -322,6 +330,7 @@ class carddav extends rcube_plugin
 		if($args['section'] != 'cd_preferences')
 			return;
 
+		$this->include_stylesheet($this->local_skin_path().'/carddav.css');
 		$this->add_texts('localization/', false);
 		$prefs = carddav_common::get_adminsettings();
 
@@ -337,11 +346,15 @@ class carddav extends rcube_plugin
 
 		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'*','addressbooks',false,'user_id');
 		foreach($abooks as $abook) {
-			$abookid = $abook['id'];
-			$blockhdr = $abook['name'];
-			if($abook['presetname'])
-				$blockhdr .= ' (from preset ' . $abook['presetname'] . ')';
-			$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($blockhdr,$abook,$prefs);
+			$presetname = $abook['presetname'];
+			if (empty($presetname) ||
+				(!isset($prefs[$presetname]['hide']) || (isset($prefs[$presetname]['hide']) && $prefs[$presetname]['hide'] === FALSE))) {
+				$abookid = $abook['id'];
+				$blockhdr = $abook['name'];
+				if($abook['presetname'])
+					$blockhdr .= ' (from preset ' . $abook['presetname'] . ')';
+				$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($blockhdr,$abook,$prefs);
+			}
 		}
 
 		if(!array_key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) {
@@ -365,11 +378,14 @@ class carddav extends rcube_plugin
 	// add a section to the preferences tab
 	function cd_preferences_section($args)
 	{{{
-		$this->add_texts('localization/', false);
-		$args['list']['cd_preferences'] = array(
-			'id'      => 'cd_preferences',
-			'section' => Q($this->gettext('cd_title'))
-		);
+		$prefs = carddav_common::get_adminsettings();
+		if (!isset($prefs['_GLOBAL']['hide_preferences']) || (isset($prefs['_GLOBAL']['hide_preferences']) && $prefs['_GLOBAL']['hide_preferences'] === FALSE)) {
+			$this->add_texts('localization/', false);
+			$args['list']['cd_preferences'] = array(
+				'id'      => 'cd_preferences',
+				'section' => Q($this->gettext('cd_title'))
+			);
+		}
 		return($args);
 	}}}
 
@@ -380,6 +396,9 @@ class carddav extends rcube_plugin
 		if($args['section'] != 'cd_preferences')
 			return;
 		$prefs = carddav_common::get_adminsettings();
+		if (isset($prefs['_GLOBAL']['hide_preferences']) && $prefs['_GLOBAL']['hide_preferences'] === TRUE) {
+			return;
+		}
 
 		// update existing in DB
 		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'id,presetname',
@@ -398,6 +417,7 @@ class carddav extends rcube_plugin
 					'active' => isset($_POST[$abookid.'_cd_active']) ? 1 : 0,
 					'use_categories' => isset($_POST[$abookid.'_cd_use_categories']) ? 1 : 0,
 					'refresh_time' => get_input_value($abookid."_cd_refresh_time", RCUBE_INPUT_POST),
+					'preemptive_auth' => isset($_POST[$abookid."_cd_preemptive_auth"]) ? 1 : 0,
 				);
 
 				// only set the password if the user entered a new one
@@ -426,9 +446,10 @@ class carddav extends rcube_plugin
 			$pass = self::$helper->encrypt_password($pass);
 			$abname = get_input_value('new_cd_name', RCUBE_INPUT_POST);
 			$use_categories = intval(get_input_value('new_cd_use_categories', RCUBE_INPUT_POST, true), 0);
+			$preemptive_auth = isset($_POST["new_cd_preemptive_auth"]) ? 1 : 0;
 
 			$discovery = new carddav_discovery();
-			$srvs = $discovery->find_addressbooks($srv, $usr, $pass);
+			$srvs = $discovery->find_addressbooks($srv, $usr, $pass, $preemptive_auth);
 
 			if(is_array($srvs) && count($srvs)>0) {
 				foreach($srvs as $srv){
@@ -443,7 +464,8 @@ class carddav extends rcube_plugin
 						'password' => $pass,
 						'use_categories' => $use_categories,
 						'url'      => $srv['href'],
-						'refresh_time' => get_input_value('new_cd_refresh_time', RCUBE_INPUT_POST)
+						'refresh_time' => get_input_value('new_cd_refresh_time', RCUBE_INPUT_POST),
+						'preemptive_auth' => $preemptive_auth
 					));
 				}
 			} else {
@@ -489,7 +511,7 @@ class carddav extends rcube_plugin
 	}
 
 	// optional fields
-	$qfo = array('active','presetname','use_categories','refresh_time');
+	$qfo = array('active','presetname','use_categories','refresh_time','preemptive_auth');
 	foreach($qfo as $f) {
 		if(array_key_exists($f,$pa)) {
 			$qf[] = $f;
@@ -517,7 +539,7 @@ class carddav extends rcube_plugin
 		$pa['password'] = self::$helper->encrypt_password($pa['password']);
 
 	// optional fields
-	$qfo=array('name','username','password','url','active','refresh_time','sync_token');
+	$qfo=array('name','username','password','url','active','refresh_time','sync_token','preemptive_auth');
 	$qf=array();
 	$qv=array();
 
