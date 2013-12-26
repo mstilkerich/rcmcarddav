@@ -759,7 +759,7 @@ EOF
 			if($this->config['use_categories']) {
 				// delete current member from groups (will be reinserted if needed below)
 				self::delete_dbrecord($dbid,'group_user','contact_id');
-				foreach ($vcfobj->getCategories() as $category) {
+				foreach ($vcfobj->{'CATEGORIES'} as $category) {
 					if($category !== "All" && $category !== "Unfiled") {
 						$record = self::get_dbrecord($category, 'id', 'groups', true, 'name');
 						if(!$record) {
@@ -775,7 +775,7 @@ EOF
 							$url = preg_replace(';https?://[^/]+;', '', $url);
 							// store group card
 							$vcfg = $this->create_vcard_from_save_data($gsave_data);
-							$vcfgstr = $vcfg->toString();
+							$vcfgstr = $vcfg->serialize();
 							if(!($database = $this->dbstore_group("dummy",$url,$vcfgstr,$gsave_data)))
 								return -1;
 						} else {
@@ -1230,12 +1230,6 @@ EOF
 				'REV' => date('c'),
 			)
 		);
-
-		$vcf = new VCard;
-		if(!$vcf->parse($vcfstr)) {
-			self::$helper->warn("Couldn't parse newly created vcard " . implode("\n", $vcfstr));
-			return false;
-		}
 	} else { // update revision
 		$vcf->REV = date("c");
 	}
@@ -1794,6 +1788,7 @@ EOF
 		// get current DB data
 		$group = self::get_dbrecord($group_id,'uri,etag,vcard,name,cuid','groups');
 		if(!$group)	return false;
+	}
 
 	// get current DB data
 	$group = self::get_dbrecord($group_id,'uri,etag,vcard,name,cuid','groups');
