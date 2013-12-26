@@ -759,7 +759,7 @@ EOF
 			if($this->config['use_categories']) {
 				// delete current member from groups (will be reinserted if needed below)
 				self::delete_dbrecord($dbid,'group_user','contact_id');
-				foreach ($vcfobj->{'CATEGORIES'} as $category) {
+				foreach ($this->getCategories($vcfobj) as $category) {
 					if($category !== "All" && $category !== "Unfiled") {
 						$record = self::get_dbrecord($category, 'id', 'groups', true, 'name');
 						if(!$record) {
@@ -1731,32 +1731,30 @@ EOF
 	private function update_contact_categories($id,$vcf) {
 		$groups = $this->get_record_groups($id);
 		
-		if($vcf->getProperty('CATEGORY')) {
+		if($vcf->{'CATEGORY'}) {
 			$cat_name = "CATEGORY";
 		} else {
-			$cat_name  = "CATEGORIES";
+			$cat_name = "CATEGORIES";
 		}
-		$vcf->deleteProperty($cat_name);
-		$i = 0;
+		$vcf->remove($cat_name);
+		$categories = array();
 		foreach($groups as $group_id => $grpname) {
-			$vcf->setProperty($cat_name, $grpname, 0, $i,'',',');
-			$i++;
+			$categories[] = $grpname;
 		}
+		$vcf->add($cat_name, $categories);
 	}
 	
 	private function update_contacts($ids) {
 		foreach ($ids as $id) {
 			$contact = self::get_dbrecord($id,'id,cuid,uri,etag,vcard,showas');
 			if(!$contact) return false;
-			$vcf = new VCard;
-			if(!$vcf->parse($contact['vcard'])){
-				self::$helper->warn("Update: Couldn't parse local vcard: ".$contact['vcard']);
-				return false;
-			}
+
+			$vcf = $this->create_vcard_from_save_data($save_data);
+			if (!$vcf) return false;
 			
 			$this->update_contact_categories($id,$vcf);
 			
-			$vcfstr = $vcf->toString();
+			$vcfstr = $vcf->serialize();
 			
 			$save_data = $this->create_save_data_from_vcard("$vcfstr")['save_data'];
 			// complete save_data
@@ -2070,6 +2068,36 @@ EOF
 	
 	return $newname;
 	}}}
+
+
+        /**
+         * Returns an array of categories for this card or a one-element array with
+         * the value 'Unfiled' if no CATEGORIES property is found.
+         */
+        function getCategories(&$vcard)
+        {
+                $property = $vcard->{'CATEGORIES'};
+                // The Mac OS X Address Book application uses the CATEGORY property
+                // instead of the CATEGORIES property.
+                if (!$property) {
+                        $property = $vcard->{'CATEGORY'};
+                }
+                return $property->getParts();
+        }
+
+        /**
+         * Returns true if the card belongs to at least one of the categories.
+         */
+        function inCategories(&$vcard, &$categories)
+        {
+                $our_categories = $vcard->getCategories();
+                foreach ($categories as $category) {
+                        if (in_array_case($category, $our_categories)) {
+                                return true;
+                        }
+                }
+                return false;
+        }
 
 	public static function get_dbrecord($id, $cols='*', $table='contacts', $retsingle=true, $idfield='id')
 	{{{
