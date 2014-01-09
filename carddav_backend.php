@@ -1241,6 +1241,20 @@ EOF
 		}
 	}
 
+	// due to a bug in earlier versions of RCMCardDAV the PHOTO field was encoded base64 TWICE
+	// This was recognized and fixed on 2013-01-09 and should be kept here until reasonable
+	// certain that it's been fixed on users data, too.
+	if (!array_key_exists('photo', $save_data) && strlen($vcf->PHOTO) > 0){
+		$save_data['photo']= $vcf->PHOTO;
+	}
+	if (array_key_exists('photo', $save_data) && base64_decode($save_data['photo'], true) !== FALSE){
+		self::$helper->debug("photo is base64 encoded. Decoding...");
+		while(base64_decode($save_data['photo'], true)!==FALSE){
+			self::$helper->debug("Decoding...");
+			$save_data['photo'] = base64_decode($save_data['photo'], true);
+		}
+	}
+
 	// process all simple attributes
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
 		if (array_key_exists($rckey, $save_data)) {
@@ -1599,14 +1613,6 @@ EOF
 	 */
 	private function preprocess_rc_savedata(&$save_data)
 	{{{
-	if (array_key_exists('photo', $save_data)
-		// photos uploaded via the addressbook interface are provided in binary form
-		// photos from other addressbooks (at least roundcubes builtin one) are base64 encoded
-		&& base64_decode($save_data['photo'], true) === FALSE)
-	{
-		$save_data['photo'] = base64_encode($save_data['photo']);
-	}
-
 	// heuristic to determine X-ABShowAs setting
 	// organization set but neither first nor surname => showas company
 	if(!$save_data['surname'] && !$save_data['firstname']
