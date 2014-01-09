@@ -22,9 +22,9 @@
 		<email>ms@mike2k.de</email>
 		<active>yes</active>
 	</developer>
-	<date>2012-08-10</date>
+	<date>2014-04-09</date>
 	<version>
-		<release>0.9.1-dev</release>
+		<release>0.9.1</release>
 	</version>
 	<stability>
 		<release>devel</release>
