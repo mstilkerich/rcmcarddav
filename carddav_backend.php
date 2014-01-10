@@ -1247,11 +1247,15 @@ EOF
 	if (!array_key_exists('photo', $save_data) && strlen($vcf->PHOTO) > 0){
 		$save_data['photo']= $vcf->PHOTO;
 	}
-	if (array_key_exists('photo', $save_data) && base64_decode($save_data['photo'], true) !== FALSE){
+	if (array_key_exists('photo', $save_data) && strlen($save_data['photo']) > 0 && base64_decode($save_data['photo'], true) !== FALSE){
 		self::$helper->debug("photo is base64 encoded. Decoding...");
-		while(base64_decode($save_data['photo'], true)!==FALSE){
-			self::$helper->debug("Decoding...");
+		$i=0;
+		while(base64_decode($save_data['photo'], true)!==FALSE && $i++ < 10){
+			self::$helper->debug("Decoding $i...");
 			$save_data['photo'] = base64_decode($save_data['photo'], true);
+		}
+		if ($i >= 10){
+			lef::$helper->warn("PHOTO of ".$save_data['uid']." does not decode after 10 attempts...");
 		}
 	}
 
