@@ -1832,8 +1832,12 @@ EOF
 	{{{
 	$this->group_id = $gid;
 	$this->total_cards = -1;
-	$this->filter = "EXISTS(SELECT * FROM ".get_table_name("carddav_group_user")."
-		WHERE group_id = '{$gid}' AND contact_id = ".get_table_name("carddav_contacts").".id)";
+	if ($gid) {
+		$this->filter = "EXISTS(SELECT * FROM ".get_table_name("carddav_group_user")."
+			WHERE group_id = '{$gid}' AND contact_id = ".get_table_name("carddav_contacts").".id)";
+	} else {
+		$this->filter = '';
+	}
 	}}}
 
 	/**
