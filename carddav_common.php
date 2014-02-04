@@ -150,13 +150,19 @@ class carddav_common
 	// determine calling function for debug output
 	$caller=self::getCaller();
 
+	$local = $rcmail->user->get_username('local');
+
 	// Substitute Placeholders
 	if($username == '%u')
 		$username = $_SESSION['username'];
+	if($username == '%l')
+		$username = $local;
 	if($password == '%p')
 		$password = $rcmail->decrypt($_SESSION['password']);
 	$baseurl = str_replace("%u", $username, $carddav['url']);
 	$url = str_replace("%u", $username, $url);
+	$baseurl = str_replace("%l", $local, $carddav['url']);
+	$url = str_replace("%l", $local, $url);
 
 	// if $url is relative, prepend the base url
 	$url = self::concaturl($baseurl, $url);
