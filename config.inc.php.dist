@@ -70,10 +70,11 @@ $prefs['<Presetname>'] = array(
 //               if carddav_name_only is true (see below).
 //
 // username:     CardDAV username to access the addressbook. Set this setting
-//               to '%u' to use the roundcube username. In case one uses an
-//               email address as username there is the additional option to
-//               choose '%l', which will only use the local part of the
-//               username.
+//               to '%u' to use the roundcube username.
+//               In case one uses an email address as username there is the
+//               additional option to choose '%l', which will only use the
+//               local part of the username (eg: user.name@example.com will
+//               become user.name).
 //
 // password:     CardDAV password to access the addressbook. Set this setting
 //               to '%p' to use the roundcube password. The password will not
