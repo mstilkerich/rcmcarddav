@@ -6,7 +6,7 @@ CREATE SEQUENCE carddav_addressbook_ids
 
 -- table to store the configured address books
 
-CREATE TABLE carddav_addressbooks (
+CREATE TABLE IF NOT EXISTS carddav_addressbooks (
 	id integer DEFAULT nextval('carddav_addressbook_ids'::text) PRIMARY KEY,
 	name VARCHAR(64) NOT NULL,
 	username VARCHAR(64) NOT NULL,
@@ -28,7 +28,7 @@ CREATE SEQUENCE carddav_contact_ids
 		MINVALUE 1
     CACHE 1;
 
-CREATE TABLE carddav_contacts (
+CREATE TABLE IF NOT EXISTS carddav_contacts (
 	id integer DEFAULT nextval('carddav_contact_ids'::text) PRIMARY KEY,
 	abook_id integer NOT NULL REFERENCES carddav_addressbooks (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	name VARCHAR(255)     NOT NULL, -- display name
@@ -54,7 +54,7 @@ CREATE SEQUENCE carddav_xsubtype_ids
 		MINVALUE 1
     CACHE 1;
 
-CREATE TABLE carddav_xsubtypes (
+CREATE TABLE IF NOT EXISTS carddav_xsubtypes (
 	id integer DEFAULT nextval('carddav_xsubtype_ids'::text) PRIMARY KEY,
 	typename VARCHAR(128) NOT NULL,  -- name of the type
 	subtype  VARCHAR(128) NOT NULL,  -- name of the subtype
@@ -68,7 +68,7 @@ CREATE SEQUENCE carddav_group_ids
 		MINVALUE 1
     CACHE 1;
 
-CREATE TABLE carddav_groups (
+CREATE TABLE IF NOT EXISTS carddav_groups (
 	id integer DEFAULT nextval('carddav_group_ids'::text) PRIMARY KEY,
 	abook_id integer NOT NULL REFERENCES carddav_addressbooks (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	name VARCHAR(255) NOT NULL, -- display name
@@ -81,7 +81,7 @@ CREATE TABLE carddav_groups (
 	UNIQUE(cuid,abook_id)
 );
 
-CREATE TABLE carddav_group_user (
+CREATE TABLE IF NOT EXISTS carddav_group_user (
 	group_id   integer NOT NULL,
 	contact_id integer NOT NULL,
 
