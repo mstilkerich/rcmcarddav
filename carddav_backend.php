@@ -328,11 +328,7 @@ class carddav_backend extends rcube_addressbook
 			' (' . implode(',',$xcol) . ') VALUES (?' . str_repeat(',?', count($xcol)-1) .')',
 				$xval);
 
-		// XXX the parameter is the sequence name for postgres; it doesn't work
-		// when using the name of the table. For some reason it still provides
-		// the correct ID for MySQL...
-		$seqname = preg_replace('/s$/', '', $table);
-		$dbid = $dbh->insert_id("carddav_$seqname"."_ids");
+		$dbid = $dbh->insert_id("carddav_$table");
 	}
 
 	if($dbh->is_error()) {
