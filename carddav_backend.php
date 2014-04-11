@@ -2082,7 +2082,10 @@ EOF
                 if (!$property) {
                         $property = $vcard->{'CATEGORY'};
                 }
-                return $property->getParts();
+                if ($property) {
+                        return $property->getParts();
+                }
+                return array();
         }
 
         /**
