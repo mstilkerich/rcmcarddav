@@ -74,7 +74,11 @@ class carddav_common
 	private function getCaller()
 	{{{
 	// determine calling function for debug output
-	$caller=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS,3);
+	if (version_compare(PHP_VERSION, "5.4", ">=")){
+		$caller=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS,3);
+	} else {
+		$caller=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+	}
 	$caller=$caller[2]['function'];
 	return $caller;
 	}}}
@@ -115,8 +119,9 @@ class carddav_common
 	}
 
 	public function registerNamespaces($xml) {
-		$xml->registerXPathNamespace('C', self::NSCARDDAV);
-		$xml->registerXPathNamespace('D', self::NSDAV);
+		// Use slightly complex prefixes to avoid conflicts
+		$xml->registerXPathNamespace('RCMCC', self::NSCARDDAV);
+		$xml->registerXPathNamespace('RCMCD', self::NSDAV);
 	}
 
 	// HTTP helpers
@@ -145,13 +150,19 @@ class carddav_common
 	// determine calling function for debug output
 	$caller=self::getCaller();
 
+	$local = $rcmail->user->get_username('local');
+
 	// Substitute Placeholders
 	if($username == '%u')
 		$username = $_SESSION['username'];
+	if($username == '%l')
+		$username = $local;
 	if($password == '%p')
 		$password = $rcmail->decrypt($_SESSION['password']);
 	$baseurl = str_replace("%u", $username, $carddav['url']);
 	$url = str_replace("%u", $username, $url);
+	$baseurl = str_replace("%l", $local, $carddav['url']);
+	$url = str_replace("%l", $local, $url);
 
 	// if $url is relative, prepend the base url
 	$url = self::concaturl($baseurl, $url);
@@ -161,9 +172,9 @@ class carddav_common
 		$http=new http_class;
 		$http->timeout=10;
 		$http->data_timeout=0;
-		$http->user_agent="RCM CardDAV plugin/TRUNK";
+		$http->user_agent="RCM CardDAV plugin/1.0.0";
 		$http->prefer_curl=1;
-		$this->debug("$caller requesting $url [RL $redirect_limit]");
+		if (self::DEBUG){ $this->debug("$caller requesting $url [RL $redirect_limit]"); }
 
 		$url = preg_replace(";://;", "://".urlencode($username).":".urlencode($password)."@", $url);
 		$error = $http->GetRequestArguments($url,$arguments);
@@ -180,44 +191,54 @@ class carddav_common
 				}
 			}
 		}
+		if ($carddav["preemptive_auth"] == '1'){
+			$arguments["Headers"]["Authorization"] = "Basic ".base64_encode($username.":".$password);
+		}
 		$error = $http->Open($arguments);
 		if ($error == ""){
 			$error=$http->SendRequest($arguments);
-			$this->debug_http("SendRequest: ".var_export($http, true));
+			if (self::DEBUG_HTTP){ $this->debug_http("SendRequest: ".var_export($http, true)); }
 
 			if ($error == ""){
 				$error=$http->ReadReplyHeaders($headers);
-				if ($error == ""){
-					$scode = $http->response_status;
-					$isRedirect = ($scode>300 && $scode<304) || $scode==307;
-					if( ! // These message types must not include a message-body
-						(($scode>=100 && $scode < 200)
-						|| $scode == 204
-						|| $scode == 304)
-					) {
-						$error = $http->ReadWholeReplyBody($body);
-					}
-					if($isRedirect && strlen($headers['location'])>0) {
-						$url = self::concaturl($baseurl, $headers['location']);
-
-					} else if ($error == ""){
-						$reply["status"] = $scode;
-						$reply["headers"] = $headers;
-						$reply["body"] = $body;
-						$this->debug_http("success: ".var_export($reply, true));
-						return $reply;
-					} else {
-						$this->warn("Could not read reply body: $error");
-					}
+				if ($http->response_status == 401){ # Should be handled by http class, but sometimes isn't...
+					if (self::DEBUG){ $this->debug("retrying forcefully"); }
+					$isRedirect = true;
+					$carddav["preemptive_auth"] = "1";
 				} else {
-					$this->warn("Could not read reply header: $error");
+					if ($error == ""){
+						$scode = $http->response_status;
+						if (self::DEBUG){ $this->debug("Code: $scode"); }
+						$isRedirect = ($scode>300 && $scode<304) || $scode==307;
+						if( ! // These message types must not include a message-body
+							(($scode>=100 && $scode < 200)
+							|| $scode == 204
+							|| $scode == 304)
+						) {
+							$error = $http->ReadWholeReplyBody($body);
+						}
+						if($isRedirect && strlen($headers['location'])>0) {
+							$url = self::concaturl($baseurl, $headers['location']);
+
+						} else if ($error == ""){
+							$reply["status"] = $scode;
+							$reply["headers"] = $headers;
+							$reply["body"] = $body;
+							if (self::DEBUG_HTTP){ $this->debug_http("success: ".var_export($reply, true)); }
+							return $reply;
+						} else {
+							$this->warn("Could not read reply body: $error");
+						}
+					} else {
+						$this->warn("Could not read reply header: $error");
+					}
 				}
 			} else {
 				$this->warn("Could not send request: $error");
 			}
 		} else {
 			$this->warn("Could not open: $error");
-			$this->debug_http("failed: ".var_export($http, true));
+			if (self::DEBUG_HTTP){ $this->debug_http("failed: ".var_export($http, true)); }
 			return -1;
 		}
 
@@ -322,8 +343,10 @@ class carddav_common
 
 	$rcmail = rcmail::get_instance();
 	$prefs = array();
-	if (file_exists("config.inc.php"))
-		require("config.inc.php");
+	$configfile = dirname(__FILE__)."/config.inc.php";
+	if (file_exists($configfile)){
+		require("$configfile");
+	}
 	self::$admin_settings = $prefs;
 
 	if(is_array($prefs['_GLOBAL'])) {

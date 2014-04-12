@@ -1,0 +1,36 @@
+{
+    "name": "roundcube/carddav",
+    "type": "roundcube-plugin",
+    "description": "CardDAV adapter for connecting to CardDAV-enabled addressbooks",
+    "keywords": ["addressbook","carddav","contacts","owncloud","davical"],
+    "homepage": "http://www.crash-override.net/carddav.html",
+    "license": "GPL-2.0",
+    "authors": [
+        {
+            "name": "Benjamin Schieder",
+            "email": "blindcoder@scavenger.homeip.net",
+            "homepage": "http://www.crash-override.net",
+            "role": "Developer"
+        },
+        {
+            "name": "Michael Stilkerich",
+            "email": "michael@stilkerich.eu",
+            "role": "Developer"
+        },
+    ],
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "git://github.com/blind-coder/rcmcarddav.git"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.0",
+        "roundcube/plugin-installer": ">=0.1.2"
+    },
+    "extra": {
+        "roundcube": {
+            "min-version": "0.6.0"
+        }
+    }
+}

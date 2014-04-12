@@ -13,6 +13,9 @@
 // are not affected.
 // $prefs['_GLOBAL']['fixed'] = true;
 
+// When enabled, this option hides the 'CardDAV' section inside Preferences.
+// $prefs['_GLOBAL']['hide_preferences'] = true;
+
 // Scheme for storing the CardDAV passwords.
 // Options:
 // plain: store as plaintext
@@ -38,10 +41,15 @@ $prefs['<Presetname>'] = array(
 	'active'       =>  <true or false>,
 	'readonly'     =>  <true or false>,
 	'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
+	'preemptive_auth' => <1 or 0>,
 
 	// attributes that are fixed (i.e., not editable by the user) and
 	// auto-updated for this preset
 	'fixed'        =>  array( < 0 or more of the other attribute keys > ),
+
+	// hide this preset from CalDAV preferences section so users can't even
+	// see it
+	'hide' => <true or false>,
 );
 */
 
@@ -63,6 +71,10 @@ $prefs['<Presetname>'] = array(
 //
 // username:     CardDAV username to access the addressbook. Set this setting
 //               to '%u' to use the roundcube username.
+//               In case one uses an email address as username there is the
+//               additional option to choose '%l', which will only use the
+//               local part of the username (eg: user.name@example.com will
+//               become user.name).
 //
 // password:     CardDAV password to access the addressbook. Set this setting
 //               to '%p' to use the roundcube password. The password will not
@@ -75,6 +87,7 @@ $prefs['<Presetname>'] = array(
 //               addressbook, the server will be queried for the available
 //               addressbooks and all of them will be added. You can use %u
 //               within the URL as a placeholder for the CardDAV username.
+//               '%l' works the same way as it does for the username field.
 //
 // The following parameters are OPTIONAL and need to be specified only if the default
 // value is not acceptable.
@@ -100,6 +113,13 @@ $prefs['<Presetname>'] = array(
 //               refreshed when the addressbook is accessed the next time.
 //               Default: 01:00:00
 //
+// preemptive_auth:
+//               If this parameter is 1, the authentication headers will be sent
+//               automatically with every request, regardless of the server
+//               requesting them or not.
+//               This must be set for ownCloud to work correctly.
+//               Default: 0
+//
 // fixed:        Array of parameter keys that must not be changed by the user.
 //               Note that only fixed parameters will be automatically updated
 //               for existing addressbooks created from presets. Otherwise the
@@ -124,6 +144,9 @@ $prefs['<Presetname>'] = array(
 //                 change the key of the preset and change the URL. Addressbooks
 //                 belonging to the old preset will be deleted upon the next
 //                 login of the user and freshly created.
+//
+// hide:         Whether this preset should be hidden from the CalDAV listing
+//               on the preferences page.
 
 
 // How Preset Updates work
@@ -149,6 +172,7 @@ $prefs['Personal'] = array(
 	'refresh_time' => '02:00:00',
 
 	'fixed'        =>  array( 'username' ),
+	'hide'        =>  false,
 );
 */
 
@@ -161,5 +185,6 @@ $prefs['Work'] = array(
 	'url'          =>  'https://ical.example.org/caldav.php/%u/Corporate',
 
 	'fixed'        =>  array( 'name', 'username', 'password' ),
+	'hide'        =>  true,
 );
 */
