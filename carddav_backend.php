@@ -328,11 +328,7 @@ class carddav_backend extends rcube_addressbook
 			' (' . implode(',',$xcol) . ') VALUES (?' . str_repeat(',?', count($xcol)-1) .')',
 				$xval);
 
-		// XXX the parameter is the sequence name for postgres; it doesn't work
-		// when using the name of the table. For some reason it still provides
-		// the correct ID for MySQL...
-		$seqname = preg_replace('/s$/', '', $table);
-		$dbid = $dbh->insert_id("carddav_$seqname"."_ids");
+		$dbid = $dbh->insert_id("carddav_$table");
 	}
 
 	if($dbh->is_error()) {
@@ -1277,6 +1273,24 @@ EOF
 		}
 	}
 
+	// due to a bug in earlier versions of RCMCardDAV the PHOTO field was encoded base64 TWICE
+	// This was recognized and fixed on 2013-01-09 and should be kept here until reasonable
+	// certain that it's been fixed on users data, too.
+	if (!array_key_exists('photo', $save_data) && strlen($vcf->PHOTO) > 0){
+		$save_data['photo']= $vcf->PHOTO;
+	}
+	if (array_key_exists('photo', $save_data) && strlen($save_data['photo']) > 0 && base64_decode($save_data['photo'], true) !== FALSE){
+		self::$helper->debug("photo is base64 encoded. Decoding...");
+		$i=0;
+		while(base64_decode($save_data['photo'], true)!==FALSE && $i++ < 10){
+			self::$helper->debug("Decoding $i...");
+			$save_data['photo'] = base64_decode($save_data['photo'], true);
+		}
+		if ($i >= 10){
+			lef::$helper->warn("PHOTO of ".$save_data['uid']." does not decode after 10 attempts...");
+		}
+	}
+
 	// process all simple attributes
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
 		if (array_key_exists($rckey, $save_data)) {
@@ -1635,14 +1649,6 @@ EOF
 	 */
 	private function preprocess_rc_savedata(&$save_data)
 	{{{
-	if (array_key_exists('photo', $save_data)
-		// photos uploaded via the addressbook interface are provided in binary form
-		// photos from other addressbooks (at least roundcubes builtin one) are base64 encoded
-		&& base64_decode($save_data['photo'], true) === FALSE)
-	{
-		$save_data['photo'] = base64_encode($save_data['photo']);
-	}
-
 	// heuristic to determine X-ABShowAs setting
 	// organization set but neither first nor surname => showas company
 	if(!$save_data['surname'] && !$save_data['firstname']
@@ -1871,15 +1877,11 @@ EOF
 		$vcfstr = $vcf->serialize();
 		if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
 			return false;
+	}
+	if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
+		return false;
 
-		if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
-			return false;
-	}
-	self::delete_dbrecord($ids,'group_user','contact_id', ' AND group_id='.$group_id);
-	if($this->config['use_categories']) {
-		$this->update_contacts($ids);
-		$deleted=count($ids);
-	}
+	self::delete_dbrecord($ids,'group_user','contact_id', array('group_id' => $group_id));
 	return $deleted;
 	}}}
 
@@ -1914,8 +1916,12 @@ EOF
 	{{{
 	$this->group_id = $gid;
 	$this->total_cards = -1;
-	$this->filter = "EXISTS(SELECT * FROM ".get_table_name("carddav_group_user")."
-		WHERE group_id = '{$gid}' AND contact_id = ".get_table_name("carddav_contacts").".id)";
+	if ($gid) {
+		$this->filter = "EXISTS(SELECT * FROM ".get_table_name("carddav_group_user")."
+			WHERE group_id = '{$gid}' AND contact_id = ".get_table_name("carddav_contacts").".id)";
+	} else {
+		$this->filter = '';
+	}
 	}}}
 
 	/**
@@ -2120,7 +2126,7 @@ EOF
 	return $ret;
 	}}}
 
-	public static function delete_dbrecord($ids, $table='contacts', $idfield='id', $add_rule='')
+	public static function delete_dbrecord($ids, $table='contacts', $idfield='id', $other_conditions = array())
 	{{{
 	$dbh = rcmail::get_instance()->db;
 
@@ -2134,9 +2140,14 @@ EOF
 	}
 
 	$idfield = $dbh->quoteIdentifier($idfield);
-	$sql_result = $dbh->query("DELETE FROM " .
-		get_table_name("carddav_$table") .
-		" WHERE $idfield $dspec" . $add_rule);
+	$sql = "DELETE FROM " . get_table_name("carddav_$table") . " WHERE $idfield $dspec";
+
+	// Append additional conditions
+	foreach ($other_conditions as $field => $value) {
+		$sql .= ' AND ' . $dbh->quoteIdentifier($field) . ' = ' . $dbh->quote($value);
+	}
+
+	$sql_result = $dbh->query($sql);
 	return $dbh->affected_rows($sql_result);
 	}}}
 

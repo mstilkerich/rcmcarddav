@@ -1,4 +1,4 @@
-CREATE SEQUENCE carddav_addressbook_ids
+CREATE SEQUENCE carddav_addressbooks_seq
     INCREMENT BY 1
     NO MAXVALUE
 		MINVALUE 1
@@ -7,7 +7,7 @@ CREATE SEQUENCE carddav_addressbook_ids
 -- table to store the configured address books
 
 CREATE TABLE carddav_addressbooks (
-	id integer DEFAULT nextval('carddav_addressbook_ids'::text) PRIMARY KEY,
+	id integer DEFAULT nextval('carddav_addressbooks_seq'::text) PRIMARY KEY,
 	name VARCHAR(64) NOT NULL,
 	username VARCHAR(64) NOT NULL,
 	password VARCHAR(255) NOT NULL,
@@ -22,14 +22,14 @@ CREATE TABLE carddav_addressbooks (
 	presetname VARCHAR(64) -- presetname
 );
 
-CREATE SEQUENCE carddav_contact_ids
+CREATE SEQUENCE carddav_contacts_seq
     INCREMENT BY 1
     NO MAXVALUE
 		MINVALUE 1
     CACHE 1;
 
 CREATE TABLE carddav_contacts (
-	id integer DEFAULT nextval('carddav_contact_ids'::text) PRIMARY KEY,
+	id integer DEFAULT nextval('carddav_contacts_seq'::text) PRIMARY KEY,
 	abook_id integer NOT NULL REFERENCES carddav_addressbooks (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	name VARCHAR(255)     NOT NULL, -- display name
 	email VARCHAR(255), -- ", " separated list of mail addresses
@@ -48,28 +48,28 @@ CREATE TABLE carddav_contacts (
 
 CREATE INDEX carddav_contacts_abook_id_idx ON carddav_contacts(abook_id);
 
-CREATE SEQUENCE carddav_xsubtype_ids
+CREATE SEQUENCE carddav_xsubtypes_seq
     INCREMENT BY 1
     NO MAXVALUE
 		MINVALUE 1
     CACHE 1;
 
 CREATE TABLE carddav_xsubtypes (
-	id integer DEFAULT nextval('carddav_xsubtype_ids'::text) PRIMARY KEY,
+	id integer DEFAULT nextval('carddav_xsubtypes_seq'::text) PRIMARY KEY,
 	typename VARCHAR(128) NOT NULL,  -- name of the type
 	subtype  VARCHAR(128) NOT NULL,  -- name of the subtype
 	abook_id integer NOT NULL REFERENCES carddav_addressbooks (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	UNIQUE (typename,subtype,abook_id) 
 );
 
-CREATE SEQUENCE carddav_group_ids
+CREATE SEQUENCE carddav_groups_seq
     INCREMENT BY 1
     NO MAXVALUE
 		MINVALUE 1
     CACHE 1;
 
 CREATE TABLE carddav_groups (
-	id integer DEFAULT nextval('carddav_group_ids'::text) PRIMARY KEY,
+	id integer DEFAULT nextval('carddav_groups_seq'::text) PRIMARY KEY,
 	abook_id integer NOT NULL REFERENCES carddav_addressbooks (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	name VARCHAR(255) NOT NULL, -- display name
 	vcard TEXT NOT NULL,        -- complete vcard
@@ -81,7 +81,7 @@ CREATE TABLE carddav_groups (
 	UNIQUE(cuid,abook_id)
 );
 
-CREATE TABLE carddav_group_user (
+CREATE TABLE IF NOT EXISTS carddav_group_user (
 	group_id   integer NOT NULL,
 	contact_id integer NOT NULL,
 

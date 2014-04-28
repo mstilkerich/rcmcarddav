@@ -71,6 +71,10 @@ $prefs['<Presetname>'] = array(
 //
 // username:     CardDAV username to access the addressbook. Set this setting
 //               to '%u' to use the roundcube username.
+//               In case one uses an email address as username there is the
+//               additional option to choose '%l', which will only use the
+//               local part of the username (eg: user.name@example.com will
+//               become user.name).
 //
 // password:     CardDAV password to access the addressbook. Set this setting
 //               to '%p' to use the roundcube password. The password will not
@@ -83,6 +87,7 @@ $prefs['<Presetname>'] = array(
 //               addressbook, the server will be queried for the available
 //               addressbooks and all of them will be added. You can use %u
 //               within the URL as a placeholder for the CardDAV username.
+//               '%l' works the same way as it does for the username field.
 //
 // The following parameters are OPTIONAL and need to be specified only if the default
 // value is not acceptable.

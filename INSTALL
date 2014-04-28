@@ -1,5 +1,27 @@
-Copy/Clone the whole plugin directory to roundcubemail/plugins/
-This plugin directory should be renamed to 'carddav'.
-Add 'carddav' to the $rcmail_config['plugins'] array in roundcubemail/config/main.inc.php
-Finally run the respective SQL file found in dbinit/ for the database backend you are using.
-Finish!
+1. Copy/Clone the whole plugin directory to roundcubemail/plugins/ and rename
+the directory to `carddav'.
+
+2. Change to the directory roundcubemail/plugins/carddav/dbinit and
+create/update the required database tables by executing one of the following
+commands (depening on the database you are using):
+	MySQL     : mysql -h [db-server-name] -u [user] -p -D roundcubemail <./mysql.sql
+	PostgreSQL: psql -h[db-server-name] -Upostgres <./postgres.sql
+	SQLite3   : sqlite3 [roundcube-data-path]/roundcubemail.db < sqlite3.sql
+
+3. Change to the plugin directory roundcubemail/plugins/carddav and copy the
+file `config.inc.php.dist' to `config.inc.php' to create the initial plugin
+configuration file.
+
+4. If necessary customize the default plugin setting in the file created in
+step 3.
+
+5. Make sure that the file and directory ownership match the user which is used
+to run your web server, e.g.:
+	chown -R wwwrun  roundcubemail/plugins/carddav
+	chgrp -R nogroup roundcubemail/plugins/carddav
+
+6. Add `carddav' to the $rcmail_config['plugins'] array in
+roundcubemail/config/main.inc.php
+
+7. Login to Roundcube and set-up your first CardDAV address book by accessing
+'Settings -> Settings -> CardDAV' .

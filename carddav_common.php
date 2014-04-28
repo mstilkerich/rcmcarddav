@@ -150,13 +150,19 @@ class carddav_common
 	// determine calling function for debug output
 	$caller=self::getCaller();
 
+	$local = $rcmail->user->get_username('local');
+
 	// Substitute Placeholders
 	if($username == '%u')
 		$username = $_SESSION['username'];
+	if($username == '%l')
+		$username = $local;
 	if($password == '%p')
 		$password = $rcmail->decrypt($_SESSION['password']);
 	$baseurl = str_replace("%u", $username, $carddav['url']);
 	$url = str_replace("%u", $username, $url);
+	$baseurl = str_replace("%l", $local, $carddav['url']);
+	$url = str_replace("%l", $local, $url);
 
 	// if $url is relative, prepend the base url
 	$url = self::concaturl($baseurl, $url);
@@ -166,9 +172,9 @@ class carddav_common
 		$http=new http_class;
 		$http->timeout=10;
 		$http->data_timeout=0;
-		$http->user_agent="RCM CardDAV plugin/0.9.0";
+		$http->user_agent="RCM CardDAV plugin/1.0.0";
 		$http->prefer_curl=1;
-		$this->debug("$caller requesting $url [RL $redirect_limit]");
+		if (self::DEBUG){ $this->debug("$caller requesting $url [RL $redirect_limit]"); }
 
 		$url = preg_replace(";://;", "://".urlencode($username).":".urlencode($password)."@", $url);
 		$error = $http->GetRequestArguments($url,$arguments);
@@ -191,18 +197,18 @@ class carddav_common
 		$error = $http->Open($arguments);
 		if ($error == ""){
 			$error=$http->SendRequest($arguments);
-			$this->debug_http("SendRequest: ".var_export($http, true));
+			if (self::DEBUG_HTTP){ $this->debug_http("SendRequest: ".var_export($http, true)); }
 
 			if ($error == ""){
 				$error=$http->ReadReplyHeaders($headers);
 				if ($http->response_status == 401){ # Should be handled by http class, but sometimes isn't...
-					$this->debug("retrying forcefully");
+					if (self::DEBUG){ $this->debug("retrying forcefully"); }
 					$isRedirect = true;
 					$carddav["preemptive_auth"] = "1";
 				} else {
 					if ($error == ""){
 						$scode = $http->response_status;
-						$this->debug("Code: $scode");
+						if (self::DEBUG){ $this->debug("Code: $scode"); }
 						$isRedirect = ($scode>300 && $scode<304) || $scode==307;
 						if( ! // These message types must not include a message-body
 							(($scode>=100 && $scode < 200)
@@ -218,7 +224,7 @@ class carddav_common
 							$reply["status"] = $scode;
 							$reply["headers"] = $headers;
 							$reply["body"] = $body;
-							$this->debug_http("success: ".var_export($reply, true));
+							if (self::DEBUG_HTTP){ $this->debug_http("success: ".var_export($reply, true)); }
 							return $reply;
 						} else {
 							$this->warn("Could not read reply body: $error");
@@ -232,7 +238,7 @@ class carddav_common
 			}
 		} else {
 			$this->warn("Could not open: $error");
-			$this->debug_http("failed: ".var_export($http, true));
+			if (self::DEBUG_HTTP){ $this->debug_http("failed: ".var_export($http, true)); }
 			return -1;
 		}
 
