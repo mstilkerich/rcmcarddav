@@ -1142,7 +1142,7 @@ EOF
 		'method'=>"PUT",
 		'content'=>$vcf,
 		'header'=> array(
-			"Content-Type: text/vcard;charset=utf-8",
+			"Content-Type: text/vcard; charset=\"utf-8\"",
 			$matchhdr,
 		),
 	);
