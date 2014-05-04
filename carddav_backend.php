@@ -1991,8 +1991,8 @@ EOF
 		$url = carddav_common::concaturl($this->config['url'], $uri);
 		$url = preg_replace(';https?://[^/]+;', '', $url);
 	} else {
-		$etag="dummy";
-		$url="dummy";
+		$etag="dummy".$name;
+		$url="dummy".$name;
 	}
 	if(!($dbid = $this->dbstore_group($etag,$url,$vcfstr,$save_data)))
 		return false;
