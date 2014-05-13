@@ -11,14 +11,17 @@ use
 /**
  * DateTime property
  *
- * This object represents DATE-TIME and DATE values, as defined here:
+ * This object represents DATE-TIME values, as defined here:
  *
  * http://tools.ietf.org/html/rfc5545#section-3.3.4
- * http://tools.ietf.org/html/rfc5545#section-3.3.5
  *
- * @copyright Copyright (C) 2007-2013 fruux GmbH. All rights reserved.
+ * This particular object has a bit of hackish magic that it may also in some
+ * cases represent a DATE value. This is because it's a common usecase to be
+ * able to change a DATE-TIME into a DATE.
+ *
+ * @copyright Copyright (C) 2007-2014 fruux GmbH. All rights reserved.
  * @author Evert Pot (http://evertpot.com/)
- * @license http://code.google.com/p/sabredav/wiki/License Modified BSD License
+ * @license http://sabre.io/license/ Modified BSD License
  */
 class DateTime extends Property {
 
@@ -26,9 +29,9 @@ class DateTime extends Property {
      * In case this is a multi-value property. This string will be used as a
      * delimiter.
      *
-     * @var string
+     * @var string|null
      */
-    protected $delimiter = ',';
+    public $delimiter = ',';
 
     /**
      * Sets a multi-valued property.
@@ -263,6 +266,27 @@ class DateTime extends Property {
     }
 
     /**
+     * Sets the json value, as it would appear in a jCard or jCal object.
+     *
+     * The value must always be an array.
+     *
+     * @param array $value
+     * @return void
+     */
+    public function setJsonValue(array $value) {
+
+        // dates and times in jCal have one difference to dates and times in
+        // iCalendar. In jCal date-parts are separated by dashes, and
+        // time-parts are separated by colons. It makes sense to just remove
+        // those.
+        $this->setValue(array_map(function($item) {
+
+            return strtr($item, array(':'=>'', '-'=>''));
+
+        }, $value));
+
+    }
+    /**
      * We need to intercept offsetSet, because it may be used to alter the
      * VALUE from DATE-TIME to DATE or vice-versa.
      *
@@ -279,6 +303,52 @@ class DateTime extends Property {
 
         // This will ensure that dates are correctly encoded.
         $this->setDateTimes($this->getDateTimes());
+
+    }
+
+    /**
+     * Validates the node for correctness.
+     *
+     * The following options are supported:
+     *   Node::REPAIR - May attempt to automatically repair the problem.
+     *
+     * This method returns an array with detected problems.
+     * Every element has the following properties:
+     *
+     *  * level - problem level.
+     *  * message - A human-readable string describing the issue.
+     *  * node - A reference to the problematic node.
+     *
+     * The level means:
+     *   1 - The issue was repaired (only happens if REPAIR was turned on)
+     *   2 - An inconsequential issue
+     *   3 - A severe issue.
+     *
+     * @param int $options
+     * @return array
+     */
+    public function validate($options = 0) {
+
+        $messages = parent::validate($options);
+        $valueType = $this->getValueType();
+        $value = $this->getValue();
+        try {
+            switch($valueType) {
+                case 'DATE' :
+                    $foo = DateTimeParser::parseDate($value);
+                    break;
+                case 'DATE-TIME' :
+                    $foo = DateTimeParser::parseDateTime($value);
+                    break;
+            }
+        } catch (\LogicException $e) {
+            $messages[] = array(
+                'level' => 3,
+                'message' => 'The supplied value (' . $value . ') is not a correct ' . $valueType,
+                'node' => $this,
+            );
+        }
+        return $messages;
 
     }
 }

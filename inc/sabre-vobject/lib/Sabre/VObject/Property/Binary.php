@@ -16,13 +16,45 @@ use
  *
  * This property will transparently encode and decode to base64.
  *
- * @copyright Copyright (C) 2007-2013 fruux GmbH. All rights reserved.
+ * @copyright Copyright (C) 2007-2014 fruux GmbH. All rights reserved.
  * @author Evert Pot (http://evertpot.com/)
- * @license http://code.google.com/p/sabredav/wiki/License Modified BSD License
+ * @license http://sabre.io/license/ Modified BSD License
  */
 class Binary extends Property {
 
-    protected $delimiter = null;
+    /**
+     * In case this is a multi-value property. This string will be used as a
+     * delimiter.
+     *
+     * @var string|null
+     */
+    public $delimiter = null;
+
+    /**
+     * Updates the current value.
+     *
+     * This may be either a single, or multiple strings in an array.
+     *
+     * @param string|array $value
+     * @return void
+     */
+    public function setValue($value) {
+
+        if(is_array($value)) {
+
+            if(count($value) === 1) {
+                $this->value = $value[0];
+            } else {
+                throw new \InvalidArgumentException('The argument must either be a string or an array with only one child');
+            }
+
+        } else {
+
+            $this->value = $value;
+
+        }
+
+    }
 
     /**
      * Sets a raw value coming from a mimedir (iCalendar/vCard) file.
@@ -77,5 +109,19 @@ class Binary extends Property {
 
     }
 
+    /**
+     * Sets the json value, as it would appear in a jCard or jCal object.
+     *
+     * The value must always be an array.
+     *
+     * @param array $value
+     * @return void
+     */
+    public function setJsonValue(array $value) {
+
+        $value = array_map('base64_decode', $value);
+        parent::setJsonValue($value);
+
+    }
 
 }

@@ -7,13 +7,19 @@ namespace Sabre\VObject\Property;
  *
  * This object encodes UTC-OFFSET values.
  *
- * @copyright Copyright (C) 2007-2013 fruux GmbH. All rights reserved.
+ * @copyright Copyright (C) 2007-2014 fruux GmbH. All rights reserved.
  * @author Evert Pot (http://evertpot.com/)
- * @license http://code.google.com/p/sabredav/wiki/License Modified BSD License
+ * @license http://sabre.io/license/ Modified BSD License
  */
 class UtcOffset extends Text {
 
-    protected $delimiter = null;
+    /**
+     * In case this is a multi-value property. This string will be used as a
+     * delimiter.
+     *
+     * @var string|null
+     */
+    public $delimiter = null;
 
     /**
      * Returns the type of value.

@@ -54,6 +54,15 @@ class ParameterTest extends \PHPUnit_Framework_TestCase {
 
     }
 
+    function testCastNullToString() {
+
+        $cal = new Component\VCalendar();
+        $param = new Parameter($cal, 'name', null);
+        $this->assertEquals('',$param->__toString());
+        $this->assertEquals('',(string)$param);
+
+    }
+
     function testSerialize() {
 
         $cal = new Component\VCalendar();
@@ -90,6 +99,14 @@ class ParameterTest extends \PHPUnit_Framework_TestCase {
         }
 
         $this->assertEquals(array(1,2,3,4), $result);
+
+    }
+
+    function testSerializeColon() {
+
+        $cal = new Component\VCalendar();
+        $param = new Parameter($cal, 'name','va:lue');
+        $this->assertEquals('NAME="va:lue"',$param->serialize());
 
     }
 }

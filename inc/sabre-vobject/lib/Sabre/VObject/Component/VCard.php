@@ -2,7 +2,8 @@
 
 namespace Sabre\VObject\Component;
 
-use Sabre\VObject;
+use
+    Sabre\VObject;
 
 /**
  * The VCard component
@@ -10,9 +11,9 @@ use Sabre\VObject;
  * This component represents the BEGIN:VCARD and END:VCARD found in every
  * vcard.
  *
- * @copyright Copyright (C) 2007-2013 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) 2007-2014 fruux GmbH (https://fruux.com/).
  * @author Evert Pot (http://evertpot.com/)
- * @license http://code.google.com/p/sabredav/wiki/License Modified BSD License
+ * @license http://sabre.io/license/ Modified BSD License
  */
 class VCard extends VObject\Document {
 
@@ -23,7 +24,7 @@ class VCard extends VObject\Document {
      *
      * @var string
      */
-    static $defaultName = 'VCARD';
+    static public $defaultName = 'VCARD';
 
     /**
      * Caching the version number
@@ -87,6 +88,7 @@ class VCard extends VObject\Document {
         'UID'     => 'Sabre\\VObject\\Property\\FlatText',
         'VERSION' => 'Sabre\\VObject\\Property\\FlatText',
         'KEY'     => 'Sabre\\VObject\\Property\\FlatText',
+        'TZ'      => 'Sabre\\VObject\\Property\\Text',
 
         // vCard 3.0 properties
         'CATEGORIES'  => 'Sabre\\VObject\\Property\\Text',
@@ -110,6 +112,17 @@ class VCard extends VObject\Document {
         'LANG'         => 'Sabre\\VObject\\Property\\VCard\\LanguageTag',
         'GENDER'       => 'Sabre\\VObject\\Property\\Text',
         'KIND'         => 'Sabre\\VObject\\Property\\FlatText',
+
+        // rfc6474 properties
+        'BIRTHPLACE'    => 'Sabre\\VObject\\Property\\FlatText',
+        'DEATHPLACE'    => 'Sabre\\VObject\\Property\\FlatText',
+        'DEATHDATE'     => 'Sabre\\VObject\\Property\\VCard\\DateAndOrTime',
+
+        // rfc6715 properties
+        'EXPERTISE'     => 'Sabre\\VObject\\Property\\FlatText',
+        'HOBBY'         => 'Sabre\\VObject\\Property\\FlatText',
+        'INTEREST'      => 'Sabre\\VObject\\Property\\FlatText',
+        'ORG-DIRECTORY' => 'Sabre\\VObject\\Property\\FlatText',
 
     );
 
@@ -144,9 +157,29 @@ class VCard extends VObject\Document {
     }
 
     /**
+     * Converts the document to a different vcard version.
+     *
+     * Use one of the VCARD constants for the target. This method will return
+     * a copy of the vcard in the new version.
+     *
+     * At the moment the only supported conversion is from 3.0 to 4.0.
+     *
+     * If input and output version are identical, a clone is returned.
+     *
+     * @param int $target
+     * @return VCard
+     */
+    public function convert($target) {
+
+        $converter = new VObject\VCardConverter();
+        return $converter->convert($this, $target);
+
+    }
+
+    /**
      * VCards with version 2.1, 3.0 and 4.0 are found.
      *
-     * If the VCARD doesn't know its version, 4.0 is assumed.
+     * If the VCARD doesn't know its version, 2.1 is assumed.
      */
     const DEFAULT_VERSION = self::VCARD21;
 
@@ -154,15 +187,19 @@ class VCard extends VObject\Document {
      * Validates the node for correctness.
      *
      * The following options are supported:
-     *   - Node::REPAIR - If something is broken, and automatic repair may
-     *                    be attempted.
+     *   Node::REPAIR - May attempt to automatically repair the problem.
      *
-     * An array is returned with warnings.
+     * This method returns an array with detected problems.
+     * Every element has the following properties:
      *
-     * Every item in the array has the following properties:
-     *    * level - (number between 1 and 3 with severity information)
-     *    * message - (human readable message)
-     *    * node - (reference to the offending node)
+     *  * level - problem level.
+     *  * message - A human-readable string describing the issue.
+     *  * node - A reference to the problematic node.
+     *
+     * The level means:
+     *   1 - The issue was repaired (only happens if REPAIR was turned on)
+     *   2 - An inconsequential issue
+     *   3 - A severe issue.
      *
      * @param int $options
      * @return array
@@ -178,20 +215,11 @@ class VCard extends VObject\Document {
         );
 
         $version = $this->select('VERSION');
-        if (count($version)!==1) {
-            $warnings[] = array(
-                'level' => 1,
-                'message' => 'The VERSION property must appear in the VCARD component exactly 1 time',
-                'node' => $this,
-            );
-            if ($options & self::REPAIR) {
-                $this->VERSION = $versionMap[self::DEFAULT_VERSION];
-            }
-        } else {
+        if (count($version)===1) {
             $version = (string)$this->VERSION;
             if ($version!=='2.1' && $version!=='3.0' && $version!=='4.0') {
                 $warnings[] = array(
-                    'level' => 1,
+                    'level' => 3,
                     'message' => 'Only vcard version 4.0 (RFC6350), version 3.0 (RFC2426) or version 2.1 (icm-vcard-2.1) are supported.',
                     'node' => $this,
                 );
@@ -203,11 +231,8 @@ class VCard extends VObject\Document {
         }
         $fn = $this->select('FN');
         if (count($fn)!==1) {
-            $warnings[] = array(
-                'level' => 1,
-                'message' => 'The FN property must appear in the VCARD component exactly 1 time',
-                'node' => $this,
-            );
+
+            $repaired = false;
             if (($options & self::REPAIR) && count($fn) === 0) {
                 // We're going to try to see if we can use the contents of the
                 // N property.
@@ -218,19 +243,132 @@ class VCard extends VObject\Document {
                     } else {
                         $this->FN = $value[0];
                     }
+                    $repaired = true;
 
                 // Otherwise, the ORG property may work
                 } elseif (isset($this->ORG)) {
                     $this->FN = (string)$this->ORG;
+                    $repaired = true;
                 }
 
             }
+            $warnings[] = array(
+                'level' => $repaired?1:3,
+                'message' => 'The FN property must appear in the VCARD component exactly 1 time',
+                'node' => $this,
+            );
         }
 
         return array_merge(
             parent::validate($options),
             $warnings
         );
+
+    }
+
+    /**
+     * A simple list of validation rules.
+     *
+     * This is simply a list of properties, and how many times they either
+     * must or must not appear.
+     *
+     * Possible values per property:
+     *   * 0 - Must not appear.
+     *   * 1 - Must appear exactly once.
+     *   * + - Must appear at least once.
+     *   * * - Can appear any number of times.
+     *
+     * @var array
+     */
+    public function getValidationRules() {
+
+        return array(
+            'ADR'          => '*',
+            'ANNIVERSARY'  => '?',
+            'BDAY'         => '?',
+            'CALADRURI'    => '*',
+            'CALURI'       => '*',
+            'CATEGORIES'   => '*',
+            'CLIENTPIDMAP' => '*',
+            'EMAIL'        => '*',
+            'FBURL'        => '*',
+            'IMPP'         => '*',
+            'GENDER'       => '?',
+            'GEO'          => '*',
+            'KEY'          => '*',
+            'KIND'         => '?',
+            'LANG'         => '*',
+            'LOGO'         => '*',
+            'MEMBER'       => '*',
+            'N'            => '?',
+            'NICKNAME'     => '*',
+            'NOTE'         => '*',
+            'ORG'          => '*',
+            'PHOTO'        => '*',
+            'PRODID'       => '?',
+            'RELATED'      => '*',
+            'REV'          => '?',
+            'ROLE'         => '*',
+            'SOUND'        => '*',
+            'SOURCE'       => '*',
+            'TEL'          => '*',
+            'TITLE'        => '*',
+            'TZ'           => '*',
+            'URL'          => '*',
+            'VERSION'      => '1',
+            'XML'          => '*',
+
+            // FN is commented out, because it's already handled by the
+            // validate function, which may also try to repair it.
+            // 'FN'           => '+',
+
+            // vcard actually specifies this as '?', but in most cases not
+            // having a UID is highly undesirable. So here we're going against
+            // the spec and make it required.
+            //
+            // I would be interested to hear if this is problematic for
+            // anyone, or at least a usecase where this is undesirable.
+            //
+            // If so, I may have to add a facility that allows us to check
+            // specifically for validity in the context of 'DAV'.
+            'UID'          => '1',
+        );
+
+    }
+
+    /**
+     * Returns a preferred field.
+     *
+     * VCards can indicate wether a field such as ADR, TEL or EMAIL is
+     * preferred by specifying TYPE=PREF (vcard 2.1, 3) or PREF=x (vcard 4, x
+     * being a number between 1 and 100).
+     *
+     * If neither of those parameters are specified, the first is returned, if
+     * a field with that name does not exist, null is returned.
+     *
+     * @param string $fieldName
+     * @return VObject\Property|null
+     */
+    public function preferred($propertyName) {
+
+        $preferred = null;
+        $lastPref = 101;
+        foreach($this->select($propertyName) as $field) {
+
+            $pref = 101;
+            if (isset($field['TYPE']) && $field['TYPE']->has('PREF')) {
+                $pref = 1;
+            } elseif (isset($field['PREF'])) {
+                $pref = $field['PREF']->getValue();
+            }
+
+            if ($pref < $lastPref || is_null($preferred)) {
+                $preferred = $field;
+                $lastPref = $pref;
+            }
+
+        }
+        return $preferred;
 
     }
 
@@ -268,6 +406,24 @@ class VCard extends VObject\Document {
             strtolower($this->name),
             $properties,
         );
+
+    }
+
+    /**
+     * Returns the default class for a property name.
+     *
+     * @param string $propertyName
+     * @return string
+     */
+    public function getClassNameForPropertyName($propertyName) {
+
+        $className = parent::getClassNameForPropertyName($propertyName);
+        // In vCard 4, BINARY no longer exists, and we need URI instead.
+
+        if ($className == 'Sabre\\VObject\\Property\\Binary' && $this->getDocumentType()===self::VCARD40) {
+            return 'Sabre\\VObject\\Property\\Uri';
+        }
+        return $className;
 
     }
 

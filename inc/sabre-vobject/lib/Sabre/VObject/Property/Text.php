@@ -13,9 +13,9 @@ use
  *
  * This object represents TEXT values.
  *
- * @copyright Copyright (C) 2007-2013 fruux GmbH. All rights reserved.
+ * @copyright Copyright (C) 2007-2014 fruux GmbH. All rights reserved.
  * @author Evert Pot (http://evertpot.com/)
- * @license http://code.google.com/p/sabredav/wiki/License Modified BSD License
+ * @license http://sabre.io/license/ Modified BSD License
  */
 class Text extends Property {
 
@@ -25,7 +25,7 @@ class Text extends Property {
      *
      * @var string
      */
-    protected $delimiter = ',';
+    public $delimiter = ',';
 
     /**
      * List of properties that are considered 'structured'.
@@ -41,6 +41,19 @@ class Text extends Property {
 
         // iCalendar
         'REQUEST-STATUS',
+    );
+
+    /**
+     * Some text components have a minimum number of components.
+     *
+     * N must for instance be represented as 5 components, separated by ;, even
+     * if the last few components are unused.
+     *
+     * @var array
+     */
+    protected $minimumPropertyValues = array(
+        'N' => 5,
+        'ADR' => 7,
     );
 
     /**
@@ -106,7 +119,7 @@ class Text extends Property {
         // that's not preceeded with a \.
         $regex = '# (?<!\\\\) ; #x';
         $matches = preg_split($regex, $val);
-        $this->setValue($val);
+        $this->setValue($matches);
 
     }
 
@@ -118,6 +131,10 @@ class Text extends Property {
     public function getRawMimeDirValue() {
 
         $val = $this->getParts();
+
+        if (isset($this->minimumPropertyValues[$this->name])) {
+            $val = array_pad($val, $this->minimumPropertyValues[$this->name], '');
+        }
 
         foreach($val as &$item) {
 
@@ -189,6 +206,10 @@ class Text extends Property {
         }
 
         $val = $this->getParts();
+
+        if (isset($this->minimumPropertyValues[$this->name])) {
+            $val = array_pad($val, $this->minimumPropertyValues[$this->name], '');
+        }
 
         // Imploding multiple parts into a single value, and splitting the
         // values with ;.
@@ -265,4 +286,45 @@ class Text extends Property {
 
     }
 
+    /**
+     * Validates the node for correctness.
+     *
+     * The following options are supported:
+     *   - Node::REPAIR - If something is broken, and automatic repair may
+     *                    be attempted.
+     *
+     * An array is returned with warnings.
+     *
+     * Every item in the array has the following properties:
+     *    * level - (number between 1 and 3 with severity information)
+     *    * message - (human readable message)
+     *    * node - (reference to the offending node)
+     *
+     * @param int $options
+     * @return array
+     */
+    public function validate($options = 0) {
+
+        $warnings = parent::validate($options);
+
+        if (isset($this->minimumPropertyValues[$this->name])) {
+
+            $minimum = $this->minimumPropertyValues[$this->name];
+            $parts = $this->getParts();
+            if (count($parts) < $minimum) {
+                $warnings[] = array(
+                    'level' => 1,
+                    'message' => 'This property must have at least ' . $minimum . ' components. It only has ' . count($parts),
+                    'node' => $this,
+                );
+                if ($options & self::REPAIR) {
+                    $parts = array_pad($parts, $minimum, '');
+                    $this->setParts($parts);
+                }
+            }
+
+        }
+        return $warnings;
+
+    }
 }

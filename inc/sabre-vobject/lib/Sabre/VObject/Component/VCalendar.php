@@ -2,16 +2,18 @@
 
 namespace Sabre\VObject\Component;
 
-use Sabre\VObject;
+use
+    Sabre\VObject,
+    Sabre\VObject\Component;
 
 /**
  * The VCalendar component
  *
  * This component adds functionality to a component, specific for a VCALENDAR.
  *
- * @copyright Copyright (C) 2007-2013 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) 2007-2014 fruux GmbH (https://fruux.com/).
  * @author Evert Pot (http://evertpot.com/)
- * @license http://code.google.com/p/sabredav/wiki/License Modified BSD License
+ * @license http://sabre.io/license/ Modified BSD License
  */
 class VCalendar extends VObject\Document {
 
@@ -22,7 +24,7 @@ class VCalendar extends VObject\Document {
      *
      * @var string
      */
-    static $defaultName = 'VCALENDAR';
+    static public $defaultName = 'VCALENDAR';
 
     /**
      * This is a list of components, and which classes they should map to.
@@ -30,11 +32,12 @@ class VCalendar extends VObject\Document {
      * @var array
      */
     static public $componentMap = array(
+        'VALARM'    => 'Sabre\\VObject\\Component\\VAlarm',
         'VEVENT'    => 'Sabre\\VObject\\Component\\VEvent',
         'VFREEBUSY' => 'Sabre\\VObject\\Component\\VFreeBusy',
         'VJOURNAL'  => 'Sabre\\VObject\\Component\\VJournal',
+        'VTIMEZONE' => 'Sabre\\VObject\\Component\\VTimeZone',
         'VTODO'     => 'Sabre\\VObject\\Component\\VTodo',
-        'VALARM'    => 'Sabre\\VObject\\Component\\VAlarm',
     );
 
     /**
@@ -46,7 +49,7 @@ class VCalendar extends VObject\Document {
         'BINARY'           => 'Sabre\\VObject\\Property\\Binary',
         'BOOLEAN'          => 'Sabre\\VObject\\Property\\Boolean',
         'CAL-ADDRESS'      => 'Sabre\\VObject\\Property\\ICalendar\\CalAddress',
-        'DATE'             => 'Sabre\\VObject\\Property\\ICalendar\\DateTime',
+        'DATE'             => 'Sabre\\VObject\\Property\\ICalendar\\Date',
         'DATE-TIME'        => 'Sabre\\VObject\\Property\\ICalendar\\DateTime',
         'DURATION'         => 'Sabre\\VObject\\Property\\ICalendar\\Duration',
         'FLOAT'            => 'Sabre\\VObject\\Property\\Float',
@@ -130,6 +133,12 @@ class VCalendar extends VObject\Document {
 
         // Request Status
         'REQUEST-STATUS' => 'Sabre\\VObject\\Property\\Text',
+
+        // Additions from draft-daboo-valarm-extensions-04
+        'ALARM-AGENT'    => 'Sabre\\VObject\\Property\\Text',
+        'ACKNOWLEDGED'   => 'Sabre\\VObject\\Property\\ICalendar\\DateTime',
+        'PROXIMITY'      => 'Sabre\\VObject\\Property\\Text',
+        'DEFAULT-ALARM'  => 'Sabre\\VObject\\Property\\Boolean',
 
     );
 
@@ -282,6 +291,32 @@ class VCalendar extends VObject\Document {
     }
 
     /**
+     * A simple list of validation rules.
+     *
+     * This is simply a list of properties, and how many times they either
+     * must or must not appear.
+     *
+     * Possible values per property:
+     *   * 0 - Must not appear.
+     *   * 1 - Must appear exactly once.
+     *   * + - Must appear at least once.
+     *   * * - Can appear any number of times.
+     *
+     * @var array
+     */
+    public function getValidationRules() {
+
+        return array(
+            'PRODID' => 1,
+            'VERSION' => 1,
+
+            'CALSCALE' => '?',
+            'METHOD' => '?',
+        );
+
+    }
+
+    /**
      * Validates the node for correctness.
      * An array is returned with warnings.
      *
@@ -292,101 +327,65 @@ class VCalendar extends VObject\Document {
      *
      * @return array
      */
-    /*
-    public function validate() {
+    public function validate($options = 0) {
 
-        $warnings = array();
+        $warnings = parent::validate();
 
-        $version = $this->select('VERSION');
-        if (count($version)!==1) {
-            $warnings[] = array(
-                'level' => 1,
-                'message' => 'The VERSION property must appear in the VCALENDAR component exactly 1 time',
-                'node' => $this,
-            );
-        } else {
-            if ((string)$this->VERSION !== '2.0') {
+        if ($ver = $this->VERSION) {
+            if ((string)$ver !== '2.0') {
                 $warnings[] = array(
-                    'level' => 1,
+                    'level' => 3,
                     'message' => 'Only iCalendar version 2.0 as defined in rfc5545 is supported.',
                     'node' => $this,
                 );
             }
-        }
-        $version = $this->select('PRODID');
-        if (count($version)!==1) {
-            $warnings[] = array(
-                'level' => 2,
-                'message' => 'The PRODID property must appear in the VCALENDAR component exactly 1 time',
-                'node' => $this,
-            );
-        }
-        if (count($this->CALSCALE) > 1) {
-            $warnings[] = array(
-                'level' => 2,
-                'message' => 'The CALSCALE property must not be specified more than once.',
-                'node' => $this,
-            );
-        }
-        if (count($this->METHOD) > 1) {
-            $warnings[] = array(
-                'level' => 2,
-                'message' => 'The METHOD property must not be specified more than once.',
-                'node' => $this,
-            );
+
         }
 
-        $allowedComponents = array(
-            'VEVENT',
-            'VTODO',
-            'VJOURNAL',
-            'VFREEBUSY',
-            'VTIMEZONE',
-        );
-        $allowedProperties = array(
-            'PRODID',
-            'VERSION',
-            'CALSCALE',
-            'METHOD',
-        );
+        $uidList = array();
+
         $componentsFound = 0;
         foreach($this->children as $child) {
             if($child instanceof Component) {
                 $componentsFound++;
-                if (!in_array($child->name, $allowedComponents)) {
-                    $warnings[] = array(
-                        'level' => 1,
-                        'message' => 'The ' . $child->name . " component is not allowed in the VCALENDAR component",
-                        'node' => $this,
+
+                if (!in_array($child->name, array('VEVENT', 'VTODO', 'VJOURNAL'))) {
+                    continue;
+                }
+
+                $uid = (string)$child->UID;
+                $isMaster = isset($child->{'RECURRENCE-ID'})?0:1;
+                if (isset($uidList[$uid])) {
+                    $uidList[$uid]['count']++;
+                    if ($isMaster && $uidList[$uid]['hasMaster']) {
+                        $warnings[] = array(
+                            'level' => 3,
+                            'message' => 'More than one master object was found for the object with UID ' . $uid,
+                            'node' => $this,
+                        );
+                    }
+                    $uidList[$uid]['hasMaster']+=$isMaster;
+                } else {
+                    $uidList[$uid] = array(
+                        'count' => 1,
+                        'hasMaster' => $isMaster,
                     );
                 }
-            }
-            if ($child instanceof Property) {
-                if (!in_array($child->name, $allowedProperties)) {
-                    $warnings[] = array(
-                        'level' => 2,
-                        'message' => 'The ' . $child->name . " property is not allowed in the VCALENDAR component",
-                        'node' => $this,
-                    );
-                }
+
             }
         }
 
         if ($componentsFound===0) {
             $warnings[] = array(
-                'level' => 1,
+                'level' => 3,
                 'message' => 'An iCalendar object must have at least 1 component.',
                 'node' => $this,
             );
         }
 
-        return array_merge(
-            $warnings,
-            parent::validate()
-        );
+        return $warnings;
 
     }
-     */
 
 }
 
