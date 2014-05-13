@@ -5,6 +5,7 @@
     "keywords": ["addressbook","carddav","contacts","owncloud","davical"],
     "homepage": "http://www.crash-override.net/carddav.html",
     "license": "GPL-2.0",
+    "version": "1.0",
     "authors": [
         {
             "name": "Benjamin Schieder",
