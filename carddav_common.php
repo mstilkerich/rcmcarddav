@@ -161,7 +161,7 @@ class carddav_common
 		$password = $rcmail->decrypt($_SESSION['password']);
 	$baseurl = str_replace("%u", $username, $carddav['url']);
 	$url = str_replace("%u", $username, $url);
-	$baseurl = str_replace("%l", $local, $carddav['url']);
+	$baseurl = str_replace("%l", $local, $baseurl);
 	$url = str_replace("%l", $local, $url);
 
 	// if $url is relative, prepend the base url
