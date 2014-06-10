@@ -170,7 +170,7 @@ class carddav_common
 	do {
 		$isRedirect = false;
 		$http=new http_class;
-		$http->timeout=10;
+		$http->timeout=120;
 		$http->data_timeout=0;
 		$http->user_agent="RCM CardDAV plugin/1.0.0";
 		$http->prefer_curl=1;
