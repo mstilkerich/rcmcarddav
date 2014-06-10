@@ -749,6 +749,18 @@ EOF
 			}
 
 		} else { // individual/other
+      if (trim($save_data['name']) == '') { // roundcube display fix for contacts that don't have first/last names
+        if ($save_data['nickname'] !== NULL && trim($save_data['nickname'] !== '')) {
+          $save_data['name'] = $save_data['nickname'];
+        } else {
+          foreach ($save_data as $key=>$val) {
+            if (strpos($key,'email') !== false) {
+              $save_data['name'] = $val[0];
+              break;
+            }
+          }
+        }
+      }
 			if(!$this->dbstore_contact("$etag","$href","$vcf",$save_data,$dbid))
 				return -1;
 		}
