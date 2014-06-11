@@ -71,6 +71,6 @@ CREATE TABLE IF NOT EXISTS carddav_group_user (
 
 	PRIMARY KEY(group_id,contact_id),
 	FOREIGN KEY(group_id) REFERENCES carddav_groups(id) ON DELETE CASCADE ON UPDATE CASCADE,
-	FOREIGN KEY(contact_id) REFERENCES carddav_contacts(id) ON DELETE CASCADE ON UPDATE CASCADE
+	FOREIGN KEY(contact_id) REFERENCES carddav_contacts(carddav_contact_id) ON DELETE CASCADE ON UPDATE CASCADE
 ) CHARACTER SET utf8 COLLATE utf8_unicode_ci /*!40000 ENGINE=INNODB */;
 
