@@ -234,6 +234,7 @@ class carddav extends rcube_plugin
 	private function cd_preferences_buildblock($blockheader,$abook,$prefs)
 	{{{
 		$abookid = $abook['id'];
+		$rcmail = rcmail::get_instance();
 
 		if (self::no_override('active', $abook, $prefs)) {
 			$content_active = $prefs[$abook['presetname']] ? "Enabled" : "Disabled";
@@ -244,7 +245,7 @@ class carddav extends rcube_plugin
 		}
 
 		if (self::no_override('username', $abook, $prefs)) {
-			$content_username = $abook['username'] === '%u' ? $_SESSION['username'] : $abook['username'];
+			$content_username = $abook['username'] === '%u' ? $_SESSION['username'] : $abook['username'] === '%l' ? $rcmail->user->get_username('local') : $abook['username'];
 
 		} else {
 			// input box for username
