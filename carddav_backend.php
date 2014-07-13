@@ -1547,9 +1547,15 @@ EOF
 		$kind = $vcf->PHOTO['VALUE'];
 		if($kind && strcasecmp('uri', $kind)==0) {
 			if($this->download_photo($save_data)) {
-				unset($vcf->PHOTO['VALUE']);
-				$vcf->PHOTO['ENCODING'] = 'b';
-				$vcf->PHOTO = $save_data['photo'];
+				$props = array();
+				foreach ($vcf->PHOTO->parameters() as $property => $value) {
+					if(strcasecmp($property, 'VALUE') != 0) {
+						$props[$property] = $value;
+					}
+				}
+				$props['ENCODING'] = 'b';
+				unset($vcf->PHOTO);
+				$vcf->add('PHOTO', $save_data['photo'], $props);
 				$needs_update=true;
 	} } }
 

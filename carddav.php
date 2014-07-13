@@ -678,45 +678,33 @@ class carddav extends rcube_plugin
 
 	const MAX_PHOTO_SIZE = 256;
 
-	public function contact_photo($args)
+	public function crop_photo($args)
 	{{{
 	if (!function_exists('gd_info') || $args['data'] == null) {
 		return $args;
 	}
+
 	$record = $args['record'];
 	$vcard = null;
-	if (!array_key_exists('__vcf', $record)) {
-		$cid = $record['ID'];
-		$CONTACTS = rcmail_contact_source('carddav_1', true);
-		$record = $CONTACTS->get_record($cid, true);
-		if (array_key_exists('__vcf', $record)) {
-			$vcard = $record['__vcf'];
-		} else {
-			return $args;
-		}
-	} else {
+	if (array_key_exists('__vcf', $record)) {
 		$vcard = $record['__vcf'];
-	}
-	$photo = $vcard->getProperty('PHOTO');
-	if ($photo == null) {
+	} else {
 		return $args;
 	}
-	$abcrop = $photo->getParam('X-ABCROP-RECTANGLE', 0);
-	if ($abcrop == null) {
-		return $args;
-	}
+
+	if(!isset($vcard->PHOTO) || !$vcard->PHOTO['X-ABCROP-RECTANGLE']) { return $args; }
+	$photo = $vcard->PHOTO;
+	$abcrop = $vcard->PHOTO['X-ABCROP-RECTANGLE'];
 
 	$parts = explode('&', $abcrop);
 	$x = intval($parts[1]);
 	$y = intval($parts[2]);
 	$w = intval($parts[3]);
 	$h = intval($parts[4]);
-	$dw = min($w, self::MAX_SIZE);
-	$dh = min($h, self::MAX_SIZE);
 
 	$src = imagecreatefromstring($args['data']);
-	$dst = imagecreatetruecolor($dw, $dh);
-	imagecopyresampled($dst, $src, 0, 0, $x, imagesy($src) - $y - $h, $dw, $dh, $w, $h);
+	$dst = imagecreatetruecolor($w, $h);
+	imagecopyresampled($dst, $src, 0, 0, $x, imagesy($src) - $y - $h, $w, $h, $w, $h);
 
 	ob_start();
 	imagepng($dst);
