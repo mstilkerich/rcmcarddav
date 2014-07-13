@@ -135,6 +135,7 @@ class carddav extends rcube_plugin
 
 	$this->add_hook('login_after',array($this, 'checkMigrations'));
 	$this->add_hook('login_after',array($this, 'init_presets'));
+	$this->add_hook('contact_photo', array($this, 'crop_photo'));
 
 	if(!array_key_exists('user_id', $_SESSION))
 		return;
