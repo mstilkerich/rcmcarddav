@@ -411,7 +411,7 @@ class carddav_backend extends rcube_addressbook
 	/**
 	 * Synchronizes the local card store with the CardDAV server.
 	 */
-	private function refreshdb_from_server()
+	public function refreshdb_from_server()
 	{{{
 	$dbh = rcmail::get_instance()->db;
 	$duration = time();

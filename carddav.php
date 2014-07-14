@@ -380,6 +380,9 @@ class carddav extends rcube_plugin
 			$input = new html_inputfield(array('name' => $abookid.'_cd_refresh_time', 'type' => 'text', 'autocomplete' => 'off', 'value' => $abook['refresh_time'], 'size' => 10));
 			$content_refresh_time = $input->show();
 		}
+		if(isset($abook['last_updated'])) {
+			$content_refresh_time .=  ' ('.Q($this->gettext('cd_lastupdate_time')).': '.$abook['last_updated'] . ')';
+		}
 
 		if (self::no_override('name', $abook, $prefs)) {
 			$content_name = $abook['name'];
@@ -405,6 +408,12 @@ class carddav extends rcube_plugin
 			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_delete', 'value' => 1));
 			$content_delete = $checkbox->show(0);
 			$retval['options'][] = array('title'=> Q($this->gettext('cd_delete')), 'content' => $content_delete);
+		}
+
+		if (preg_match('/^\d+$/',$abookid)) {
+			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_resync', 'value' => 1));
+			$content_resync = $checkbox->show(0);
+			$retval['options'][] = array('title'=> Q($this->gettext('cd_resync')), 'content' => $content_resync);
 		}
 
 		return $retval;
@@ -519,6 +528,11 @@ class carddav extends rcube_plugin
 				}
 
 				self::update_abook($abookid, $newset);
+
+				if(isset($_POST[$abookid."_cd_resync"])) {
+					$backend = new carddav_backend($abookid);
+					$backend->refreshdb_from_server();
+				}
 			}
 		}
 

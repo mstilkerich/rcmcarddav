@@ -16,5 +16,7 @@ $labels = Array(
 	'cd_preemptive_auth'=> "Immer am Server authentifizieren. Für ownCloud aktivieren!",
 	'cd_enabled' => 'Aktiv',
 	'cd_disabled' => 'Inaktiv',
+	'cd_lastupdate_time'=>'Zuletzt aktualisiert',
+	'cd_resync' => "Sofortige Synchronisation mit dem Server erzwingen",
 );
 ?>
