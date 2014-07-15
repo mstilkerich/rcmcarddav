@@ -112,7 +112,7 @@ class carddav extends rcube_plugin
     $tasks = explode('|', $this->task);
 
     // Since other plugins may also use the Sabre library
-    // In order to avoid version conflicts between Sabre libraries 
+    // In order to avoid version conflicts between Sabre libraries
     // which might be used by other plugins
     // It is better to restrict the loading of Sabre library
     // under necessary tasks
@@ -135,7 +135,6 @@ class carddav extends rcube_plugin
 
 	$this->add_hook('login_after',array($this, 'checkMigrations'));
 	$this->add_hook('login_after',array($this, 'init_presets'));
-	$this->add_hook('contact_photo', array($this, 'crop_photo'));
 
 	if(!array_key_exists('user_id', $_SESSION))
 		return;
@@ -292,7 +291,7 @@ class carddav extends rcube_plugin
 	public function get_address_book($p)
 	{{{
 	if (preg_match(";^carddav_(\d+)$;", $p['id'], $match)){
-		$p['instance'] = new carddav_backend($match[1]);
+		$p['instance'] = new carddav_backend($match[1], $this);
 	}
 
 	return $p;
@@ -675,45 +674,6 @@ class carddav extends rcube_plugin
 		' WHERE id=?',
 		$qv
 	);
-	}}}
-
-	const MAX_PHOTO_SIZE = 256;
-
-	public function crop_photo($args)
-	{{{
-	if (!function_exists('gd_info') || $args['data'] == null) {
-		return $args;
-	}
-
-	$record = $args['record'];
-	$vcard = null;
-	if (array_key_exists('__vcf', $record)) {
-		$vcard = $record['__vcf'];
-	} else {
-		return $args;
-	}
-
-	if(!isset($vcard->PHOTO) || !$vcard->PHOTO['X-ABCROP-RECTANGLE']) { return $args; }
-	$photo = $vcard->PHOTO;
-	$abcrop = $vcard->PHOTO['X-ABCROP-RECTANGLE'];
-
-	$parts = explode('&', $abcrop);
-	$x = intval($parts[1]);
-	$y = intval($parts[2]);
-	$w = intval($parts[3]);
-	$h = intval($parts[4]);
-
-	$src = imagecreatefromstring($args['data']);
-	$dst = imagecreatetruecolor($w, $h);
-	imagecopyresampled($dst, $src, 0, 0, $x, imagesy($src) - $y - $h, $w, $h, $w, $h);
-
-	ob_start();
-	imagepng($dst);
-	$data = ob_get_contents();
-	ob_end_clean();
-	$args['data'] = $data;
-
-	return $args;
 	}}}
 }
 

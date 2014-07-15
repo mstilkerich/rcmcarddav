@@ -500,8 +500,9 @@ EOF
 	public function list_records($cols=array(), $subset=0, $nocount=false)
 	{{{
 	// refresh from server if refresh interval passed
-	if ( $this->config['needs_update'] == 1 )
+	if ( $this->config['needs_update'] == 1 ) {
 		$this->refreshdb_from_server();
+	}
 
 	// XXX workaround for a roundcube bug to support roundcube's displayname setting
 	// Reported as Roundcube Ticket #1488394
@@ -1518,6 +1519,33 @@ EOF
 	 *           - vcf:          VCard object created from the given VCard
 	 *           - needs_update: boolean that indicates whether the card was modified
 	 */
+    // TODO Photo cropping should be in the backend, really
+	const MAX_PHOTO_SIZE = 256;
+
+	private function crop_photo(&$save_data, $abcrop)
+	{{{
+	if (!function_exists('gd_info')) { return; }
+
+	$parts = explode('&', $abcrop);
+	$x = intval($parts[1]);
+	$y = intval($parts[2]);
+	$w = intval($parts[3]);
+	$h = intval($parts[4]);
+
+	$dw = min($w, self::MAX_PHOTO_SIZE);
+	$dh = min($h, self::MAX_PHOTO_SIZE);
+
+	$src = imagecreatefromstring($save_data['photo']);
+	$dst = imagecreatetruecolor($dw, $dh);
+	imagecopyresampled($dst, $src, 0, 0, $x, imagesy($src) - $y - $h, $dw, $dh, $w, $h);
+
+	ob_start();
+	imagepng($dst);
+	$data = ob_get_contents();
+	ob_end_clean();
+	$save_data['photo'] = $data;
+	}}}
+
 	private function create_save_data_from_vcard($vcfstr)
 	{{{
 	try {
@@ -1557,7 +1585,14 @@ EOF
 				unset($vcf->PHOTO);
 				$vcf->add('PHOTO', $save_data['photo'], $props);
 				$needs_update=true;
-	} } }
+			}
+		}
+
+		// Crop the photo if needed
+		if(isset($vcf->PHOTO['X-ABCROP-RECTANGLE'])) {
+			$this->crop_photo($save_data, $vcf->PHOTO['X-ABCROP-RECTANGLE']);
+		}
+	}
 
 	$property = $vcf->N;
 	if ($property !== null){
