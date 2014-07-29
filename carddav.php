@@ -34,6 +34,8 @@ class carddav extends rcube_plugin
 	{{{
 	self::$helper = new carddav_common('BACKEND: ');
 
+	$this->add_hook('contact_delete', array($this, 'card_delete'));
+
 	$this->add_hook('addressbooks_list', array($this, 'address_sources'));
 	$this->add_hook('addressbook_get', array($this, 'get_address_book'));
 
@@ -544,6 +546,18 @@ class carddav extends rcube_plugin
 		$qv
 	);
 	}}}
+
+	public function card_delete($id,$source)
+	{
+	$dbh = rcmail::get_instance()->db;
+		foreach ($id[id] as $id_delete){
+		    $sql_result = $dbh->query('DELETE FROM `carddav_contacts` WHERE id="'.$id_delete.'";');
+		}
+	$args['abort'] = false;	
+	return($args);
+	}
+
+
 }
 
 ?>
