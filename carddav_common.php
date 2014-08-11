@@ -19,9 +19,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-
-require_once("inc/http.php");
-require_once("inc/sasl.php");
+include("inc/Httpful/Bootstrap.php");
+\Httpful\Bootstrap::init();
 
 class carddav_common
 {
@@ -169,6 +168,52 @@ class carddav_common
 
 	do {
 		$isRedirect = false;
+		if (self::DEBUG){ $this->debug("$caller requesting $url [RL $redirect_limit]"); }
+
+		/* figure out authentication */
+		$httpful = \Httpful\Request::init();
+		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
+		$httpful->followRedirects(true);
+		$httpful->uri($url);
+		$error = $httpful->send();
+		$httpful = \Httpful\Request::init();
+		if (substr($error->headers["www-authenticate"],0,6) == "Digest"){
+			$httpful->digestAuth($username, $password);
+		} else if (substr($error->headers["www-authenticate"],0,5) == "Basic"){
+			$httpful->basicAuth($username, $password);
+		}
+		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
+		$httpful->uri($url);
+		$httpful->followRedirects(true);
+		$httpful->method($http_opts['method']);
+		if (array_key_exists('content',$http_opts) && strlen($http_opts['content'])>0 && $http_opts['method'] != "GET"){
+			$httpful->body($http_opts['content']);
+		}
+		if(array_key_exists('header',$http_opts)) {
+			foreach ($http_opts['header'] as $header){
+				$h = explode(": ", $header);
+				if (strlen($h[0]) > 0 && strlen($h[1]) > 0){
+					// Only append headers with key AND value
+					$httpful->addHeader($h[0], $h[1]);
+				}
+			}
+		}
+
+		$reply = $httpful->send();
+		$scode = $reply->code;
+		if (self::DEBUG){ $this->debug("Code: $scode"); }
+		$isRedirect = ($scode>300 && $scode<304) || $scode==307;
+		write_log("carddav", var_export($reply, true));
+		if($isRedirect && strlen($reply->headers['location'])>0) {
+			$url = self::concaturl($baseurl, $reply->headers['location']);
+		} else {
+			$retVal["status"] = $scode;
+			$retVal["headers"] = $reply->headers;
+			$retVal["body"] = $reply->raw_body;
+			if (self::DEBUG_HTTP){ $this->debug_http("success: ".var_export($retVal, true)); }
+			return $retVal;
+		}
+		/*
 		$http=new http_class;
 		$http->timeout=120;
 		$http->data_timeout=0;
@@ -241,10 +286,10 @@ class carddav_common
 			if (self::DEBUG_HTTP){ $this->debug_http("failed: ".var_export($http, true)); }
 			return -1;
 		}
-
+		 */
 	} while($redirect_limit-->0 && $isRedirect);
 
-	return $http->response_status;
+	return $reply->code;
 	}}}
 
 	public function check_contenttype($ctheader, $expectedct)
