@@ -173,7 +173,6 @@ class carddav_common
 		/* figure out authentication */
 		$httpful = \Httpful\Request::init();
 		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
-		$httpful->followRedirects(true);
 		$httpful->uri($url);
 		$error = $httpful->send();
 		$httpful = \Httpful\Request::init();
@@ -184,7 +183,6 @@ class carddav_common
 		}
 		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
 		$httpful->uri($url);
-		$httpful->followRedirects(true);
 		$httpful->method($http_opts['method']);
 		if (array_key_exists('content',$http_opts) && strlen($http_opts['content'])>0 && $http_opts['method'] != "GET"){
 			$httpful->body($http_opts['content']);
