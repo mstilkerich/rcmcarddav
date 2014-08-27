@@ -18,10 +18,6 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-require_once('carddav_backend.php');
-require_once('carddav_discovery.php');
-require_once('carddav_common.php');
-
 class carddav extends rcube_plugin
 {
 	private static $helper;
@@ -32,6 +28,22 @@ class carddav extends rcube_plugin
 
 	public function init()
 	{{{
+    $this->rc = rcmail::get_instance();
+    $tasks = explode('|', $this->task);
+    
+    // Since other plugins may also use the Sabre library
+    // In order to avoid version conflicts between Sabre libraries 
+    // which might be used by other plugins
+    // It is better to restrict the loading of Sabre library
+    // under necessary tasks
+    if(!in_array($this->rc->task, $tasks))
+        return;
+    else {
+        require_once('carddav_backend.php');
+        require_once('carddav_discovery.php');
+        require_once('carddav_common.php');
+    }
+
 	self::$helper = new carddav_common('BACKEND: ');
 
 	$this->add_hook('addressbooks_list', array($this, 'address_sources'));
