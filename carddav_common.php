@@ -175,18 +175,22 @@ class carddav_common
 		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
 		$httpful->uri($url);
 		$error = $httpful->send();
+
 		$httpful = \Httpful\Request::init();
 		if (substr($error->headers["www-authenticate"],0,6) == "Digest"){
 			$httpful->digestAuth($username, $password);
 		} else if (substr($error->headers["www-authenticate"],0,5) == "Basic"){
 			$httpful->basicAuth($username, $password);
 		}
+
 		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
 		$httpful->uri($url);
+
 		$httpful->method($http_opts['method']);
 		if (array_key_exists('content',$http_opts) && strlen($http_opts['content'])>0 && $http_opts['method'] != "GET"){
 			$httpful->body($http_opts['content']);
 		}
+
 		if(array_key_exists('header',$http_opts)) {
 			foreach ($http_opts['header'] as $header){
 				$h = explode(": ", $header);
@@ -200,8 +204,8 @@ class carddav_common
 		$reply = $httpful->send();
 		$scode = $reply->code;
 		if (self::DEBUG){ $this->debug("Code: $scode"); }
+
 		$isRedirect = ($scode>300 && $scode<304) || $scode==307;
-		write_log("carddav", var_export($reply, true));
 		if($isRedirect && strlen($reply->headers['location'])>0) {
 			$url = self::concaturl($baseurl, $reply->headers['location']);
 		} else {
@@ -211,80 +215,6 @@ class carddav_common
 			if (self::DEBUG_HTTP){ $this->debug_http("success: ".var_export($retVal, true)); }
 			return $retVal;
 		}
-		/*
-		$http=new http_class;
-		$http->timeout=120;
-		$http->data_timeout=0;
-		$http->user_agent="RCM CardDAV plugin/1.0.0";
-		$http->prefer_curl=1;
-		if (self::DEBUG){ $this->debug("$caller requesting $url [RL $redirect_limit]"); }
-
-		$url = preg_replace(";://;", "://".urlencode($username).":".urlencode($password)."@", $url);
-		$error = $http->GetRequestArguments($url,$arguments);
-		$arguments["RequestMethod"] = $http_opts['method'];
-		if (array_key_exists('content',$http_opts) && strlen($http_opts['content'])>0 && $http_opts['method'] != "GET"){
-			$arguments["Body"] = $http_opts['content']."\r\n";
-		}
-		if(array_key_exists('header',$http_opts)) {
-			foreach ($http_opts['header'] as $header){
-				$h = explode(": ", $header);
-				if (strlen($h[0]) > 0 && strlen($h[1]) > 0){
-					// Only append headers with key AND value
-					$arguments["Headers"][$h[0]] = $h[1];
-				}
-			}
-		}
-		if ($carddav["preemptive_auth"] == '1'){
-			$arguments["Headers"]["Authorization"] = "Basic ".base64_encode($username.":".$password);
-		}
-		$error = $http->Open($arguments);
-		if ($error == ""){
-			$error=$http->SendRequest($arguments);
-			if (self::DEBUG_HTTP){ $this->debug_http("SendRequest: ".var_export($http, true)); }
-
-			if ($error == ""){
-				$error=$http->ReadReplyHeaders($headers);
-				if ($http->response_status == 401){ # Should be handled by http class, but sometimes isn't...
-					if (self::DEBUG){ $this->debug("retrying forcefully"); }
-					$isRedirect = true;
-					$carddav["preemptive_auth"] = "1";
-				} else {
-					if ($error == ""){
-						$scode = $http->response_status;
-						if (self::DEBUG){ $this->debug("Code: $scode"); }
-						$isRedirect = ($scode>300 && $scode<304) || $scode==307;
-						if( ! // These message types must not include a message-body
-							(($scode>=100 && $scode < 200)
-							|| $scode == 204
-							|| $scode == 304)
-						) {
-							$error = $http->ReadWholeReplyBody($body);
-						}
-						if($isRedirect && strlen($headers['location'])>0) {
-							$url = self::concaturl($baseurl, $headers['location']);
-
-						} else if ($error == ""){
-							$reply["status"] = $scode;
-							$reply["headers"] = $headers;
-							$reply["body"] = $body;
-							if (self::DEBUG_HTTP){ $this->debug_http("success: ".var_export($reply, true)); }
-							return $reply;
-						} else {
-							$this->warn("Could not read reply body: $error");
-						}
-					} else {
-						$this->warn("Could not read reply header: $error");
-					}
-				}
-			} else {
-				$this->warn("Could not send request: $error");
-			}
-		} else {
-			$this->warn("Could not open: $error");
-			if (self::DEBUG_HTTP){ $this->debug_http("failed: ".var_export($http, true)); }
-			return -1;
-		}
-		 */
 	} while($redirect_limit-->0 && $isRedirect);
 
 	return $reply->code;
