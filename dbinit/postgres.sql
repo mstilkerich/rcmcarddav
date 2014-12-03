@@ -17,6 +17,7 @@ CREATE TABLE carddav_addressbooks (
 	last_updated TIMESTAMP NOT NULL DEFAULT '-infinity', -- time stamp of the last update of the local database
 	refresh_time INTERVAL NOT NULL DEFAULT '01:00:00', -- time span after that the local database will be refreshed, default 1h
 	sync_token VARCHAR(255) NOT NULL DEFAULT '', -- sync-token the server sent us for the last sync
+	authentication_scheme VARCHAR(64) NOT NULL DEFAULT "auto", -- the HTTP authentication scheme to use, auto will be overwritten
 
 	presetname VARCHAR(64) -- presetname
 );

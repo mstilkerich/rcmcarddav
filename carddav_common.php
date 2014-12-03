@@ -150,6 +150,7 @@ class carddav_common
 	$caller=self::getCaller();
 
 	$local = $rcmail->user->get_username('local');
+	$domain = $rcmail->user->get_username('domain');
 
 	// Substitute Placeholders
 	if($username == '%u')
@@ -162,6 +163,8 @@ class carddav_common
 	$url = str_replace("%u", $username, $url);
 	$baseurl = str_replace("%l", $local, $baseurl);
 	$url = str_replace("%l", $local, $url);
+	$baseurl = str_replace("%d", $domain, $baseurl);
+	$url = str_replace("%d", $domain, $url);
 
 	// if $url is relative, prepend the base url
 	$url = self::concaturl($baseurl, $url);
@@ -170,17 +173,30 @@ class carddav_common
 		$isRedirect = false;
 		if (self::DEBUG){ $this->debug("$caller requesting $url [RL $redirect_limit]"); }
 
-		/* figure out authentication */
 		$httpful = \Httpful\Request::init();
-		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
-		$httpful->uri($url);
-		$error = $httpful->send();
+		$scheme = strtolower($carddav['authentication_scheme']);
+		if ($scheme != "basic" && $scheme != "digest"){
+				/* figure out authentication */
+				$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
+				$httpful->uri($url);
+				$error = $httpful->send();
 
-		$httpful = \Httpful\Request::init();
-		if (substr($error->headers["www-authenticate"],0,6) == "Digest"){
-			$httpful->digestAuth($username, $password);
-		} else if (substr($error->headers["www-authenticate"],0,5) == "Basic"){
-			$httpful->basicAuth($username, $password);
+				$httpful = \Httpful\Request::init();
+				$scheme = "unknown";
+				if (strtolower(substr($error->headers["www-authenticate"],0,6)) == "digest"){
+					$httpful->digestAuth($username, $password);
+					$scheme = "digest";
+				} else if (strtolower(substr($error->headers["www-authenticate"],0,5)) == "basic"){
+					$httpful->basicAuth($username, $password);
+					$scheme = "basic";
+				}
+				carddav_backend::update_addressbook($carddav['abookid'], array("authentication_scheme"), array($scheme));
+		} else {
+			if (strtolower($scheme) == "digest"){
+				$httpful->digestAuth($username, $password);
+			} else if (strtolower($scheme) == "basic"){
+				$httpful->basicAuth($username, $password);
+			}
 		}
 
 		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");

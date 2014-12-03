@@ -2025,7 +2025,7 @@ EOF
 	}
 
 	$abookrow = self::get_dbrecord($abookid,
-		'id as abookid,name,username,password,url,presetname,sync_token,'
+		'id as abookid,name,username,password,url,presetname,sync_token,authentication_scheme,'
 		. $timequery . ' as needs_update', 'addressbooks');
 
 	if(! $abookrow) {
@@ -2041,6 +2041,25 @@ EOF
 	return $abookrow;
 	}}}
 
+	public static function update_addressbook($dbid=0, $xcol=array(), $xval=array())
+	{{{
+	$dbh = rcmail::get_instance()->db;
+
+	self::$helper->debug("UPDATE addressbook $dbid");
+	$xval[]=$dbid;
+	$sql_result = $dbh->query('UPDATE ' .
+		get_table_name("carddav_addressbooks") .
+		' SET ' . implode('=?,', $xcol) . '=?' .
+		' WHERE id=?', $xval);
+
+	if($dbh->is_error()) {
+		self::$helper->warn($dbh->is_error());
+		$this->set_error(self::ERROR_SAVING, $dbh->is_error());
+		return false;
+	}
+
+	return $dbid;
+	}}}
 	/**
 	 * Migrates settings to a separate addressbook table.
 	 */
