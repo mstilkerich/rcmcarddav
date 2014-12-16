@@ -19,9 +19,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-
-require_once("inc/http.php");
-require_once("inc/sasl.php");
+include("inc/Httpful/Bootstrap.php");
+\Httpful\Bootstrap::init();
 
 class carddav_common
 {
@@ -151,6 +150,7 @@ class carddav_common
 	$caller=self::getCaller();
 
 	$local = $rcmail->user->get_username('local');
+	$domain = $rcmail->user->get_username('domain');
 
 	// Substitute Placeholders
 	if($username == '%u')
@@ -163,88 +163,77 @@ class carddav_common
 	$url = str_replace("%u", $username, $url);
 	$baseurl = str_replace("%l", $local, $baseurl);
 	$url = str_replace("%l", $local, $url);
+	$baseurl = str_replace("%d", $domain, $baseurl);
+	$url = str_replace("%d", $domain, $url);
 
 	// if $url is relative, prepend the base url
 	$url = self::concaturl($baseurl, $url);
 
 	do {
 		$isRedirect = false;
-		$http=new http_class;
-		$http->timeout=120;
-		$http->data_timeout=0;
-		$http->user_agent="RCM CardDAV plugin/1.0.0";
-		$http->prefer_curl=1;
 		if (self::DEBUG){ $this->debug("$caller requesting $url [RL $redirect_limit]"); }
 
-		$url = preg_replace(";://;", "://".urlencode($username).":".urlencode($password)."@", $url);
-		$error = $http->GetRequestArguments($url,$arguments);
-		$arguments["RequestMethod"] = $http_opts['method'];
-		if (array_key_exists('content',$http_opts) && strlen($http_opts['content'])>0 && $http_opts['method'] != "GET"){
-			$arguments["Body"] = $http_opts['content']."\r\n";
+		$httpful = \Httpful\Request::init();
+		$scheme = strtolower($carddav['authentication_scheme']);
+		if ($scheme != "basic" && $scheme != "digest"){
+				/* figure out authentication */
+				$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
+				$httpful->uri($url);
+				$error = $httpful->send();
+
+				$httpful = \Httpful\Request::init();
+				$scheme = "unknown";
+				if (strtolower(substr($error->headers["www-authenticate"],0,6)) == "digest"){
+					$httpful->digestAuth($username, $password);
+					$scheme = "digest";
+				} else if (strtolower(substr($error->headers["www-authenticate"],0,5)) == "basic"){
+					$httpful->basicAuth($username, $password);
+					$scheme = "basic";
+				}
+				carddav_backend::update_addressbook($carddav['abookid'], array("authentication_scheme"), array($scheme));
+		} else {
+			if (strtolower($scheme) == "digest"){
+				$httpful->digestAuth($username, $password);
+			} else if (strtolower($scheme) == "basic"){
+				$httpful->basicAuth($username, $password);
+			}
 		}
+
+		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
+		$httpful->uri($url);
+
+		$httpful->method($http_opts['method']);
+		if (array_key_exists('content',$http_opts) && strlen($http_opts['content'])>0 && $http_opts['method'] != "GET"){
+			$httpful->body($http_opts['content']);
+		}
+
 		if(array_key_exists('header',$http_opts)) {
 			foreach ($http_opts['header'] as $header){
 				$h = explode(": ", $header);
 				if (strlen($h[0]) > 0 && strlen($h[1]) > 0){
 					// Only append headers with key AND value
-					$arguments["Headers"][$h[0]] = $h[1];
+					$httpful->addHeader($h[0], $h[1]);
 				}
 			}
 		}
-		if ($carddav["preemptive_auth"] == '1'){
-			$arguments["Headers"]["Authorization"] = "Basic ".base64_encode($username.":".$password);
-		}
-		$error = $http->Open($arguments);
-		if ($error == ""){
-			$error=$http->SendRequest($arguments);
-			if (self::DEBUG_HTTP){ $this->debug_http("SendRequest: ".var_export($http, true)); }
 
-			if ($error == ""){
-				$error=$http->ReadReplyHeaders($headers);
-				if ($http->response_status == 401){ # Should be handled by http class, but sometimes isn't...
-					if (self::DEBUG){ $this->debug("retrying forcefully"); }
-					$isRedirect = true;
-					$carddav["preemptive_auth"] = "1";
-				} else {
-					if ($error == ""){
-						$scode = $http->response_status;
-						if (self::DEBUG){ $this->debug("Code: $scode"); }
-						$isRedirect = ($scode>300 && $scode<304) || $scode==307;
-						if( ! // These message types must not include a message-body
-							(($scode>=100 && $scode < 200)
-							|| $scode == 204
-							|| $scode == 304)
-						) {
-							$error = $http->ReadWholeReplyBody($body);
-						}
-						if($isRedirect && strlen($headers['location'])>0) {
-							$url = self::concaturl($baseurl, $headers['location']);
+		$reply = $httpful->send();
+		$scode = $reply->code;
+		if (self::DEBUG){ $this->debug("Code: $scode"); }
 
-						} else if ($error == ""){
-							$reply["status"] = $scode;
-							$reply["headers"] = $headers;
-							$reply["body"] = $body;
-							if (self::DEBUG_HTTP){ $this->debug_http("success: ".var_export($reply, true)); }
-							return $reply;
-						} else {
-							$this->warn("Could not read reply body: $error");
-						}
-					} else {
-						$this->warn("Could not read reply header: $error");
-					}
-				}
-			} else {
-				$this->warn("Could not send request: $error");
-			}
+		$isRedirect = ($scode>300 && $scode<304) || $scode==307;
+		if($isRedirect && strlen($reply->headers['location'])>0) {
+			$url = self::concaturl($baseurl, $reply->headers['location']);
 		} else {
-			$this->warn("Could not open: $error");
-			if (self::DEBUG_HTTP){ $this->debug_http("failed: ".var_export($http, true)); }
-			return -1;
+			$retVal["status"] = $scode;
+			$retVal["headers"] = $reply->headers;
+			$retVal["body"] = $reply->raw_body;
+			if (self::DEBUG_HTTP){ $this->debug_http("success: ".var_export($retVal, true)); }
+			return $retVal;
 		}
-
 	} while($redirect_limit-->0 && $isRedirect);
 
-	return $http->response_status;
+	return $reply->code;
 	}}}
 
 	public function check_contenttype($ctheader, $expectedct)
