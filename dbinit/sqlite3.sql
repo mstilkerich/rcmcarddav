@@ -78,3 +78,11 @@ CREATE TABLE carddav_group_user (
 	FOREIGN KEY(group_id) REFERENCES carddav_groups(id) ON DELETE CASCADE ON UPDATE CASCADE,
 	FOREIGN KEY(contact_id) REFERENCES carddav_contacts(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+CREATE TABLE carddav_migrations (
+	ID integer NOT NULL PRIMARY KEY,
+	filename VARCHAR(64) NOT NULL,
+	processed_at TIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+	UNIQUE(filename)
+);

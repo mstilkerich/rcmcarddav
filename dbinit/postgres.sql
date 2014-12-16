@@ -89,3 +89,17 @@ CREATE TABLE IF NOT EXISTS carddav_group_user (
 	FOREIGN KEY(group_id) REFERENCES carddav_groups(id) ON DELETE CASCADE ON UPDATE CASCADE,
 	FOREIGN KEY(contact_id) REFERENCES carddav_contacts(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+CREATE SEQUENCE carddav_migrations_seq
+	INCREMENT BY 1
+	NO MAXVALUE
+	MINVALUE 1
+	CACHE 1;
+
+CREATE TABLE carddav_migrations (
+	ID integer DEFAULT nextval('carddav_migrations_seq'::text) PRIMARY KEY,
+	filename VARCHAR(64) NOT NULL,
+	processed_at TIMESTAMP NOT NULL DEFAULT now(),
+
+	UNIQUE(filename)
+);
