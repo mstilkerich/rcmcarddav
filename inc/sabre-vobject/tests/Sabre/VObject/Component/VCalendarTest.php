@@ -153,6 +153,8 @@ END:VEVENT
 END:VCALENDAR
 ';
 
+        $tests[] = array($input, $output);
+
         // Recurrence rule + override
         $input = 'BEGIN:VCALENDAR
 CALSCALE:GREGORIAN
@@ -247,6 +249,169 @@ END:VCALENDAR
         $vcard = new VCalendar();
         $vcard->VERSION = '2.0';
         $this->assertEquals(VCalendar::ICALENDAR20, $vcard->getDocumentType());
+
+    }
+
+    function testValidateCorrect() {
+
+        $input = 'BEGIN:VCALENDAR
+CALSCALE:GREGORIAN
+VERSION:2.0
+PRODID:foo
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20111202
+DTSTAMP:20140122T233226Z
+UID:foo
+END:VEVENT
+END:VCALENDAR
+';
+
+        $vcal = VObject\Reader::read($input);
+        $this->assertEquals(array(), $vcal->validate(), 'Got an error');
+
+    }
+
+    function testValidateNoVersion() {
+
+        $input = 'BEGIN:VCALENDAR
+CALSCALE:GREGORIAN
+PRODID:foo
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20111202
+UID:foo
+DTSTAMP:20140122T234434Z
+END:VEVENT
+END:VCALENDAR
+';
+
+        $vcal = VObject\Reader::read($input);
+        $this->assertEquals(1, count($vcal->validate()));
+
+    }
+
+    function testValidateWrongVersion() {
+
+        $input = 'BEGIN:VCALENDAR
+CALSCALE:GREGORIAN
+VERSION:3.0
+PRODID:foo
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20111202
+UID:foo
+DTSTAMP:20140122T234434Z
+END:VEVENT
+END:VCALENDAR
+';
+
+        $vcal = VObject\Reader::read($input);
+        $this->assertEquals(1, count($vcal->validate()));
+
+    }
+
+    function testValidateNoProdId() {
+
+        $input = 'BEGIN:VCALENDAR
+CALSCALE:GREGORIAN
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20111202
+UID:foo
+DTSTAMP:20140122T234434Z
+END:VEVENT
+END:VCALENDAR
+';
+
+        $vcal = VObject\Reader::read($input);
+        $this->assertEquals(1, count($vcal->validate()));
+
+    }
+
+    function testValidateDoubleCalScale() {
+
+        $input = 'BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:foo
+CALSCALE:GREGORIAN
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20111202
+UID:foo
+DTSTAMP:20140122T234434Z
+END:VEVENT
+END:VCALENDAR
+';
+
+        $vcal = VObject\Reader::read($input);
+        $this->assertEquals(1, count($vcal->validate()));
+
+    }
+
+    function testValidateDoubleMethod() {
+
+        $input = 'BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:foo
+METHOD:REQUEST
+METHOD:REQUEST
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20111202
+UID:foo
+DTSTAMP:20140122T234434Z
+END:VEVENT
+END:VCALENDAR
+';
+
+        $vcal = VObject\Reader::read($input);
+        $this->assertEquals(1, count($vcal->validate()));
+
+    }
+
+    function testValidateTwoMasterEvents() {
+
+        $input = 'BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:foo
+METHOD:REQUEST
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20111202
+UID:foo
+DTSTAMP:20140122T234434Z
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20111202
+UID:foo
+DTSTAMP:20140122T234434Z
+END:VEVENT
+END:VCALENDAR
+';
+
+        $vcal = VObject\Reader::read($input);
+        $this->assertEquals(1, count($vcal->validate()));
+
+    }
+
+    function testValidateOneMasterEvent() {
+
+        $input = 'BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:foo
+METHOD:REQUEST
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20111202
+UID:foo
+DTSTAMP:20140122T234434Z
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20111202
+UID:foo
+DTSTAMP:20140122T234434Z
+RECURRENCE-ID;VALUE=DATE:20111202
+END:VEVENT
+END:VCALENDAR
+';
+
+        $vcal = VObject\Reader::read($input);
+        $this->assertEquals(0, count($vcal->validate()));
 
     }
 }

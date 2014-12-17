@@ -2,3 +2,13 @@
 vendor/
 composer.lock
 tests/cov/
+tests/temp
+
+#vim
+.*.swp
+
+#binaries
+bin/phpunit
+
+# Development stuff
+testdata/

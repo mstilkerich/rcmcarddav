@@ -4,7 +4,8 @@ namespace Sabre\VObject\Property\ICalendar;
 
 use
     Sabre\VObject\Property,
-    Sabre\VObject\Parser\MimeDir;
+    Sabre\VObject\Parser\MimeDir,
+    Sabre\VObject\DateTimeParser;
 
 /**
  * Duration property
@@ -13,9 +14,9 @@ use
  *
  * http://tools.ietf.org/html/rfc5545#section-3.3.6
  *
- * @copyright Copyright (C) 2007-2013 fruux GmbH. All rights reserved.
+ * @copyright Copyright (C) 2007-2014 fruux GmbH. All rights reserved.
  * @author Evert Pot (http://evertpot.com/)
- * @license http://code.google.com/p/sabredav/wiki/License Modified BSD License
+ * @license http://sabre.io/license/ Modified BSD License
  */
 class Duration extends Property {
 
@@ -23,9 +24,9 @@ class Duration extends Property {
      * In case this is a multi-value property. This string will be used as a
      * delimiter.
      *
-     * @var string
+     * @var string|null
      */
-    protected $delimiter = ',';
+    public $delimiter = ',';
 
     /**
      * Sets a raw value coming from a mimedir (iCalendar/vCard) file.
@@ -66,4 +67,20 @@ class Duration extends Property {
         return 'DURATION';
 
     }
+
+    /**
+     * Returns a DateInterval representation of the Duration property.
+     *
+     * If the property has more than one value, only the first is returned.
+     *
+     * @return \DateInterval
+     */
+    public function getDateInterval() {
+
+        $parts = $this->getParts();
+        $value = $parts[0];
+        return DateTimeParser::parseDuration($value);
+
+    }
+
 }

@@ -8,9 +8,9 @@ namespace Sabre\VObject;
  * A property is always in a KEY:VALUE structure, and may optionally contain
  * parameters.
  *
- * @copyright Copyright (C) 2007-2013 fruux GmbH. All rights reserved.
+ * @copyright Copyright (C) 2007-2014 fruux GmbH. All rights reserved.
  * @author Evert Pot (http://evertpot.com/)
- * @license http://code.google.com/p/sabredav/wiki/License Modified BSD License
+ * @license http://sabre.io/license/ Modified BSD License
  */
 abstract class Property extends Node {
 
@@ -50,9 +50,9 @@ abstract class Property extends Node {
      * In case this is a multi-value property. This string will be used as a
      * delimiter.
      *
-     * @var string
+     * @var string|null
      */
-    protected $delimiter = ';';
+    public $delimiter = ';';
 
     /**
      * Creates the generic property.
@@ -73,12 +73,12 @@ abstract class Property extends Node {
 
         $this->root = $root;
 
-        if (!is_null($value)) {
-            $this->setValue($value);
-        }
-
         foreach($parameters as $k=>$v) {
             $this->add($k, $v);
+        }
+
+        if (!is_null($value)) {
+            $this->setValue($value);
         }
 
     }
@@ -161,20 +161,27 @@ abstract class Property extends Node {
      *
      * If a parameter with same name already existed, the values will be
      * combined.
+     * If nameless parameter is added, we try to guess it's name.
      *
      * @param string $name
      * @param string|null|array $value
      * @return Node
      */
     public function add($name, $value = null) {
+        $noName = false;
+        if ($name === null) {
+            $name = Parameter::guessParameterNameByValue($value);
+            $noName = true;
+        }
 
         if (isset($this->parameters[strtoupper($name)])) {
             $this->parameters[strtoupper($name)]->addValue($value);
-        } else {
+        }
+        else {
             $param = new Parameter($this->root, $name, $value);
+            $param->noName = $noName;
             $this->parameters[$param->name] = $param;
         }
-
     }
 
     /**
@@ -260,6 +267,24 @@ abstract class Property extends Node {
     public function getJsonValue() {
 
         return $this->getParts();
+
+    }
+
+    /**
+     * Sets the json value, as it would appear in a jCard or jCal object.
+     *
+     * The value must always be an array.
+     *
+     * @param array $value
+     * @return void
+     */
+    public function setJsonValue(array $value) {
+
+        if (count($value)===1) {
+            $this->setValue(reset($value));
+        } else {
+            $this->setValue($value);
+        }
 
     }
 

@@ -5,7 +5,7 @@ The VObject library allows you to easily parse and manipulate [iCalendar](https:
 and [vCard](https://tools.ietf.org/html/rfc6350) objects using PHP.
 The goal of the VObject library is to create a very complete library, with an easy to use API.
 
-This project is a spin-off from [SabreDAV](http://code.google.com/p/sabredav/), where it has
+This project is a spin-off from [SabreDAV](http://sabre.io/), where it has
 been used for several years. The VObject library has 100% unittest coverage.
 
 VObject 3 is the new and improved version of the library.
@@ -43,8 +43,10 @@ A few notes about the examples:
    included.
 2. It's also assumed that `use Sabre\VObject` has been called to import the
    VObject namespace.
-3. Short-array syntax is used everywhere, which requires PHP 5.4. If you are
-   still on PHP 5.3, replace `[...]` with `array(...)` where appropriate.
+3. While sabre/vobject supports PHP 5.3, most of the examples in this document
+   use syntax that has been introduced in PHP 5.4. PHP 5.4 introduces a new way
+   to create arrays, which is a lot shorter and looks better. If you are
+   running PHP 5.3, you may need to replace `[` and `]` with `array(` and `)`.
 
 ### Creating vCards.
 
@@ -141,6 +143,19 @@ Or when you're working with singular parameters:
 
 ```php
 $vcard->TEL['PREF'] = 1;
+```
+
+It is also possible add a list of parameters while creating the property.
+
+```php
+$vcard->add(
+    'EMAIL',
+    'foo@example.org',
+    [
+        'type' => ['home', 'work'],
+        'pref' => 1,
+    ]
+);
 ```
 
 ### Parsing vCard or iCalendar
@@ -465,7 +480,7 @@ $fbGenerator = new VObject\FreeBusyGenerator(
 );
 
 // Grabbing the report
-$freebusy = $fbGenerator->result();
+$freebusy = $fbGenerator->getResult();
 
 // The freebusy report is another VCALENDAR object, so we can serialize it as usual:
 echo $freebusy->serialize();
@@ -509,14 +524,32 @@ To create a json-version of your iCalendar or vCard, simply call
 echo json_encode($vcard->jsonSerialize());
 ```
 
-The json formats are based on these draft RFCs:
+The json formats are based on these RFCs:
 
-* http://tools.ietf.org/html/draft-ietf-jcardcal-jcard-03
-* http://tools.ietf.org/html/draft-kewisch-et-al-icalendar-in-json-02
+* http://tools.ietf.org/html/rfc7095
+* http://tools.ietf.org/html/draft-ietf-jcardcal-jcal-08
 
 Because these are still in draft, so is the jsonSerialize implementation. The
 output format may therefore break between versions to comply with the latest
 version of the spec.
+
+### Parsing jCard and jCal.
+
+To parse a jCard or jCal object, use the following snippet:
+
+```php
+<?php
+
+$input = 'jcard.json';
+$jCard = VObject\Reader::readJson(fopen('jcard.json', 'r'));
+
+?>
+```
+
+You can pass either a json string, a readable stream, or an array if you
+already called json_decode on the input.
+
+This feature was added in sabre/vobject 3.1.
 
 ### Splitting export files
 
@@ -551,6 +584,46 @@ that the `VTIMEZONE` information is kept intact, and any `VEVENT` objects that
 belong together (because they are expections for an `RRULE` and thus have the
 same `UID`) will be kept together, exactly like CalDAV expects.
 
+### Converting between different vCard versions.
+
+Since sabre/vobject 3.1, there's also a feature to convert between various
+vCard versions. Currently it's possible to convert from vCard 2.1, 3.0 and
+4.0 and to 3.0 and 4.0. It's not yet possible to convert to vCard 2.1.
+
+To do this, simply call the convert() method on the vCard object.
+
+```php
+<?php
+
+$input = <<<VCARD
+BEGIN:VCARD
+VERSION:2.1
+FN;CHARSET=UTF-8:Foo
+TEL;PREF;HOME:+1 555 555 555
+END:VCARD
+VCARD;
+
+$vCard = VObject\Reader::read($input);
+$vCard->convert(VObject\Document::VCARD40);
+
+echo $vcard->serialize();
+
+// This will output:
+/*
+BEGIN:VCARD
+VERSION:4.0
+FN:Foo
+TEL;PREF=1;TYPE=HOME:+1 555 555 555
+END:VCARD
+*/
+?>
+```
+
+Note that not everything can cleanly convert between versions, and it's
+probable that there's a few properties that could be converted between
+versions, but isn't yet. If you find something, open a feature request ticket
+on Github.
+
 Full API documentation
 ----------------------
 
@@ -559,6 +632,24 @@ Full API documentation can be found on github:
 https://github.com/fruux/sabre-vobject/wiki/ApiIndex
 
 Reading the source may also be helpful instead :)
+
+CLI tool
+--------
+
+Since vObject 3.1, a new cli tool is shipped in the bin/ directory.
+
+This tool has the following features:
+
+* A `validate` command.
+* A `repair` command to repair objects that are slightly broken.
+* A `color` command, to show an iCalendar object or vCard on the console with
+  ansi-colors, which may help debugging.
+* A `convert` command, allowing you to convert between iCalendar 2.0, vCard 2.1,
+  vCard 3.0, vCard 4.0, jCard and jCal.
+
+Just run it using `bin/vobject`. Composer will automatically also put a
+symlink in `vendor/bin` as well, or a directory of your choosing if you set
+the `bin-dir` setting in your composer.json.
 
 Support
 -------

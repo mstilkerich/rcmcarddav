@@ -70,4 +70,27 @@ class TextTest extends \PHPUnit_Framework_TestCase {
         );
 
     }
+
+    function testValidateMinimumPropValue() {
+
+        $vcard = <<<IN
+BEGIN:VCARD
+VERSION:4.0
+UID:foo
+FN:Hi!
+N:A
+END:VCARD
+IN;
+
+        $vcard = \Sabre\VObject\Reader::read($vcard);
+        $this->assertEquals(1, count($vcard->validate()));
+
+        $this->assertEquals(1, count($vcard->N->getParts()));
+
+        $vcard->validate(\Sabre\VObject\Node::REPAIR);
+
+        $this->assertEquals(5, count($vcard->N->getParts()));
+
+    }
+
 }

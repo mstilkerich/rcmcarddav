@@ -14,9 +14,9 @@ use
  *
  * http://tools.ietf.org/html/rfc5545#section-3.8.2.6
  *
- * @copyright Copyright (C) 2007-2013 fruux GmbH. All rights reserved.
+ * @copyright Copyright (C) 2007-2014 fruux GmbH. All rights reserved.
  * @author Evert Pot (http://evertpot.com/)
- * @license http://code.google.com/p/sabredav/wiki/License Modified BSD License
+ * @license http://sabre.io/license/ Modified BSD License
  */
 class Period extends Property {
 
@@ -24,9 +24,9 @@ class Period extends Property {
      * In case this is a multi-value property. This string will be used as a
      * delimiter.
      *
-     * @var string
+     * @var string|null
      */
-    protected $delimiter = ',';
+    public $delimiter = ',';
 
     /**
      * Sets a raw value coming from a mimedir (iCalendar/vCard) file.
@@ -65,6 +65,25 @@ class Period extends Property {
     public function getValueType() {
 
         return "PERIOD";
+
+    }
+
+    /**
+     * Sets the json value, as it would appear in a jCard or jCal object.
+     *
+     * The value must always be an array.
+     *
+     * @param array $value
+     * @return void
+     */
+    public function setJsonValue(array $value) {
+
+        $value = array_map(function($item) {
+
+            return strtr(implode('/', $item), array(':' => '', '-' => ''));
+
+        }, $value);
+        parent::setJsonValue($value);
 
     }
 
