@@ -43,6 +43,7 @@ class carddav extends rcube_plugin
 				$db_backend = "sqlite3";
 				break;
 			case "pgsql":
+			case "postgres":
 				$db_backend = "postgres";
 				break;
 		}
