@@ -226,7 +226,7 @@ class Request
 
         curl_close($this->_ch);
 
-        return new Response($body, $headers, $this);
+        return new Response($body, $headers, $this, $info);
     }
     public function sendIt()
     {
@@ -392,11 +392,13 @@ class Request
 
     public function attach($files)
     {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
         foreach ($files as $key => $file) {
+            $mimeType = finfo_file($finfo, $file);
             if (function_exists('curl_file_create')) {
-                $this->payload[$key] = curl_file_create($file);
+                $this->payload[$key] = curl_file_create($file, $mimeType);
             } else {
-                $this->payload[$key] = "@{$file}";
+                $this->payload[$key] = '@' . $file . ';type=' . $mimeType;
             }
         }
         $this->sendsType(Mime::UPLOAD);
@@ -570,7 +572,7 @@ class Request
      * here just as a convenience in very specific cases.
      * The preferred "readable" way would be to leverage
      * the support for custom header methods.
-     * @return Response $this
+     * @return Request $this
      * @param array $headers
      */
     public function addHeaders(array $headers)
@@ -851,7 +853,11 @@ class Request
         }
 
         if ($this->hasTimeout()) {
-            curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
+            if (defined('CURLOPT_TIMEOUT_MS')) {
+                curl_setopt($ch, CURLOPT_TIMEOUT_MS, $this->timeout * 1000);
+            } else {
+                curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
+            }
         }
 
         if ($this->follow_redirects) {
