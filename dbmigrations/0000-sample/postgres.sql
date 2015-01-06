@@ -1,1 +1,1 @@
-SELECT * FROM carddav_migrations; -- Just an example migration.
+SELECT * FROM TABLE_PREFIXcarddav_migrations; -- Just an example migration.

@@ -61,6 +61,7 @@ class carddav extends rcube_plugin
 			$qmarks .= ",?";
 		}
 
+		$dbh->set_option('ignore_key_errors', true);
 		$sql_result = $dbh->query('SELECT * FROM '.
 			get_table_name('carddav_migrations') .
 			' WHERE filename IN ('.$qmarks.');', $migrations);
@@ -70,10 +71,13 @@ class carddav extends rcube_plugin
 				    unset($migrations[$key]);
 			}
 		}
+		$dbh->set_option('ignore_key_errors', null);
 
+		$config = rcmail::get_instance()->config;
 		foreach ($migrations as $migration){
 			$query = file_get_contents(dirname(__FILE__)."/dbmigrations/".$migration."/".$db_backend.".sql");
 			if (strlen($query) > 0){
+				$query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
 				$dbh->query($query);
 				write_log("carddav", "Processed migration: $migration");
 			}
