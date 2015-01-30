@@ -5,7 +5,7 @@ the directory to `carddav'.
 create/update the required database tables by executing one of the following
 commands (depening on the database you are using):
 	MySQL     : mysql -h [db-server-name] -u [user] -p -D roundcubemail <./mysql.sql
-	PostgreSQL: psql -h[db-server-name] -Upostgres <./postgres.sql
+	PostgreSQL: psql -h[db-server-name] -Upostgres -droundcube <./postgres.sql
 	SQLite3   : sqlite3 [roundcube-data-path]/roundcubemail.db < sqlite3.sql
 
 3. Change to the plugin directory roundcubemail/plugins/carddav and copy the
