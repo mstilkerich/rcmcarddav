@@ -1738,7 +1738,16 @@ EOF
 		$contact = self::get_dbrecord($cid,'cuid');
 		if(!$contact) return false;
 
-		$vcf->{'X-ADDRESSBOOKSERVER-MEMBER'} = "urn:uuid:" . $contact['cuid'];
+		$search_for = 'urn:uuid:' . $contact['cuid'];
+		$member_exist = false;
+		foreach ($vcf->{'X-ADDRESSBOOKSERVER-MEMBER'} as $member) {
+			if ($member == $search_for) {
+				$member_exist = true;
+				break;
+			}
+		}
+		if(!$member_exist)	
+			$vcf->add('X-ADDRESSBOOKSERVER-MEMBER',$search_for);
 	}
 
 	$vcfstr = $vcf->serialize();
