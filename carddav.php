@@ -30,6 +30,61 @@ class carddav extends rcube_plugin
 	// the addressbook to be initialized
 	public $task = 'addressbook|login|mail|settings|dummy';
 
+	public function checkMigrations(){
+		$dbh = rcmail::get_instance()->db;
+
+		$db_backend = "unknown";
+
+		switch ($dbh->db_provider){
+			case "mysql":
+				$db_backend = "mysql";
+				break;
+			case "sqlite":
+				$db_backend = "sqlite3";
+				break;
+			case "pgsql":
+			case "postgres":
+				$db_backend = "postgres";
+				break;
+		}
+
+		if ($db_backend == "unknown"){
+			write_log("carddav", "Unknown database backend: ".$dbh->db_provider);
+			return;
+		}
+
+		$migrations = scandir(dirname(__FILE__)."/dbmigrations/");
+		array_shift($migrations); /* shift off "." and ".." */
+		array_shift($migrations);
+		$qmarks = "?";
+		for ($i=1;$i<count($migrations);$i++){
+			$qmarks .= ",?";
+		}
+
+		$dbh->set_option('ignore_key_errors', true);
+		$sql_result = $dbh->query('SELECT * FROM '.
+			get_table_name('carddav_migrations') .
+			' WHERE filename IN ('.$qmarks.');', $migrations);
+
+		while ($processed = $dbh->fetch_assoc($sql_result)) {
+			if(($key = array_search($processed['filename'], $migrations)) !== false) {
+				    unset($migrations[$key]);
+			}
+		}
+		$dbh->set_option('ignore_key_errors', null);
+
+		$config = rcmail::get_instance()->config;
+		foreach ($migrations as $migration){
+			$query = file_get_contents(dirname(__FILE__)."/dbmigrations/".$migration."/".$db_backend.".sql");
+			if (strlen($query) > 0){
+				$query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
+				$dbh->query($query);
+				write_log("carddav", "Processed migration: $migration");
+			}
+			$dbh->query("INSERT INTO ".get_table_name("carddav_migrations")." (filename) VALUES (?)", $migration);
+		}
+	}
+
 	public function init()
 	{{{
 	self::$helper = new carddav_common('BACKEND: ');
@@ -42,6 +97,7 @@ class carddav extends rcube_plugin
 	$this->add_hook('preferences_sections_list',array($this, 'cd_preferences_section'));
 
 	$this->add_hook('login_after',array($this, 'init_presets'));
+	$this->add_hook('login_after',array($this, 'checkMigrations'));
 
 	if(!array_key_exists('user_id', $_SESSION))
 		return;
