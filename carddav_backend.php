@@ -353,6 +353,7 @@ class carddav_backend extends rcube_addressbook
 	 */
 	private function dbstore_contact($etag, $uri, $vcfstr, $save_data, $dbid=0)
 	{{{
+	$this->preprocess_rc_savedata($save_data);
 	// build email search string
 	$email_keys = preg_grep('/^email(:|$)/', array_keys($save_data));
 	$email_addrs = array();
@@ -1488,7 +1489,6 @@ EOF
 	$save_data = array(
 		// DEFAULTS
 		'kind'   => 'individual',
-		'showas' => 'INDIVIDUAL',
 	);
 
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
@@ -1594,7 +1594,6 @@ EOF
 	 */
 	public function insert($save_data, $check=false)
 	{{{
-	$this->preprocess_rc_savedata($save_data);
 
 	// find an unused UID
 	$save_data['cuid'] = $this->find_free_uid();
@@ -1631,6 +1630,9 @@ EOF
 		&& $save_data['organization'] && !array_key_exists('showas',$save_data)) {
 		$save_data['showas'] = 'COMPANY';
 	}
+	if(!array_key_exists('showas',$save_data)) {
+		$save_data['showas'] = 'INDIVIDUAL';
+	}
 	// organization not set but showas==company => show as regular
 	if(!$save_data['organization'] && $save_data['showas']==='COMPANY') {
 		$save_data['showas'] = 'INDIVIDUAL';
@@ -1657,7 +1659,6 @@ EOF
 
 	// complete save_data
 	$save_data['showas'] = $contact['showas'];
-	$this->preprocess_rc_savedata($save_data);
 
 	// create vcard from current DB data to be updated with the new data
 	try {
