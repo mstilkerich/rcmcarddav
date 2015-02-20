@@ -1594,6 +1594,7 @@ EOF
 	 */
 	public function insert($save_data, $check=false)
 	{{{
+    $this->preprocess_rc_savedata($save_data);
 
 	// find an unused UID
 	$save_data['cuid'] = $this->find_free_uid();
@@ -1659,6 +1660,7 @@ EOF
 
 	// complete save_data
 	$save_data['showas'] = $contact['showas'];
+    $this->preprocess_rc_savedata($save_data);
 
 	// create vcard from current DB data to be updated with the new data
 	try {
