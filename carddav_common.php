@@ -179,6 +179,7 @@ class carddav_common
 				/* figure out authentication */
 				$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
 				$httpful->uri($url);
+				$httpful->method($http_opts['method']);
 				$error = $httpful->send();
 
 				$httpful = \Httpful\Request::init();
