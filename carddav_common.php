@@ -183,12 +183,12 @@ class carddav_common
 
 				$httpful = \Httpful\Request::init();
 				$scheme = "unknown";
-				if (strtolower(substr($error->headers["www-authenticate"],0,6)) == "digest"){
-					$httpful->digestAuth($username, $password);
-					$scheme = "digest";
-				} else if (strtolower(substr($error->headers["www-authenticate"],0,5)) == "basic"){
+				if (preg_match("/\bBasic\b/i", $error->headers["www-authenticate"])){
 					$httpful->basicAuth($username, $password);
 					$scheme = "basic";
+				} else if (preg_match("/\bDigest\b/i", $error->headers["www-authenticate"])){
+					$httpful->digestAuth($username, $password);
+					$scheme = "digest";
 				}
 				carddav_backend::update_addressbook($carddav['abookid'], array("authentication_scheme"), array($scheme));
 		} else {
