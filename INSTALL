@@ -20,8 +20,11 @@ to run your web server, e.g.:
 	chown -R wwwrun  roundcubemail/plugins/carddav
 	chgrp -R nogroup roundcubemail/plugins/carddav
 
-6. Add `carddav' to the $rcmail_config['plugins'] array in
+
+6. Install the curl php extention if not already present (e.g. apt-get install php5-curl)
+
+7. Add `carddav' to the $rcmail_config['plugins'] array in
 roundcubemail/config/main.inc.php
 
-7. Login to Roundcube and set-up your first CardDAV address book by accessing
+8. Login to Roundcube and set-up your first CardDAV address book by accessing
 'Settings -> Settings -> CardDAV' .
