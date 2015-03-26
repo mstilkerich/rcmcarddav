@@ -19,9 +19,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-// requires Roundcubemail 0.7.2 or later
-
-require_once('inc/sabre-vobject/lib/Sabre/VObject/includes.php');
 require_once("carddav_common.php");
 
 use \Sabre\VObject;
