@@ -19,7 +19,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-include("inc/Httpful/Bootstrap.php");
+require_once('vendor/autoload.php');
+
 \Httpful\Bootstrap::init();
 
 class carddav_common
