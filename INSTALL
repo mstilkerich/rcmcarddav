@@ -2,7 +2,7 @@
 the directory to 'carddav'.
 
 2. If you are installing a development branch, change to the directory
-roundcubemail/plugins/carddav/, install composer and dependencies:
+roundcubemail/plugins/carddav/ and install composer:
   curl -sS https://getcomposer.org/installer | php
 	php composer.phar install
 
@@ -18,10 +18,11 @@ to run your web server, e.g.:
 	chown -R wwwrun  roundcubemail/plugins/carddav
 	chgrp -R nogroup roundcubemail/plugins/carddav
 
-6. Install the curl php extention if not already present (e.g. apt-get install php5-curl)
+6. Install the curl php extention if not already present:
+  apt-get install php5-curl # on Debian
 
 7. Add `carddav' to the $rcmail_config['plugins'] array in
 roundcubemail/config/main.inc.php
 
 8. Login to Roundcube and set-up your first CardDAV address book by accessing
-'Settings -> Settings -> CardDAV' .
+'Settings -> Settings -> CardDAV'
