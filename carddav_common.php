@@ -19,7 +19,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-include("inc/Httpful/Bootstrap.php");
+require_once __DIR__ . '/vendor/autoload.php';
+
 \Httpful\Bootstrap::init();
 
 class carddav_common
@@ -179,14 +180,15 @@ class carddav_common
 				/* figure out authentication */
 				$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
 				$httpful->uri($url);
+				$httpful->method($http_opts['method']);
 				$error = $httpful->send();
 
 				$httpful = \Httpful\Request::init();
 				$scheme = "unknown";
-				if (strtolower(substr($error->headers["www-authenticate"],0,6)) == "digest"){
+				if (preg_match("/\bDigest\b/i", $error->headers["www-authenticate"])){
 					$httpful->digestAuth($username, $password);
 					$scheme = "digest";
-				} else if (strtolower(substr($error->headers["www-authenticate"],0,5)) == "basic"){
+				} else if (preg_match("/\bBasic\b/i", $error->headers["www-authenticate"])){
 					$httpful->basicAuth($username, $password);
 					$scheme = "basic";
 				}
