@@ -1,8 +1,8 @@
 1. Copy/Clone the whole RCMCardDAV plugin directory to roundcubemail/plugins/ and rename
 the directory to 'carddav'.
 
-2. If you are installing a development branch, change to the directory
-roundcubemail/plugins/carddav/ and install composer:
+2. If you are installing a git clone, change to the directory
+roundcubemail/plugins/carddav/ and install the dependencies using composer:
   curl -sS https://getcomposer.org/installer | php
 	php composer.phar install
 
