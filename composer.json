@@ -35,7 +35,7 @@
     },
     "extra": {
         "roundcube": {
-            "min-version": "0.6.0"
+            "min-version": "1.0.0"
         }
     }
 }
