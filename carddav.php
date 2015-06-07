@@ -49,9 +49,7 @@ class carddav extends rcube_plugin
 			return;
 		}
 
-		$migrations = scandir(dirname(__FILE__)."/dbmigrations/");
-		array_shift($migrations); /* shift off "." and ".." */
-		array_shift($migrations);
+		$migrations = array_diff(scandir(dirname(__FILE__)."/dbmigrations/"), array('..', '.'));
 		$qmarks = "?";
 		for ($i=1;$i<count($migrations);$i++){
 			$qmarks .= ",?";
