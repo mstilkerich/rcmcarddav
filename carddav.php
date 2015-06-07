@@ -76,6 +76,8 @@ class carddav extends rcube_plugin
 				$query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
 				$dbh->query($query);
 				write_log("carddav", "Processed migration: $migration");
+			} else {
+				write_log("carddav", "Can't find migration: /dbmigrations/".$migration."/".$db_backend.".sql");
 			}
 			$dbh->query("INSERT INTO ".get_table_name("carddav_migrations")." (filename) VALUES (?)", $migration);
 		}
