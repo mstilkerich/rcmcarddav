@@ -110,8 +110,8 @@ class carddav extends rcube_plugin
 	$this->add_hook('preferences_save', array($this, 'cd_save'));
 	$this->add_hook('preferences_sections_list',array($this, 'cd_preferences_section'));
 
-	$this->add_hook('login_after',array($this, 'init_presets'));
 	$this->add_hook('login_after',array($this, 'checkMigrations'));
+	$this->add_hook('login_after',array($this, 'init_presets'));
 
 	if(!array_key_exists('user_id', $_SESSION))
 		return;
