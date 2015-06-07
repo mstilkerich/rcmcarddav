@@ -60,9 +60,11 @@ class carddav extends rcube_plugin
 			get_table_name('carddav_migrations') .
 			' WHERE filename IN ('.$qmarks.');', $migrations);
 
-		while ($processed = $dbh->fetch_assoc($sql_result)) {
-			if(($key = array_search($processed['filename'], $migrations)) !== false) {
-				    unset($migrations[$key]);
+		if ($sql_result){
+			while ($processed = $dbh->fetch_assoc($sql_result)) {
+				if(($key = array_search($processed['filename'], $migrations)) !== false) {
+							unset($migrations[$key]);
+				}
 			}
 		}
 		$dbh->set_option('ignore_key_errors', null);
