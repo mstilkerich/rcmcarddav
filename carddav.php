@@ -81,19 +81,19 @@ class carddav extends rcube_plugin
 		}
 		$dbh->set_option('ignore_key_errors', null);
 
-		foreach ($migrations as $migration){
-			write_log('carddav', "In migrations, migration ".$migration);
+		foreach ($migrations as $migration) {
+			write_log('carddav', "In migration: ".$migration);
 			$queries_raw = file_get_contents(dirname(__FILE__)."/dbmigrations/".$migration."/".$db_backend.".sql");
 			$match_count = preg_match_all('/(.+?;)/s', $queries_raw, $matches);
 			write_log('carddav', 'Found '.$match_count.' matches');
 			if($match_count > 0){
-			    foreach ($matches[0] as $query){
-				if (strlen($query) > 0){
-				    $query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
-				    $dbh->query($query);
+				foreach ($matches[0] as $query){ // array will have two elements, each holding all queries. Only iterate over one of them
+					if (strlen($query) > 0){
+						$query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
+						$dbh->query($query);
+					}
 				}
-			    }
-			    $dbh->query("INSERT INTO ".get_table_name("carddav_migrations")." (filename) VALUES (?)", $migration);
+				$dbh->query("INSERT INTO ".get_table_name("carddav_migrations")." (filename) VALUES (?)", $migration);
 			}else{
 				write_log('carddav', "Did not match any instructions from migration ".$migration);
 			}
