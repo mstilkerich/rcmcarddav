@@ -49,24 +49,25 @@ class carddav extends rcube_plugin
 			return;
 		}
 
+		# first initialize the carddav_migrations table if it doesn't exist.
+		/*
+		$query = file_get_contents(dirname(__FILE__)."/dbinit/".$db_backend.".sql");
+		if (strlen($query) > 0){
+			$query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
+			$dbh->query($query);
+			write_log("carddav", "Processed initialization of carddav_migrations table");
+		} else {
+			write_log("carddav", "Can't find migration: /dbinit/".$db_backend.".sql");
+		}
+		*/
+
+		$config = rcmail::get_instance()->config;
 		$migrations = array_diff(scandir(dirname(__FILE__)."/dbmigrations/"), array('..', '.'));
 		$qmarks = "?";
 		for ($i=1;$i<count($migrations);$i++){
 			$qmarks .= ",?";
 		}
 
-		# first initialize the carddav_migrations table if it doesn't exist.
-		$config = rcmail::get_instance()->config;
-		$query = file_get_contents(dirname(__FILE__)."/dbinit/".$db_backend.".sql");
-		if (strlen($query) > 0){
-				$query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
-				$dbh->query($query);
-				write_log("carddav", "Processed initialization of carddav_migrations table");
-			} else {
-				write_log("carddav", "Can't find migration: /dbinit/".$db_backend.".sql");
-			}
-
-		
 		$dbh->set_option('ignore_key_errors', true);
 		$sql_result = $dbh->query('SELECT * FROM '.
 			get_table_name('carddav_migrations') .

@@ -1,3 +1,12 @@
+-- table to store the finished migrations
+CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_migrations (
+	ID integer NOT NULL PRIMARY KEY,
+	filename VARCHAR(64) NOT NULL,
+	processed_at TIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+	UNIQUE(filename)
+);
+
 -- table to store the configured address books
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
 	id           integer NOT NULL PRIMARY KEY,
