@@ -24,6 +24,7 @@
 //            NOTE: if the IMAP password of the user changes, the stored
 //             CardDAV passwords cannot be decrypted anymore and the user
 //             needs to reenter them.
+// des_key: store encrypted with global des_key of roundcube
 // $prefs['_GLOBAL']['pwstore_scheme'] = 'base64';
 
 //// ** ADDRESSBOOK PRESETS

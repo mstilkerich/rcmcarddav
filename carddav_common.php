@@ -284,6 +284,15 @@ class carddav_common
 		return '{ENCRYPTED}'.$crypted;
 	}
 
+	if(strcasecmp(self::$pwstore_scheme, 'des_key')===0) {
+
+		// encrypted with global des_key
+		$rcmail = rcmail::get_instance();
+		$crypted = $rcmail->encrypt($clear);
+
+		return '{DES_KEY}'.$crypted;
+	}
+
 	// default: base64-coded password
 	return '{BASE64}'.base64_encode($clear);
 	}}}
@@ -292,6 +301,9 @@ class carddav_common
 	{{{
 	if(strpos($crypt, '{ENCRYPTED}') === 0)
 		return 'encrypted';
+
+	if(strpos($crypt, '{DES_KEY}') === 0)
+		return 'des_key';
 
 	if(strpos($crypt, '{BASE64}') === 0)
 		return 'base64';
@@ -315,6 +327,13 @@ class carddav_common
 		$deskey_backup = $rcmail->config->set('carddav_des_key', '');
 
 		return $clear;
+	}
+
+	if(strpos($crypt, '{DES_KEY}') === 0) {
+		$crypt = substr($crypt, strlen('{DES_KEY}'));
+		$rcmail = rcmail::get_instance();
+
+		return $rcmail->decrypt($crypt);
 	}
 
 	if(strpos($crypt, '{BASE64}') === 0) {
@@ -342,7 +361,7 @@ class carddav_common
 
 	if(is_array($prefs['_GLOBAL'])) {
 		$scheme = $prefs['_GLOBAL']['pwstore_scheme'];
-		if(preg_match("/^(plain|base64|encrypted)$/", $scheme))
+		if(preg_match("/^(plain|base64|encrypted|des_key)$/", $scheme))
 			self::$pwstore_scheme = $scheme;
 	}
 	return $prefs;
