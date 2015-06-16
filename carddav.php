@@ -49,9 +49,20 @@ class carddav extends rcube_plugin
 			return;
 		}
 
-		$migrations = scandir(dirname(__FILE__)."/dbmigrations/");
-		array_shift($migrations); /* shift off "." and ".." */
-		array_shift($migrations);
+		# first initialize the carddav_migrations table if it doesn't exist.
+		/*
+		$query = file_get_contents(dirname(__FILE__)."/dbinit/".$db_backend.".sql");
+		if (strlen($query) > 0){
+			$query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
+			$dbh->query($query);
+			write_log("carddav", "Processed initialization of carddav_migrations table");
+		} else {
+			write_log("carddav", "Can't find migration: /dbinit/".$db_backend.".sql");
+		}
+		*/
+
+		$config = rcmail::get_instance()->config;
+		$migrations = array_diff(scandir(dirname(__FILE__)."/dbmigrations/"), array('..', '.'));
 		$qmarks = "?";
 		for ($i=1;$i<count($migrations);$i++){
 			$qmarks .= ",?";
@@ -62,22 +73,31 @@ class carddav extends rcube_plugin
 			get_table_name('carddav_migrations') .
 			' WHERE filename IN ('.$qmarks.');', $migrations);
 
-		while ($processed = $dbh->fetch_assoc($sql_result)) {
-			if(($key = array_search($processed['filename'], $migrations)) !== false) {
-				    unset($migrations[$key]);
+		if ($sql_result){
+			while ($processed = $dbh->fetch_assoc($sql_result)) {
+				if(($key = array_search($processed['filename'], $migrations)) !== false) {
+							unset($migrations[$key]);
+				}
 			}
 		}
 		$dbh->set_option('ignore_key_errors', null);
 
-		$config = rcmail::get_instance()->config;
-		foreach ($migrations as $migration){
-			$query = file_get_contents(dirname(__FILE__)."/dbmigrations/".$migration."/".$db_backend.".sql");
-			if (strlen($query) > 0){
-				$query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
-				$dbh->query($query);
-				write_log("carddav", "Processed migration: $migration");
+		foreach ($migrations as $migration) {
+			write_log('carddav', "In migration: ".$migration);
+			$queries_raw = file_get_contents(dirname(__FILE__)."/dbmigrations/".$migration."/".$db_backend.".sql");
+			$match_count = preg_match_all('/(.+?;)/s', $queries_raw, $matches);
+			write_log('carddav', 'Found '.$match_count.' matches');
+			if($match_count > 0){
+				foreach ($matches[0] as $query){ // array will have two elements, each holding all queries. Only iterate over one of them
+					if (strlen($query) > 0){
+						$query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
+						$dbh->query($query);
+					}
+				}
+				$dbh->query("INSERT INTO ".get_table_name("carddav_migrations")." (filename) VALUES (?)", $migration);
+			}else{
+				write_log('carddav', "Did not match any instructions from migration ".$migration);
 			}
-			$dbh->query("INSERT INTO ".get_table_name("carddav_migrations")." (filename) VALUES (?)", $migration);
 		}
 	}
 
@@ -108,8 +128,8 @@ class carddav extends rcube_plugin
 	$this->add_hook('preferences_save', array($this, 'cd_save'));
 	$this->add_hook('preferences_sections_list',array($this, 'cd_preferences_section'));
 
-	$this->add_hook('login_after',array($this, 'init_presets'));
 	$this->add_hook('login_after',array($this, 'checkMigrations'));
+	$this->add_hook('login_after',array($this, 'init_presets'));
 
 	if(!array_key_exists('user_id', $_SESSION))
 		return;

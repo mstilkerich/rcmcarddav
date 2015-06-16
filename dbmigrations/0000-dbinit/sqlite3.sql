@@ -1,3 +1,12 @@
+-- table to store the finished migrations
+CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_migrations (
+	ID integer NOT NULL PRIMARY KEY,
+	filename VARCHAR(64) NOT NULL,
+	processed_at TIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+	UNIQUE(filename)
+);
+
 -- table to store the configured address books
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
 	id           integer NOT NULL PRIMARY KEY,
@@ -77,12 +86,4 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_group_user (
 	-- not enforced by sqlite < 3.6.19
 	FOREIGN KEY(group_id) REFERENCES TABLE_PREFIXcarddav_groups(id) ON DELETE CASCADE ON UPDATE CASCADE,
 	FOREIGN KEY(contact_id) REFERENCES TABLE_PREFIXcarddav_contacts(id) ON DELETE CASCADE ON UPDATE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_migrations (
-	ID integer NOT NULL PRIMARY KEY,
-	filename VARCHAR(64) NOT NULL,
-	processed_at TIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-	UNIQUE(filename)
 );
