@@ -16,10 +16,11 @@
 // When enabled, this option hides the 'CardDAV' section inside Preferences.
 // $prefs['_GLOBAL']['hide_preferences'] = true;
 
-// Scheme for storing the CardDAV passwords.
+// Scheme for storing the CardDAV passwords, in order from least to best security.
 // Options:
 // plain: store as plaintext
 // base64: store encoded with base64 (default)
+// des_key: store encrypted with global des_key of roundcube
 // encrypted: store encrypted with IMAP password of the user
 //            NOTE: if the IMAP password of the user changes, the stored
 //             CardDAV passwords cannot be decrypted anymore and the user
