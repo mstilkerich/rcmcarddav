@@ -105,7 +105,7 @@ class carddav extends rcube_plugin
 	{{{
     $this->rc = rcmail::get_instance();
     $tasks = explode('|', $this->task);
-    
+
     // Since other plugins may also use the Sabre library
     // In order to avoid version conflicts between Sabre libraries 
     // which might be used by other plugins

@@ -1746,7 +1746,7 @@ EOF
 
 	private function update_contact_categories($id,$vcf) {
 		$groups = $this->get_record_groups($id);
-		
+
 		if($vcf->{'CATEGORY'}) {
 			$cat_name = "CATEGORY";
 		} else {
@@ -1759,39 +1759,39 @@ EOF
 		}
 		$vcf->{$cat_name} = $categories;
 	}
-	
+
 	private function update_contacts($ids) {
 		foreach ($ids as $id) {
 			$contact = self::get_dbrecord($id,'id,cuid,uri,etag,vcard,showas');
 			if(!$contact) return false;
-			
+
 			try {
 				$vcf = VObject\Reader::read($contact['vcard'], VObject\Reader::OPTION_FORGIVING);
 			} catch (Exception $e) {
 				self::$helper->warn("Update: Couldn't parse local vcard: ".$contact['vcard']);
 				return false;
 			}
-			
+
 			$this->update_contact_categories($id,$vcf);
-			
+
 			$vcfstr = $vcf->serialize();
-			
+
 			$save_data = $this->create_save_data_from_vcard("$vcfstr")['save_data'];
-			
+
 			// complete save_data
 			$save_data['showas'] = $contact['showas'];
 			$this->preprocess_rc_savedata($save_data);
-			
+
 			if(!($etag=$this->put_record_to_carddav($contact['uri'], $vcfstr, $contact['etag']))) {
 				self::$helper->warn("Updating card on server failed");
 				return false;
 			}
 			$id = $this->dbstore_contact($etag,$contact['uri'],$vcfstr,$save_data,$id);
-		
+
 		}
 		return true;
 	}
-	
+
 	/**
 	 * Add the given contact records the a certain group
 	 *
@@ -1825,7 +1825,7 @@ EOF
 		foreach ($ids as $cid) {
 			$contact = self::get_dbrecord($cid,'cuid');
 			if(!$contact) return false;
-			
+
 			$vcf->{'X-ADDRESSBOOKSERVER-MEMBER'} = "urn:uuid:" . $contact['cuid'];
 		}
 
@@ -1836,7 +1836,7 @@ EOF
 		if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
 			return false;
 	}
-	
+
 	$dbh = rcmail::get_instance()->db;
 	foreach ($ids as $cid) {
 		$dbh->query('INSERT INTO ' .
@@ -1844,7 +1844,7 @@ EOF
 			' (group_id,contact_id) VALUES (?,?)',
 				$group_id, $cid);
 	}
-	
+
 	if($this->config['use_categories']) {
 		if(!$this->update_contacts($ids))
 			return false;
@@ -2089,7 +2089,7 @@ EOF
 		}
 		$this->update_contacts($ids);
 	}
-	
+
 	return $newname;
 	}}}
 
