@@ -13,6 +13,7 @@ CREATE TABLE carddav_addressbooks (
 	password VARCHAR(255) NOT NULL,
 	url VARCHAR(255) NOT NULL,
 	active SMALLINT NOT NULL DEFAULT 1,
+	use_categories SMALLINT NOT NULL DEFAULT 0,
 	user_id integer NOT NULL REFERENCES users (user_id) ON DELETE CASCADE ON UPDATE CASCADE,
 	last_updated TIMESTAMP NOT NULL DEFAULT '-infinity', -- time stamp of the last update of the local database
 	refresh_time INTERVAL NOT NULL DEFAULT '01:00:00', -- time span after that the local database will be refreshed, default 1h
