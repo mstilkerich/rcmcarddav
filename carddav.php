@@ -444,7 +444,7 @@ class carddav extends rcube_plugin
 				array(
 					'id'           => 'new',
 					'active'       => 1,
-					'use_categories' => 0,
+					'use_categories' => 1,
 					'username'     => '',
 					'url'          => '',
 					'name'         => '',
