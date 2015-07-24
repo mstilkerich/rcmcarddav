@@ -104,6 +104,10 @@ class carddav_backend extends rcube_addressbook
 
 	$this->config = self::carddavconfig($dbid);
 
+	if ($this->config["needs_update"]){
+		$this->refreshdb_from_server();
+	}
+
 	$prefs = carddav_common::get_adminsettings();
 	if($this->config['presetname']) {
 		if($prefs[$this->config['presetname']]['readonly'])
