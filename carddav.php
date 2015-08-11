@@ -63,6 +63,11 @@ class carddav extends rcube_plugin
 
 		$config = rcmail::get_instance()->config;
 		$migrations = array_diff(scandir(dirname(__FILE__)."/dbmigrations/"), array('..', '.'));
+		$mignew = array();
+		foreach ($migrations as $k => $v){
+			$mignew[] = $v;
+		}
+		$migrations = $mignew;
 		$qmarks = "?";
 		for ($i=1;$i<count($migrations);$i++){
 			$qmarks .= ",?";
