@@ -2,7 +2,7 @@ PRAGMA foreign_keys=OFF;
 
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks_X (
 	id           integer NOT NULL PRIMARY KEY,
-	name         VARCHAR(255) NOT NULL,
+	name         VARCHAR(64) NOT NULL,
 	username     VARCHAR(255) NOT NULL,
 	password     VARCHAR(255) NOT NULL,
 	url          VARCHAR(255) NOT NULL,
