@@ -192,7 +192,9 @@ class carddav_common
 					$httpful->basicAuth($username, $password);
 					$scheme = "basic";
 				}
-				carddav_backend::update_addressbook($carddav['abookid'], array("authentication_scheme"), array($scheme));
+
+				if ($scheme != "unknown")
+					carddav_backend::update_addressbook($carddav['abookid'], array("authentication_scheme"), array($scheme));
 		} else {
 			if (strtolower($scheme) == "digest"){
 				$httpful->digestAuth($username, $password);
