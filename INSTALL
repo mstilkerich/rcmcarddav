@@ -1,3 +1,5 @@
+0. Log ouf of Roundcube! This is necessary for proper setup of the databases later.
+
 1. Copy/Clone the whole RCMCardDAV plugin directory to roundcubemail/plugins/ and rename
 the directory to 'carddav'.
 
