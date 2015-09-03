@@ -583,6 +583,22 @@ class carddav extends rcube_plugin
 	if(array_key_exists('refresh_time', $pa)) {
 		$pa['refresh_time'] = self::process_cd_time($pa['refresh_time']);
 	}
+	/* Ensure field lengths */
+	if (array_key_exists('name', $pa)) {
+		if (strlen($pa['name']) > 64){
+			$pa['name'] = substr($pa['name'], 0, 64);
+		}
+	}
+	if (array_key_exists('username', $pa)) {
+		if (strlen($pa['name']) > 255){
+			$pa['name'] = substr($pa['name'], 0, 255);
+		}
+	}
+	if (array_key_exists('presetname', $pa)) {
+		if (strlen($pa['name']) > 255){
+			$pa['name'] = substr($pa['name'], 0, 255);
+		}
+	}
 	$pa['user_id']      = $_SESSION['user_id'];
 
 	// required fields
@@ -620,6 +636,23 @@ class carddav extends rcube_plugin
 	// encrypt the password before storing it
 	if(array_key_exists('password', $pa))
 		$pa['password'] = self::$helper->encrypt_password($pa['password']);
+
+	/* Ensure field lengths */
+	if (array_key_exists('name', $pa)) {
+		if (strlen($pa['name']) > 64){
+			$pa['name'] = substr($pa['name'], 0, 64);
+		}
+	}
+	if (array_key_exists('username', $pa)) {
+		if (strlen($pa['name']) > 255){
+			$pa['name'] = substr($pa['name'], 0, 255);
+		}
+	}
+	if (array_key_exists('presetname', $pa)) {
+		if (strlen($pa['name']) > 255){
+			$pa['name'] = substr($pa['name'], 0, 255);
+		}
+	}
 
 	// optional fields
 	$qfo=array('name','username','password','url','active','refresh_time','sync_token');
