@@ -1948,6 +1948,27 @@ EOF
 	}}}
 
 	/**
+	 * Get group properties such as name and email address(es)
+	 *
+	 * @param string Group identifier
+	 * @return array Group properties as hash array
+	 */
+	function get_group($group_id)
+	{
+		$dbh = rcmail::get_instance()->db;
+
+		$sql_result = $dbh->query('SELECT * FROM '.
+			get_table_name('carddav_groups').
+			' WHERE id = ?', $group_id);
+
+		if ($sql_result && ($sql_arr = $dbh->fetch_assoc($sql_result))) {
+			return $sql_arr;
+		}
+
+		return null;
+	}
+
+	/**
 	 * List all active contact groups of this source
 	 *
 	 * @param string  Optional search string to match group name
