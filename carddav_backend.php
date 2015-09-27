@@ -1780,7 +1780,8 @@ EOF
 
 			$vcfstr = $vcf->serialize();
 
-			$save_data = $this->create_save_data_from_vcard("$vcfstr")['save_data'];
+			$save_data_arr = $this->create_save_data_from_vcard("$vcfstr");
+			$save_data = $save_data_arr['save_data'];
 
 			// complete save_data
 			$save_data['showas'] = $contact['showas'];
