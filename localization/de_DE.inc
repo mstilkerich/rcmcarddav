@@ -8,7 +8,7 @@ $labels = Array(
 	'cd_url'=> "URL",
 	'cd_php_too_old'=> "Ihre PHP Version ist zu alt! Es wird mindestens 5.3.0 benoetigt! Sie haben folgende Version installiert:",
 	'cd_name'=> "Name des Adressbuches",
-	'cd_use_categories' => "Modernen Gruppenmechanismus verwenden\n(Alte RCMCardDAV Gruppen gehen verloren!)",
+	'cd_use_categories' => "CATEGORIES statt KIND=group (RFC6350)\nzur Abbildung von Kontaktgruppen verwenden",
 	'cd_delete'=> "Dieses Adressbuch entfernen",
 	'cd_name_new'=> "Neues Adressbuch konfigurieren",
 	'cd_refresh_time'=> "Aktualisierungsintervall (Stunden)",
