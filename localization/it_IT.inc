@@ -12,6 +12,5 @@ $labels = Array(
 	'cd_name_new'=> "Crea una nuova rubrica",
 	'cd_refresh_time'=> "Frequenza di aggiornamento (ore)",
 	'cd_err_noabfound'=> "Nessuna Rubrica Trovata",
-	'cd_preemptive_auth'=> "Preemptively authenticate against server. Use for ownCloud!",
 );
 ?>

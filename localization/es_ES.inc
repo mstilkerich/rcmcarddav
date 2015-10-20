@@ -12,6 +12,5 @@ $labels = Array(
 	'cd_name_new'=> "Configurar una nueva libreta de direcciones",
 	'cd_refresh_time'=> "Intervalo de actualización (horas)",
 	'cd_err_noabfound'=> "libreta de direcciones no encontrada",
-	'cd_preemptive_auth'=> "Autenticar previamente contra el servidor. Necesario para OwnCloud!",
 );
 ?>

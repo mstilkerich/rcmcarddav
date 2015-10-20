@@ -12,6 +12,5 @@ $labels = Array(
 	'cd_name_new'=> "Nastavit nový adresář kontaktů",
 	'cd_refresh_time'=> "Interval aktualizace (hodiny)",
 	'cd_err_noabfound'=> "no addressbook found",
-	'cd_preemptive_auth'=> "Preemptively authenticate against server. Use for ownCloud!",
 );
 ?>

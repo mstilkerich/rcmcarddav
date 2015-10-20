@@ -13,6 +13,5 @@ $labels = Array(
 	'cd_name_new'=> "Konfiguracja nowej książki adresowej",
 	'cd_refresh_time'=> "Interwał aktualizacji (godziny)",
 	'cd_err_noabfound'=> "nie znaleziono książek adresowych",
-	'cd_preemptive_auth'=> "Zapobiegawczo uwierzytelnij z serwerem. Używaj dla ownCloud!",
 );
 ?>

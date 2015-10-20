@@ -12,6 +12,5 @@ $labels = Array(
 	'cd_name_new'=> "Konfigurera en ny addressbok",
 	'cd_refresh_time'=> "Uppdateringsintervall (timmar)",
 	'cd_err_noabfound'=> "no addressbook found",
-	'cd_preemptive_auth'=> "Preemptively authenticate against server. Use for ownCloud!",
 );
 ?>

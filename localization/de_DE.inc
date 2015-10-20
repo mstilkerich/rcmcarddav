@@ -13,7 +13,6 @@ $labels = Array(
 	'cd_name_new'=> "Neues Adressbuch konfigurieren",
 	'cd_refresh_time'=> "Aktualisierungsintervall (Stunden)",
 	'cd_err_noabfound'=> "Kein Adressbuch gefunden.",
-	'cd_preemptive_auth'=> "Immer am Server authentifizieren. Für ownCloud aktivieren!",
 	'cd_enabled' => 'Aktiv',
 	'cd_disabled' => 'Inaktiv',
 	'cd_lastupdate_time'=>'Zuletzt aktualisiert',

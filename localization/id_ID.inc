@@ -12,6 +12,5 @@ $labels = Array(
 	'cd_name_new'=> "Mengkonfigurasi buku alamat baru",
 	'cd_refresh_time'=> "Interval update (dalam jam)",
 	'cd_err_noabfound'=> "no addressbook found",
-	'cd_preemptive_auth'=> "Preemptively authenticate against server. Use for ownCloud!",
 );
 ?>
