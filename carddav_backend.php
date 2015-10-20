@@ -1519,12 +1519,14 @@ EOF
 	 *           - vcf:          VCard object created from the given VCard
 	 *           - needs_update: boolean that indicates whether the card was modified
 	 */
-    // TODO Photo cropping should be in the backend, really
 	const MAX_PHOTO_SIZE = 256;
 
 	private function crop_photo(&$save_data, $abcrop)
 	{{{
-	if (!function_exists('gd_info')) { return; }
+	if (!function_exists('gd_info')) {
+		self::$helper->warn("Photo cropping requested but php-gd not available");
+		return;
+	}
 
 	$parts = explode('&', $abcrop);
 	$x = intval($parts[1]);
