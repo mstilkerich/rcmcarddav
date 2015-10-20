@@ -101,18 +101,7 @@ class carddav_backend extends rcube_addressbook
 	$this->groups   = true;
 	$this->readonly = false;
 	$this->id       = $dbid;
-
-	$this->config = self::carddavconfig($dbid);
-
-	if ($this->config["needs_update"]){
-		$this->refreshdb_from_server();
-	}
-
-	$prefs = carddav_common::get_adminsettings();
-	if($this->config['presetname']) {
-		if($prefs[$this->config['presetname']]['readonly'])
-			$this->readonly = true;
-	}
+	$this->config   = self::carddavconfig($dbid);
 
 	$this->coltypes = array( /* {{{ */
 		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('name'), 'category' => 'main'),
@@ -145,6 +134,21 @@ class carddav_backend extends rcube_addressbook
 		// TODO: define fields for vcards like GEO, KEY
 	); /* }}} */
 	$this->addextrasubtypes();
+
+
+	if($this->config['presetname']) {
+		$prefs = carddav_common::get_adminsettings();
+		if($prefs[$this->config['presetname']]['readonly'])
+			$this->readonly = true;
+	}
+
+	// refresh the address book if the update interval expired
+	// this requires a completely initialized carddav_backend object, so it
+	// needs to be at the end of this constructor
+	if ($this->config["needs_update"]){
+		$this->refreshdb_from_server();
+	}
+
 	}}}
 
 	/**
