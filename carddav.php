@@ -124,7 +124,7 @@ class carddav extends rcube_plugin
         require_once('carddav_common.php');
     }
 
-	self::$helper = new carddav_common('BACKEND: ');
+	self::$helper = new carddav_common('FRONTEND: ');
 
 	$this->add_hook('addressbooks_list', array($this, 'address_sources'));
 	$this->add_hook('addressbook_get', array($this, 'get_address_book'));
