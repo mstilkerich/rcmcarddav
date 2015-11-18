@@ -1215,7 +1215,7 @@ EOF
 	$this->result = $this->count();
 	$opts = array( 'method'=>"DELETE" );
 	$reply = self::$helper->cdfopen($id, $opts, $this->config);
-	if (is_array($reply) && $reply["status"] == 204){
+	if (is_array($reply) && ($reply["status"] == 204 || $reply["status"] == 200)){
 		return true;
 	}
 	return false;
