@@ -680,11 +680,14 @@ class carddav extends rcube_plugin
 
 	public function card_delete($id,$source)
 	{
+	$args = [];
+	$args['result'] = 0;
 	$dbh = rcmail::get_instance()->db;
-		foreach ($id[id] as $id_delete){
-		    $sql_result = $dbh->query('DELETE FROM `carddav_contacts` WHERE id="'.$id_delete.'";');
+		foreach ($id["id"] as $id_delete){
+			carddav_backend::delete_dbrecord($id_delete,'contacts','id');
+			$args['result']++;
 		}
-	$args['abort'] = false;	
+	$args['abort'] = true;
 	return($args);
 	}
 
