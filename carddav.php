@@ -678,7 +678,7 @@ class carddav extends rcube_plugin
 	);
 	}}}
 
-	public function card_delete($id,$source)
+	public function card_delete($id,$source = 1)
 	{
 	$args = [];
 	$args['result'] = 0;
