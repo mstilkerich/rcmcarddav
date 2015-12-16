@@ -770,7 +770,7 @@ EOF
 				self::delete_dbrecord($dbid,'group_user','contact_id');
 				foreach ($this->getCategories($vcfobj) as $category) {
 					if($category !== "All" && $category !== "Unfiled") {
-						$record = self::get_dbrecord($category, 'id', 'groups', true, 'name');
+						$record = self::get_dbrecord($category, 'id', 'groups', true, 'name', array('abook_id' => $this->config['abookid']));
 						if(!$record) {
 							$cuid = $this->find_free_uid();
 							$uri = "$cuid.vcf";
@@ -2152,12 +2152,20 @@ EOF
                 return false;
         }
 
-	public static function get_dbrecord($id, $cols='*', $table='contacts', $retsingle=true, $idfield='id')
+	public static function get_dbrecord($id, $cols='*', $table='contacts', $retsingle=true, $idfield='id', $other_conditions = array())
 	{{{
 	$dbh = rcmail::get_instance()->db;
-	$sql_result = $dbh->query("SELECT $cols FROM " .
-		get_table_name("carddav_$table") .
-		' WHERE ' . $dbh->quoteIdentifier($idfield) . '=?', $id);
+
+	$idfield = $dbh->quoteIdentifier($idfield);
+	$id = $dbh->quote($id);
+	$sql = "SELECT $cols FROM " . get_table_name("carddav_$table") . ' WHERE ' . $idfield . '=' . $id;
+
+	// Append additional conditions
+	foreach ($other_conditions as $field => $value) {
+		$sql .= ' AND ' . $dbh->quoteIdentifier($field) . ' = ' . $dbh->quote($value);
+	}
+
+	$sql_result = $dbh->query($sql);
 
 	// single row requested?
 	if($retsingle)
