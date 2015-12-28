@@ -157,7 +157,7 @@ class carddav_backend extends rcube_addressbook
 	{{{
 	$dbh = rcmail::get_instance()->db;
 	$sql_result = $dbh->query('INSERT INTO ' .
-		get_table_name('carddav_xsubtypes') .
+		$dbh->table_name('carddav_xsubtypes') .
 		' (typename,subtype,abook_id) VALUES (?,?,?)',
 			$typename, $subtype, $this->id);
 	}}}
@@ -307,7 +307,7 @@ class carddav_backend extends rcube_addressbook
 		self::$helper->debug("UPDATE card $uri");
 		$xval[]=$dbid;
 		$sql_result = $dbh->query('UPDATE ' .
-			get_table_name("carddav_$table") .
+			$dbh->table_name("carddav_$table") .
 			' SET ' . implode('=?,', $xcol) . '=?' .
 			' WHERE id=?', $xval);
 
@@ -325,7 +325,7 @@ class carddav_backend extends rcube_addressbook
 		$xcol[]='cuid';     $xval[]=$save_data['cuid'];
 
 		$sql_result = $dbh->query('INSERT INTO ' .
-			get_table_name("carddav_$table") .
+			$dbh->table_name("carddav_$table") .
 			' (' . implode(',',$xcol) . ') VALUES (?' . str_repeat(',?', count($xcol)-1) .')',
 				$xval);
 
@@ -461,9 +461,9 @@ EOF
 	foreach($this->users_to_add as $dbid => $cuids) {
 		if(count($cuids)<=0) continue;
 		$sql_result = $dbh->query('INSERT INTO '.
-			get_table_name('carddav_group_user') .
+			$dbh->table_name('carddav_group_user') .
 			' (group_id,contact_id) SELECT ?,id from ' .
-			get_table_name('carddav_contacts') .
+			$dbh->table_name('carddav_contacts') .
 			' WHERE abook_id=? AND cuid IN (' . implode(',', $cuids) . ')', $dbid, $this->id);
 		self::$helper->debug("Added " . $dbh->affected_rows($sql_result) . " contacts to group $dbid");
 	}
@@ -474,7 +474,7 @@ EOF
 
 	// set last_updated timestamp
 	$dbh->query('UPDATE ' .
-		get_table_name('carddav_addressbooks') .
+		$dbh->table_name('carddav_addressbooks') .
 		' SET last_updated=' . $dbh->now() .' WHERE id=?',
 			$this->id);
 
@@ -620,7 +620,7 @@ EOF
 	$xfrom = '';
 	$xwhere = '';
 	if($this->group_id) {
-		$xfrom = ',' . get_table_name('carddav_group_user');
+		$xfrom = ',' . $dbh->table_name('carddav_group_user');
 		$xwhere = ' AND id=contact_id AND group_id=' . $dbh->quote($this->group_id) . ' ';
 	}
 
@@ -629,7 +629,7 @@ EOF
 	$sort_order  = $this->sort_order ? $this->sort_order : 'ASC';
 
 	$sql_result = $dbh->limitquery("SELECT id,name,$dbattr FROM " .
-		get_table_name('carddav_contacts') . $xfrom .
+		$dbh->table_name('carddav_contacts') . $xfrom .
 		' WHERE abook_id=? ' . $xwhere .
 		($this->filter ? " AND (".$this->filter.")" : "") .
 		" ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $sort_column . " END) "
@@ -1099,7 +1099,7 @@ EOF
 		$dbh = rcmail::get_instance()->db;
 
 		$sql_result = $dbh->query('SELECT COUNT(id) as total_cards FROM ' .
-			get_table_name('carddav_contacts') .
+			$dbh->table_name('carddav_contacts') .
 			' WHERE abook_id=?' .
 			($this->filter ? " AND (".$this->filter.")" : ""),
 			$this->id
@@ -1845,7 +1845,7 @@ EOF
 	$dbh = rcmail::get_instance()->db;
 	foreach ($ids as $cid) {
 		$dbh->query('INSERT INTO ' .
-			get_table_name('carddav_group_user') .
+			$dbh->table_name('carddav_group_user') .
 			' (group_id,contact_id) VALUES (?,?)',
 				$group_id, $cid);
 	}
@@ -1920,8 +1920,8 @@ EOF
 	{{{
 	$dbh = rcmail::get_instance()->db;
 	$sql_result = $dbh->query('SELECT id,name FROM '.
-		get_table_name('carddav_groups') . ',' .
-		get_table_name('carddav_group_user') .
+		$dbh->table_name('carddav_groups') . ',' .
+		$dbh->table_name('carddav_group_user') .
 		' WHERE id=group_id AND contact_id=?', $id);
 
 	$res = array();
@@ -1937,11 +1937,12 @@ EOF
 	 */
 	public function set_group($gid)
 	{{{
+	$dbh = rcmail::get_instance()->db;
 	$this->group_id = $gid;
 	$this->total_cards = -1;
 	if ($gid) {
-		$this->filter = "EXISTS(SELECT * FROM ".get_table_name("carddav_group_user")."
-			WHERE group_id = '{$gid}' AND contact_id = ".get_table_name("carddav_contacts").".id)";
+		$this->filter = "EXISTS(SELECT * FROM ".$dbh->table_name("carddav_group_user")."
+			WHERE group_id = '{$gid}' AND contact_id = ".$dbh->table_name("carddav_contacts").".id)";
 	} else {
 		$this->filter = '';
 	}
@@ -1958,7 +1959,7 @@ EOF
 		$dbh = rcmail::get_instance()->db;
 
 		$sql_result = $dbh->query('SELECT * FROM '.
-			get_table_name('carddav_groups').
+			$dbh->table_name('carddav_groups').
 			' WHERE id = ?', $group_id);
 
 		if ($sql_result && ($sql_arr = $dbh->fetch_assoc($sql_result))) {
@@ -1983,7 +1984,7 @@ EOF
 		: '';
 
 	$sql_result = $dbh->query('SELECT id,name from ' .
-		get_table_name('carddav_groups') .
+		$dbh->table_name('carddav_groups') .
 		' WHERE abook_id=?' .
 		$searchextra .
 		' ORDER BY name ASC',
@@ -2158,7 +2159,7 @@ EOF
 
 	$idfield = $dbh->quoteIdentifier($idfield);
 	$id = $dbh->quote($id);
-	$sql = "SELECT $cols FROM " . get_table_name("carddav_$table") . ' WHERE ' . $idfield . '=' . $id;
+	$sql = "SELECT $cols FROM " . $dbh->table_name("carddav_$table") . ' WHERE ' . $idfield . '=' . $id;
 
 	// Append additional conditions
 	foreach ($other_conditions as $field => $value) {
@@ -2192,7 +2193,7 @@ EOF
 	}
 
 	$idfield = $dbh->quoteIdentifier($idfield);
-	$sql = "DELETE FROM " . get_table_name("carddav_$table") . " WHERE $idfield $dspec";
+	$sql = "DELETE FROM " . $dbh->table_name("carddav_$table") . " WHERE $idfield $dspec";
 
 	// Append additional conditions
 	foreach ($other_conditions as $field => $value) {
@@ -2240,7 +2241,7 @@ EOF
 	self::$helper->debug("UPDATE addressbook $dbid");
 	$xval[]=$dbid;
 	$sql_result = $dbh->query('UPDATE ' .
-		get_table_name("carddav_addressbooks") .
+		$dbh->table_name("carddav_addressbooks") .
 		' SET ' . implode('=?,', $xcol) . '=?' .
 		' WHERE id=?', $xval);
 
@@ -2263,7 +2264,7 @@ EOF
 
 	// adopt password storing scheme if stored password differs from configured scheme
 	$sql_result = $dbh->query('SELECT id,password FROM ' .
-		get_table_name('carddav_addressbooks') .
+		$dbh->table_name('carddav_addressbooks') .
 		' WHERE user_id=?', $_SESSION['user_id']);
 
 	while ($abookrow = $dbh->fetch_assoc($sql_result)) {
@@ -2272,7 +2273,7 @@ EOF
 			$abookrow['password'] = self::$helper->decrypt_password($abookrow['password']);
 			$abookrow['password'] = self::$helper->encrypt_password($abookrow['password']);
 			$dbh->query('UPDATE ' .
-				get_table_name('carddav_addressbooks') .
+				$dbh->table_name('carddav_addressbooks') .
 				' SET password=? WHERE id=?',
 				$abookrow['password'],
 				$abookrow['id']);
@@ -2305,7 +2306,7 @@ EOF
 
 		self::$helper->debug("move addressbook $desc");
 		$dbh->query('INSERT INTO ' .
-			get_table_name('carddav_addressbooks') .
+			$dbh->table_name('carddav_addressbooks') .
 			'(name,username,password,url,active,user_id) ' .
 			'VALUES (?, ?, ?, ?, ?, ?)',
 				$desc, $prefs['username'], $crypt_password, $prefs['url'],

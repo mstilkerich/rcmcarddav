@@ -87,14 +87,14 @@ class carddav_common
 	public function warn()
 	{{{
 	$caller=self::getCaller();
-	write_log("carddav.warn", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
+	rcmail::write_log("carddav.warn", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
 	}}}
 
 	public function debug()
 	{{{
 	if(self::DEBUG) {
 		$caller=self::getCaller();
-		write_log("carddav", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
+		rcmail::write_log("carddav", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
 	}
 	}}}
 
@@ -102,7 +102,7 @@ class carddav_common
 	{{{
 	if(self::DEBUG_HTTP) {
 		$caller=self::getCaller();
-		write_log("carddav", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
+		rcmail::write_log("carddav", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
 	}
 	}}}
 
