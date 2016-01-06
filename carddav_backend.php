@@ -1173,7 +1173,9 @@ EOF
 	if(!$retval) {
 		return false;
 	}
+	$vcfobj = $retval['vcf'];
 	$retval = $retval['save_data'];
+	$retval['__vcf'] = $vcfobj;
 
 	$retval['ID'] = $oid;
 	$this->result->add($retval);
@@ -1545,7 +1547,10 @@ EOF
 				$vcf->PHOTO['ENCODING'] = 'b';
 				$vcf->PHOTO = $save_data['photo'];
 				$needs_update=true;
-	} } }
+			}
+		}
+		self::xabcropphoto($vcf, $save_data);
+	}
 
 	$property = $vcf->N;
 	if ($property !== null){
@@ -1610,6 +1615,43 @@ EOF
 	);
 	}}}
 
+
+	const MAX_PHOTO_SIZE = 256;
+
+	public function xabcropphoto($vcard, &$save_data)
+	{{{
+	if (!function_exists('gd_info') || $vcard == null) {
+		return $vcard;
+	}
+	$photo = $vcard->PHOTO;
+	if ($photo == null) {
+		return $vcard;
+	}
+	$abcrop = $vcard['X-ABCROP-RECTANGLE'];
+	if ($abcrop == null) {
+		return $vcard;
+	}
+
+	$parts = explode('&', $abcrop);
+	$x = intval($parts[1]);
+	$y = intval($parts[2]);
+	$w = intval($parts[3]);
+	$h = intval($parts[4]);
+	$dw = min($w, self::MAX_PHOTO_SIZE);
+	$dh = min($h, self::MAX_PHOTO_SIZE);
+
+	$src = imagecreatefromstring($photo);
+	$dst = imagecreatetruecolor($dw, $dh);
+	imagecopyresampled($dst, $src, 0, 0, $x, imagesy($src) - $y - $h, $dw, $dh, $w, $h);
+
+	ob_start();
+	imagepng($dst);
+	$data = ob_get_contents();
+	ob_end_clean();
+	$save_data['photo'] = $data;
+
+	return $vcard;
+	}}}
 	private function find_free_uid()
 	{{{
 	// find an unused UID

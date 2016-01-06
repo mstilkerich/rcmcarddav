@@ -675,6 +675,7 @@ class carddav extends rcube_plugin
 		$qv
 	);
 	}}}
+
 }
 
 ?>
