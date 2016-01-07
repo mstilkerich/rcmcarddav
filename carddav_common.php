@@ -369,6 +369,12 @@ class carddav_common
 	}
 	return $prefs;
 	}}}
+
+	// short form for deprecated Q helper function
+	public function Q($str, $mode='strict', $newlines=true)
+	{{{
+		return rcube_utils::rep_specialchars_output($str, 'html', $mode, $newlines);
+	}}}
 }
 
 ?>
