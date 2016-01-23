@@ -355,6 +355,7 @@ class carddav_backend extends rcube_addressbook
 	 */
 	private function dbstore_contact($etag, $uri, $vcfstr, $save_data, $dbid=0)
 	{{{
+	$this->preprocess_rc_savedata($save_data);
 	// build email search string
 	$email_keys = preg_grep('/^email(:|$)/', array_keys($save_data));
 	$email_addrs = array();
@@ -1173,7 +1174,9 @@ EOF
 	if(!$retval) {
 		return false;
 	}
+	$vcfobj = $retval['vcf'];
 	$retval = $retval['save_data'];
+	$retval['__vcf'] = $vcfobj;
 
 	$retval['ID'] = $oid;
 	$this->result->add($retval);
@@ -1526,7 +1529,6 @@ EOF
 	$save_data = array(
 		// DEFAULTS
 		'kind'   => 'individual',
-		'showas' => 'INDIVIDUAL',
 	);
 
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
@@ -1546,7 +1548,10 @@ EOF
 				$vcf->PHOTO['ENCODING'] = 'b';
 				$vcf->PHOTO = $save_data['photo'];
 				$needs_update=true;
-	} } }
+			}
+		}
+		self::xabcropphoto($vcf, $save_data);
+	}
 
 	$property = $vcf->N;
 	if ($property !== null){
@@ -1611,6 +1616,43 @@ EOF
 	);
 	}}}
 
+
+	const MAX_PHOTO_SIZE = 256;
+
+	public function xabcropphoto($vcard, &$save_data)
+	{{{
+	if (!function_exists('gd_info') || $vcard == null) {
+		return $vcard;
+	}
+	$photo = $vcard->PHOTO;
+	if ($photo == null) {
+		return $vcard;
+	}
+	$abcrop = $vcard['X-ABCROP-RECTANGLE'];
+	if ($abcrop == null) {
+		return $vcard;
+	}
+
+	$parts = explode('&', $abcrop);
+	$x = intval($parts[1]);
+	$y = intval($parts[2]);
+	$w = intval($parts[3]);
+	$h = intval($parts[4]);
+	$dw = min($w, self::MAX_PHOTO_SIZE);
+	$dh = min($h, self::MAX_PHOTO_SIZE);
+
+	$src = imagecreatefromstring($photo);
+	$dst = imagecreatetruecolor($dw, $dh);
+	imagecopyresampled($dst, $src, 0, 0, $x, imagesy($src) - $y - $h, $dw, $dh, $w, $h);
+
+	ob_start();
+	imagepng($dst);
+	$data = ob_get_contents();
+	ob_end_clean();
+	$save_data['photo'] = $data;
+
+	return $vcard;
+	}}}
 	private function find_free_uid()
 	{{{
 	// find an unused UID
@@ -1669,6 +1711,9 @@ EOF
 	if(!$save_data['surname'] && !$save_data['firstname']
 		&& $save_data['organization'] && !array_key_exists('showas',$save_data)) {
 		$save_data['showas'] = 'COMPANY';
+	}
+	if(!array_key_exists('showas',$save_data)) {
+		$save_data['showas'] = 'INDIVIDUAL';
 	}
 	// organization not set but showas==company => show as regular
 	if(!$save_data['organization'] && $save_data['showas']==='COMPANY') {

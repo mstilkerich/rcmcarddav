@@ -3,14 +3,14 @@
     "type": "roundcube-plugin",
     "description": "CardDAV adapter for connecting to CardDAV-enabled addressbooks",
     "keywords": ["addressbook","carddav","contacts","owncloud","davical"],
-    "homepage": "http://www.crash-override.net/carddav.html",
+    "homepage": "http://www.benjamin-schieder.de/carddav.html",
     "license": "GPL-2.0",
     "version": "1.1.0",
     "authors": [
         {
             "name": "Benjamin Schieder",
             "email": "benjamin@anderdonau.de",
-            "homepage": "http://www.crash-override.net",
+            "homepage": "http://www.benjamin.schieder.de/",
             "role": "Developer"
         },
         {
