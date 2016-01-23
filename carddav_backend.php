@@ -1285,7 +1285,7 @@ EOF
 	// normalize date fields to RFC2425 YYYY-MM-DD date values
 	foreach ($this->datefields as $key) {
 		if (array_key_exists($key, $save_data) && strlen($save_data[$key])>0) {
-			$val = rcube_strtotime($save_data[$key]);
+			$val = rcube_utils::strtotime($save_data[$key]);
 			$save_data[$key] = date('Y-m-d',$val);
 		}
 	}
@@ -1983,10 +1983,10 @@ EOF
 	 */
 	public function set_group($gid)
 	{{{
-	$dbh = rcmail::get_instance()->db;
 	$this->group_id = $gid;
 	$this->total_cards = -1;
 	if ($gid) {
+		$dbh = rcmail::get_instance()->db;
 		$this->filter = "EXISTS(SELECT * FROM ".$dbh->table_name("carddav_group_user")."
 			WHERE group_id = '{$gid}' AND contact_id = ".$dbh->table_name("carddav_contacts").".id)";
 	} else {
