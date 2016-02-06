@@ -392,6 +392,49 @@ class carddav_common
 	{{{
 		return rcube_utils::rep_specialchars_output($str, 'html', $mode, $newlines);
 	}}}
+
+	// acquire a database lock, returns true on success
+	public static function acquire_lock($abook_id)
+	{{{
+	$dbh = rcmail::get_instance()->db;
+	if ($dbh->db_provider === 'mysql') {
+		$lockid = 'carddav_addressbook.' . $abook_id;
+		$result = $dbh->query("SELECT GET_LOCK('$lockid',0)");
+		return $dbh->fetch_array($result)[0];
+	}
+	elseif ($dbh->db_provider === 'pgsql') {
+		// lock identifier must be a 32-bit integer
+		$lockid = $abook_id + 14147;
+		$result = $dbh->query("SELECT pg_try_advisory_lock($lockid);");
+		return $dbh->fetch_array($result)[0] == 't';
+	}
+	else {
+		// return true in case of unsupported db provider
+		return true;
+	}
+	}}}
+
+	// release a database lock, returns true on success
+	public static function release_lock($abook_id)
+	{{{
+	$dbh = rcmail::get_instance()->db;
+	if ($dbh->db_provider === 'mysql') {
+		$lockid = 'carddav_addressbook.' . $abook_id;
+		$result = $dbh->query("SELECT RELEASE_LOCK('$lockid')");
+		return $dbh->fetch_array($result)[0];
+	}
+	elseif ($dbh->db_provider === 'pgsql') {
+		// lock identifier must be a 32-bit integer
+		$lockid = $abook_id + 14147;
+		$result = $dbh->query("SELECT pg_advisory_unlock($lockid);");
+		return $dbh->fetch_array($result)[0] == 't';
+	}
+	else {
+		// return true in case of unsupported db provider
+		return true;
+	}
+	}}}
+
 }
 
 ?>

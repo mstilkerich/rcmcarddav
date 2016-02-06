@@ -422,6 +422,13 @@ class carddav_backend extends rcube_addressbook
 	$dbh = rcmail::get_instance()->db;
 	$duration = time();
 
+	self::$helper->debug("begin server refresh of addressbook " . $this->id);
+
+	if (!self::$helper->acquire_lock($this->id)) {
+		self::$helper->debug("could not acquire lock for server refresh of addressbook " . $this->id);
+		return;
+	}
+
 	// determine existing local contact URIs and ETAGs
 	$contacts = self::get_dbrecord($this->id,'id,uri,etag','contacts',false,'abook_id');
 	foreach($contacts as $contact) {
@@ -490,6 +497,8 @@ EOF
 		$dbh->table_name('carddav_addressbooks') .
 		' SET last_updated=' . $dbh->now() .' WHERE id=?',
 			$this->id);
+
+	self::$helper->release_lock($this->id);
 
 	$duration = time() - $duration;
 	self::$helper->debug("server refresh took $duration seconds");
