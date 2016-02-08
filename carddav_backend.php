@@ -1439,7 +1439,7 @@ EOF
 			foreach($pvalue['TYPE'] as $type)
 			{
 				$type = strtolower($type);
-				if( in_array($type, $this->coltypes[$attrname]['subtypes']) )
+				if(is_array($this->coltypes[$attrname]['subtypes') && in_array($type, $this->coltypes[$attrname]['subtypes']) )
 				{
 					$fallback = $type;
 					if(!(is_array($this->fallbacktypes[$attrname])
