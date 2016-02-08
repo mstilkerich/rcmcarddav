@@ -114,34 +114,35 @@ class carddav_backend extends rcube_addressbook
 			$this->readonly = true;
 	}
 
+	$rc = rcmail::get_instance();
 	$this->coltypes = array( /* {{{ */
-		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('name'), 'category' => 'main'),
-		'firstname'    => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('firstname'), 'category' => 'main'),
-		'surname'      => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('surname'), 'category' => 'main'),
-		'email'        => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('email'), 'subtypes' => array('home','work','other','internet'), 'category' => 'main'),
-		'middlename'   => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('middlename'), 'category' => 'main'),
-		'prefix'       => array('type' => 'text', 'size' => 8,  'maxlength' => 20, 'limit' => 1, 'label' => rcube_label('nameprefix'), 'category' => 'main'),
-		'suffix'       => array('type' => 'text', 'size' => 8,  'maxlength' => 20, 'limit' => 1, 'label' => rcube_label('namesuffix'), 'category' => 'main'),
-		'nickname'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('nickname'), 'category' => 'main'),
-		'jobtitle'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('jobtitle'), 'category' => 'main'),
-		'organization' => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('organization'), 'category' => 'main'),
-		'department'   => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('department'), 'category' => 'main'),
-		'gender'       => array('type' => 'select', 'limit' => 1, 'label' => rcube_label('gender'), 'options' => array('male' => rcube_label('male'), 'female' => rcube_label('female')), 'category' => 'personal'),
-		'phone'        => array('type' => 'text', 'size' => 40, 'maxlength' => 20, 'label' => rcube_label('phone'), 'subtypes' => array('home','home2','work','work2','mobile','cell','main','homefax','workfax','car','pager','video','assistant','other'), 'category' => 'main'),
-		'address'      => array('type' => 'composite', 'label' => rcube_label('address'), 'subtypes' => array('home','work','other'), 'childs' => array(
-			'street'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('street'), 'category' => 'main'),
-			'locality'   => array('type' => 'text', 'size' => 28, 'maxlength' => 50, 'label' => rcube_label('locality'), 'category' => 'main'),
-			'zipcode'    => array('type' => 'text', 'size' => 8,  'maxlength' => 15, 'label' => rcube_label('zipcode'), 'category' => 'main'),
-			'region'     => array('type' => 'text', 'size' => 12, 'maxlength' => 50, 'label' => rcube_label('region'), 'category' => 'main'),
-			'country'    => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('country'), 'category' => 'main'),), 'category' => 'main'),
-		'birthday'     => array('type' => 'date', 'size' => 12, 'maxlength' => 16, 'label' => rcube_label('birthday'), 'limit' => 1, 'render_func' => 'rcmail_format_date_col', 'category' => 'personal'),
-		'anniversary'  => array('type' => 'date', 'size' => 12, 'maxlength' => 16, 'label' => rcube_label('anniversary'), 'limit' => 1, 'render_func' => 'rcmail_format_date_col', 'category' => 'personal'),
-		'website'      => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('website'), 'subtypes' => array('homepage','work','blog','profile','other'), 'category' => 'main'),
-		'notes'        => array('type' => 'textarea', 'size' => 40, 'rows' => 15, 'maxlength' => 500, 'label' => rcube_label('notes'), 'limit' => 1),
+		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('name'), 'category' => 'main'),
+		'firstname'    => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('firstname'), 'category' => 'main'),
+		'surname'      => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('surname'), 'category' => 'main'),
+		'email'        => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => $rc->gettext('email'), 'subtypes' => array('home','work','other','internet'), 'category' => 'main'),
+		'middlename'   => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('middlename'), 'category' => 'main'),
+		'prefix'       => array('type' => 'text', 'size' => 8,  'maxlength' => 20, 'limit' => 1, 'label' => $rc->gettext('nameprefix'), 'category' => 'main'),
+		'suffix'       => array('type' => 'text', 'size' => 8,  'maxlength' => 20, 'limit' => 1, 'label' => $rc->gettext('namesuffix'), 'category' => 'main'),
+		'nickname'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('nickname'), 'category' => 'main'),
+		'jobtitle'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('jobtitle'), 'category' => 'main'),
+		'organization' => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('organization'), 'category' => 'main'),
+		'department'   => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => $rc->gettext('department'), 'category' => 'main'),
+		'gender'       => array('type' => 'select', 'limit' => 1, 'label' => $rc->gettext('gender'), 'options' => array('male' => $rc->gettext('male'), 'female' => $rc->gettext('female')), 'category' => 'personal'),
+		'phone'        => array('type' => 'text', 'size' => 40, 'maxlength' => 20, 'label' => $rc->gettext('phone'), 'subtypes' => array('home','home2','work','work2','mobile','cell','main','homefax','workfax','car','pager','video','assistant','other'), 'category' => 'main'),
+		'address'      => array('type' => 'composite', 'label' => $rc->gettext('address'), 'subtypes' => array('home','work','other'), 'childs' => array(
+			'street'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => $rc->gettext('street'), 'category' => 'main'),
+			'locality'   => array('type' => 'text', 'size' => 28, 'maxlength' => 50, 'label' => $rc->gettext('locality'), 'category' => 'main'),
+			'zipcode'    => array('type' => 'text', 'size' => 8,  'maxlength' => 15, 'label' => $rc->gettext('zipcode'), 'category' => 'main'),
+			'region'     => array('type' => 'text', 'size' => 12, 'maxlength' => 50, 'label' => $rc->gettext('region'), 'category' => 'main'),
+			'country'    => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => $rc->gettext('country'), 'category' => 'main'),), 'category' => 'main'),
+		'birthday'     => array('type' => 'date', 'size' => 12, 'maxlength' => 16, 'label' => $rc->gettext('birthday'), 'limit' => 1, 'render_func' => 'rcmail_format_date_col', 'category' => 'personal'),
+		'anniversary'  => array('type' => 'date', 'size' => 12, 'maxlength' => 16, 'label' => $rc->gettext('anniversary'), 'limit' => 1, 'render_func' => 'rcmail_format_date_col', 'category' => 'personal'),
+		'website'      => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => $rc->gettext('website'), 'subtypes' => array('homepage','work','blog','profile','other'), 'category' => 'main'),
+		'notes'        => array('type' => 'textarea', 'size' => 40, 'rows' => 15, 'maxlength' => 500, 'label' => $rc->gettext('notes'), 'limit' => 1),
 		'photo'        => array('type' => 'image', 'limit' => 1, 'category' => 'main'),
-		'assistant'    => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('assistant'), 'category' => 'personal'),
-		'manager'      => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('manager'), 'category' => 'personal'),
-		'spouse'       => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('spouse'), 'category' => 'personal'),
+		'assistant'    => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('assistant'), 'category' => 'personal'),
+		'manager'      => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('manager'), 'category' => 'personal'),
+		'spouse'       => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('spouse'), 'category' => 'personal'),
 		// TODO: define fields for vcards like GEO, KEY
 	); /* }}} */
 	$this->addextrasubtypes();
@@ -157,7 +158,7 @@ class carddav_backend extends rcube_addressbook
 	{{{
 	$dbh = rcmail::get_instance()->db;
 	$sql_result = $dbh->query('INSERT INTO ' .
-		get_table_name('carddav_xsubtypes') .
+		$dbh->table_name('carddav_xsubtypes') .
 		' (typename,subtype,abook_id) VALUES (?,?,?)',
 			$typename, $subtype, $this->id);
 	}}}
@@ -307,7 +308,7 @@ class carddav_backend extends rcube_addressbook
 		self::$helper->debug("UPDATE card $uri");
 		$xval[]=$dbid;
 		$sql_result = $dbh->query('UPDATE ' .
-			get_table_name("carddav_$table") .
+			$dbh->table_name("carddav_$table") .
 			' SET ' . implode('=?,', $xcol) . '=?' .
 			' WHERE id=?', $xval);
 
@@ -325,7 +326,7 @@ class carddav_backend extends rcube_addressbook
 		$xcol[]='cuid';     $xval[]=$save_data['cuid'];
 
 		$sql_result = $dbh->query('INSERT INTO ' .
-			get_table_name("carddav_$table") .
+			$dbh->table_name("carddav_$table") .
 			' (' . implode(',',$xcol) . ') VALUES (?' . str_repeat(',?', count($xcol)-1) .')',
 				$xval);
 
@@ -462,9 +463,9 @@ EOF
 	foreach($this->users_to_add as $dbid => $cuids) {
 		if(count($cuids)<=0) continue;
 		$sql_result = $dbh->query('INSERT INTO '.
-			get_table_name('carddav_group_user') .
+			$dbh->table_name('carddav_group_user') .
 			' (group_id,contact_id) SELECT ?,id from ' .
-			get_table_name('carddav_contacts') .
+			$dbh->table_name('carddav_contacts') .
 			' WHERE abook_id=? AND cuid IN (' . implode(',', $cuids) . ')', $dbid, $this->id);
 		self::$helper->debug("Added " . $dbh->affected_rows($sql_result) . " contacts to group $dbid");
 	}
@@ -475,7 +476,7 @@ EOF
 
 	// set last_updated timestamp
 	$dbh->query('UPDATE ' .
-		get_table_name('carddav_addressbooks') .
+		$dbh->table_name('carddav_addressbooks') .
 		' SET last_updated=' . $dbh->now() .' WHERE id=?',
 			$this->id);
 
@@ -621,7 +622,7 @@ EOF
 	$xfrom = '';
 	$xwhere = '';
 	if($this->group_id) {
-		$xfrom = ',' . get_table_name('carddav_group_user');
+		$xfrom = ',' . $dbh->table_name('carddav_group_user');
 		$xwhere = ' AND id=contact_id AND group_id=' . $dbh->quote($this->group_id) . ' ';
 	}
 
@@ -630,7 +631,7 @@ EOF
 	$sort_order  = $this->sort_order ? $this->sort_order : 'ASC';
 
 	$sql_result = $dbh->limitquery("SELECT id,name,$dbattr FROM " .
-		get_table_name('carddav_contacts') . $xfrom .
+		$dbh->table_name('carddav_contacts') . $xfrom .
 		' WHERE abook_id=? ' . $xwhere .
 		($this->filter ? " AND (".$this->filter.")" : "") .
 		" ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $sort_column . " END) "
@@ -1100,7 +1101,7 @@ EOF
 		$dbh = rcmail::get_instance()->db;
 
 		$sql_result = $dbh->query('SELECT COUNT(id) as total_cards FROM ' .
-			get_table_name('carddav_contacts') .
+			$dbh->table_name('carddav_contacts') .
 			' WHERE abook_id=?' .
 			($this->filter ? " AND (".$this->filter.")" : ""),
 			$this->id
@@ -1284,7 +1285,7 @@ EOF
 	// normalize date fields to RFC2425 YYYY-MM-DD date values
 	foreach ($this->datefields as $key) {
 		if (array_key_exists($key, $save_data) && strlen($save_data[$key])>0) {
-			$val = rcube_strtotime($save_data[$key]);
+			$val = rcube_utils::strtotime($save_data[$key]);
 			$save_data[$key] = date('Y-m-d',$val);
 		}
 	}
@@ -1890,7 +1891,7 @@ EOF
 	$dbh = rcmail::get_instance()->db;
 	foreach ($ids as $cid) {
 		$dbh->query('INSERT INTO ' .
-			get_table_name('carddav_group_user') .
+			$dbh->table_name('carddav_group_user') .
 			' (group_id,contact_id) VALUES (?,?)',
 				$group_id, $cid);
 	}
@@ -1965,8 +1966,8 @@ EOF
 	{{{
 	$dbh = rcmail::get_instance()->db;
 	$sql_result = $dbh->query('SELECT id,name FROM '.
-		get_table_name('carddav_groups') . ',' .
-		get_table_name('carddav_group_user') .
+		$dbh->table_name('carddav_groups') . ',' .
+		$dbh->table_name('carddav_group_user') .
 		' WHERE id=group_id AND contact_id=?', $id);
 
 	$res = array();
@@ -1985,8 +1986,9 @@ EOF
 	$this->group_id = $gid;
 	$this->total_cards = -1;
 	if ($gid) {
-		$this->filter = "EXISTS(SELECT * FROM ".get_table_name("carddav_group_user")."
-			WHERE group_id = '{$gid}' AND contact_id = ".get_table_name("carddav_contacts").".id)";
+		$dbh = rcmail::get_instance()->db;
+		$this->filter = "EXISTS(SELECT * FROM ".$dbh->table_name("carddav_group_user")."
+			WHERE group_id = '{$gid}' AND contact_id = ".$dbh->table_name("carddav_contacts").".id)";
 	} else {
 		$this->filter = '';
 	}
@@ -2003,7 +2005,7 @@ EOF
 		$dbh = rcmail::get_instance()->db;
 
 		$sql_result = $dbh->query('SELECT * FROM '.
-			get_table_name('carddav_groups').
+			$dbh->table_name('carddav_groups').
 			' WHERE id = ?', $group_id);
 
 		if ($sql_result && ($sql_arr = $dbh->fetch_assoc($sql_result))) {
@@ -2028,7 +2030,7 @@ EOF
 		: '';
 
 	$sql_result = $dbh->query('SELECT id,name from ' .
-		get_table_name('carddav_groups') .
+		$dbh->table_name('carddav_groups') .
 		' WHERE abook_id=?' .
 		$searchextra .
 		' ORDER BY name ASC',
@@ -2203,7 +2205,7 @@ EOF
 
 	$idfield = $dbh->quoteIdentifier($idfield);
 	$id = $dbh->quote($id);
-	$sql = "SELECT $cols FROM " . get_table_name("carddav_$table") . ' WHERE ' . $idfield . '=' . $id;
+	$sql = "SELECT $cols FROM " . $dbh->table_name("carddav_$table") . ' WHERE ' . $idfield . '=' . $id;
 
 	// Append additional conditions
 	foreach ($other_conditions as $field => $value) {
@@ -2237,7 +2239,7 @@ EOF
 	}
 
 	$idfield = $dbh->quoteIdentifier($idfield);
-	$sql = "DELETE FROM " . get_table_name("carddav_$table") . " WHERE $idfield $dspec";
+	$sql = "DELETE FROM " . $dbh->table_name("carddav_$table") . " WHERE $idfield $dspec";
 
 	// Append additional conditions
 	foreach ($other_conditions as $field => $value) {
@@ -2285,7 +2287,7 @@ EOF
 	self::$helper->debug("UPDATE addressbook $dbid");
 	$xval[]=$dbid;
 	$sql_result = $dbh->query('UPDATE ' .
-		get_table_name("carddav_addressbooks") .
+		$dbh->table_name("carddav_addressbooks") .
 		' SET ' . implode('=?,', $xcol) . '=?' .
 		' WHERE id=?', $xval);
 
@@ -2308,7 +2310,7 @@ EOF
 
 	// adopt password storing scheme if stored password differs from configured scheme
 	$sql_result = $dbh->query('SELECT id,password FROM ' .
-		get_table_name('carddav_addressbooks') .
+		$dbh->table_name('carddav_addressbooks') .
 		' WHERE user_id=?', $_SESSION['user_id']);
 
 	while ($abookrow = $dbh->fetch_assoc($sql_result)) {
@@ -2317,7 +2319,7 @@ EOF
 			$abookrow['password'] = self::$helper->decrypt_password($abookrow['password']);
 			$abookrow['password'] = self::$helper->encrypt_password($abookrow['password']);
 			$dbh->query('UPDATE ' .
-				get_table_name('carddav_addressbooks') .
+				$dbh->table_name('carddav_addressbooks') .
 				' SET password=? WHERE id=?',
 				$abookrow['password'],
 				$abookrow['id']);
@@ -2350,7 +2352,7 @@ EOF
 
 		self::$helper->debug("move addressbook $desc");
 		$dbh->query('INSERT INTO ' .
-			get_table_name('carddav_addressbooks') .
+			$dbh->table_name('carddav_addressbooks') .
 			'(name,username,password,url,active,user_id) ' .
 			'VALUES (?, ?, ?, ?, ?, ?)',
 				$desc, $prefs['username'], $crypt_password, $prefs['url'],
