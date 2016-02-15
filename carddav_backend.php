@@ -2107,7 +2107,6 @@ EOF
     $this->delete($contact_ids);
 
     if ($with_groups != false) {
-      rcube::write_log('carddav', 'deleting groups');
       $res2 = $dbh->query('SELECT id FROM carddav_groups WHERE abook_id=?',$abook_id);
       while($row = $dbh->fetch_assoc($res2)) {
         $this->delete_group($row['id']);
