@@ -2366,23 +2366,27 @@ EOF
 	}}}
 
   public function delete_all($with_groups = false)
-  {{{
-    $dbh = rcmail::get_instance()->db;
-    $abook_id = $this->id;
-    $res1 = $dbh->query('SELECT id FROM carddav_contacts WHERE abook_id=?',$abook_id);
-    $contact_ids = array();
-    while($row = $dbh->fetch_assoc($res1)) {
-      $contact_ids[] = $row['id'];
-    }
-    $this->delete($contact_ids);
+	{{{
+		$dbh = rcmail::get_instance()->db;
+		$abook_id = $this->id;
+		$res1 = $dbh->query('SELECT id FROM '.
+			$dbh->table_name('carddav_contacts').
+			' WHERE abook_id=?',$abook_id);
+		$contact_ids = array();
+		while($row = $dbh->fetch_assoc($res1)) {
+			$contact_ids[] = $row['id'];
+		}
+		$this->delete($contact_ids);
 
-    if ($with_groups != false) {
-      $res2 = $dbh->query('SELECT id FROM carddav_groups WHERE abook_id=?',$abook_id);
-      while($row = $dbh->fetch_assoc($res2)) {
-        $this->delete_group($row['id']);
-      }
-    }
-  }}}
+		if ($with_groups != false) {
+			$res2 = $dbh->query('SELECT id FROM '.
+				$dbh->table_name('carddav_groups').
+				' WHERE abook_id=?',$abook_id);
+			while($row = $dbh->fetch_assoc($res2)) {
+				$this->delete_group($row['id']);
+			}
+		}
+	}}}
 
 	public static function initClass()
 	{{{
