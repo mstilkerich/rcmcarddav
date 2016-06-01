@@ -13,7 +13,7 @@ Installation
 
 RCMCardDAV can be installed via composer, from a release tarball or from a git clone. This list is in increasing difficulty, with composer being the easiest method.
 
-Please note that due to version incompatibilities of depending libraries, this plugin might me incompatible to Kolabs calendar plugin. There is a compatible version available here: `http://git.faster-it.de/roundcube_calendar/`.
+Please note that due to version incompatibilities of depending libraries, this plugin might be incompatible to Kolabs calendar plugin. There is a compatible version available here: `http://git.faster-it.de/roundcube_calendar/`.
 
 Intallation steps:
 - Log out of Roundcube!
