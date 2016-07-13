@@ -232,7 +232,7 @@ EOF
 				'host'    => $target,
 				'port'    => $port,
 				'baseurl' => $baseurl,
-				'dnssrv'  => "$srvpfx.$target",
+				'dnssrv'  => "$srvpfx._tcp.$target",
 			);
 		}
 	}
