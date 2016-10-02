@@ -63,7 +63,7 @@
 	<dependencies>
 		<required>
 			<php>
-				<min>5.3.0</min>
+				<min>7.0.0</min>
 			</php>
 		</required>
 	</dependencies>

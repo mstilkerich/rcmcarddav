@@ -420,7 +420,7 @@ class carddav extends rcube_plugin
 		$this->add_texts('localization/', false);
 		$prefs = carddav_common::get_adminsettings();
 
-		if (version_compare(PHP_VERSION, '5.3.0') < 0) {
+		if (version_compare(PHP_VERSION, '7.0.0') < 0) {
 			$args['blocks']['cd_preferences'] = array(
 				'options' => array(
 					array('title'=> self::$helper->Q($this->gettext('cd_php_too_old')), 'content' => PHP_VERSION)
