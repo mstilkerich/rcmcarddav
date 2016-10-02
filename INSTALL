@@ -1,9 +1,13 @@
 0. Log ouf of Roundcube! This is necessary for proper setup of the databases later.
 
-1. Copy/Clone the whole RCMCardDAV plugin directory to roundcubemail/plugins/ and rename
-the directory to 'carddav'.
+1a. Download the last release of RCMCardDAV here:
+  https://github.com/blind-coder/rcmcarddav/releases/tag/carddav_2.0.0
+  Extract the archive and rename the extracted directory to 'carddav'.
 
-2. If you are installing a git clone, change to the directory
+1b. Copy/Clone the whole RCMCardDAV plugin directory to roundcubemail/plugins/ and rename
+the directory to 'carddav'. 
+
+2. Only if you are installing a git clone, change to the directory
 roundcubemail/plugins/carddav/ and install the dependencies using composer:
   curl -sS https://getcomposer.org/installer | php
 	php composer.phar install
@@ -20,10 +24,10 @@ to run your web server, e.g.:
 	chown -R wwwrun  roundcubemail/plugins/carddav
 	chgrp -R nogroup roundcubemail/plugins/carddav
 
-6. Install the curl php extention if not already present:
-  apt-get install php5-curl # on Debian
+6. Install the curl and mbstring php extensions if not already present:
+  apt-get install php7.0-{mbstring,curl} # on Debian
 
-7. Add `carddav' to the $rcmail_config['plugins'] array in
+7. Add 'carddav' to the $rcmail_config['plugins'] array in
 roundcubemail/config/main.inc.php
 
 8. Login to Roundcube and set-up your first CardDAV address book by accessing
