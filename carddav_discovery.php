@@ -1,8 +1,8 @@
 <?php
 /*
     RCM CardDAV Plugin
-    Copyright (C) 2013 Benjamin Schieder <blindcoder@scavenger.homeip.net>,
-                       Michael Stilkerich <ms@mike2k.de>
+    Copyright (C) 2011-2016 Benjamin Schieder <rcmcarddav@wegwerf.anderdonau.de>,
+                            Michael Stilkerich <ms@mike2k.de>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
