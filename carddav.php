@@ -420,14 +420,16 @@ class carddav extends rcube_plugin
 		$this->add_texts('localization/', false);
 		$prefs = carddav_common::get_adminsettings();
 
-		if (version_compare(PHP_VERSION, '7.0.0') < 0) {
-			$args['blocks']['cd_preferences'] = array(
-				'options' => array(
-					array('title'=> self::$helper->Q($this->gettext('cd_php_too_old')), 'content' => PHP_VERSION)
-				),
-				'name' => self::$helper->Q($this->gettext('cd_title'))
-			);
-			return $args;
+		if (!$prefs['_GLOBAL']['suppress_version_warning']){
+			if (version_compare(PHP_VERSION, '7.0.0', '<')) {
+				$args['blocks']['cd_preferences'] = array(
+					'options' => array(
+						array('title'=> self::$helper->Q($this->gettext('cd_php_too_old')), 'content' => PHP_VERSION)
+					),
+					'name' => self::$helper->Q($this->gettext('cd_title'))
+				);
+				return $args;
+			}
 		}
 
 		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'*','addressbooks',false,'user_id');
