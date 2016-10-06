@@ -421,7 +421,7 @@ class carddav extends rcube_plugin
 		$prefs = carddav_common::get_adminsettings();
 
 		if (!$prefs['_GLOBAL']['suppress_version_warning']){
-			if (version_compare(PHP_VERSION, '7.0.0', '<')) {
+			if (version_compare(PHP_VERSION, '5.6.18', '<')) {
 				$args['blocks']['cd_preferences'] = array(
 					'options' => array(
 						array('title'=> self::$helper->Q($this->gettext('cd_php_too_old')), 'content' => PHP_VERSION)
