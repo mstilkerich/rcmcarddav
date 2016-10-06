@@ -27,6 +27,13 @@
 //             needs to reenter them.
 // $prefs['_GLOBAL']['pwstore_scheme'] = 'base64';
 
+// Allow suppression of the warning that PHP is too old.
+//
+// If true, the PHP version is not checked. Use at own risk.
+// If false, the PHP version is checked and RCMCardDAV will not run if it is
+// too old.
+$prefs['_GLOBAL']['suppress_version_warning'] = false;
+
 //// ** ADDRESSBOOK PRESETS
 
 // Each addressbook preset takes the following form:
