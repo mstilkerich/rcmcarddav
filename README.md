@@ -36,7 +36,7 @@ Intallation steps:
 - Install the curl php extension if not already present:
   `sudo apt-get install php5-curl`
 - Enable RCMCardDAV in Roundcube:
-  Open the file `roundcubemail/config/main.inc.php` and add `carddav` to the array `$rcmail_config['plugins']`.
+  Open the file `roundcube/config/config.inc.php` and add `carddav` to the array `$config['plugins']`.
 - Login to Roundcube and setup your addressbook by navigation to the Settings page and click on CardDAV.
 
 In case of errors, check the files `roundcube/logs/*`.
