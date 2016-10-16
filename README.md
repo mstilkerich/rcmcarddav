@@ -10,7 +10,7 @@ There is no upgrade path from the 1.0 version. You need to manually remove RCMCa
 
 Requirements
 ============
-RCMCardDAV requires at least PHP 5.6.18. Older versions might work if the version check is disbaled using the `$prefs['_GLOBAL']['suppress_version_warning']` configuration entry, but this is unsupported. 
+RCMCardDAV requires at least PHP 5.6.18. Older versions might work if the version check is disabled using the `$prefs['_GLOBAL']['suppress_version_warning']` configuration entry, but this is unsupported. 
 
 Installation
 ============
