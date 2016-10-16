@@ -8,6 +8,10 @@ Upgrading from 1.0
 
 There is no upgrade path from the 1.0 version. You need to manually remove RCMCardDAV 1.0, drop its tables from your database and start with a fresh installation.
 
+Requirements
+============
+RCMCardDAV requires at least PHP 5.6.18. Older versions might work if the version check is disabled using the `$prefs['_GLOBAL']['suppress_version_warning']` configuration entry, but this is unsupported. 
+
 Installation
 ============
 
