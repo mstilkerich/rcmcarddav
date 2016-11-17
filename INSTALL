@@ -1,7 +1,7 @@
 0. Log ouf of Roundcube! This is necessary for proper setup of the databases later.
 
 1a. Download the last release of RCMCardDAV here:
-  https://github.com/blind-coder/rcmcarddav/releases/tag/carddav_2.0.1
+  https://github.com/blind-coder/rcmcarddav/releases/tag/carddav_2.0.2
   Extract the archive and rename the extracted directory to 'carddav'.
 
 1b. Copy/Clone the whole RCMCardDAV plugin directory to roundcubemail/plugins/ and rename
