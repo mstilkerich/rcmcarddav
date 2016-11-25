@@ -1,1 +1,1 @@
-ALTER TABLE TABLE_PREFIXcarddav_addressbooks MODIFY COLUMN `last_updated` TIMESTAMP NOT NULL DEFAULT '1970-01-01 00:00:01';
+SELECT * FROM TABLE_PREFIXcarddav_migrations; -- Just an example migration.
