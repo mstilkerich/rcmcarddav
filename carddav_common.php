@@ -179,7 +179,7 @@ class carddav_common
 		$scheme = strtolower($carddav['authentication_scheme']);
 		if ($scheme != "basic" && $scheme != "digest"){
 				/* figure out authentication */
-				$httpful->addHeader("User-Agent", "RCM CardDAV plugin/2.0.3");
+				$httpful->addHeader("User-Agent", "RCM CardDAV plugin/2.0.4");
 				$httpful->uri($url);
 				$httpful->method($http_opts['method']);
 				$error = $httpful->send();
@@ -204,7 +204,7 @@ class carddav_common
 			}
 		}
 
-		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/2.0.3");
+		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/2.0.4");
 		$httpful->uri($url);
 
 		$httpful->method($http_opts['method']);
