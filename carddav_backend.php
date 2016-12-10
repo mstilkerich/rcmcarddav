@@ -1772,7 +1772,7 @@ EOF
 	 * @param array  Record identifiers
 	 * @param bool   Remove records irreversible (see self::undelete)
 	 */
-	public function delete($ids)
+	public function delete($ids, $force = true)
 	{{{
 	$deleted = 0;
 	foreach ($ids as $dbid) {
@@ -2019,22 +2019,34 @@ EOF
 	 * List all active contact groups of this source
 	 *
 	 * @param string  Optional search string to match group name
+	 * @param int     Matching mode:
+	 *                0 - partial (*abc*),
+	 *                1 - strict (=),
+	 *                2 - prefix (abc*)
+	 *
 	 * @return array  Indexed list of contact groups, each a hash array
 	 */
-	public function list_groups($search = null)
+	public function list_groups($search = null, $mode = 0)
 	{{{
 	$dbh = rcmail::get_instance()->db;
 
-	$searchextra = $search
-		? " AND " . $dbh->ilike('name',"%$search%")
-		: '';
+	$searchextra = "";
+	if ($search !== null){
+		if ($mode == 0){
+			$searchextra = " AND " . $dbh->ilike('name',"%$search%");
+		} elseif ($mode == 1){
+			$searchextra = " AND name = ?";
+		} elseif ($mode == 2){
+			$searchextra = " AND " . $dbh->ilike('name',"$search%");
+		}
+	}
 
 	$sql_result = $dbh->query('SELECT id,name from ' .
 		$dbh->table_name('carddav_groups') .
 		' WHERE abook_id=?' .
 		$searchextra .
 		' ORDER BY name ASC',
-		$this->id);
+		$this->id, $mode == 1 ? $search : null);
 
 	$groups = array();
 
@@ -2127,7 +2139,7 @@ EOF
 	 * @param string New group identifier (if changed, otherwise don't set)
 	 * @return boolean New name on success, false if no data was changed
 	 */
-	public function rename_group($group_id, $newname)
+	public function rename_group($group_id, $newname, &$newid)
 	{{{
 	// get current DB data
 	$group = self::get_dbrecord($group_id,'uri,etag,vcard,name,cuid','groups');
