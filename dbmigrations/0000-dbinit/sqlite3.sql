@@ -1,5 +1,14 @@
+-- table to store the finished migrations
+CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_migrations (
+	ID integer NOT NULL PRIMARY KEY,
+	filename VARCHAR(64) NOT NULL,
+	processed_at TIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+	UNIQUE(filename)
+);
+
 -- table to store the configured address books
-CREATE TABLE TABLE_PREFIXcarddav_addressbooks (
+CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
 	id           integer NOT NULL PRIMARY KEY,
 	name         VARCHAR(64) NOT NULL,
 	username     VARCHAR(64) NOT NULL,
@@ -18,7 +27,7 @@ CREATE TABLE TABLE_PREFIXcarddav_addressbooks (
 	FOREIGN KEY(user_id) REFERENCES TABLE_PREFIXusers(user_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE TABLE_PREFIXcarddav_contacts (
+CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_contacts (
 	id           integer NOT NULL PRIMARY KEY,
 	abook_id     integer NOT NULL,
 	name         VARCHAR(255) NOT NULL, -- display name
@@ -40,7 +49,7 @@ CREATE TABLE TABLE_PREFIXcarddav_contacts (
 );
 CREATE INDEX TABLE_PREFIXcarddav_contacts_abook_id_idx ON TABLE_PREFIXcarddav_contacts(abook_id);
 
-CREATE TABLE TABLE_PREFIXcarddav_xsubtypes (
+CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_xsubtypes (
 	id       integer NOT NULL PRIMARY KEY,
 	typename VARCHAR(128) NOT NULL,  -- name of the type
 	subtype  VARCHAR(128) NOT NULL,  -- name of the subtype
@@ -52,7 +61,7 @@ CREATE TABLE TABLE_PREFIXcarddav_xsubtypes (
 );
 
 
-CREATE TABLE TABLE_PREFIXcarddav_groups (
+CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_groups (
 	id       integer NOT NULL PRIMARY KEY,
 	abook_id integer NOT NULL,
 	name VARCHAR(255) NOT NULL, -- display name
@@ -68,7 +77,7 @@ CREATE TABLE TABLE_PREFIXcarddav_groups (
 	FOREIGN KEY(abook_id) REFERENCES TABLE_PREFIXcarddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE TABLE_PREFIXcarddav_group_user (
+CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_group_user (
 	group_id   integer NOT NULL,
 	contact_id integer NOT NULL,
 
@@ -77,12 +86,4 @@ CREATE TABLE TABLE_PREFIXcarddav_group_user (
 	-- not enforced by sqlite < 3.6.19
 	FOREIGN KEY(group_id) REFERENCES TABLE_PREFIXcarddav_groups(id) ON DELETE CASCADE ON UPDATE CASCADE,
 	FOREIGN KEY(contact_id) REFERENCES TABLE_PREFIXcarddav_contacts(id) ON DELETE CASCADE ON UPDATE CASCADE
-);
-
-CREATE TABLE TABLE_PREFIXcarddav_migrations (
-	ID integer NOT NULL PRIMARY KEY,
-	filename VARCHAR(64) NOT NULL,
-	processed_at TIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-	UNIQUE(filename)
 );

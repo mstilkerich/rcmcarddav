@@ -1,7 +1,7 @@
 <?php
 /*
     RCM CardDAV Plugin
-    Copyright (C) 2011-2013 Benjamin Schieder <blindcoder@scavenger.homeip.net>,
+    Copyright (C) 2011-2016 Benjamin Schieder <rcmcarddav@wegwerf.anderdonau.de>,
                             Michael Stilkerich <ms@mike2k.de>
 
     This program is free software; you can redistribute it and/or modify
@@ -104,40 +104,45 @@ class carddav_backend extends rcube_addressbook
 
 	$this->config = self::carddavconfig($dbid);
 
+	if ($this->config["needs_update"]){
+		$this->refreshdb_from_server();
+	}
+
 	$prefs = carddav_common::get_adminsettings();
 	if($this->config['presetname']) {
 		if($prefs[$this->config['presetname']]['readonly'])
 			$this->readonly = true;
 	}
 
+	$rc = rcmail::get_instance();
 	$this->coltypes = array( /* {{{ */
-		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('name'), 'category' => 'main'),
-		'firstname'    => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('firstname'), 'category' => 'main'),
-		'surname'      => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('surname'), 'category' => 'main'),
-		'email'        => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('email'), 'subtypes' => array('home','work','other','internet'), 'category' => 'main'),
-		'middlename'   => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('middlename'), 'category' => 'main'),
-		'prefix'       => array('type' => 'text', 'size' => 8,  'maxlength' => 20, 'limit' => 1, 'label' => rcube_label('nameprefix'), 'category' => 'main'),
-		'suffix'       => array('type' => 'text', 'size' => 8,  'maxlength' => 20, 'limit' => 1, 'label' => rcube_label('namesuffix'), 'category' => 'main'),
-		'nickname'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('nickname'), 'category' => 'main'),
-		'jobtitle'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('jobtitle'), 'category' => 'main'),
-		'organization' => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('organization'), 'category' => 'main'),
-		'department'   => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('department'), 'category' => 'main'),
-		'gender'       => array('type' => 'select', 'limit' => 1, 'label' => rcube_label('gender'), 'options' => array('male' => rcube_label('male'), 'female' => rcube_label('female')), 'category' => 'personal'),
-		'phone'        => array('type' => 'text', 'size' => 40, 'maxlength' => 20, 'label' => rcube_label('phone'), 'subtypes' => array('home','home2','work','work2','mobile','cell','main','homefax','workfax','car','pager','video','assistant','other'), 'category' => 'main'),
-		'address'      => array('type' => 'composite', 'label' => rcube_label('address'), 'subtypes' => array('home','work','other'), 'childs' => array(
-			'street'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('street'), 'category' => 'main'),
-			'locality'   => array('type' => 'text', 'size' => 28, 'maxlength' => 50, 'label' => rcube_label('locality'), 'category' => 'main'),
-			'zipcode'    => array('type' => 'text', 'size' => 8,  'maxlength' => 15, 'label' => rcube_label('zipcode'), 'category' => 'main'),
-			'region'     => array('type' => 'text', 'size' => 12, 'maxlength' => 50, 'label' => rcube_label('region'), 'category' => 'main'),
-			'country'    => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('country'), 'category' => 'main'),), 'category' => 'main'),
-		'birthday'     => array('type' => 'date', 'size' => 12, 'maxlength' => 16, 'label' => rcube_label('birthday'), 'limit' => 1, 'render_func' => 'rcmail_format_date_col', 'category' => 'personal'),
-		'anniversary'  => array('type' => 'date', 'size' => 12, 'maxlength' => 16, 'label' => rcube_label('anniversary'), 'limit' => 1, 'render_func' => 'rcmail_format_date_col', 'category' => 'personal'),
-		'website'      => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => rcube_label('website'), 'subtypes' => array('homepage','work','blog','profile','other'), 'category' => 'main'),
-		'notes'        => array('type' => 'textarea', 'size' => 40, 'rows' => 15, 'maxlength' => 500, 'label' => rcube_label('notes'), 'limit' => 1),
+		'name'         => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('name'), 'category' => 'main'),
+		'firstname'    => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('firstname'), 'category' => 'main'),
+		'surname'      => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('surname'), 'category' => 'main'),
+		'email'        => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => $rc->gettext('email'), 'subtypes' => array('home','work','other','internet'), 'category' => 'main'),
+		'middlename'   => array('type' => 'text', 'size' => 19, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('middlename'), 'category' => 'main'),
+		'prefix'       => array('type' => 'text', 'size' => 8,  'maxlength' => 20, 'limit' => 1, 'label' => $rc->gettext('nameprefix'), 'category' => 'main'),
+		'suffix'       => array('type' => 'text', 'size' => 8,  'maxlength' => 20, 'limit' => 1, 'label' => $rc->gettext('namesuffix'), 'category' => 'main'),
+		'nickname'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('nickname'), 'category' => 'main'),
+		'jobtitle'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('jobtitle'), 'category' => 'main'),
+		'organization' => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('organization'), 'category' => 'main'),
+		'department'   => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => $rc->gettext('department'), 'category' => 'main'),
+		'gender'       => array('type' => 'select', 'limit' => 1, 'label' => $rc->gettext('gender'), 'options' => array('male' => $rc->gettext('male'), 'female' => $rc->gettext('female')), 'category' => 'personal'),
+		'phone'        => array('type' => 'text', 'size' => 40, 'maxlength' => 20, 'label' => $rc->gettext('phone'), 'subtypes' => array('home','home2','work','work2','mobile','cell','main','homefax','workfax','car','pager','video','assistant','other'), 'category' => 'main'),
+		'address'      => array('type' => 'composite', 'label' => $rc->gettext('address'), 'subtypes' => array('home','work','other'), 'childs' => array(
+			'street'     => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => $rc->gettext('street'), 'category' => 'main'),
+			'locality'   => array('type' => 'text', 'size' => 28, 'maxlength' => 50, 'label' => $rc->gettext('locality'), 'category' => 'main'),
+			'zipcode'    => array('type' => 'text', 'size' => 8,  'maxlength' => 15, 'label' => $rc->gettext('zipcode'), 'category' => 'main'),
+			'region'     => array('type' => 'text', 'size' => 12, 'maxlength' => 50, 'label' => $rc->gettext('region'), 'category' => 'main'),
+			'country'    => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => $rc->gettext('country'), 'category' => 'main'),), 'category' => 'main'),
+		'birthday'     => array('type' => 'date', 'size' => 12, 'maxlength' => 16, 'label' => $rc->gettext('birthday'), 'limit' => 1, 'render_func' => 'rcmail_format_date_col', 'category' => 'personal'),
+		'anniversary'  => array('type' => 'date', 'size' => 12, 'maxlength' => 16, 'label' => $rc->gettext('anniversary'), 'limit' => 1, 'render_func' => 'rcmail_format_date_col', 'category' => 'personal'),
+		'website'      => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'label' => $rc->gettext('website'), 'subtypes' => array('homepage','work','blog','profile','other'), 'category' => 'main'),
+		'notes'        => array('type' => 'textarea', 'size' => 40, 'rows' => 15, 'maxlength' => 500, 'label' => $rc->gettext('notes'), 'limit' => 1),
 		'photo'        => array('type' => 'image', 'limit' => 1, 'category' => 'main'),
-		'assistant'    => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('assistant'), 'category' => 'personal'),
-		'manager'      => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('manager'), 'category' => 'personal'),
-		'spouse'       => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => rcube_label('spouse'), 'category' => 'personal'),
+		'assistant'    => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('assistant'), 'category' => 'personal'),
+		'manager'      => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('manager'), 'category' => 'personal'),
+		'spouse'       => array('type' => 'text', 'size' => 40, 'maxlength' => 50, 'limit' => 1, 'label' => $rc->gettext('spouse'), 'category' => 'personal'),
 		// TODO: define fields for vcards like GEO, KEY
 	); /* }}} */
 	$this->addextrasubtypes();
@@ -153,7 +158,7 @@ class carddav_backend extends rcube_addressbook
 	{{{
 	$dbh = rcmail::get_instance()->db;
 	$sql_result = $dbh->query('INSERT INTO ' .
-		get_table_name('carddav_xsubtypes') .
+		$dbh->table_name('carddav_xsubtypes') .
 		' (typename,subtype,abook_id) VALUES (?,?,?)',
 			$typename, $subtype, $this->id);
 	}}}
@@ -303,7 +308,7 @@ class carddav_backend extends rcube_addressbook
 		self::$helper->debug("UPDATE card $uri");
 		$xval[]=$dbid;
 		$sql_result = $dbh->query('UPDATE ' .
-			get_table_name("carddav_$table") .
+			$dbh->table_name("carddav_$table") .
 			' SET ' . implode('=?,', $xcol) . '=?' .
 			' WHERE id=?', $xval);
 
@@ -321,7 +326,7 @@ class carddav_backend extends rcube_addressbook
 		$xcol[]='cuid';     $xval[]=$save_data['cuid'];
 
 		$sql_result = $dbh->query('INSERT INTO ' .
-			get_table_name("carddav_$table") .
+			$dbh->table_name("carddav_$table") .
 			' (' . implode(',',$xcol) . ') VALUES (?' . str_repeat(',?', count($xcol)-1) .')',
 				$xval);
 
@@ -350,6 +355,7 @@ class carddav_backend extends rcube_addressbook
 	 */
 	private function dbstore_contact($etag, $uri, $vcfstr, $save_data, $dbid=0)
 	{{{
+	$this->preprocess_rc_savedata($save_data);
 	// build email search string
 	$email_keys = preg_grep('/^email(:|$)/', array_keys($save_data));
 	$email_addrs = array();
@@ -414,10 +420,12 @@ class carddav_backend extends rcube_addressbook
 		$this->existing_card_cache[$contact['uri']] = $contact;
 	}
 
-	// determine existing local group URIs and ETAGs
-	$groups = self::get_dbrecord($this->id,'id,uri,etag','groups',false,'abook_id');
-	foreach($groups as $group) {
-		$this->existing_grpcard_cache[$group['uri']] = $group;
+	if(!$this->config['use_categories']) {
+		// determine existing local group URIs and ETAGs
+		$groups = self::get_dbrecord($this->id,'id,uri,etag','groups',false,'abook_id');
+		foreach($groups as $group) {
+			$this->existing_grpcard_cache[$group['uri']] = $group;
+		}
 	}
 
 	// used to record which users need to be added to which groups
@@ -455,9 +463,9 @@ EOF
 	foreach($this->users_to_add as $dbid => $cuids) {
 		if(count($cuids)<=0) continue;
 		$sql_result = $dbh->query('INSERT INTO '.
-			get_table_name('carddav_group_user') .
+			$dbh->table_name('carddav_group_user') .
 			' (group_id,contact_id) SELECT ?,id from ' .
-			get_table_name('carddav_contacts') .
+			$dbh->table_name('carddav_contacts') .
 			' WHERE abook_id=? AND cuid IN (' . implode(',', $cuids) . ')', $dbid, $this->id);
 		self::$helper->debug("Added " . $dbh->affected_rows($sql_result) . " contacts to group $dbid");
 	}
@@ -468,7 +476,7 @@ EOF
 
 	// set last_updated timestamp
 	$dbh->query('UPDATE ' .
-		get_table_name('carddav_addressbooks') .
+		$dbh->table_name('carddav_addressbooks') .
 		' SET last_updated=' . $dbh->now() .' WHERE id=?',
 			$this->id);
 
@@ -614,7 +622,7 @@ EOF
 	$xfrom = '';
 	$xwhere = '';
 	if($this->group_id) {
-		$xfrom = ',' . get_table_name('carddav_group_user');
+		$xfrom = ',' . $dbh->table_name('carddav_group_user');
 		$xwhere = ' AND id=contact_id AND group_id=' . $dbh->quote($this->group_id) . ' ';
 	}
 
@@ -623,7 +631,7 @@ EOF
 	$sort_order  = $this->sort_order ? $this->sort_order : 'ASC';
 
 	$sql_result = $dbh->limitquery("SELECT id,name,$dbattr FROM " .
-		get_table_name('carddav_contacts') . $xfrom .
+		$dbh->table_name('carddav_contacts') . $xfrom .
 		' WHERE abook_id=? ' . $xwhere .
 		($this->filter ? " AND (".$this->filter.")" : "") .
 		" ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $sort_column . " END) "
@@ -723,28 +731,29 @@ EOF
 		$save_data = $save_data['save_data'];
 
 		if($save_data['kind'] === 'group') {
-			self::$helper->debug('Processing Group ' . $save_data['name']);
-			// delete current group members (will be reinserted if needed below)
-			if($dbid) self::delete_dbrecord($dbid,'group_user','group_id');
+			if(!$this->config['use_categories']) {
+				self::$helper->debug('Processing Group ' . $save_data['name']);
+				// delete current group members (will be reinserted if needed below)
+				if($dbid) self::delete_dbrecord($dbid,'group_user','group_id');
 
-			// store group card
-			if(!($dbid = $this->dbstore_group("$etag","$href","$vcf",$save_data,$dbid)))
-				return -1;
+				// store group card
+				if(!($dbid = $this->dbstore_group("$etag","$href","$vcf",$save_data,$dbid)))
+					return -1;
 
-			// record group members for deferred store
-			$this->users_to_add[$dbid] = array();
-			$members = $vcfobj->{'X-ADDRESSBOOKSERVER-MEMBER'};
-			self::$helper->debug("Group $dbid has " . count($members) . " members");
-			foreach($members as $mbr) {
-				$mbr = preg_split('/:/', $mbr);
-				if(!$mbr) continue;
-				if(count($mbr)!=3 || $mbr[0] !== 'urn' || $mbr[1] !== 'uuid') {
-					self::$helper->warn("don't know how to interpret group membership: " . implode(':', $mbr));
-					continue;
+				// record group members for deferred store
+				$this->users_to_add[$dbid] = array();
+				$members = $vcfobj->{'X-ADDRESSBOOKSERVER-MEMBER'};
+				self::$helper->debug("Group $dbid has " . count($members) . " members");
+				foreach($members as $mbr) {
+					$mbr = preg_split('/:/', $mbr);
+					if(!$mbr) continue;
+					if(count($mbr)!=3 || $mbr[0] !== 'urn' || $mbr[1] !== 'uuid') {
+						self::$helper->warn("don't know how to interpret group membership: " . implode(':', $mbr));
+						continue;
+					}
+					$this->users_to_add[$dbid][] = $dbh->quote($mbr[2]);
 				}
-				$this->users_to_add[$dbid][] = $dbh->quote($mbr[2]);
 			}
-
 		} else { // individual/other
       if (trim($save_data['name']) == '') { // roundcube display fix for contacts that don't have first/last names
         if ($save_data['nickname'] !== NULL && trim($save_data['nickname'] !== '')) {
@@ -758,6 +767,39 @@ EOF
           }
         }
       }
+			if($this->config['use_categories']) {
+				// delete current member from groups (will be reinserted if needed below)
+				self::delete_dbrecord($dbid,'group_user','contact_id');
+				foreach ($this->getCategories($vcfobj) as $category) {
+					if($category !== "All" && $category !== "Unfiled") {
+						$record = self::get_dbrecord($category, 'id', 'groups', true, 'name', array('abook_id' => $this->config['abookid']));
+						if(!$record) {
+							$cuid = $this->find_free_uid();
+							$uri = "$cuid.vcf";
+
+							$gsave_data = array(
+								'name' => $category,
+								'kind' => 'group',
+								'cuid' => $cuid,
+							);
+							$url = carddav_common::concaturl($this->config['url'], $uri);
+							$url = preg_replace(';https?://[^/]+;', '', $url);
+							// store group card
+							$vcfg = $this->create_vcard_from_save_data($gsave_data);
+							$vcfgstr = $vcfg->serialize();
+							if(!($database = $this->dbstore_group("dummy",$url,$vcfgstr,$gsave_data)))
+								return -1;
+						} else {
+							$database = $record['id'];
+						}
+						if(!isset($this->users_to_add[$database])) {
+							$this->users_to_add[$database] = array();
+						}
+						$uid = $save_data['cuid'];
+						$this->users_to_add[$database][] = $dbh->quote($uid);
+					}
+				}
+			}
 			if(!$this->dbstore_contact("$etag","$href","$vcf",$save_data,$dbid))
 				return -1;
 		}
@@ -1059,7 +1101,7 @@ EOF
 		$dbh = rcmail::get_instance()->db;
 
 		$sql_result = $dbh->query('SELECT COUNT(id) as total_cards FROM ' .
-			get_table_name('carddav_contacts') .
+			$dbh->table_name('carddav_contacts') .
 			' WHERE abook_id=?' .
 			($this->filter ? " AND (".$this->filter.")" : ""),
 			$this->id
@@ -1132,7 +1174,9 @@ EOF
 	if(!$retval) {
 		return false;
 	}
+	$vcfobj = $retval['vcf'];
 	$retval = $retval['save_data'];
+	$retval['__vcf'] = $vcfobj;
 
 	$retval['ID'] = $oid;
 	$this->result->add($retval);
@@ -1175,7 +1219,7 @@ EOF
 	$this->result = $this->count();
 	$opts = array( 'method'=>"DELETE" );
 	$reply = self::$helper->cdfopen($id, $opts, $this->config);
-	if (is_array($reply) && $reply["status"] == 204){
+	if (is_array($reply) && ($reply["status"] == 204 || $reply["status"] == 200)){
 		return true;
 	}
 	return false;
@@ -1241,7 +1285,7 @@ EOF
 	// normalize date fields to RFC2425 YYYY-MM-DD date values
 	foreach ($this->datefields as $key) {
 		if (array_key_exists($key, $save_data) && strlen($save_data[$key])>0) {
-			$val = rcube_strtotime($save_data[$key]);
+			$val = rcube_utils::strtotime($save_data[$key]);
 			$save_data[$key] = date('Y-m-d',$val);
 		}
 	}
@@ -1395,7 +1439,7 @@ EOF
 			foreach($pvalue['TYPE'] as $type)
 			{
 				$type = strtolower($type);
-				if( in_array($type, $this->coltypes[$attrname]['subtypes']) )
+				if(is_array($this->coltypes[$attrname]['subtypes']) && in_array($type, $this->coltypes[$attrname]['subtypes']) )
 				{
 					$fallback = $type;
 					if(!(is_array($this->fallbacktypes[$attrname])
@@ -1485,7 +1529,6 @@ EOF
 	$save_data = array(
 		// DEFAULTS
 		'kind'   => 'individual',
-		'showas' => 'INDIVIDUAL',
 	);
 
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
@@ -1505,7 +1548,10 @@ EOF
 				$vcf->PHOTO['ENCODING'] = 'b';
 				$vcf->PHOTO = $save_data['photo'];
 				$needs_update=true;
-	} } }
+			}
+		}
+		self::xabcropphoto($vcf, $save_data);
+	}
 
 	$property = $vcf->N;
 	if ($property !== null){
@@ -1570,6 +1616,43 @@ EOF
 	);
 	}}}
 
+
+	const MAX_PHOTO_SIZE = 256;
+
+	public function xabcropphoto($vcard, &$save_data)
+	{{{
+	if (!function_exists('gd_info') || $vcard == null) {
+		return $vcard;
+	}
+	$photo = $vcard->PHOTO;
+	if ($photo == null) {
+		return $vcard;
+	}
+	$abcrop = $vcard['X-ABCROP-RECTANGLE'];
+	if ($abcrop == null) {
+		return $vcard;
+	}
+
+	$parts = explode('&', $abcrop);
+	$x = intval($parts[1]);
+	$y = intval($parts[2]);
+	$w = intval($parts[3]);
+	$h = intval($parts[4]);
+	$dw = min($w, self::MAX_PHOTO_SIZE);
+	$dh = min($h, self::MAX_PHOTO_SIZE);
+
+	$src = imagecreatefromstring($photo);
+	$dst = imagecreatetruecolor($dw, $dh);
+	imagecopyresampled($dst, $src, 0, 0, $x, imagesy($src) - $y - $h, $dw, $dh, $w, $h);
+
+	ob_start();
+	imagepng($dst);
+	$data = ob_get_contents();
+	ob_end_clean();
+	$save_data['photo'] = $data;
+
+	return $vcard;
+	}}}
 	private function find_free_uid()
 	{{{
 	// find an unused UID
@@ -1609,8 +1692,9 @@ EOF
 	$dbid = $this->dbstore_contact($etag,$url,$vcfstr,$save_data);
 	if(!$dbid) return false;
 
-	if ($this->groupd != -1)
-		$this->add_to_group($this->group_id, $dbid);
+	# Done by save.inc
+	#if ($this->groupd != -1)
+	#	$this->add_to_group($this->group_id, $dbid);
 
 	if($this->total_cards != -1)
 		$this->total_cards++;
@@ -1627,6 +1711,9 @@ EOF
 	if(!$save_data['surname'] && !$save_data['firstname']
 		&& $save_data['organization'] && !array_key_exists('showas',$save_data)) {
 		$save_data['showas'] = 'COMPANY';
+	}
+	if(!array_key_exists('showas',$save_data)) {
+		$save_data['showas'] = 'INDIVIDUAL';
 	}
 	// organization not set but showas==company => show as regular
 	if(!$save_data['organization'] && $save_data['showas']==='COMPANY') {
@@ -1685,7 +1772,7 @@ EOF
 	 * @param array  Record identifiers
 	 * @param bool   Remove records irreversible (see self::undelete)
 	 */
-	public function delete($ids)
+	public function delete($ids, $force = true)
 	{{{
 	$deleted = 0;
 	foreach ($ids as $dbid) {
@@ -1707,6 +1794,55 @@ EOF
 	return $deleted;
 	}}}
 
+	private function update_contact_categories($id,$vcf) {
+		$groups = $this->get_record_groups($id);
+
+		if($vcf->{'CATEGORY'}) {
+			$cat_name = "CATEGORY";
+		} else {
+			$cat_name = "CATEGORIES";
+		}
+		unset($vcf->{$cat_name});
+		$categories = array();
+		foreach($groups as $group_id => $grpname) {
+			$categories[] = $grpname;
+		}
+		$vcf->{$cat_name} = $categories;
+	}
+
+	private function update_contacts($ids) {
+		foreach ($ids as $id) {
+			$contact = self::get_dbrecord($id,'id,cuid,uri,etag,vcard,showas');
+			if(!$contact) return false;
+
+			try {
+				$vcf = VObject\Reader::read($contact['vcard'], VObject\Reader::OPTION_FORGIVING);
+			} catch (Exception $e) {
+				self::$helper->warn("Update: Couldn't parse local vcard: ".$contact['vcard']);
+				return false;
+			}
+
+			$this->update_contact_categories($id,$vcf);
+
+			$vcfstr = $vcf->serialize();
+
+			$save_data_arr = $this->create_save_data_from_vcard("$vcfstr");
+			$save_data = $save_data_arr['save_data'];
+
+			// complete save_data
+			$save_data['showas'] = $contact['showas'];
+			$this->preprocess_rc_savedata($save_data);
+
+			if(!($etag=$this->put_record_to_carddav($contact['uri'], $vcfstr, $contact['etag']))) {
+				self::$helper->warn("Updating card on server failed");
+				return false;
+			}
+			$id = $this->dbstore_contact($etag,$contact['uri'],$vcfstr,$save_data,$id);
+
+		}
+		return true;
+	}
+
 	/**
 	 * Add the given contact records the a certain group
 	 *
@@ -1716,53 +1852,56 @@ EOF
 	 */
 	public function add_to_group($group_id, $ids)
 	{{{
-	if (!is_array($ids))
+	if (!is_array($ids)) {
 		$ids = explode(',', $ids);
-
-	// get current DB data
-	$group = self::get_dbrecord($group_id,'uri,etag,vcard,name,cuid','groups');
-	if(!$group)	return false;
-
-	// create vcard from current DB data to be updated with the new data
-	try {
-		$vcf = VObject\Reader::read($group['vcard'], VObject\Reader::OPTION_FORGIVING);
-	} catch (Exception $e) {
-		self::$helper->warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
-		return false;
 	}
 
-	foreach ($ids as $cid) {
-		$contact = self::get_dbrecord($cid,'cuid');
-		if(!$contact) return false;
+	if(!$this->config['use_categories']) {
+		// get current DB data
+		$group = self::get_dbrecord($group_id,'uri,etag,vcard,name,cuid','groups');
+		if(!$group)	return false;
 
-		$search_for = 'urn:uuid:' . $contact['cuid'];
-		$member_exist = false;
-		foreach ($vcf->{'X-ADDRESSBOOKSERVER-MEMBER'} as $member) {
-			if ($member == $search_for) {
-				$member_exist = true;
-				break;
-			}
+		// get current DB data
+		$group = self::get_dbrecord($group_id,'uri,etag,vcard,name,cuid','groups');
+		if(!$group)	return false;
+
+		// create vcard from current DB data to be updated with the new data
+		try {
+			$vcf = VObject\Reader::read($group['vcard'], VObject\Reader::OPTION_FORGIVING);
+		} catch (Exception $e) {
+			self::$helper->warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
+			return false;
 		}
-		if(!$member_exist)	
-			$vcf->add('X-ADDRESSBOOKSERVER-MEMBER',$search_for);
+
+		foreach ($ids as $cid) {
+			$contact = self::get_dbrecord($cid,'cuid');
+			if(!$contact) return false;
+
+			$vcf->add('X-ADDRESSBOOKSERVER-MEMBER', "urn:uuid:" . $contact['cuid']);
+		}
+
+		$vcfstr = $vcf->serialize();
+		if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
+			return false;
+
+		if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
+			return false;
 	}
-
-	$vcfstr = $vcf->serialize();
-	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
-		return false;
-
-	if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
-		return false;
 
 	$dbh = rcmail::get_instance()->db;
 	foreach ($ids as $cid) {
 		$dbh->query('INSERT INTO ' .
-			get_table_name('carddav_group_user') .
+			$dbh->table_name('carddav_group_user') .
 			' (group_id,contact_id) VALUES (?,?)',
 				$group_id, $cid);
 	}
 
-	return true;
+	if($this->config['use_categories']) {
+		if(!$this->update_contacts($ids))
+			return false;
+		$added = count($ids);
+	}
+	return $added;
 	}}}
 
 	/**
@@ -1776,38 +1915,38 @@ EOF
 	{{{
 	if (!is_array($ids))
 		$ids = explode(',', $ids);
+	if(!$this->config['use_categories']) {
+		// get current DB data
+		$group = self::get_dbrecord($group_id,'name,cuid,uri,etag,vcard','groups');
+		if(!$group)	return false;
 
-	// get current DB data
-	$group = self::get_dbrecord($group_id,'name,cuid,uri,etag,vcard','groups');
-	if(!$group)	return false;
-
-	// create vcard from current DB data to be updated with the new data
-	try {
-		$vcf = VObject\Reader::read($group['vcard'], VObject\Reader::OPTION_FORGIVING);
-	} catch (Exception $e) {
-		self::$helper->warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
-		return false;
-	}
-
-	$deleted = 0;
-	foreach ($ids as $cid) {
-		$contact = self::get_dbrecord($cid,'cuid');
-		if(!$contact) return false;
-
-		$search_for = 'urn:uuid:' . $contact['cuid'];
-		foreach ($vcf->{'X-ADDRESSBOOKSERVER-MEMBER'} as $member) {
-			if ($member == $search_for) {
-				$vcf->remove($member);
-				break;
-			}
+		// create vcard from current DB data to be updated with the new data
+		try {
+			$vcf = VObject\Reader::read($group['vcard'], VObject\Reader::OPTION_FORGIVING);
+		} catch (Exception $e) {
+			self::$helper->warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
+			return false;
 		}
-		$deleted++;
+
+		$deleted = 0;
+		foreach ($ids as $cid) {
+			$contact = self::get_dbrecord($cid,'cuid');
+			if(!$contact) return false;
+
+			$search_for = 'urn:uuid:' . $contact['cuid'];
+			foreach ($vcf->{'X-ADDRESSBOOKSERVER-MEMBER'} as $member) {
+				if ($member == $search_for) {
+					$vcf->remove($member);
+					break;
+				}
+			}
+			$deleted++;
+		}
+
+		$vcfstr = $vcf->serialize();
+		if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
+			return false;
 	}
-
-	$vcfstr = $vcf->serialize();
-	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
-		return false;
-
 	if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
 		return false;
 
@@ -1827,8 +1966,8 @@ EOF
 	{{{
 	$dbh = rcmail::get_instance()->db;
 	$sql_result = $dbh->query('SELECT id,name FROM '.
-		get_table_name('carddav_groups') . ',' .
-		get_table_name('carddav_group_user') .
+		$dbh->table_name('carddav_groups') . ',' .
+		$dbh->table_name('carddav_group_user') .
 		' WHERE id=group_id AND contact_id=?', $id);
 
 	$res = array();
@@ -1847,33 +1986,67 @@ EOF
 	$this->group_id = $gid;
 	$this->total_cards = -1;
 	if ($gid) {
-		$this->filter = "EXISTS(SELECT * FROM ".get_table_name("carddav_group_user")."
-			WHERE group_id = '{$gid}' AND contact_id = ".get_table_name("carddav_contacts").".id)";
+		$dbh = rcmail::get_instance()->db;
+		$this->filter = "EXISTS(SELECT * FROM ".$dbh->table_name("carddav_group_user")."
+			WHERE group_id = '{$gid}' AND contact_id = ".$dbh->table_name("carddav_contacts").".id)";
 	} else {
 		$this->filter = '';
 	}
 	}}}
 
 	/**
+	 * Get group properties such as name and email address(es)
+	 *
+	 * @param string Group identifier
+	 * @return array Group properties as hash array
+	 */
+	function get_group($group_id)
+	{
+		$dbh = rcmail::get_instance()->db;
+
+		$sql_result = $dbh->query('SELECT * FROM '.
+			$dbh->table_name('carddav_groups').
+			' WHERE id = ?', $group_id);
+
+		if ($sql_result && ($sql_arr = $dbh->fetch_assoc($sql_result))) {
+			return $sql_arr;
+		}
+
+		return null;
+	}
+
+	/**
 	 * List all active contact groups of this source
 	 *
 	 * @param string  Optional search string to match group name
+	 * @param int     Matching mode:
+	 *                0 - partial (*abc*),
+	 *                1 - strict (=),
+	 *                2 - prefix (abc*)
+	 *
 	 * @return array  Indexed list of contact groups, each a hash array
 	 */
-	public function list_groups($search = null)
+	public function list_groups($search = null, $mode = 0)
 	{{{
 	$dbh = rcmail::get_instance()->db;
 
-	$searchextra = $search
-		? " AND " . $dbh->ilike('name',"%$search%")
-		: '';
+	$searchextra = "";
+	if ($search !== null){
+		if ($mode == 0){
+			$searchextra = " AND " . $dbh->ilike('name',"%$search%");
+		} elseif ($mode == 1){
+			$searchextra = " AND name = ?";
+		} elseif ($mode == 2){
+			$searchextra = " AND " . $dbh->ilike('name',"$search%");
+		}
+	}
 
 	$sql_result = $dbh->query('SELECT id,name from ' .
-		get_table_name('carddav_groups') .
+		$dbh->table_name('carddav_groups') .
 		' WHERE abook_id=?' .
 		$searchextra .
 		' ORDER BY name ASC',
-		$this->id);
+		$this->id, $mode == 1 ? $search : null);
 
 	$groups = array();
 
@@ -1905,12 +2078,16 @@ EOF
 	$vcf = $this->create_vcard_from_save_data($save_data);
 	if (!$vcf) return false;
 	$vcfstr = $vcf->serialize();
+	if(!$this->config['use_categories']) {
+		if (!($etag = $this->put_record_to_carddav($uri, $vcfstr)))
+			return false;
 
-	if (!($etag = $this->put_record_to_carddav($uri, $vcfstr)))
-		return false;
-
-	$url = carddav_common::concaturl($this->config['url'], $uri);
-	$url = preg_replace(';https?://[^/]+;', '', $url);
+		$url = carddav_common::concaturl($this->config['url'], $uri);
+		$url = preg_replace(';https?://[^/]+;', '', $url);
+	} else {
+		$etag="dummy".$name;
+		$url="dummy".$name;
+	}
 	if(!($dbid = $this->dbstore_group($etag,$url,$vcfstr,$save_data)))
 		return false;
 
@@ -1925,16 +2102,32 @@ EOF
 	 */
 	public function delete_group($group_id)
 	{{{
+	$ids = null;
 	// get current DB data
 	$group = self::get_dbrecord($group_id,'uri','groups');
 	if(!$group)	return false;
 
-	if($this->delete_record_from_carddav($group['uri'])) {
+	if($this->config['use_categories']) {
+		$contacts = self::get_dbrecord($group_id, 'contact_id as id', 'group_user', false, 'group_id');
+		$ids = array();
+		foreach($contacts as $contact) {
+			$ids[]=$contact['id'];
+		}
+	}
+	if(!$this->config['use_categories']) {
+		if($this->delete_record_from_carddav($group['uri'])) {
+			self::delete_dbrecord($group_id, 'groups');
+			self::delete_dbrecord($group_id, 'group_user', 'group_id');
+			return true;
+		}
+	} else {
 		self::delete_dbrecord($group_id, 'groups');
 		self::delete_dbrecord($group_id, 'group_user', 'group_id');
+	}
+	if($this->config['use_categories']) {
+		$this->update_contacts($ids);
 		return true;
 	}
-
 	return false;
 	}}}
 
@@ -1946,40 +2139,92 @@ EOF
 	 * @param string New group identifier (if changed, otherwise don't set)
 	 * @return boolean New name on success, false if no data was changed
 	 */
-	public function rename_group($group_id, $newname)
+	public function rename_group($group_id, $newname, &$newid)
 	{{{
 	// get current DB data
 	$group = self::get_dbrecord($group_id,'uri,etag,vcard,name,cuid','groups');
 	if(!$group)	return false;
 	$group['name'] = $newname;
-
 	// create vcard from current DB data to be updated with the new data
-	try {
-		$vcf = VObject\Reader::read($group['vcard'], VObject\Reader::OPTION_FORGIVING);
-	} catch (Exception $e) {
-		self::$helper->warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
-		return false;
+
+	if(!$this->config['use_categories']) {
+		// create vcard from current DB data to be updated with the new data
+		try {
+			$vcf = VObject\Reader::read($group['vcard'], VObject\Reader::OPTION_FORGIVING);
+		} catch (Exception $e) {
+			self::$helper->warn("Update: Couldn't parse local group vcard: ".$group['vcard']);
+			return false;
+		}
+
+		$vcf->FN = $newname;
+		$vcf->N = $newname;
+		$vcfstr = $vcf->serialize();
+
+		if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
+			return false;
 	}
-
-	$vcf->FN = $newname;
-	$vcf->N = $newname;
-	$vcfstr = $vcf->serialize();
-
-	if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
-		return false;
-
 	if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
 		return false;
+
+	if($this->config['use_categories']) {
+		$contacts = self::get_dbrecord($group_id, 'contact_id as id', 'group_user', false, 'group_id');
+		$ids = array();
+		foreach($contacts as $contact) {
+			$ids[]=$contact['id'];
+		}
+		$this->update_contacts($ids);
+	}
 
 	return $newname;
 	}}}
 
-	public static function get_dbrecord($id, $cols='*', $table='contacts', $retsingle=true, $idfield='id')
+
+        /**
+         * Returns an array of categories for this card or a one-element array with
+         * the value 'Unfiled' if no CATEGORIES property is found.
+         */
+        function getCategories(&$vcard)
+        {
+                $property = $vcard->{'CATEGORIES'};
+                // The Mac OS X Address Book application uses the CATEGORY property
+                // instead of the CATEGORIES property.
+                if (!$property) {
+                        $property = $vcard->{'CATEGORY'};
+                }
+                if ($property) {
+                        return $property->getParts();
+                }
+                return array();
+        }
+
+        /**
+         * Returns true if the card belongs to at least one of the categories.
+         */
+        function inCategories(&$vcard, &$categories)
+        {
+                $our_categories = $vcard->getCategories();
+                foreach ($categories as $category) {
+                        if (in_array_case($category, $our_categories)) {
+                                return true;
+                        }
+                }
+                return false;
+        }
+
+	public static function get_dbrecord($id, $cols='*', $table='contacts', $retsingle=true, $idfield='id', $other_conditions = array())
 	{{{
 	$dbh = rcmail::get_instance()->db;
-	$sql_result = $dbh->query("SELECT $cols FROM " .
-		get_table_name("carddav_$table") .
-		' WHERE ' . $dbh->quoteIdentifier($idfield) . '=?', $id);
+
+	$idfield = $dbh->quoteIdentifier($idfield);
+	$id = $dbh->quote($id);
+	$sql = "SELECT $cols FROM " . $dbh->table_name("carddav_$table") . ' WHERE ' . $idfield . '=' . $id;
+
+	// Append additional conditions
+	foreach ($other_conditions as $field => $value) {
+		$sql .= ' AND ' . $dbh->quoteIdentifier($field) . ' = ' . $dbh->quote($value);
+	}
+
+	$sql_result = $dbh->query($sql);
 
 	// single row requested?
 	if($retsingle)
@@ -2006,7 +2251,7 @@ EOF
 	}
 
 	$idfield = $dbh->quoteIdentifier($idfield);
-	$sql = "DELETE FROM " . get_table_name("carddav_$table") . " WHERE $idfield $dspec";
+	$sql = "DELETE FROM " . $dbh->table_name("carddav_$table") . " WHERE $idfield $dspec";
 
 	// Append additional conditions
 	foreach ($other_conditions as $field => $value) {
@@ -2031,7 +2276,7 @@ EOF
 	}
 
 	$abookrow = self::get_dbrecord($abookid,
-		'id as abookid,name,username,password,url,presetname,sync_token,authentication_scheme,'
+		'id as abookid,name,username,use_categories,password,url,presetname,sync_token,authentication_scheme,'
 		. $timequery . ' as needs_update', 'addressbooks');
 
 	if(! $abookrow) {
@@ -2054,7 +2299,7 @@ EOF
 	self::$helper->debug("UPDATE addressbook $dbid");
 	$xval[]=$dbid;
 	$sql_result = $dbh->query('UPDATE ' .
-		get_table_name("carddav_addressbooks") .
+		$dbh->table_name("carddav_addressbooks") .
 		' SET ' . implode('=?,', $xcol) . '=?' .
 		' WHERE id=?', $xval);
 
@@ -2077,7 +2322,7 @@ EOF
 
 	// adopt password storing scheme if stored password differs from configured scheme
 	$sql_result = $dbh->query('SELECT id,password FROM ' .
-		get_table_name('carddav_addressbooks') .
+		$dbh->table_name('carddav_addressbooks') .
 		' WHERE user_id=?', $_SESSION['user_id']);
 
 	while ($abookrow = $dbh->fetch_assoc($sql_result)) {
@@ -2086,7 +2331,7 @@ EOF
 			$abookrow['password'] = self::$helper->decrypt_password($abookrow['password']);
 			$abookrow['password'] = self::$helper->encrypt_password($abookrow['password']);
 			$dbh->query('UPDATE ' .
-				get_table_name('carddav_addressbooks') .
+				$dbh->table_name('carddav_addressbooks') .
 				' SET password=? WHERE id=?',
 				$abookrow['password'],
 				$abookrow['id']);
@@ -2119,7 +2364,7 @@ EOF
 
 		self::$helper->debug("move addressbook $desc");
 		$dbh->query('INSERT INTO ' .
-			get_table_name('carddav_addressbooks') .
+			$dbh->table_name('carddav_addressbooks') .
 			'(name,username,password,url,active,user_id) ' .
 			'VALUES (?, ?, ?, ?, ?, ?)',
 				$desc, $prefs['username'], $crypt_password, $prefs['url'],
@@ -2130,6 +2375,29 @@ EOF
 	$usettings = $rcmail->user->get_prefs();
 	$usettings['carddav'] = array();
 	self::$helper->debug("delete old prefs: " . $rcmail->user->save_prefs($usettings));
+	}}}
+
+  public function delete_all($with_groups = false)
+	{{{
+		$dbh = rcmail::get_instance()->db;
+		$abook_id = $this->id;
+		$res1 = $dbh->query('SELECT id FROM '.
+			$dbh->table_name('carddav_contacts').
+			' WHERE abook_id=?',$abook_id);
+		$contact_ids = array();
+		while($row = $dbh->fetch_assoc($res1)) {
+			$contact_ids[] = $row['id'];
+		}
+		$this->delete($contact_ids);
+
+		if ($with_groups != false) {
+			$res2 = $dbh->query('SELECT id FROM '.
+				$dbh->table_name('carddav_groups').
+				' WHERE abook_id=?',$abook_id);
+			while($row = $dbh->fetch_assoc($res2)) {
+				$this->delete_group($row['id']);
+			}
+		}
 	}}}
 
 	public static function initClass()

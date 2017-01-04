@@ -4,7 +4,7 @@
     http://pear.php.net/dtd/package-2.0
     http://pear.php.net/dtd/package-2.0.xsd">
 	<name>carddav</name>
-	<channel>www.crash-override.net</channel>
+	<channel>www.benjamin-schieder.de</channel>
 	<summary>CardDAV plugin for Roundcube</summary>
 	<description>
 		Adds functionality to use, synchronize and manipulate CardDAV accounts with Roundcube.
@@ -13,7 +13,7 @@
 	<lead>
 		<name>Benjamin Schieder</name>
 		<user>blindcoder</user>
-		<email>benjamin@anderdonau.de</email>
+		<email>carddav@wegwerf.anderdonau.de</email>
 		<active>yes</active>
 	</lead>
 	<developer>
@@ -22,9 +22,9 @@
 		<email>ms@mike2k.de</email>
 		<active>yes</active>
 	</developer>
-	<date>2014-04-09</date>
+	<date>2016-11-25</date>
 	<version>
-		<release>1.0.0</release>
+		<release>2.0.4</release>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -63,7 +63,7 @@
 	<dependencies>
 		<required>
 			<php>
-				<min>5.2.1</min>
+				<min>5.6.18</min>
 			</php>
 		</required>
 	</dependencies>
