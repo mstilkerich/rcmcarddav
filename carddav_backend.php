@@ -40,6 +40,9 @@ class carddav_backend extends rcube_addressbook
 	private $result;
 	// configuration of the addressbook
 	private $config;
+	// The value of the global "sync_collection_workaround" preference.
+	// Defaults to false if the user comments it out.
+	private $sync_collection_workaround = false;
 	// custom labels defined in the addressbook
 	private $xlabels;
 
@@ -112,6 +115,11 @@ class carddav_backend extends rcube_addressbook
 	if($this->config['presetname']) {
 		if($prefs[$this->config['presetname']]['readonly'])
 			$this->readonly = true;
+	}
+
+	if (isset($prefs['_GLOBAL']['sync_collection_workaround'])) {
+	  $this->sync_collection_workaround =
+	    $prefs['_GLOBAL']['sync_collection_workaround'];
 	}
 
 	$rc = rcmail::get_instance();
@@ -450,7 +458,10 @@ EOF
 	$xml = self::$helper->checkAndParseXML($reply);
 	if($xml !== false) {
 		$xpresult = $xml->xpath('//RCMCD:supported-report/RCMCD:report/RCMCD:sync-collection');
-		if(count($xpresult) > 0) {
+		// To avoid sync-collection, we can simply skip the next line
+		// leaving $records = -1 which will trigger a call to
+		// list_records_propfind() below.
+		if(count($xpresult) > 0 && !$this->sync_collection_workaround) {
 			$records = $this->list_records_sync_collection();
 		}
 	}
