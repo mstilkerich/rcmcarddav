@@ -54,6 +54,9 @@ $prefs['<Presetname>'] = array(
 	// auto-updated for this preset
 	'fixed'        =>  array( < 0 or more of the other attribute keys > ),
 
+	// always require these attributes, even for addressbook view
+	'require_always' => ['email'],
+
 	// hide this preset from CalDAV preferences section so users can't even
 	// see it
 	'hide' => <true or false>,
@@ -146,6 +149,11 @@ $prefs['<Presetname>'] = array(
 //                 change the key of the preset and change the URL. Addressbooks
 //                 belonging to the old preset will be deleted upon the next
 //                 login of the user and freshly created.
+//
+// require_always: If set, this database field is required to be non-empty
+//               for ALL queries, even just for displaying members. This may be
+//               useful if you have shared, read-only addressbooks with a lot
+//               of contacts that do not have an email address.
 //
 // hide:         Whether this preset should be hidden from the CalDAV listing
 //               on the preferences page.

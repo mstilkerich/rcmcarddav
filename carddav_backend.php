@@ -626,6 +626,15 @@ EOF
 		$xwhere = ' AND id=contact_id AND group_id=' . $dbh->quote($this->group_id) . ' ';
 	}
 
+	if ($this->config['presetname']){
+		$prefs = carddav_common::get_adminsettings();
+		if (array_key_exists("require_always", $prefs[$this->config['presetname']])){
+			foreach ($prefs[$this->config['presetname']]["require_always"] as $col){
+				$xwhere .= " AND $col <> ".$dbh->quote('')." ";
+			}
+		}
+	}
+
 	// Workaround for Roundcube versions < 0.7.2
 	$sort_column = $this->sort_col ? $this->sort_col : 'surname';
 	$sort_order  = $this->sort_order ? $this->sort_order : 'ASC';
@@ -992,7 +1001,15 @@ EOF
 		}
 	}
 
+	if ($this->config['presetname']){
+		$prefs = carddav_common::get_adminsettings();
+		if (array_key_exists("require_always", $prefs[$this->config['presetname']])){
+			$required = array_merge($prefs[$this->config['presetname']]["require_always"], $required);
+		}
+	}
+
 	foreach (array_intersect($required, $this->table_cols) as $col) {
+		write_log("carddav", "$col <> ".$dbh->quote(''));
 		$and_where[] = $dbh->quoteIdentifier($col).' <> '.$dbh->quote('');
 	}
 
