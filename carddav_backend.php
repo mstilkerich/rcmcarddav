@@ -958,8 +958,8 @@ EOF
 		$val = is_array($value) ? $value[$idx] : $value;
 		// table column
 		if (in_array($col, $this->table_cols)) {
-			switch ($mode) {
-			case 1: // strict
+			if ($mode & 1) {
+				// strict
 				$where[] =
 					// exact match 'name@domain.com'
 					'(' . $dbh->ilike($col, $val)
@@ -969,29 +969,29 @@ EOF
 					. ' OR ' . $dbh->ilike($col, '%' . $AS . $WS . $val . $AS . '%')
 					// line end match '%, name@domain.com'
 					. ' OR ' . $dbh->ilike($col, '%' . $AS . $WS . $val) . ')';
-				break;
-			case 2: // prefix
+			} elseif ($mode & 2) {
+				// prefix
 				$where[] = '(' . $dbh->ilike($col, $val . '%')
 					. ' OR ' . $dbh->ilike($col, $AS . $WS . $val . '%') . ')';
-				break;
-			default: // partial
+			} else {
+				// partial
 				$where[] = $dbh->ilike($col, '%' . $val . '%');
 			}
 		}
 		// vCard field
 		else {
 				foreach (explode(" ", self::normalize_string($val)) as $word) {
-					switch ($mode) {
-					case 1: // strict
+					if ($mode & 1) {
+						// strict
 						$words[] = '(' . $dbh->ilike('vcard', $word . $WS . '%')
 							. ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word . $WS .'%')
 							. ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word) . ')';
-						break;
-					case 2: // prefix
+					} elseif ($mode & 2) {
+						// prefix
 						$words[] = '(' . $dbh->ilike('vcard', $word . '%')
 							. ' OR ' . $dbh->ilike('vcard', $AS . $WS . $word . '%') . ')';
-						break;
-					default: // partial
+					} else {
+						// partial
 						$words[] = $dbh->ilike('vcard', '%' . $word . '%');
 					}
 				}
@@ -1050,16 +1050,12 @@ EOF
 						// composite field, e.g. address
 						foreach ((array)$value as $val) {
 							$val = mb_strtolower($val);
-							switch ($mode) {
-							case 1:
+							if ($mode & 1) {
 								$got = ($val == $search);
-								break;
-							case 2:
+							} elseif ($mode & 2) {
 								$got = ($search == substr($val, 0, strlen($search)));
-								break;
-							default:
+							} else {
 								$got = (strpos($val, $search) !== false);
-								break;
 							}
 
 							if ($got) {
@@ -2036,7 +2032,7 @@ EOF
 	 * List all active contact groups of this source
 	 *
 	 * @param string  Optional search string to match group name
-	 * @param int     Matching mode:
+	 * @param int     Search mode. Sum of self::SEARCH_* (>= 1.2.3)
 	 *                0 - partial (*abc*),
 	 *                1 - strict (=),
 	 *                2 - prefix (abc*)
@@ -2049,13 +2045,14 @@ EOF
 
 	$searchextra = "";
 	if ($search !== null){
-		if ($mode == 0){
-			$searchextra = " AND " . $dbh->ilike('name',"%$search%");
-		} elseif ($mode == 1){
-			$searchextra = " AND name = ?";
-		} elseif ($mode == 2){
-			$searchextra = " AND " . $dbh->ilike('name',"$search%");
+		if ($mode & 1) {
+			$searchextra = $dbh->ilike('name', $search);
+		} elseif ($mode & 2) {
+			$searchextra = $dbh->ilike('name',"$search%");
+		} else {
+			$searchextra = $dbh->ilike('name',"%$search%");
 		}
+		$searchextra = ' AND ' . $searchextra;
 	}
 
 	$sql_result = $dbh->query('SELECT id,name from ' .
@@ -2063,7 +2060,7 @@ EOF
 		' WHERE abook_id=?' .
 		$searchextra .
 		' ORDER BY name ASC',
-		$this->id, $mode == 1 ? $search : null);
+		$this->id);
 
 	$groups = array();
 
