@@ -567,13 +567,15 @@ EOF
 
 		$xml = self::$helper->checkAndParseXML($reply);
 
-		if($xml === false) {
+		if($xml === false || (is_array($reply) && ($reply["status"] < 200 || $reply["status"] >= 300))) {
 			// a server may invalidate old sync-tokens, in which case we need to do a full resync
-			if (strlen($sync_token)>0 && $reply == 412){
+			if (strlen($sync_token)>0 && ($reply == 412 || (is_array($reply) && $reply["status"] == 412))){
 				self::$helper->warn("Server reported invalid sync-token in sync of addressbook " . $this->config['abookid'] . ". Resorting to full resync.");
 				$sync_token = '';
 				continue;
 			} else {
+				$errorstatus = is_array($reply) ? $reply["status"] : $reply;
+				rcmail::write_log("carddav", "An error (status " . $errorstatus . ") occured while retrieving the sync-token of addressbook " . $this->config['abookid'] . ". Synchronization aborted.");
 				return -1;
 			}
 		}
