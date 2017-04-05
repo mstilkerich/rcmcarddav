@@ -846,6 +846,7 @@ EOF
 
 	private function addvcards($xml)
 	{{{
+    $records = 0;
 	$urls = array();
 	$xpresult = $xml->xpath('//RCMCD:response[starts-with(translate(child::RCMCD:propstat/RCMCD:status, "ABCDEFGHJIKLMNOPQRSTUVWXYZ", "abcdefghjiklmnopqrstuvwxyz"), "http/1.1 200 ") and child::RCMCD:propstat/RCMCD:prop/RCMCD:getetag]');
 	foreach ($xpresult as $r) {
@@ -870,6 +871,8 @@ EOF
 	if (count($urls) > 0) {
 		$records = $this->query_addressbook_multiget($urls);
 	}
+
+	return $records;
 	}}}
 
 	/** delete cards not present on the server anymore */
