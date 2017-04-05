@@ -716,7 +716,11 @@ EOF
 
 	$reply = self::$helper->cdfopen($this->config['url'], $optsREPORT, $this->config);
 	$xml = self::$helper->checkAndParseXML($reply);
-	if($xml === false) return -1;
+	if($xml === false || (is_array($reply) && ($reply["status"] < 200 || $reply["status"] >= 300))) {
+        $errorstatus = is_array($reply) ? $reply["status"] : $reply;
+		rcmail::write_log("carddav", "An error (status " . $errorstatus . ") occured while retrieving vcards for addressbook " . $this->config['abookid'] . ". Synchronization aborted.");
+		return -1;
+	}
 
 	$xpresult = $xml->xpath('//RCMCD:response[descendant::RCMCC:address-data]');
 
@@ -835,7 +839,11 @@ EOF
 
 	$reply = self::$helper->cdfopen("", $opts, $this->config);
 	$xml = self::$helper->checkAndParseXML($reply);
-	if($xml === false) return -1;
+	if($xml === false || (is_array($reply) && ($reply["status"] < 200 || $reply["status"] >= 300))) {
+        $errorstatus = is_array($reply) ? $reply["status"] : $reply;
+		rcmail::write_log("carddav", "An error (status " . $errorstatus . ") occured while retrieving the vcard list for addressbook " . $this->config['abookid'] . ". Synchronization aborted.");
+		return -1;
+	}
 	$records = $this->addvcards($xml);
 	if($records>=0) {
 		$this->delete_unseen();
