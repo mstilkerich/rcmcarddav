@@ -575,7 +575,7 @@ EOF
 				continue;
 			} else {
 				$errorstatus = is_array($reply) ? $reply["status"] : $reply;
-				rcmail::write_log("carddav", "An error (status " . $errorstatus . ") occured while retrieving the sync-token of addressbook " . $this->config['abookid'] . ". Synchronization aborted.");
+				self::$helper->warn("An error (status " . $errorstatus . ") occured while retrieving the sync-token of addressbook " . $this->config['abookid'] . ". Sync-collection synchronization aborted. Will use propfind synchronization instead.");
 				return -1;
 			}
 		}
