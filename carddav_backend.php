@@ -1986,11 +1986,11 @@ EOF
 		$vcfstr = $vcf->serialize();
 		if(!($etag = $this->put_record_to_carddav($group['uri'], $vcfstr, $group['etag'])))
 			return false;
+		if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
+			return false;
 	}
-	if(!$this->dbstore_group($etag,$group['uri'],$vcfstr,$group,$group_id))
-		return false;
 
-	self::delete_dbrecord($ids,'group_user','contact_id', array('group_id' => $group_id));
+	$deleted = self::delete_dbrecord($ids,'group_user','contact_id', array('group_id' => $group_id));
 	return $deleted;
 	}}}
 
