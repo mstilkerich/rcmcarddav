@@ -34,6 +34,17 @@
 // too old.
 $prefs['_GLOBAL']['suppress_version_warning'] = false;
 
+// Enable a workaround for broken sync-collection support in the
+// server. RFC 6578 specifies the "sync-collection" method for
+// synchronizing collections of things over WebDAV. It is more
+// efficient -- but also more complicated -- than simply retrieving
+// the whole collection again as necessary. As a result, some server
+// implementations are buggy. Specifically DAViCal and Radicale are
+// known to have problems. If changes (updates, deletions) from one
+// connection do not sync to another, you can try enabling this
+// workaround to revert to the inefficient-but-simple method.
+$prefs['_GLOBAL']['sync_collection_workaround'] = false;
+
 //// ** ADDRESSBOOK PRESETS
 
 // Each addressbook preset takes the following form:
