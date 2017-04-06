@@ -769,6 +769,10 @@ EOF
 				// record group members for deferred store
 				$this->users_to_add[$dbid] = array();
 				$members = $vcfobj->{'X-ADDRESSBOOKSERVER-MEMBER'};
+				if ($members === null) {
+				    $members = array();
+				}
+
 				self::$helper->debug("Group $dbid has " . count($members) . " members");
 				foreach($members as $mbr) {
 					$mbr = preg_split('/:/', $mbr);
