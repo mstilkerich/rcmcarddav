@@ -1037,7 +1037,6 @@ EOF
 	}
 
 	foreach (array_intersect($required, $this->table_cols) as $col) {
-		write_log("carddav", "$col <> ".$dbh->quote(''));
 		$and_where[] = $dbh->quoteIdentifier($col).' <> '.$dbh->quote('');
 	}
 
