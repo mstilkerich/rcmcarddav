@@ -575,7 +575,7 @@ EOF
 				continue;
 			} else {
 				$errorstatus = is_array($reply) ? $reply["status"] : $reply;
-				rcmail::write_log("carddav", "An error (status " . $errorstatus . ") occured while retrieving the sync-token of addressbook " . $this->config['abookid'] . ". Synchronization aborted.");
+				self::$helper->warn("An error (status " . $errorstatus . ") occured while retrieving the sync-token of addressbook " . $this->config['abookid'] . ". Sync-collection synchronization aborted. Will use propfind synchronization instead.");
 				return -1;
 			}
 		}
@@ -716,7 +716,11 @@ EOF
 
 	$reply = self::$helper->cdfopen($this->config['url'], $optsREPORT, $this->config);
 	$xml = self::$helper->checkAndParseXML($reply);
-	if($xml === false) return -1;
+	if($xml === false || (is_array($reply) && ($reply["status"] < 200 || $reply["status"] >= 300))) {
+        $errorstatus = is_array($reply) ? $reply["status"] : $reply;
+		rcmail::write_log("carddav", "An error (status " . $errorstatus . ") occured while retrieving vcards for addressbook " . $this->config['abookid'] . ". Synchronization aborted.");
+		return -1;
+	}
 
 	$xpresult = $xml->xpath('//RCMCD:response[descendant::RCMCC:address-data]');
 
@@ -835,7 +839,11 @@ EOF
 
 	$reply = self::$helper->cdfopen("", $opts, $this->config);
 	$xml = self::$helper->checkAndParseXML($reply);
-	if($xml === false) return -1;
+	if($xml === false || (is_array($reply) && ($reply["status"] < 200 || $reply["status"] >= 300))) {
+        $errorstatus = is_array($reply) ? $reply["status"] : $reply;
+		rcmail::write_log("carddav", "An error (status " . $errorstatus . ") occured while retrieving the vcard list for addressbook " . $this->config['abookid'] . ". Synchronization aborted.");
+		return -1;
+	}
 	$records = $this->addvcards($xml);
 	if($records>=0) {
 		$this->delete_unseen();
@@ -846,6 +854,7 @@ EOF
 
 	private function addvcards($xml)
 	{{{
+    $records = 0;
 	$urls = array();
 	$xpresult = $xml->xpath('//RCMCD:response[starts-with(translate(child::RCMCD:propstat/RCMCD:status, "ABCDEFGHJIKLMNOPQRSTUVWXYZ", "abcdefghjiklmnopqrstuvwxyz"), "http/1.1 200 ") and child::RCMCD:propstat/RCMCD:prop/RCMCD:getetag]');
 	foreach ($xpresult as $r) {
@@ -870,6 +879,8 @@ EOF
 	if (count($urls) > 0) {
 		$records = $this->query_addressbook_multiget($urls);
 	}
+
+	return $records;
 	}}}
 
 	/** delete cards not present on the server anymore */
