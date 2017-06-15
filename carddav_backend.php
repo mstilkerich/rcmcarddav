@@ -1280,11 +1280,11 @@ EOF
 		$vcf = new VObject\Component\VCard(
 			array(
 				'UID' => $save_data['cuid'],
-				'REV' => date('c'),
+				'REV' => gmdate("Y-m-d\TH:i:s\Z")
 			)
 		);
 	} else { // update revision
-		$vcf->REV = date("c");
+		$vcf->REV = gmdate("Y-m-d\TH:i:s\Z");
 	}
 
 	// N is mandatory
