@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
 	url VARCHAR(255) NOT NULL,
 	active TINYINT UNSIGNED NOT NULL DEFAULT 1,
 	user_id INT(10) UNSIGNED NOT NULL,
-	last_updated TIMESTAMP NOT NULL DEFAULT 0, -- time stamp of the last update of the local database
+	last_updated TIMESTAMP NOT NULL DEFAULT '2000-01-01 00:00:01', -- time stamp of the last update of the local database
 	refresh_time TIME NOT NULL DEFAULT '01:00:00', -- time span after that the local database will be refreshed, default 1h
 	sync_token VARCHAR(255) NOT NULL DEFAULT '', -- sync-token the server sent us for the last sync
 	authentication_scheme VARCHAR(64) NOT NULL DEFAULT "auto", -- the HTTP authentication scheme to use, auto will be overwritten

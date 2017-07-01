@@ -1,8 +1,8 @@
 <?php
 /*
     RCM CardDAV Plugin
-    Copyright (C) 2013 Benjamin Schieder <blindcoder@scavenger.homeip.net>,
-                       Michael Stilkerich <ms@mike2k.de>
+    Copyright (C) 2011-2016 Benjamin Schieder <rcmcarddav@wegwerf.anderdonau.de>,
+                            Michael Stilkerich <ms@mike2k.de>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-require_once __DIR__ . '/vendor/autoload.php';
+if (file_exists(__DIR__ . '/vendor/autoload.php'))
+	require_once __DIR__ . '/vendor/autoload.php';
 
 \Httpful\Bootstrap::init();
 
@@ -86,14 +87,14 @@ class carddav_common
 	public function warn()
 	{{{
 	$caller=self::getCaller();
-	rcube::write_log("carddav.warn", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
+	rcmail::write_log("carddav.warn", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
 	}}}
 
 	public function debug()
 	{{{
 	if(self::DEBUG) {
 		$caller=self::getCaller();
-		rcube::write_log("carddav", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
+		rcmail::write_log("carddav", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
 	}
 	}}}
 
@@ -101,7 +102,7 @@ class carddav_common
 	{{{
 	if(self::DEBUG_HTTP) {
 		$caller=self::getCaller();
-		rcube::write_log("carddav", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
+		rcmail::write_log("carddav", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
 	}
 	}}}
 
@@ -175,7 +176,7 @@ class carddav_common
 		$scheme = strtolower($carddav['authentication_scheme']);
 		if ($scheme != "basic" && $scheme != "digest"){
 				/* figure out authentication */
-				$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
+				$httpful->addHeader("User-Agent", "RCM CardDAV plugin/2.0.4");
 				$httpful->uri($url);
 				$httpful->method($http_opts['method']);
 				$error = $httpful->send();
@@ -200,7 +201,7 @@ class carddav_common
 			}
 		}
 
-		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/1.0.0");
+		$httpful->addHeader("User-Agent", "RCM CardDAV plugin/2.0.4");
 		$httpful->uri($url);
 
 		$httpful->method($http_opts['method']);

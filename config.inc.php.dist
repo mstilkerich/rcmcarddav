@@ -27,6 +27,24 @@
 //             needs to reenter them.
 // $prefs['_GLOBAL']['pwstore_scheme'] = 'base64';
 
+// Allow suppression of the warning that PHP is too old.
+//
+// If true, the PHP version is not checked. Use at own risk.
+// If false, the PHP version is checked and RCMCardDAV will not run if it is
+// too old.
+$prefs['_GLOBAL']['suppress_version_warning'] = false;
+
+// Enable a workaround for broken sync-collection support in the
+// server. RFC 6578 specifies the "sync-collection" method for
+// synchronizing collections of things over WebDAV. It is more
+// efficient -- but also more complicated -- than simply retrieving
+// the whole collection again as necessary. As a result, some server
+// implementations are buggy. Specifically DAViCal and Radicale are
+// known to have problems. If changes (updates, deletions) from one
+// connection do not sync to another, you can try enabling this
+// workaround to revert to the inefficient-but-simple method.
+$prefs['_GLOBAL']['sync_collection_workaround'] = false;
+
 //// ** ADDRESSBOOK PRESETS
 
 // Each addressbook preset takes the following form:
@@ -46,6 +64,9 @@ $prefs['<Presetname>'] = array(
 	// attributes that are fixed (i.e., not editable by the user) and
 	// auto-updated for this preset
 	'fixed'        =>  array( < 0 or more of the other attribute keys > ),
+
+	// always require these attributes, even for addressbook view
+	'require_always' => ['email'],
 
 	// hide this preset from CalDAV preferences section so users can't even
 	// see it
@@ -139,6 +160,11 @@ $prefs['<Presetname>'] = array(
 //                 change the key of the preset and change the URL. Addressbooks
 //                 belonging to the old preset will be deleted upon the next
 //                 login of the user and freshly created.
+//
+// require_always: If set, this database field is required to be non-empty
+//               for ALL queries, even just for displaying members. This may be
+//               useful if you have shared, read-only addressbooks with a lot
+//               of contacts that do not have an email address.
 //
 // hide:         Whether this preset should be hidden from the CalDAV listing
 //               on the preferences page.

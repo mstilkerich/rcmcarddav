@@ -1,7 +1,7 @@
 <?php
 /*
     RCM CardDAV Plugin
-    Copyright (C) 2011-2013 Benjamin Schieder <blindcoder@scavenger.homeip.net>,
+    Copyright (C) 2011-2016 Benjamin Schieder <rcmcarddav@wegwerf.anderdonau.de>,
                             Michael Stilkerich <ms@mike2k.de>
 
     This program is free software; you can redistribute it and/or modify
@@ -45,7 +45,7 @@ class carddav extends rcube_plugin
 		}
 
 		if ($db_backend == "unknown"){
-			rcube::write_log("carddav", "Unknown database backend: ".$dbh->db_provider);
+			rcmail::write_log("carddav", "Unknown database backend: ".$dbh->db_provider);
 			return;
 		}
 
@@ -55,9 +55,9 @@ class carddav extends rcube_plugin
 		if (strlen($query) > 0){
 			$query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
 			$dbh->query($query);
-			rcube::write_log("carddav", "Processed initialization of carddav_migrations table");
+			rcmail::write_log("carddav", "Processed initialization of carddav_migrations table");
 		} else {
-			rcube::write_log("carddav", "Can't find migration: /dbinit/".$db_backend.".sql");
+			rcmail::write_log("carddav", "Can't find migration: /dbinit/".$db_backend.".sql");
 		}
 		*/
 
@@ -75,7 +75,7 @@ class carddav extends rcube_plugin
 
 		$dbh->set_option('ignore_key_errors', true);
 		$sql_result = $dbh->query('SELECT * FROM '.
-			rcmail::get_instance()->db->table_name('carddav_migrations') .
+			$dbh->table_name('carddav_migrations') .
 			' WHERE filename IN ('.$qmarks.');', $migrations);
 
 		if ($sql_result){
@@ -88,10 +88,10 @@ class carddav extends rcube_plugin
 		$dbh->set_option('ignore_key_errors', null);
 
 		foreach ($migrations as $migration) {
-			rcube::write_log('carddav', "In migration: ".$migration);
+			rcmail::write_log('carddav', "In migration: ".$migration);
 			$queries_raw = file_get_contents(dirname(__FILE__)."/dbmigrations/".$migration."/".$db_backend.".sql");
 			$match_count = preg_match_all('/(.+?;)/s', $queries_raw, $matches);
-			rcube::write_log('carddav', 'Found '.$match_count.' matches');
+			rcmail::write_log('carddav', 'Found '.$match_count.' matches');
 			if($match_count > 0){
 				foreach ($matches[0] as $query){ // array will have two elements, each holding all queries. Only iterate over one of them
 					if (strlen($query) > 0){
@@ -99,9 +99,9 @@ class carddav extends rcube_plugin
 						$dbh->query($query);
 					}
 				}
-				$dbh->query("INSERT INTO ".rcmail::get_instance()->db->table_name("carddav_migrations")." (filename) VALUES (?)", $migration);
+				$dbh->query("INSERT INTO ".$dbh->table_name("carddav_migrations")." (filename) VALUES (?)", $migration);
 			}else{
-				rcube::write_log('carddav', "Did not match any instructions from migration ".$migration);
+				rcmail::write_log('carddav', "Did not match any instructions from migration ".$migration);
 			}
 		}
 	}
@@ -148,7 +148,7 @@ class carddav extends rcube_plugin
 
 	$dbh = rcmail::get_instance()->db;
 	$sql_result = $dbh->query('SELECT id FROM ' .
-		rcmail::get_instance()->db->table_name('carddav_addressbooks') .
+		$dbh->table_name('carddav_addressbooks') .
 		' WHERE user_id=? AND active=1',
 		$_SESSION['user_id']);
 
@@ -173,7 +173,7 @@ class carddav extends rcube_plugin
 
 	// read existing presets from DB
 	$sql_result = $dbh->query('SELECT * FROM ' .
-		rcmail::get_instance()->db->table_name('carddav_addressbooks') .
+		$dbh->table_name('carddav_addressbooks') .
 		' WHERE user_id=? AND presetname is not null',
 		$_SESSION['user_id']);
 
@@ -270,7 +270,7 @@ class carddav extends rcube_plugin
 	$prefs = carddav_common::get_adminsettings();
 
 	$sql_result = $dbh->query('SELECT id,name,presetname FROM ' .
-		rcmail::get_instance()->db->table_name('carddav_addressbooks') .
+		$dbh->table_name('carddav_addressbooks') .
 		' WHERE user_id=? AND active=1',
 		$_SESSION['user_id']);
 
@@ -395,13 +395,13 @@ class carddav extends rcube_plugin
 
 		$retval = array(
 			'options' => array(
-				array('title'=> rcube::Q($this->gettext('cd_name')), 'content' => $content_name),
-				array('title'=> rcube::Q($this->gettext('cd_active')), 'content' => $content_active),
-				array('title'=> rcube::Q($this->gettext('cd_use_categories')), 'content' => $content_use_categories),
-				array('title'=> rcube::Q($this->gettext('cd_username')), 'content' => $content_username),
-				array('title'=> rcube::Q($this->gettext('cd_password')), 'content' => $content_password),
-				array('title'=> rcube::Q($this->gettext('cd_url')), 'content' => $content_url),
-				array('title'=> rcube::Q($this->gettext('cd_refresh_time')), 'content' => $content_refresh_time),
+				array('title'=> rcmail::Q($this->gettext('cd_name')), 'content' => $content_name),
+				array('title'=> rcmail::Q($this->gettext('cd_active')), 'content' => $content_active),
+				array('title'=> rcmail::Q($this->gettext('cd_use_categories')), 'content' => $content_use_categories),
+				array('title'=> rcmail::Q($this->gettext('cd_username')), 'content' => $content_username),
+				array('title'=> rcmail::Q($this->gettext('cd_password')), 'content' => $content_password),
+				array('title'=> rcmail::Q($this->gettext('cd_url')), 'content' => $content_url),
+				array('title'=> rcmail::Q($this->gettext('cd_refresh_time')), 'content' => $content_refresh_time),
 			),
 			'name' => $blockheader
 		);
@@ -409,13 +409,13 @@ class carddav extends rcube_plugin
 		if (!$abook['presetname'] && preg_match('/^\d+$/',$abookid)) {
 			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_delete', 'value' => 1));
 			$content_delete = $checkbox->show(0);
-			$retval['options'][] = array('title'=> rcube::Q($this->gettext('cd_delete')), 'content' => $content_delete);
+			$retval['options'][] = array('title'=> rcmail::Q($this->gettext('cd_delete')), 'content' => $content_delete);
 		}
 
 		if (preg_match('/^\d+$/',$abookid)) {
 			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_resync', 'value' => 1));
 			$content_resync = $checkbox->show(0);
-			$retval['options'][] = array('title'=> rcube::Q($this->gettext('cd_resync')), 'content' => $content_resync);
+			$retval['options'][] = array('title'=> rcmail::Q($this->gettext('cd_resync')), 'content' => $content_resync);
 		}
 
 		return $retval;
@@ -430,14 +430,16 @@ class carddav extends rcube_plugin
 		$this->include_stylesheet($this->local_skin_path().'/carddav.css');
 		$prefs = carddav_common::get_adminsettings();
 
-		if (version_compare(PHP_VERSION, '5.3.0') < 0) {
-			$args['blocks']['cd_preferences'] = array(
-				'options' => array(
-					array('title'=> rcube::Q($this->gettext('cd_php_too_old')), 'content' => PHP_VERSION)
-				),
-				'name' => rcube::Q($this->gettext('cd_title'))
-			);
-			return $args;
+		if (!$prefs['_GLOBAL']['suppress_version_warning']){
+			if (version_compare(PHP_VERSION, '5.6.18', '<')) {
+				$args['blocks']['cd_preferences'] = array(
+					'options' => array(
+						array('title'=> self::$helper->Q($this->gettext('cd_php_too_old')), 'content' => PHP_VERSION)
+					),
+					'name' => self::$helper->Q($this->gettext('cd_title'))
+				);
+				return $args;
+			}
 		}
 
 		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'*','addressbooks',false,'user_id');
@@ -455,7 +457,7 @@ class carddav extends rcube_plugin
 
 		if(!array_key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) {
 			$args['blocks']['cd_preferences_section_new'] = $this->cd_preferences_buildblock(
-				rcube::Q($this->gettext('cd_newabboxtitle')),
+				rcmail::Q($this->gettext('cd_newabboxtitle')),
 				array(
 					'id'           => 'new',
 					'active'       => 1,
@@ -478,7 +480,7 @@ class carddav extends rcube_plugin
 		if (!isset($prefs['_GLOBAL']['hide_preferences']) || (isset($prefs['_GLOBAL']['hide_preferences']) && $prefs['_GLOBAL']['hide_preferences'] === FALSE)) {
 			$args['list']['cd_preferences'] = array(
 				'id'      => 'cd_preferences',
-				'section' => rcube::Q($this->gettext('cd_title'))
+				'section' => rcmail::Q($this->gettext('cd_title'))
 			);
 		}
 		return($args);
@@ -631,7 +633,7 @@ class carddav extends rcube_plugin
 		}
 	}
 
-	$dbh->query('INSERT INTO ' . rcmail::get_instance()->db->table_name('carddav_addressbooks') .
+	$dbh->query('INSERT INTO ' . $dbh->table_name('carddav_addressbooks') .
 		'('. implode(',',$qf)  .') ' .
 		'VALUES (?'. str_repeat(',?', count($qf)-1) . ')',
 		$qv
@@ -682,12 +684,13 @@ class carddav extends rcube_plugin
 
 	$qv[] = $abookid;
 	$dbh->query('UPDATE ' .
-		rcmail::get_instance()->db->table_name('carddav_addressbooks') .
+		$dbh->table_name('carddav_addressbooks') .
 		' SET ' . implode('=?,', $qf) . '=?' .
 		' WHERE id=?',
 		$qv
 	);
 	}}}
+
 }
 
 ?>
