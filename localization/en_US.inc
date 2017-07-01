@@ -17,5 +17,7 @@ $labels = Array(
 	'cd_disabled' => 'Disabled',
 	'cd_lastupdate_time'=>'Time of last update',
 	'cd_resync' => "Force immediate synchronization with server",
+	'cd_msg_synchronized' => 'CardDAV addressbook $name synchronized (Took $duration seconds)',
+	'cd_msg_syncfailed' => 'Sync of CardDAV addressbook $name failed: $errormsg',
 );
 ?>

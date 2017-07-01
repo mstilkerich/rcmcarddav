@@ -107,9 +107,6 @@ class carddav_common
 
 	// XML helpers
 	public function checkAndParseXML($reply) {
-		if(!is_array($reply))
-			return false;
-
 		if(!self::check_contenttype($reply['headers']['content-type'], ';(text|application)/xml;'))
 			return false;
 
@@ -229,15 +226,22 @@ class carddav_common
 		if($isRedirect && strlen($reply->headers['location'])>0) {
 			$url = self::concaturl($baseurl, $reply->headers['location']);
 		} else {
-			$retVal["status"] = $scode;
-			$retVal["headers"] = $reply->headers;
-			$retVal["body"] = $reply->raw_body;
-			if (self::DEBUG_HTTP){ $this->debug_http("success: ".var_export($retVal, true)); }
-			return $retVal;
+			$this->debug_http("success: ".var_export($retVal, true));
+			break;
 		}
 	} while($redirect_limit-->0 && $isRedirect);
 
-	return $reply->code;
+	$retVal["success"] = !$reply->hasErrors();
+	$retVal["status"] = $reply->code;
+	$retVal["headers"] = $reply->headers;
+	$retVal["body"] = $reply->raw_body;
+	$statusmsg = explode("\r\n", $reply->raw_headers, 2);
+	if(strlen($statusmsg["0"]) > 0) {
+		$retVal["statusmsg"] = preg_replace('/HTTP\S+ /','',$statusmsg[0]);
+	} else {
+		$retVal["statusmsg"] = "Status code " . $reply->code;
+	}
+	return $retVal;
 	}}}
 
 	public function check_contenttype($ctheader, $expectedct)
