@@ -27,9 +27,7 @@
     ],
     "require": {
         "php": ">=5.6.18",
-        "roundcube/plugin-installer": ">=0.1.2"
-    },
-    "require": {
+        "roundcube/plugin-installer": ">=0.1.2",
         "nategood/httpful": "~0.2",
         "sabre/vobject": "~3.4"
     },
