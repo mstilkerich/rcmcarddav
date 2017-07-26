@@ -27,7 +27,7 @@ Intallation steps:
     - Add `"roundcube/carddav": "dev-master"` to your composer.json file and install with `php composer.phar install`.
   - Via git:
     - Clone the repository:
-      `cd roundcube/plugins && git clone git@github.com:blind-coder/rcmcarddav.git carddav`
+      `cd roundcube/plugins && git clone https://github.com/blind-coder/rcmcarddav.git carddav`
     - Install dependencies:
       - Install composer as per the documentation: https://getcomposer.org/download/
       - Run `php composer.phar install`
