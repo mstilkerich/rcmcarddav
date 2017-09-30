@@ -172,7 +172,7 @@ class carddav_common
 
 	do {
 		$isRedirect = false;
-		if (self::DEBUG){ $this->debug("$caller requesting $url [RL $redirect_limit]"); }
+		if (self::DEBUG){ $this->debug("$caller requesting $url as user $username [RL $redirect_limit]"); }
 
 		$httpful = \Httpful\Request::init();
 		$scheme = strtolower($carddav['authentication_scheme']);
