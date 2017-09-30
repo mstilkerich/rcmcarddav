@@ -1324,9 +1324,12 @@ EOF
 
 	// normalize date fields to RFC2425 YYYY-MM-DD date values
 	foreach ($this->datefields as $key) {
-		if (array_key_exists($key, $save_data) && strlen($save_data[$key])>0) {
-			$val = rcube_utils::strtotime($save_data[$key]);
-			$save_data[$key] = date('Y-m-d',$val);
+		if (array_key_exists($key, $save_data)) {
+  			$data = (is_array($save_data[$key])) ?  $save_data[$key][0] : $save_data[$key];
+  			if (strlen($data) > 0) {
+				$val = rcube_utils::strtotime($data);
+				$save_data[$key] = date('Y-m-d',$val);
+			}
 		}
 	}
 
@@ -1351,8 +1354,9 @@ EOF
 	// process all simple attributes
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
 		if (array_key_exists($rckey, $save_data)) {
-			if (strlen($save_data[$rckey]) > 0) {
-				$vcf->{$vkey} = $save_data[$rckey];
+			$data = (is_array($save_data[$rckey])) ? $save_data[$rckey][0] : $save_data[$rckey];
+			if (strlen($data) > 0) {
+				$vcf->{$vkey} = $data;
 			} else { // delete the field
 				unset($vcf->{$vkey});
 			}
