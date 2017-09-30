@@ -155,10 +155,9 @@ class carddav_common
 	$domain = $rcmail->user->get_username('domain');
 
 	// Substitute Placeholders
-	if($username == '%u')
-		$username = $_SESSION['username'];
-	if($username == '%l')
-		$username = $local;
+	$username = str_replace( '%u', $_SESSION['username'], $username);
+	$username = str_replace( '%l', $local, $username);
+	$username = str_replace( '%d', $domain, $username);
 	if($password == '%p')
 		$password = $rcmail->decrypt($_SESSION['password']);
 	$baseurl = str_replace("%u", $username, $carddav['url']);
