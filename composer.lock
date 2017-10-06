@@ -4,8 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "ae65bb6c917b1e8de8ef504958975938",
-    "content-hash": "98841bad4098a650b72283adda542f08",
+    "content-hash": "b07b9ad49b11a011c42bd43e5712ffd1",
     "packages": [
         {
             "name": "nategood/httpful",
@@ -55,7 +54,7 @@
                 "rest",
                 "restful"
             ],
-            "time": "2015-10-26 16:11:30"
+            "time": "2015-10-26T16:11:30+00:00"
         },
         {
             "name": "sabre/vobject",
@@ -121,7 +120,7 @@
                 "jCard",
                 "vCard"
             ],
-            "time": "2016-10-07 03:20:40"
+            "time": "2016-10-07T03:20:40+00:00"
         }
     ],
     "packages-dev": [],
@@ -130,6 +129,8 @@
     "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
-    "platform": [],
+    "platform": {
+        "php": ">=5.6.18"
+    },
     "platform-dev": []
 }
