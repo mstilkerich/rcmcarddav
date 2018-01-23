@@ -98,8 +98,8 @@ $prefs['<Presetname>'] = array(
 //               become user.name).
 //               Also, %d is available to get only the domain part of the
 //               username (eg: user.name@example.com will become example.com).
-//               In some cases %V might be usefull: it replaces @ and . by _.  
-//				 (eg: user.name@example.com will become user_name_example_com) 
+//               In some cases %V might be usefull: it replaces @ and . by _.
+//               (eg: user.name@example.com will become user_name_example_com)
 //
 // password:     CardDAV password to access the addressbook. Set this setting
 //               to '%p' to use the roundcube password. The password will not
