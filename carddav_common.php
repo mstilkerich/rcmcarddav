@@ -156,6 +156,7 @@ class carddav_common
 
 	// Substitute Placeholders
 	$username = str_replace( '%u', $_SESSION['username'], $username);
+	$username = str_replace( '%V' ,str_replace('@','_', str_replace('.','_',$_SESSION['username'])), $username);
 	$username = str_replace( '%l', $local, $username);
 	$username = str_replace( '%d', $domain, $username);
 	if($password == '%p')

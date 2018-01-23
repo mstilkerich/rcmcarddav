@@ -348,7 +348,8 @@ class carddav extends rcube_plugin
 		}
 
 		if (self::no_override('username', $abook, $prefs)) {
-			$content_username = $abook['username'] === '%u' ? $_SESSION['username'] : $abook['username'] === '%l' ? $rcmail->user->get_username('local') : $abook['username'];
+			// %V parses username for macosx, replaces periods and @ by _, work around bugs in contacts.app
+			$content_username = $abook['username'] === '%V' ? str_replace('@','_', str_replace('.','_',$_SESSION['username'])) : $abook['username'] === '%u' ? $_SESSION['username'] : $abook['username'] === '%l' ? $rcmail->user->get_username('local') : $abook['username'];
 
 		} else {
 			// input box for username
