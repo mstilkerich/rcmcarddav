@@ -1921,7 +1921,7 @@ EOF
 			$contact = self::get_dbrecord($cid,'cuid');
 			if(!$contact) return false;
 
-			$vcf->{'X-ADDRESSBOOKSERVER-MEMBER'} = "urn:uuid:" . $contact['cuid'];
+			$vcf->add('X-ADDRESSBOOKSERVER-MEMBER', "urn:uuid:" . $contact['cuid']);
 		}
 
 		$vcfstr = $vcf->serialize();
