@@ -8,6 +8,11 @@ Upgrading from 1.0
 
 There is no upgrade path from the 1.0 version. You need to manually remove RCMCardDAV 1.0, drop its tables from your database and start with a fresh installation.
 
+Upgrading from 2.0.x
+==================
+
+There is no supported upgrade path from the 2.0.x version. You need to manually remove RCMCardDAV 2.0.x, drop its tables from your database and start with a fresh installation.
+
 Requirements
 ============
 RCMCardDAV requires at least PHP 5.6.18. Older versions might work if the version check is disabled using the `$prefs['_GLOBAL']['suppress_version_warning']` configuration entry, but this is unsupported. 
@@ -25,14 +30,10 @@ Intallation steps:
 - Get RCMCardDAV
   - Via composer:
     - Add `"roundcube/carddav": "dev-master"` to your composer.json file and install with `php composer.phar install`.
-  - Via git:
-    - Clone the repository:
-      `cd roundcube/plugins && git clone https://github.com/blind-coder/rcmcarddav.git carddav`
-    - Install dependencies:
-      - Install composer as per the documentation: https://getcomposer.org/download/
-      - Run `php composer.phar install`
   - Via release tarball:
     - Download and extract the release tarball into `roundcube/plugins` directory and rename the extracted directory to `carddav`. The tarball contains all necessary dependencies and does not need composer.
+  - Via git:
+    - Please do not do not do this unless you have a very good reason for it! Check the file [INSTALLFROMGIT.md] for instructions.
 - Configure RCMCardDAV
   If you want to configure preset addressbooks for your users, copy the file `config.inc.php.dist` to `config.inc.php` and edit it as you need.
 - Make sure that the files and directories are owned by the user and group that your webserver runs as. For Debian GNU/Linux that would be:
