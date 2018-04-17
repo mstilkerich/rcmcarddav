@@ -33,7 +33,7 @@ Intallation steps:
   - Via release tarball:
     - Download and extract the release tarball into `roundcube/plugins` directory and rename the extracted directory to `carddav`. The tarball contains all necessary dependencies and does not need composer.
   - Via git:
-    - Please do not do not do this unless you have a very good reason for it! Check the file [INSTALLFROMGIT.md] for instructions.
+    - Please do not do not do this unless you have a very good reason for it! Check the file [INSTALLFROMGIT.md](INSTALLFROMGIT.md) for instructions.
 - Configure RCMCardDAV
   If you want to configure preset addressbooks for your users, copy the file `config.inc.php.dist` to `config.inc.php` and edit it as you need.
 - Make sure that the files and directories are owned by the user and group that your webserver runs as. For Debian GNU/Linux that would be:
