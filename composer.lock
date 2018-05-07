@@ -1,10 +1,10 @@
 {
     "_readme": [
         "This file locks the dependencies of your project to a known state",
-        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b07b9ad49b11a011c42bd43e5712ffd1",
+    "content-hash": "3d88294fd1b926c6cce3e3e4e96c9fe5",
     "packages": [
         {
             "name": "nategood/httpful",
@@ -61,12 +61,12 @@
             "version": "3.5.3",
             "source": {
                 "type": "git",
-                "url": "https://github.com/fruux/sabre-vobject.git",
+                "url": "https://github.com/sabre-io/vobject.git",
                 "reference": "129d80533a9ec0d9cacfb50b51180c34edb6874c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/fruux/sabre-vobject/zipball/129d80533a9ec0d9cacfb50b51180c34edb6874c",
+                "url": "https://api.github.com/repos/sabre-io/vobject/zipball/129d80533a9ec0d9cacfb50b51180c34edb6874c",
                 "reference": "129d80533a9ec0d9cacfb50b51180c34edb6874c",
                 "shasum": ""
             },
