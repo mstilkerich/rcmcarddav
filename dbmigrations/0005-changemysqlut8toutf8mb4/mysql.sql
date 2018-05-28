@@ -7,7 +7,6 @@ ALTER TABLE TABLE_PREFIXcarddav_addressbooks CHANGE `password` `password` VARCHA
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks CHANGE `url` `url` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks CHANGE `sync_token` `sync_token` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks CHANGE `authentication_scheme` `authentication_scheme` VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-ALTER TABLE TABLE_PREFIXcarddav_addressbooks CHANGE `sortorder` `sortorder` VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks CHANGE `presetname` `presetname` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 ALTER TABLE TABLE_PREFIXcarddav_contacts DROP INDEX `uri`, ADD UNIQUE `uri` (`uri`(191), `abook_id`) USING BTREE;
