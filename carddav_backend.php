@@ -2318,7 +2318,6 @@ EOF
 		$timequery .= ' datetime(last_updated,refresh_time))';
 	} elseif ($dbh->db_provider === 'mysql') {
 		$timequery .= ' date_add(last_updated, INTERVAL refresh_time HOUR_SECOND))';
-	}
 	} else {
 		$timequery .= ' last_updated+refresh_time)';
 	}
