@@ -2316,6 +2316,8 @@ EOF
 	$timequery = '('. $dbh->now() . ' > ';
 	if ($dbh->db_provider === 'sqlite') {
 		$timequery .= ' datetime(last_updated,refresh_time))';
+	} elseif ($dbh->db_provider === 'mysql') {
+		$timequery .= ' date_add(last_updated, INTERVAL refresh_time HOUR_SECOND))';
 	} else {
 		$timequery .= ' last_updated+refresh_time)';
 	}
@@ -2329,10 +2331,12 @@ EOF
 		return false;
 	}
 
-	// postgres will return 't'/'f' here for true/false, normalize it to 1/0
-	$nu = $abookrow['needs_update'];
-	$nu = ($nu==1 || $nu=='t')?1:0;
-	$abookrow['needs_update'] = $nu;
+	if ($dbh->db_provider === 'postgres') {
+		// postgres will return 't'/'f' here for true/false, normalize it to 1/0
+		$nu = $abookrow['needs_update'];
+		$nu = ($nu==1 || $nu=='t')?1:0;
+		$abookrow['needs_update'] = $nu;
+	}
 
 	return $abookrow;
 	}}}
