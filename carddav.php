@@ -593,13 +593,13 @@ class carddav extends rcube_plugin
 		}
 	}
 	if (array_key_exists('username', $pa)) {
-		if (strlen($pa['name']) > 255){
-			$pa['name'] = substr($pa['name'], 0, 255);
+		if (strlen($pa['username']) > 255){
+			$pa['username'] = substr($pa['username'], 0, 255);
 		}
 	}
 	if (array_key_exists('presetname', $pa)) {
-		if (strlen($pa['name']) > 255){
-			$pa['name'] = substr($pa['name'], 0, 255);
+		if (strlen($pa['presetname']) > 255){
+			$pa['presetname'] = substr($pa['presetname'], 0, 255);
 		}
 	}
 	$pa['user_id']      = $_SESSION['user_id'];
@@ -647,13 +647,13 @@ class carddav extends rcube_plugin
 		}
 	}
 	if (array_key_exists('username', $pa)) {
-		if (strlen($pa['name']) > 255){
-			$pa['name'] = substr($pa['name'], 0, 255);
+		if (strlen($pa['username']) > 255){
+			$pa['username'] = substr($pa['username'], 0, 255);
 		}
 	}
 	if (array_key_exists('presetname', $pa)) {
-		if (strlen($pa['name']) > 255){
-			$pa['name'] = substr($pa['name'], 0, 255);
+		if (strlen($pa['presetname']) > 255){
+			$pa['presetname'] = substr($pa['presetname'], 0, 255);
 		}
 	}
 
