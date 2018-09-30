@@ -138,6 +138,10 @@ $prefs['<Presetname>'] = array(
 //               refreshed when the addressbook is accessed the next time.
 //               Default: 01:00:00
 //
+// use_categories: If this parameter is true, the addressbook will use the
+//               categories as groups unless the user changes this setting.
+//               Default: false
+//
 // fixed:        Array of parameter keys that must not be changed by the user.
 //               Note that only fixed parameters will be automatically updated
 //               for existing addressbooks created from presets. Otherwise the
