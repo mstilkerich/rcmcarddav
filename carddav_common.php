@@ -177,7 +177,7 @@ class carddav_common
 
 		$httpful = \Httpful\Request::init();
 		$scheme = strtolower($carddav['authentication_scheme']);
-		if ($scheme != "basic" && $scheme != "digest"){
+		if ($scheme != "basic" && $scheme != "digest" && $scheme != "negotiate"){
 				/* figure out authentication */
 				$httpful->addHeader("User-Agent", "RCM CardDAV plugin/3.0.2");
 				$httpful->uri($url);
@@ -186,7 +186,11 @@ class carddav_common
 
 				$httpful = \Httpful\Request::init();
 				$scheme = "unknown";
-				if (preg_match("/\bDigest\b/i", $error->headers["www-authenticate"])){
+				// Using raw_headers since there might be multiple www-authenticate headers
+				if (preg_match("/^(.*\n)*WWW-Authenticate:\s+Negotiate\b/i", $error->raw_headers) && !empty($_SERVER['KRB5CCNAME'])){
+					$httpful->negotiateAuth($username, $password);
+					$scheme = "negotiate";
+				} else if (preg_match("/\bDigest\b/i", $error->headers["www-authenticate"])){
 					$httpful->digestAuth($username, $password);
 					$scheme = "digest";
 				} else if (preg_match("/\bBasic\b/i", $error->headers["www-authenticate"])){
@@ -197,9 +201,13 @@ class carddav_common
 				if ($scheme != "unknown")
 					carddav_backend::update_addressbook($carddav['abookid'], array("authentication_scheme"), array($scheme));
 		} else {
-			if (strtolower($scheme) == "digest"){
+			// if we have KRB5CCNAME, use negotiate even if current scheme is basic
+			if ((strtolower($scheme) == "negotiate" || strtolower($scheme) == "basic") && !empty($_SERVER['KRB5CCNAME'])) {
+				$httpful->negotiateAuth($username, $password);
+			} else if (strtolower($scheme) == "digest"){
 				$httpful->digestAuth($username, $password);
-			} else if (strtolower($scheme) == "basic"){
+			// if we don't have KRB5CCNAME, use basic even if current scheme is negotiate
+			} else if (strtolower($scheme) == "negotiate" || strtolower($scheme) == "basic"){
 				$httpful->basicAuth($username, $password);
 			}
 		}
@@ -273,6 +281,9 @@ class carddav_common
 
 	if(strcasecmp(self::$pwstore_scheme, 'encrypted')===0) {
 
+		// return {IGNORE} scheme if session password is empty (krb_authentication plugin)
+		if(empty($_SESSION['password'])) return '{IGNORE}';
+
 		// encrypted with IMAP password
 		$rcmail = rcmail::get_instance();
 
@@ -302,6 +313,9 @@ class carddav_common
 
 	public function password_scheme($crypt)
 	{{{
+	if(strpos($crypt, '{IGNORE}') === 0)
+		return 'ignore';
+
 	if(strpos($crypt, '{ENCRYPTED}') === 0)
 		return 'encrypted';
 
@@ -318,6 +332,9 @@ class carddav_common
 	public function decrypt_password($crypt)
 	{{{
 	if(strpos($crypt, '{ENCRYPTED}') === 0) {
+		// return {IGNORE} scheme if session password is empty (krb_authentication plugin)
+		if (empty($_SESSION['password'])) return '{IGNORE}';
+
 		$crypt = substr($crypt, strlen('{ENCRYPTED}'));
 		$rcmail = rcmail::get_instance();
 
