@@ -441,7 +441,7 @@ class carddav extends rcube_plugin
 				$abookid = $abook['id'];
 				$blockhdr = $abook['name'];
 				if($abook['presetname'])
-					$blockhdr .= ' (from preset ' . $abook['presetname'] . ')';
+					$blockhdr .= str_replace("_PRESETNAME_", $abook['presetname'], self::$helper->Q($this->gettext('cd_frompreset')));
 				$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($blockhdr,$abook,$prefs);
 			}
 		}
