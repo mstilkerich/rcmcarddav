@@ -240,11 +240,11 @@ class carddav extends rcube_plugin
 
 			if(is_array($srvs)) {
 			foreach($srvs as $srv){
-				if($srv[name]) {
-					if($preset[carddav_name_only])
-						$preset['name'] = $srv[name];
+				if($srv['name']) {
+					if($preset['carddav_name_only'])
+						$preset['name'] = $srv['name'];
 					else
-						$preset['name'] = "$abname (" . $srv[name] . ')';
+						$preset['name'] = "$abname (" . $srv['name'] . ')';
 				} else {
 					$preset['name'] = $abname;
 				}
