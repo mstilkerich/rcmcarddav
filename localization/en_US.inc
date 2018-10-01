@@ -16,5 +16,6 @@ $labels = Array(
 	'cd_preemptive_auth' => 'Preemptively authenticate against server. Use for ownCloud!',
 	'cd_enabled' => 'Enabled',
 	'cd_disabled' => 'Disabled',
+	'cd_frompreset' => ' (from preset _PRESETNAME_)',
 );
 ?>

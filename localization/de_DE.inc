@@ -16,5 +16,6 @@ $labels = Array(
 	'cd_preemptive_auth'=> "Immer am Server authentifizieren. Für ownCloud aktivieren!",
 	'cd_enabled' => 'Aktiv',
 	'cd_disabled' => 'Inaktiv',
+	'cd_frompreset' => ' (aus Vorgabe _PRESETNAME_)',
 );
 ?>
