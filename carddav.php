@@ -249,8 +249,8 @@ class carddav extends rcube_plugin
 					$preset['name'] = $abname;
 				}
 				$preset['url'] = $srv['href'];
-				self::insert_abook($preset);
 			}}
+			self::insert_abook($preset);
 		}
 	}
 
