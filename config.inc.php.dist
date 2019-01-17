@@ -65,6 +65,11 @@ $prefs['<Presetname>'] = array(
 	// auto-updated for this preset
 	'fixed'        =>  array( < 0 or more of the other attribute keys > ),
 
+	// normally, the URL of an addressbook is permanently fixed and can
+	// not be changed. There may be corner cases where making the URL
+	// changeable may be desirable. set 'unfixed' to 'url' for that
+	// 'unfixed'	=> 'url',
+
 	// always require these attributes, even for addressbook view
 	'require_always' => ['email'],
 
@@ -166,6 +171,11 @@ $prefs['<Presetname>'] = array(
 //                 change the key of the preset and change the URL. Addressbooks
 //                 belonging to the old preset will be deleted upon the next
 //                 login of the user and freshly created.
+//
+// unfixed:      Array of parameter keys that usually can not be changed by the user.
+//               Currently, this only affects the 'url' parameter and should be
+//               carefully evaluated if you want to allow the user to change the URL.
+//               If in doubt, do not set this option.
 //
 // require_always: If set, this database field is required to be non-empty
 //               for ALL queries, even just for displaying members. This may be

@@ -314,8 +314,13 @@ class carddav extends rcube_plugin
 		$pn = $abook['presetname'];
 		if(!$pn) return false;
 
-		// never enable user change for preset URLs
-		if($pref === 'url') return true;
+		// generally, url is fixed, unless it is mentioned in 'unfixed'
+		if($pref === 'url'){
+			if(!is_array($prefs[$pn])) return true;
+			if(!is_array($prefs[$pn]['unfixed'])) return true;
+
+			return in_array($pref,$prefs[$pn]['unfixed']);
+		}
 
 		if(!is_array($prefs[$pn])) return false;
 		if(!is_array($prefs[$pn]['fixed'])) return false;
