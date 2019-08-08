@@ -254,7 +254,7 @@ EOF
 			if($dnsresult['host'] != $dnssrv) continue;
 
 			foreach($dnsresult['entries'] as $ent) {
-				if (preg_match('^path=(.+)', $ent, $match))
+				if (preg_match('/^path=(.+)/', $ent, $match))
 					$paths[] = $match[1];
 			}
 		}
