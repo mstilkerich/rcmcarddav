@@ -19,5 +19,6 @@ $labels = Array(
 	'cd_resync' => "Force immediate synchronization with server",
 	'cd_msg_synchronized' => 'CardDAV addressbook $name synchronized (Took $duration seconds)',
 	'cd_msg_syncfailed' => 'Sync of CardDAV addressbook $name failed: $errormsg',
+	'cd_frompreset' => ' (from preset _PRESETNAME_)',
 );
 ?>

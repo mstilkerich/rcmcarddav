@@ -22,9 +22,9 @@
 		<email>ms@mike2k.de</email>
 		<active>yes</active>
 	</developer>
-	<date>2016-11-25</date>
+	<date>2018-10-01</date>
 	<version>
-		<release>2.0.4</release>
+		<release>3.0.3</release>
 	</version>
 	<stability>
 		<release>stable</release>
@@ -33,6 +33,14 @@
 	<notes>-</notes>
 	<contents>
 		<dir baseinstalldir="/" name="/">
+			<file name="carddav_discovery.php" role="php">
+				<tasks:replace from="@name@" to="name" type="package-info"/>
+				<tasks:replace from="@package_version@" to="version" type="package-info"/>
+			</file>
+			<file name="carddav_common.php" role="php">
+				<tasks:replace from="@name@" to="name" type="package-info"/>
+				<tasks:replace from="@package_version@" to="version" type="package-info"/>
+			</file>
 			<file name="carddav_backend.php" role="php">
 				<tasks:replace from="@name@" to="name" type="package-info"/>
 				<tasks:replace from="@package_version@" to="version" type="package-info"/>
@@ -41,22 +49,18 @@
 				<tasks:replace from="@name@" to="name" type="package-info"/>
 				<tasks:replace from="@package_version@" to="version" type="package-info"/>
 			</file>
-			<file name="inc/vcard.php" role="php"></file>
-			<file name="inc/basic_sasl_client.php" role="php"></file>
-			<file name="inc/ntlm_sasl_client.php" role="php"></file>
-			<file name="inc/plain_sasl_client.php" role="php"></file>
-			<file name="inc/digest_sasl_client.php" role="php"></file>
-			<file name="inc/cram_md5_sasl_client.php" role="php"></file>
-			<file name="inc/http.php" role="php"></file>
-			<file name="inc/sasl.php" role="php"></file>
-			<file name="inc/login_sasl_client.php" role="php"></file>
-			<file name="config.inc.php.dist" role="data"></file>
+			<file name="localization/cs_CZ.inc" role="data"></file>
 			<file name="localization/de_DE.inc" role="data"></file>
 			<file name="localization/en_US.inc" role="data"></file>
+			<file name="localization/es_ES.inc" role="data"></file>
 			<file name="localization/fr_FR.inc" role="data"></file>
 			<file name="localization/hu_HU.inc" role="data"></file>
+			<file name="localization/id_ID.inc" role="data"></file>
 			<file name="localization/it_IT.inc" role="data"></file>
-			<file name="localization/sv_SV.inc" role="data"></file>
+			<file name="localization/pl_PL.inc" role="data"></file>
+			<file name="localization/ru_RU.inc" role="data"></file>
+			<file name="localization/sv_SE.inc" role="data"></file>
+			<file name="localization/uk_UK.inc" role="data"></file>
 		</dir>
 		<!-- / -->
 	</contents>

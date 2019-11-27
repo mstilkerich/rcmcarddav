@@ -5,7 +5,7 @@
     "keywords": ["addressbook","carddav","contacts","owncloud","davical"],
     "homepage": "https://www.benjamin-schieder.de/carddav.html",
     "license": "GPL-2.0",
-    "version": "2.0.4",
+    "version": "3.0.3",
     "authors": [
         {
             "name": "Benjamin Schieder",
@@ -27,7 +27,6 @@
     ],
     "require": {
         "php": ">=5.6.18",
-        "roundcube/plugin-installer": ">=0.1.2",
         "nategood/httpful": "~0.2",
         "sabre/vobject": "~3.4"
     },

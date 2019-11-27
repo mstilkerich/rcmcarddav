@@ -87,6 +87,9 @@ class carddav_discovery
 
 	// now check each of them until we find something (or don't)
 	foreach($services as $service) {
+		if (!array_key_exists('paths', $service)) {
+			continue;
+		}
 		$cdfopen_cfg['url'] = $service['baseurl'];
 
 		foreach($service['paths'] as $path) {
@@ -244,6 +247,9 @@ EOF
 	private function find_baseurls($services)
 	{{{
 	foreach($services as &$service) {
+		if (!array_key_exists('dnssrv', $service)) {
+			continue;
+		}
 		$baseurl = $service['baseurl'];
 		$dnssrv  = $service['dnssrv'];
 
@@ -254,7 +260,7 @@ EOF
 			if($dnsresult['host'] != $dnssrv) continue;
 
 			foreach($dnsresult['entries'] as $ent) {
-				if (preg_match('^path=(.+)', $ent, $match))
+				if (preg_match('/^path=(.+)/', $ent, $match))
 					$paths[] = $match[1];
 			}
 		}

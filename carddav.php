@@ -242,11 +242,11 @@ class carddav extends rcube_plugin
 
 			if(is_array($srvs)) {
 			foreach($srvs as $srv){
-				if($srv[name]) {
-					if($preset[carddav_name_only])
-						$preset['name'] = $srv[name];
+				if($srv['name']) {
+					if($preset['carddav_name_only'])
+						$preset['name'] = $srv['name'];
 					else
-						$preset['name'] = "$abname (" . $srv[name] . ')';
+						$preset['name'] = "$abname (" . $srv['name'] . ')';
 				} else {
 					$preset['name'] = $abname;
 				}
@@ -316,8 +316,13 @@ class carddav extends rcube_plugin
 		$pn = $abook['presetname'];
 		if(!$pn) return false;
 
-		// never enable user change for preset URLs
-		if($pref === 'url') return true;
+		// generally, url is fixed, unless it is mentioned in 'unfixed'
+		if($pref === 'url'){
+			if(!is_array($prefs[$pn])) return true;
+			if(!is_array($prefs[$pn]['unfixed'])) return true;
+
+			return in_array($pref,$prefs[$pn]['unfixed']);
+		}
 
 		if(!is_array($prefs[$pn])) return false;
 		if(!is_array($prefs[$pn]['fixed'])) return false;
@@ -350,7 +355,8 @@ class carddav extends rcube_plugin
 		}
 
 		if (self::no_override('username', $abook, $prefs)) {
-			$content_username = $abook['username'] === '%u' ? $_SESSION['username'] : $abook['username'] === '%l' ? $rcmail->user->get_username('local') : $abook['username'];
+			// %V parses username for macosx, replaces periods and @ by _, work around bugs in contacts.app
+			$content_username = $abook['username'] === '%V' ? str_replace('@','_', str_replace('.','_',$_SESSION['username'])) : $abook['username'] === '%u' ? $_SESSION['username'] : $abook['username'] === '%l' ? $rcmail->user->get_username('local') : $abook['username'];
 
 		} else {
 			// input box for username
@@ -450,7 +456,7 @@ class carddav extends rcube_plugin
 				$abookid = $abook['id'];
 				$blockhdr = $abook['name'];
 				if($abook['presetname'])
-					$blockhdr .= ' (from preset ' . $abook['presetname'] . ')';
+					$blockhdr .= str_replace("_PRESETNAME_", $abook['presetname'], self::$helper->Q($this->gettext('cd_frompreset')));
 				$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($blockhdr,$abook,$prefs);
 			}
 		}
@@ -605,13 +611,13 @@ class carddav extends rcube_plugin
 		}
 	}
 	if (array_key_exists('username', $pa)) {
-		if (strlen($pa['name']) > 255){
-			$pa['name'] = substr($pa['name'], 0, 255);
+		if (strlen($pa['username']) > 255){
+			$pa['username'] = substr($pa['username'], 0, 255);
 		}
 	}
 	if (array_key_exists('presetname', $pa)) {
-		if (strlen($pa['name']) > 255){
-			$pa['name'] = substr($pa['name'], 0, 255);
+		if (strlen($pa['presetname']) > 255){
+			$pa['presetname'] = substr($pa['presetname'], 0, 255);
 		}
 	}
 	$pa['user_id']      = $_SESSION['user_id'];
@@ -659,13 +665,13 @@ class carddav extends rcube_plugin
 		}
 	}
 	if (array_key_exists('username', $pa)) {
-		if (strlen($pa['name']) > 255){
-			$pa['name'] = substr($pa['name'], 0, 255);
+		if (strlen($pa['username']) > 255){
+			$pa['username'] = substr($pa['username'], 0, 255);
 		}
 	}
 	if (array_key_exists('presetname', $pa)) {
-		if (strlen($pa['name']) > 255){
-			$pa['name'] = substr($pa['name'], 0, 255);
+		if (strlen($pa['presetname']) > 255){
+			$pa['presetname'] = substr($pa['presetname'], 0, 255);
 		}
 	}
 

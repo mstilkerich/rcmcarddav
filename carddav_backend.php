@@ -553,18 +553,6 @@ EOF
 		$this->refreshdb_from_server();
 	}
 
-	// XXX workaround for a roundcube bug to support roundcube's displayname setting
-	// Reported as Roundcube Ticket #1488394
-	if(count($cols)>0) {
-		if(!in_array('firstname', $cols)) {
-			$cols[] = 'firstname';
-		}
-		if(!in_array('surname', $cols)) {
-			$cols[] = 'surname';
-		}
-	}
-	// XXX workaround for a roundcube bug to support roundcube's displayname setting
-
 	// if the count is not requested we can save one query
 	if($nocount)
 		$this->result = new rcube_result_set();
@@ -1376,9 +1364,12 @@ EOF
 
 	// normalize date fields to RFC2425 YYYY-MM-DD date values
 	foreach ($this->datefields as $key) {
-		if (array_key_exists($key, $save_data) && strlen($save_data[$key])>0) {
-			$val = rcube_utils::strtotime($save_data[$key]);
-			$save_data[$key] = date('Y-m-d',$val);
+		if (array_key_exists($key, $save_data)) {
+  			$data = (is_array($save_data[$key])) ?  $save_data[$key][0] : $save_data[$key];
+  			if (strlen($data) > 0) {
+				$val = rcube_utils::strtotime($data);
+				$save_data[$key] = date('Y-m-d',$val);
+			}
 		}
 	}
 
@@ -1403,8 +1394,9 @@ EOF
 	// process all simple attributes
 	foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
 		if (array_key_exists($rckey, $save_data)) {
-			if (strlen($save_data[$rckey]) > 0) {
-				$vcf->{$vkey} = $save_data[$rckey];
+			$data = (is_array($save_data[$rckey])) ? $save_data[$rckey][0] : $save_data[$rckey];
+			if (strlen($data) > 0) {
+				$vcf->{$vkey} = $data;
 			} else { // delete the field
 				unset($vcf->{$vkey});
 			}
@@ -1974,7 +1966,7 @@ EOF
 			$contact = self::get_dbrecord($cid,'cuid');
 			if(!$contact) return false;
 
-			$vcf->{'X-ADDRESSBOOKSERVER-MEMBER'} = "urn:uuid:" . $contact['cuid'];
+			$vcf->add('X-ADDRESSBOOKSERVER-MEMBER', "urn:uuid:" . $contact['cuid']);
 		}
 
 		$vcfstr = $vcf->serialize();
@@ -2369,6 +2361,8 @@ EOF
 	$timequery = '('. $dbh->now() . ' > ';
 	if ($dbh->db_provider === 'sqlite') {
 		$timequery .= ' datetime(last_updated,refresh_time))';
+	} elseif ($dbh->db_provider === 'mysql') {
+		$timequery .= ' date_add(last_updated, INTERVAL refresh_time HOUR_SECOND))';
 	} else {
 		$timequery .= ' last_updated+refresh_time)';
 	}
@@ -2382,10 +2376,12 @@ EOF
 		return false;
 	}
 
-	// postgres will return 't'/'f' here for true/false, normalize it to 1/0
-	$nu = $abookrow['needs_update'];
-	$nu = ($nu==1 || $nu=='t')?1:0;
-	$abookrow['needs_update'] = $nu;
+	if ($dbh->db_provider === 'postgres') {
+		// postgres will return 't'/'f' here for true/false, normalize it to 1/0
+		$nu = $abookrow['needs_update'];
+		$nu = ($nu==1 || $nu=='t')?1:0;
+		$abookrow['needs_update'] = $nu;
+	}
 
 	return $abookrow;
 	}}}
