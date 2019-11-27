@@ -1717,7 +1717,7 @@ EOF
 	if ($photo == null) {
 		return $vcard;
 	}
-	$abcrop = $vcard['X-ABCROP-RECTANGLE'];
+	$abcrop = $vcard->PHOTO['X-ABCROP-RECTANGLE'];
 	if ($abcrop == null) {
 		return $vcard;
 	}
