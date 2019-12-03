@@ -182,6 +182,12 @@ class carddav_common
 				$httpful->addHeader("User-Agent", "RCM CardDAV plugin/3.0.3");
 				$httpful->uri($url);
 				$httpful->method($http_opts['method']);
+
+                // Prevent 400 bad request on REPORT calls for Apple CCS if possible by setting a content body
+                if (array_key_exists('content',$http_opts) && strlen($http_opts['content'])>0 && $http_opts['method'] != "GET"){
+                    $httpful->body($http_opts['content']);
+                }
+
 				$error = $httpful->send();
 
 				$httpful = \Httpful\Request::init();
