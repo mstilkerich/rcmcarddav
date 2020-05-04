@@ -39,9 +39,37 @@ class carddav_common
 
 	private $module_prefix = '';
 
+	private $http_debug_fhandle = FALSE;
+
 	public function __construct($module_prefix = '')
 	{{{
 	$this->module_prefix = $module_prefix;
+
+	if (self::DEBUG_HTTP)
+	{
+		$log_dir = RCUBE_INSTALL_PATH . 'logs';
+		$log_file = "$log_dir/carddav_http";
+		$this->http_debug_fhandle = fopen($log_file, "a");
+		if ($this->http_debug_fhandle !== FALSE)
+		{
+			$httpful_tmpl = \Httpful\Request::init();
+			$httpful_tmpl->addOnCurlOption(CURLOPT_VERBOSE, TRUE);
+			$httpful_tmpl->addOnCurlOption(CURLOPT_STDERR, $this->http_debug_fhandle);
+			\Httpful\Request::ini($httpful_tmpl);
+		}
+		else
+		{
+			rcmail::write_log("carddav.warn", "could not open HTTP traffic log file $log_file - logging disabled");
+		}
+	}
+	}}}
+
+	public function __destruct()
+	{{{
+	if ($this->http_debug_fhandle !== FALSE)
+	{
+		fclose($this->http_debug_fhandle);
+	}
 	}}}
 
 	public static function concaturl($str, $cat)
@@ -80,7 +108,7 @@ class carddav_common
 	} else {
 		$caller=debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
 	}
-	$caller=$caller[2]['function'];
+	$caller= $caller[2]['function'] . ":" . $caller[2]['line'];
 	return $caller;
 	}}}
 
@@ -93,14 +121,6 @@ class carddav_common
 	public function debug()
 	{{{
 	if(self::DEBUG) {
-		$caller=self::getCaller();
-		rcmail::write_log("carddav", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
-	}
-	}}}
-
-	public function debug_http()
-	{{{
-	if(self::DEBUG_HTTP) {
 		$caller=self::getCaller();
 		rcmail::write_log("carddav", $this->module_prefix . "($caller) " . implode(' ', func_get_args()));
 	}
@@ -170,7 +190,7 @@ class carddav_common
 
 	do {
 		$isRedirect = false;
-		if (self::DEBUG){ $this->debug("$caller requesting $url as user $username [RL $redirect_limit]"); }
+		if (self::DEBUG){ $this->debug("$caller: " .$http_opts['method'] ." $url as user $username [RL $redirect_limit]"); }
 
 		$httpful = \Httpful\Request::init();
 		$scheme = strtolower($carddav['authentication_scheme']);
@@ -235,7 +255,6 @@ class carddav_common
 		if($isRedirect && strlen($reply->headers['location'])>0) {
 			$url = self::concaturl($baseurl, $reply->headers['location']);
 		} else {
-			$this->debug_http("success: ".var_export($retVal, true));
 			break;
 		}
 	} while($redirect_limit-->0 && $isRedirect);
