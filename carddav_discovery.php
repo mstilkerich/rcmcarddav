@@ -116,8 +116,8 @@ class carddav_discovery
 <?xml version="1.0" encoding="utf-8"?>
 <D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:carddav"><D:prop>
 	<D:current-user-principal/>
-    <D:resourcetype />
-    <D:displayname />
+	<D:resourcetype />
+	<D:displayname />
 	<C:addressbook-home-set/>
 </D:prop></D:propfind>
 EOF
@@ -268,6 +268,12 @@ EOF
 		// as fallback try these default paths
 		$paths[] = '/.well-known/carddav';
 		$paths[] = '/';
+		// this is a workaround for an issue with the iCloud servers responding
+		// to the current-user-principal property only with some path components
+		// (but the well-known URI won't work)
+		// See: https://stackoverflow.com/questions/57920341/not-able-to-get-current-user-principal-for-user-from-apple-caldav-server
+		// Contrary to what is stated on stackoverflow, the issue still persists as of 2020-05-04
+		$paths[] = '/co';
 
 		$service['paths'] = $paths;
 	}
