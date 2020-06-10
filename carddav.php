@@ -18,8 +18,13 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+use MStilkerich\CardDavClient\{Account, Config};
+use MStilkerich\CardDavClient\Services\Discovery;
+use MStilkerich\CardDavAddressbook4Roundcube\RoundcubeLogger;
+
 class carddav extends rcube_plugin
 {
+	public static $logger;
 	private static $helper;
 
 	// the dummy task is used by the calendar plugin, which requires
@@ -109,20 +114,11 @@ class carddav extends rcube_plugin
 	public function init()
 	{{{
     $this->rc = rcmail::get_instance();
-    $tasks = explode('|', $this->task);
 
-    // Since other plugins may also use the Sabre library
-    // In order to avoid version conflicts between Sabre libraries
-    // which might be used by other plugins
-    // It is better to restrict the loading of Sabre library
-    // under necessary tasks
-    if(!in_array($this->rc->task, $tasks))
-        return;
-    else {
-        require_once('carddav_backend.php');
-        require_once('carddav_discovery.php');
-        require_once('carddav_common.php');
-    }
+	self::$logger = new RoundcubeLogger("carddav.log");
+
+	$http_logger = new RoundcubeLogger("carddav_http.log");
+	Config::init(self::$logger, $http_logger);
 
 	$this->add_texts('localization/', false);
 
@@ -237,22 +233,19 @@ class carddav extends rcube_plugin
 			$preset['password']   = self::$helper->encrypt_password($preset['password']);
 			$abname = $preset['name'];
 
-			$discovery = new carddav_discovery();
-			$srvs = $discovery->find_addressbooks($preset['url'], $preset['username'], $preset['password']);
+			$account = new Account($preset['url'], $preset['username'], $preset['password']);
+			$discover = new Discovery();
+            $abooks = $discover->discoverAddressbooks($account);
 
-			if(is_array($srvs)) {
-			foreach($srvs as $srv){
-				if($srv['name']) {
-					if($preset['carddav_name_only'])
-						$preset['name'] = $srv['name'];
-					else
-						$preset['name'] = "$abname (" . $srv['name'] . ')';
-				} else {
-					$preset['name'] = $abname;
-				}
-				$preset['url'] = $srv['href'];
+			foreach($abooks as $abook) {
+					if($preset['carddav_name_only']) {
+						$preset['name'] = $abook['name'];
+					} else {
+						$preset['name'] = "$abname (" . $abook['name'] . ')';
+					}
+				$preset['url'] = $abook->getUri();
 				self::insert_abook($preset);
-			}}
+			}
 		}
 	}
 
@@ -346,14 +339,6 @@ class carddav extends rcube_plugin
 			$content_active = $checkbox->show($abook['active']?1:0);
 		}
 
-		if (self::no_override('use_categories', $abook, $prefs) || $abook['id'] !== "new") {
-			$content_use_categories = $abook['use_categories'] ? $this->gettext('cd_enabled') : $this->gettext('cd_disabled');
-		} else {
-			// check box for use categories
-			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_use_categories', 'value' => 1));
-			$content_use_categories = $checkbox->show($abook['use_categories']?1:0);
-		}
-
 		if (self::no_override('username', $abook, $prefs)) {
 			// %V parses username for macosx, replaces periods and @ by _, work around bugs in contacts.app
 			$content_username = $abook['username'] === '%V' ? str_replace('@','_', str_replace('.','_',$_SESSION['username'])) : $abook['username'] === '%u' ? $_SESSION['username'] : $abook['username'] === '%l' ? $rcmail->user->get_username('local') : $abook['username'];
@@ -403,7 +388,6 @@ class carddav extends rcube_plugin
 			'options' => array(
 				array('title'=> rcmail::Q($this->gettext('cd_name')), 'content' => $content_name),
 				array('title'=> rcmail::Q($this->gettext('cd_active')), 'content' => $content_active),
-				array('title'=> rcmail::Q($this->gettext('cd_use_categories')), 'content' => $content_use_categories),
 				array('title'=> rcmail::Q($this->gettext('cd_username')), 'content' => $content_username),
 				array('title'=> rcmail::Q($this->gettext('cd_password')), 'content' => $content_password),
 				array('title'=> rcmail::Q($this->gettext('cd_url')), 'content' => $content_url),
@@ -467,7 +451,6 @@ class carddav extends rcube_plugin
 				array(
 					'id'           => 'new',
 					'active'       => 1,
-					'use_categories' => 1,
 					'username'     => '',
 					'url'          => '',
 					'name'         => '',
@@ -517,7 +500,6 @@ class carddav extends rcube_plugin
 					'username' => rcube_utils::get_input_value($abookid."_cd_username", rcube_utils::INPUT_POST, true),
 					'url' => rcube_utils::get_input_value($abookid."_cd_url", rcube_utils::INPUT_POST),
 					'active' => isset($_POST[$abookid.'_cd_active']) ? 1 : 0,
-					'use_categories' => isset($_POST[$abookid.'_cd_use_categories']) ? 1 : 0,
 					'refresh_time' => rcube_utils::get_input_value($abookid."_cd_refresh_time", rcube_utils::INPUT_POST),
 				);
 
@@ -551,26 +533,22 @@ class carddav extends rcube_plugin
 			$pass   = rcube_utils::get_input_value('new_cd_password', rcube_utils::INPUT_POST, true);
 			$pass = self::$helper->encrypt_password($pass);
 			$abname = rcube_utils::get_input_value('new_cd_name', rcube_utils::INPUT_POST);
-			$use_categories = intval(rcube_utils::get_input_value('new_cd_use_categories', rcube_utils::INPUT_POST, true), 0);
 
-			$discovery = new carddav_discovery();
-			$srvs = $discovery->find_addressbooks($srv, $usr, $pass);
+			$account = new Account($srv, $usr, self::$helper->decrypt_password($pass));
+			$discover = new Discovery();
+            $abooks = $discover->discoverAddressbooks($account);
 
-			if(is_array($srvs) && count($srvs)>0) {
-				foreach($srvs as $srv){
+			if(count($abooks) > 0)
+			{
+				foreach($abooks as $abook) {
 					self::$helper->debug("ADDING ABOOK " . print_r($srv,true));
-					$this_abname = $abname;
-					if($srv['name']) {
-						$this_abname .= ' (' . $srv['name'] . ')';
-					}
-					self::insert_abook(array(
-						'name'     => $this_abname,
+					self::insert_abook([
+						'name'     => "$abname (" . $abook['name'] . ")",
 						'username' => $usr,
 						'password' => $pass,
-						'use_categories' => $use_categories,
-						'url'      => $srv['href'],
+						'url'      => $abook->getUri(),
 						'refresh_time' => rcube_utils::get_input_value('new_cd_refresh_time', rcube_utils::INPUT_POST)
-					));
+					]);
 				}
 			} else {
 				$args['abort'] = true;
@@ -631,7 +609,7 @@ class carddav extends rcube_plugin
 	}
 
 	// optional fields
-	$qfo = array('active','presetname','use_categories','refresh_time');
+	$qfo = array('active','presetname','refresh_time');
 	foreach($qfo as $f) {
 		if(array_key_exists($f,$pa)) {
 			$qf[] = $f;

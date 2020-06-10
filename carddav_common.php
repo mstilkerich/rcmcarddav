@@ -22,12 +22,9 @@
 if (file_exists(__DIR__ . '/vendor/autoload.php'))
 	require_once __DIR__ . '/vendor/autoload.php';
 
-\Httpful\Bootstrap::init();
-
 class carddav_common
 {
 	const DEBUG      = false; // set to true for basic debugging
-	const DEBUG_HTTP = false; // set to true for debugging raw http stream
 
 	const NSDAV     = 'DAV:';
 	const NSCARDDAV = 'urn:ietf:params:xml:ns:carddav';
@@ -35,42 +32,15 @@ class carddav_common
 	// admin settings from config.inc.php
 	private static $admin_settings;
 	// encryption scheme
-	public static $pwstore_scheme = 'base64';
+	public static $pwstore_scheme = 'encrypted';
 
 	private $module_prefix = '';
-
-	private $http_debug_fhandle = FALSE;
 
 	public function __construct($module_prefix = '')
 	{{{
 	$this->module_prefix = $module_prefix;
-
-	if (self::DEBUG_HTTP)
-	{
-		$log_dir = RCUBE_INSTALL_PATH . 'logs';
-		$log_file = "$log_dir/carddav_http";
-		$this->http_debug_fhandle = fopen($log_file, "a");
-		if ($this->http_debug_fhandle !== FALSE)
-		{
-			$httpful_tmpl = \Httpful\Request::init();
-			$httpful_tmpl->addOnCurlOption(CURLOPT_VERBOSE, TRUE);
-			$httpful_tmpl->addOnCurlOption(CURLOPT_STDERR, $this->http_debug_fhandle);
-			\Httpful\Request::ini($httpful_tmpl);
-		}
-		else
-		{
-			rcmail::write_log("carddav.warn", "could not open HTTP traffic log file $log_file - logging disabled");
-		}
-	}
 	}}}
 
-	public function __destruct()
-	{{{
-	if ($this->http_debug_fhandle !== FALSE)
-	{
-		fclose($this->http_debug_fhandle);
-	}
-	}}}
 
 	public static function concaturl($str, $cat)
 	{{{
