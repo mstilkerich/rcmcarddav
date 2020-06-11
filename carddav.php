@@ -53,22 +53,11 @@ class carddav extends rcube_plugin
 		}
 
 		if ($db_backend == "unknown"){
-			rcmail::write_log("carddav", "Unknown database backend: ".$dbh->db_provider);
+			self::$logger->error("Unknown database backend: " . $dbh->db_provider);
 			return;
 		}
 
 		# first initialize the carddav_migrations table if it doesn't exist.
-		/*
-		$query = file_get_contents(dirname(__FILE__)."/dbinit/".$db_backend.".sql");
-		if (strlen($query) > 0){
-			$query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
-			$dbh->query($query);
-			rcmail::write_log("carddav", "Processed initialization of carddav_migrations table");
-		} else {
-			rcmail::write_log("carddav", "Can't find migration: /dbinit/".$db_backend.".sql");
-		}
-		*/
-
 		$config = rcmail::get_instance()->config;
 		$migrations = array_diff(scandir(dirname(__FILE__)."/dbmigrations/"), array('..', '.'));
 		$mignew = array();
@@ -96,20 +85,20 @@ class carddav extends rcube_plugin
 		$dbh->set_option('ignore_key_errors', null);
 
 		foreach ($migrations as $migration) {
-			rcmail::write_log('carddav', "In migration: ".$migration);
+			self::$logger->notice("In migration: $migration");
 			$queries_raw = file_get_contents(dirname(__FILE__)."/dbmigrations/".$migration."/".$db_backend.".sql");
 			$match_count = preg_match_all('/(.+?;)/s', $queries_raw, $matches);
-			rcmail::write_log('carddav', 'Found '.$match_count.' matches');
-			if($match_count > 0){
-				foreach ($matches[0] as $query){ // array will have two elements, each holding all queries. Only iterate over one of them
-					if (strlen($query) > 0){
+			self::$logger->debug('Found '.$match_count.' matches');
+			if ($match_count > 0) {
+				foreach ($matches[0] as $query) { // array will have two elements, each holding all queries. Only iterate over one of them
+					if (strlen($query) > 0) {
 						$query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
 						$dbh->query($query);
 					}
 				}
 				$dbh->query("INSERT INTO ".$dbh->table_name("carddav_migrations")." (filename) VALUES (?)", $migration);
-			}else{
-				rcmail::write_log('carddav', "Did not match any instructions from migration ".$migration);
+			} else {
+				self::$logger->debug("Did not match any instructions from migration ".$migration);
 			}
 		}
 	}
