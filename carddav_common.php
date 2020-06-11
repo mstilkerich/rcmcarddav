@@ -17,167 +17,167 @@
     You should have received a copy of the GNU General Public License along
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
+ */
 
 use MStilkerich\CardDavAddressbook4Roundcube\RoundcubeCarddavAddressbook;
 
 class carddav_common
 {
-	// admin settings from config.inc.php
-	private static $admin_settings;
-	// encryption scheme
-	public static $pwstore_scheme = 'encrypted';
+    // admin settings from config.inc.php
+    private static $admin_settings;
+    // encryption scheme
+    public static $pwstore_scheme = 'encrypted';
 
-	public static function concaturl($str, $cat)
-	{{{
-	preg_match(";(^https?://[^/]+)(.*);", $str, $match);
-	$hostpart = $match[1];
-	$urlpart  = $match[2];
+    public static function concaturl($str, $cat)
+    {
+        preg_match(";(^https?://[^/]+)(.*);", $str, $match);
+        $hostpart = $match[1];
+        $urlpart  = $match[2];
 
-	// is $cat already a full URL?
-	if(strpos($cat, '://') !== FALSE) {
-		return $cat;
-	}
+        // is $cat already a full URL?
+        if(strpos($cat, '://') !== FALSE) {
+            return $cat;
+        }
 
-	// is $cat a simple filename?
-	// then attach it to the URL
-	if (substr($cat, 0, 1) != "/"){
-		$urlpart .= "/$cat";
+        // is $cat a simple filename?
+        // then attach it to the URL
+        if (substr($cat, 0, 1) != "/"){
+            $urlpart .= "/$cat";
 
-		// $cat is a full path, the append it to the
-		// hostpart only
-	} else {
-		$urlpart = $cat;
-	}
+            // $cat is a full path, the append it to the
+            // hostpart only
+        } else {
+            $urlpart = $cat;
+        }
 
-	// remove // in the path
-	$urlpart = preg_replace(';//+;','/',$urlpart);
-	return $hostpart.$urlpart;
-	}}}
+        // remove // in the path
+        $urlpart = preg_replace(';//+;','/',$urlpart);
+        return $hostpart.$urlpart;
+    }
 
-	// password helpers
-	private function carddav_des_key()
-	{{{
-	$rcmail = rcmail::get_instance();
-	$imap_password = $rcmail->decrypt($_SESSION['password']);
-	while(strlen($imap_password)<24) {
-		$imap_password .= $imap_password;
-	}
-	return substr($imap_password, 0, 24);
-	}}}
+    // password helpers
+    private static function carddav_des_key()
+    {
+        $rcmail = rcmail::get_instance();
+        $imap_password = $rcmail->decrypt($_SESSION['password']);
+        while(strlen($imap_password)<24) {
+            $imap_password .= $imap_password;
+        }
+        return substr($imap_password, 0, 24);
+    }
 
-	public function encrypt_password($clear)
-	{{{
-	if(strcasecmp(self::$pwstore_scheme, 'plain')===0)
-		return $clear;
+    public static function encrypt_password($clear)
+    {
+        if(strcasecmp(self::$pwstore_scheme, 'plain')===0)
+            return $clear;
 
-	if(strcasecmp(self::$pwstore_scheme, 'encrypted')===0) {
+        if(strcasecmp(self::$pwstore_scheme, 'encrypted')===0) {
 
-		// return {IGNORE} scheme if session password is empty (krb_authentication plugin)
-		if(empty($_SESSION['password'])) return '{IGNORE}';
+            // return {IGNORE} scheme if session password is empty (krb_authentication plugin)
+            if(empty($_SESSION['password'])) return '{IGNORE}';
 
-		// encrypted with IMAP password
-		$rcmail = rcmail::get_instance();
+            // encrypted with IMAP password
+            $rcmail = rcmail::get_instance();
 
-		$imap_password = self::carddav_des_key();
-		$deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
+            $imap_password = self::carddav_des_key();
+            $deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
 
-		$crypted = $rcmail->encrypt($clear, 'carddav_des_key');
+            $crypted = $rcmail->encrypt($clear, 'carddav_des_key');
 
-		// there seems to be no way to unset a preference
-		$deskey_backup = $rcmail->config->set('carddav_des_key', '');
+            // there seems to be no way to unset a preference
+            $deskey_backup = $rcmail->config->set('carddav_des_key', '');
 
-		return '{ENCRYPTED}'.$crypted;
-	}
+            return '{ENCRYPTED}'.$crypted;
+        }
 
-	if(strcasecmp(self::$pwstore_scheme, 'des_key')===0) {
+        if(strcasecmp(self::$pwstore_scheme, 'des_key')===0) {
 
-		// encrypted with global des_key
-		$rcmail = rcmail::get_instance();
-		$crypted = $rcmail->encrypt($clear);
+            // encrypted with global des_key
+            $rcmail = rcmail::get_instance();
+            $crypted = $rcmail->encrypt($clear);
 
-		return '{DES_KEY}'.$crypted;
-	}
+            return '{DES_KEY}'.$crypted;
+        }
 
-	// default: base64-coded password
-	return '{BASE64}'.base64_encode($clear);
-	}}}
+        // default: base64-coded password
+        return '{BASE64}'.base64_encode($clear);
+    }
 
-	public function password_scheme($crypt)
-	{{{
-	if(strpos($crypt, '{IGNORE}') === 0)
-		return 'ignore';
+    public static function password_scheme($crypt)
+    {
+        if(strpos($crypt, '{IGNORE}') === 0)
+            return 'ignore';
 
-	if(strpos($crypt, '{ENCRYPTED}') === 0)
-		return 'encrypted';
+        if(strpos($crypt, '{ENCRYPTED}') === 0)
+            return 'encrypted';
 
-	if(strpos($crypt, '{DES_KEY}') === 0)
-		return 'des_key';
+        if(strpos($crypt, '{DES_KEY}') === 0)
+            return 'des_key';
 
-	if(strpos($crypt, '{BASE64}') === 0)
-		return 'base64';
+        if(strpos($crypt, '{BASE64}') === 0)
+            return 'base64';
 
-	// unknown scheme, assume cleartext
-	return 'plain';
-	}}}
+        // unknown scheme, assume cleartext
+        return 'plain';
+    }
 
-	public function decrypt_password($crypt)
-	{{{
-	if(strpos($crypt, '{ENCRYPTED}') === 0) {
-		// return {IGNORE} scheme if session password is empty (krb_authentication plugin)
-		if (empty($_SESSION['password'])) return '{IGNORE}';
+    public static function decrypt_password($crypt)
+    {
+        if(strpos($crypt, '{ENCRYPTED}') === 0) {
+            // return {IGNORE} scheme if session password is empty (krb_authentication plugin)
+            if (empty($_SESSION['password'])) return '{IGNORE}';
 
-		$crypt = substr($crypt, strlen('{ENCRYPTED}'));
-		$rcmail = rcmail::get_instance();
+            $crypt = substr($crypt, strlen('{ENCRYPTED}'));
+            $rcmail = rcmail::get_instance();
 
-		$imap_password = self::carddav_des_key();
-		$deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
+            $imap_password = self::carddav_des_key();
+            $deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
 
-		$clear = $rcmail->decrypt($crypt, 'carddav_des_key');
+            $clear = $rcmail->decrypt($crypt, 'carddav_des_key');
 
-		// there seems to be no way to unset a preference
-		$deskey_backup = $rcmail->config->set('carddav_des_key', '');
+            // there seems to be no way to unset a preference
+            $deskey_backup = $rcmail->config->set('carddav_des_key', '');
 
-		return $clear;
-	}
+            return $clear;
+        }
 
-	if(strpos($crypt, '{DES_KEY}') === 0) {
-		$crypt = substr($crypt, strlen('{DES_KEY}'));
-		$rcmail = rcmail::get_instance();
+        if(strpos($crypt, '{DES_KEY}') === 0) {
+            $crypt = substr($crypt, strlen('{DES_KEY}'));
+            $rcmail = rcmail::get_instance();
 
-		return $rcmail->decrypt($crypt);
-	}
+            return $rcmail->decrypt($crypt);
+        }
 
-	if(strpos($crypt, '{BASE64}') === 0) {
-		$crypt = substr($crypt, strlen('{BASE64}'));
-		return base64_decode($crypt);
-	}
+        if(strpos($crypt, '{BASE64}') === 0) {
+            $crypt = substr($crypt, strlen('{BASE64}'));
+            return base64_decode($crypt);
+        }
 
-	// unknown scheme, assume cleartext
-	return $crypt;
-	}}}
+        // unknown scheme, assume cleartext
+        return $crypt;
+    }
 
-	// admin settings from config.inc.php
-	public static function get_adminsettings()
-	{{{
-	if(is_array(self::$admin_settings))
-		return self::$admin_settings;
+    // admin settings from config.inc.php
+    public static function get_adminsettings()
+    {
+        if(is_array(self::$admin_settings))
+            return self::$admin_settings;
 
-	$rcmail = rcmail::get_instance();
-	$prefs = array();
-	$configfile = dirname(__FILE__)."/config.inc.php";
-	if (file_exists($configfile)){
-		require("$configfile");
-	}
-	self::$admin_settings = $prefs;
+        $rcmail = rcmail::get_instance();
+        $prefs = array();
+        $configfile = dirname(__FILE__)."/config.inc.php";
+        if (file_exists($configfile)){
+            require("$configfile");
+        }
+        self::$admin_settings = $prefs;
 
-	if(is_array($prefs['_GLOBAL'])) {
-		$scheme = $prefs['_GLOBAL']['pwstore_scheme'];
-		if(preg_match("/^(plain|base64|encrypted|des_key)$/", $scheme))
-			self::$pwstore_scheme = $scheme;
-	}
-	return $prefs;
-	}}}
+        if(is_array($prefs['_GLOBAL'])) {
+            $scheme = $prefs['_GLOBAL']['pwstore_scheme'];
+            if(preg_match("/^(plain|base64|encrypted|des_key)$/", $scheme))
+                self::$pwstore_scheme = $scheme;
+        }
+        return $prefs;
+    }
 }
 
-?>
+// vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120

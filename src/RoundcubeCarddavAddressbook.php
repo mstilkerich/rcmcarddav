@@ -36,8 +36,6 @@ use carddav_common;
 
 class RoundcubeCarddavAddressbook extends rcube_addressbook
 {
-    private static $helper;
-
     // the carddav frontend object
     private $frontend;
 
@@ -61,18 +59,6 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     private $xlabels;
 
     const SEPARATOR = ',';
-
-    // contains a the URIs, db ids and etags of the locally stored cards whenever
-    // a refresh from the server is attempted. This is used to avoid a separate
-    // "exists?" DB query for each card retrieved from the server and also allows
-    // to detect whether cards were deleted on the server
-    private $existing_card_cache = array();
-    // same thing for groups
-    private $existing_grpcard_cache = array();
-    // used in refresh DB to record group memberships for the delayed
-    // creation in the database (after all contacts have been loaded and
-    // stored from the server)
-    private $users_to_add;
 
     // total number of contacts in address book
     private $total_cards = -1;
@@ -106,11 +92,6 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             'URL' => 'website',
         ),
     );
-
-    public function getId(): string
-    {
-        return $this->id;
-    }
 
     // array with list of potential date fields for formatting
     private $datefields = array('birthday', 'anniversary');
@@ -171,6 +152,11 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         if ($this->config["needs_update"]){
             $this->refreshdb_from_server();
         }
+    }
+
+    public function getId(): string
+    {
+        return $this->id;
     }
 
     /**
@@ -882,7 +868,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                 $matchhdr,
             ),
         );
-        $reply = self::$helper->cdfopen($id, $opts, $this->config);
+        $reply = carddav_common::cdfopen($id, $opts, $this->config);
         if($this->check_http_status($reply)) {
             $etag = $reply["headers"]["etag"];
             if ("$etag" == ""){
@@ -901,7 +887,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     {
         $this->result = $this->count();
         $opts = array( 'method'=>"DELETE" );
-        $reply = self::$helper->cdfopen($id, $opts, $this->config);
+        $reply = carddav_common::cdfopen($id, $opts, $this->config);
         if($this->check_http_status($reply) && ($reply["status"] == 204 || $reply["status"] == 200)) {
             return true;
         }
@@ -1908,7 +1894,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             $account = new Account(
                 $url,
                 $this->config["username"],
-                self::$helper->decrypt_password($this->config["password"]),
+                carddav_common::decrypt_password($this->config["password"]),
                 $url
             );
             $this->davAbook = new AddressbookCollection($url, $account);
@@ -1983,10 +1969,10 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             ' WHERE user_id=?', $_SESSION['user_id']);
 
         while ($abookrow = $dbh->fetch_assoc($sql_result)) {
-            $pw_scheme = self::$helper->password_scheme($abookrow['password']);
+            $pw_scheme = carddav_common::password_scheme($abookrow['password']);
             if(strcasecmp($pw_scheme, carddav_common::$pwstore_scheme) !== 0) {
-                $abookrow['password'] = self::$helper->decrypt_password($abookrow['password']);
-                $abookrow['password'] = self::$helper->encrypt_password($abookrow['password']);
+                $abookrow['password'] = carddav_common::decrypt_password($abookrow['password']);
+                $abookrow['password'] = carddav_common::encrypt_password($abookrow['password']);
                 $dbh->query('UPDATE ' .
                     $dbh->table_name('carddav_addressbooks') .
                     ' SET password=? WHERE id=?',
@@ -2017,7 +2003,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                 continue;
             }
 
-            $crypt_password = self::$helper->encrypt_password($prefs['password']);
+            $crypt_password = carddav_common::encrypt_password($prefs['password']);
 
             carddav::$logger->debug("move addressbook $desc");
             $dbh->query('INSERT INTO ' .
@@ -2061,13 +2047,6 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             }
         }
     }
-
-    public static function initClass()
-    {
-        self::$helper = new carddav_common();
-    }
 }
-
-RoundcubeCarddavAddressbook::initClass();
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120

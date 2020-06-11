@@ -125,8 +125,6 @@ class carddav extends rcube_plugin
 
 	$this->add_texts('localization/', false);
 
-	self::$helper = new carddav_common();
-
 	$this->add_hook('addressbooks_list', array($this, 'address_sources'));
 	$this->add_hook('addressbook_get', array($this, 'get_address_book'));
 
@@ -195,7 +193,7 @@ class carddav extends rcube_plugin
 				// update all existing addressbooks for this preset
 				foreach($existing_presets[$presetname] as $abookrow) {
 					// decrypt password so that the comparison works
-					$abookrow['password'] = self::$helper->decrypt_password($abookrow['password']);
+					$abookrow['password'] = carddav_common::decrypt_password($abookrow['password']);
 
 					// update: only admin fix keys, only if it's fixed
 					// otherwise there may be user changes that should not be destroyed
@@ -233,7 +231,7 @@ class carddav extends rcube_plugin
 
 		} else { // create new
 			$preset['presetname'] = $presetname;
-			$preset['password']   = self::$helper->encrypt_password($preset['password']);
+			$preset['password']   = carddav_common::encrypt_password($preset['password']);
 			$abname = $preset['name'];
 
 			$account = new Account($preset['url'], $preset['username'], $preset['password']);
@@ -427,9 +425,9 @@ class carddav extends rcube_plugin
 			if (version_compare(PHP_VERSION, '5.6.18', '<')) {
 				$args['blocks']['cd_preferences'] = array(
 					'options' => array(
-						array('title'=> self::$helper->Q($this->gettext('cd_php_too_old')), 'content' => PHP_VERSION)
+						array('title'=> carddav_common::Q($this->gettext('cd_php_too_old')), 'content' => PHP_VERSION)
 					),
-					'name' => self::$helper->Q($this->gettext('cd_title'))
+					'name' => carddav_common::Q($this->gettext('cd_title'))
 				);
 				return $args;
 			}
@@ -443,7 +441,7 @@ class carddav extends rcube_plugin
 				$abookid = $abook['id'];
 				$blockhdr = $abook['name'];
 				if($abook['presetname'])
-					$blockhdr .= str_replace("_PRESETNAME_", $abook['presetname'], self::$helper->Q($this->gettext('cd_frompreset')));
+					$blockhdr .= str_replace("_PRESETNAME_", $abook['presetname'], carddav_common::Q($this->gettext('cd_frompreset')));
 				$args['blocks']['cd_preferences'.$abookid] = $this->cd_preferences_buildblock($blockhdr,$abook,$prefs);
 			}
 		}
@@ -534,10 +532,10 @@ class carddav extends rcube_plugin
 			$srv    = rcube_utils::get_input_value('new_cd_url', rcube_utils::INPUT_POST);
 			$usr    = rcube_utils::get_input_value('new_cd_username', rcube_utils::INPUT_POST, true);
 			$pass   = rcube_utils::get_input_value('new_cd_password', rcube_utils::INPUT_POST, true);
-			$pass = self::$helper->encrypt_password($pass);
+			$pass = carddav_common::encrypt_password($pass);
 			$abname = rcube_utils::get_input_value('new_cd_name', rcube_utils::INPUT_POST);
 
-			$account = new Account($srv, $usr, self::$helper->decrypt_password($pass));
+			$account = new Account($srv, $usr, carddav_common::decrypt_password($pass));
 			$discover = new Discovery();
             $abooks = $discover->discoverAddressbooks($account);
 
@@ -637,7 +635,7 @@ class carddav extends rcube_plugin
 
 	// encrypt the password before storing it
 	if(array_key_exists('password', $pa))
-		$pa['password'] = self::$helper->encrypt_password($pa['password']);
+		$pa['password'] = carddav_common::encrypt_password($pa['password']);
 
 	/* Ensure field lengths */
 	if (array_key_exists('name', $pa)) {
