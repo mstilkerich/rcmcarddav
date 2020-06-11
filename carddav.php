@@ -21,6 +21,9 @@
 use MStilkerich\CardDavClient\{Account, Config};
 use MStilkerich\CardDavClient\Services\Discovery;
 use MStilkerich\CardDavAddressbook4Roundcube\RoundcubeLogger;
+use MStilkerich\CardDavAddressbook4Roundcube\RoundcubeCarddavAddressbook;
+
+require_once("carddav_common.php");
 
 class carddav extends rcube_plugin
 {
@@ -115,14 +118,14 @@ class carddav extends rcube_plugin
 	{{{
     $this->rc = rcmail::get_instance();
 
-	self::$logger = new RoundcubeLogger("carddav.log");
+	self::$logger = new RoundcubeLogger("carddav");
 
-	$http_logger = new RoundcubeLogger("carddav_http.log");
+	$http_logger = new RoundcubeLogger("carddav_http");
 	Config::init(self::$logger, $http_logger);
 
 	$this->add_texts('localization/', false);
 
-	self::$helper = new carddav_common('FRONTEND: ');
+	self::$helper = new carddav_common();
 
 	$this->add_hook('addressbooks_list', array($this, 'address_sources'));
 	$this->add_hook('addressbook_get', array($this, 'get_address_book'));
@@ -165,7 +168,7 @@ class carddav extends rcube_plugin
 	$prefs = carddav_common::get_adminsettings();
 
 	// migrate old settings
-	carddav_backend::migrateconfig();
+	RoundcubeCarddavAddressbook::migrateconfig();
 
 	// read existing presets from DB
 	$sql_result = $dbh->query('SELECT * FROM ' .
@@ -286,7 +289,7 @@ class carddav extends rcube_plugin
 	public function get_address_book($p)
 	{{{
 	if (preg_match(";^carddav_(\d+)$;", $p['id'], $match)){
-		$p['instance'] = new carddav_backend($match[1], $this);
+		$p['instance'] = new RoundcubeCarddavAddressbook($match[1], $this);
 	}
 
 	return $p;
@@ -432,7 +435,7 @@ class carddav extends rcube_plugin
 			}
 		}
 
-		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'*','addressbooks',false,'user_id');
+		$abooks = RoundcubeCarddavAddressbook::get_dbrecord($_SESSION['user_id'],'*','addressbooks',false,'user_id');
 		foreach($abooks as $abook) {
 			$presetname = $abook['presetname'];
 			if (empty($presetname) ||
@@ -486,7 +489,7 @@ class carddav extends rcube_plugin
 		}
 
 		// update existing in DB
-		$abooks = carddav_backend::get_dbrecord($_SESSION['user_id'],'id,presetname',
+		$abooks = RoundcubeCarddavAddressbook::get_dbrecord($_SESSION['user_id'],'id,presetname',
 			'addressbooks', false, 'user_id');
 
 		foreach($abooks as $abook) {
@@ -519,7 +522,7 @@ class carddav extends rcube_plugin
 				self::update_abook($abookid, $newset);
 
 				if(isset($_POST[$abookid."_cd_resync"])) {
-					$backend = new carddav_backend($abookid, $this);
+					$backend = new RoundcubeCarddavAddressbook($abookid, $this);
 					$backend->refreshdb_from_server();
 				}
 			}
@@ -541,9 +544,9 @@ class carddav extends rcube_plugin
 			if(count($abooks) > 0)
 			{
 				foreach($abooks as $abook) {
-					self::$helper->debug("ADDING ABOOK " . print_r($srv,true));
+					self::$logger->debug("ADDING ABOOK " . print_r($srv,true));
 					self::insert_abook([
-						'name'     => "$abname (" . $abook['name'] . ")",
+						'name'     => "$abname (" . $abook->getName() . ")",
 						'username' => $usr,
 						'password' => $pass,
 						'url'      => $abook->getUri(),
@@ -561,17 +564,17 @@ class carddav extends rcube_plugin
 
 	private static function delete_abook($abookid)
 	{{{
-	carddav_backend::delete_dbrecord($abookid,'addressbooks');
+	RoundcubeCarddavAddressbook::delete_dbrecord($abookid,'addressbooks');
 	// we explicitly delete all data belonging to the addressbook, since
 	// cascaded deleted are not supported by all database backends
 	// ...contacts
-	carddav_backend::delete_dbrecord($abookid,'contacts','abook_id');
+	RoundcubeCarddavAddressbook::delete_dbrecord($abookid,'contacts','abook_id');
 	// ...custom subtypes
-	carddav_backend::delete_dbrecord($abookid,'xsubtypes','abook_id');
+	RoundcubeCarddavAddressbook::delete_dbrecord($abookid,'xsubtypes','abook_id');
 	// ...groups and memberships
-	$delgroups = carddav_backend::get_dbrecord($abookid, 'id as group_id', 'groups', false, 'abook_id');
-	carddav_backend::delete_dbrecord($abookid,'groups','abook_id');
-	carddav_backend::delete_dbrecord($delgroups,'group_user','group_id');
+	$delgroups = RoundcubeCarddavAddressbook::get_dbrecord($abookid, 'id as group_id', 'groups', false, 'abook_id');
+	RoundcubeCarddavAddressbook::delete_dbrecord($abookid,'groups','abook_id');
+	RoundcubeCarddavAddressbook::delete_dbrecord($delgroups,'group_user','group_id');
 	}}}
 
 	private static function insert_abook($pa)

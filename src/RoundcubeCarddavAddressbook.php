@@ -19,14 +19,22 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-require_once("carddav_common.php");
 
-use \Sabre\VObject;
+namespace MStilkerich\CardDavAddressbook4Roundcube;
+
+use Sabre\VObject;
+use Sabre\VObject\Component\VCard;
+use rcube_addressbook;
+use rcube_result_set;
+use rcube_utils;
 use MStilkerich\CardDavClient\{Account, AddressbookCollection};
 use MStilkerich\CardDavClient\Services\{Discovery, Sync};
 use MStilkerich\CardDavAddressbook4Roundcube\SyncHandlerRoundcube;
+use rcmail;
+use carddav;
+use carddav_common;
 
-class carddav_backend extends rcube_addressbook
+class RoundcubeCarddavAddressbook extends rcube_addressbook
 {
     private static $helper;
 
@@ -99,6 +107,11 @@ class carddav_backend extends rcube_addressbook
         ),
     );
 
+    public function getId(): string
+    {
+        return $this->id;
+    }
+
     // array with list of potential date fields for formatting
     private $datefields = array('birthday', 'anniversary');
 
@@ -153,7 +166,7 @@ class carddav_backend extends rcube_addressbook
         }
 
         // refresh the address book if the update interval expired
-        // this requires a completely initialized carddav_backend object, so it
+        // this requires a completely initialized RoundcubeCarddavAddressbook object, so it
         // needs to be at the end of this constructor
         if ($this->config["needs_update"]){
             $this->refreshdb_from_server();
@@ -297,7 +310,7 @@ class carddav_backend extends rcube_addressbook
      *
      * @return int  The database id of the created or updated card, false on error.
      */
-    private function dbstore_group($etag, $uri, $vcfstr, $save_data, $dbid=0)
+    public function dbstore_group($etag, $uri, $vcfstr, $save_data, $dbid=0)
     {
         return $this->dbstore_base('groups',$etag,$uri,$vcfstr,$save_data,$dbid);
     }
@@ -366,7 +379,7 @@ class carddav_backend extends rcube_addressbook
      *
      * @return int  The database id of the created or updated card, false on error.
      */
-    private function dbstore_contact($etag, $uri, $vcfstr, $save_data, $dbid=0)
+    public function dbstore_contact($etag, $uri, $vcfstr, $save_data, $dbid=0)
     {
         $this->preprocess_rc_savedata($save_data);
         // build email search string
@@ -406,8 +419,8 @@ class carddav_backend extends rcube_addressbook
 
             $synchandler = new SyncHandlerRoundcube($this);
             $syncmgr = new Sync();
-            $synctoken = $syncmgr->synchronize($this->davAbook, $synchandler, [ ], $this->config['sync_token']);
-            carddav::update_abook($this->config['abookid'], array('sync_token' => "$sync_token"));
+            $sync_token = $syncmgr->synchronize($this->davAbook, $synchandler, [ ], $this->config['sync_token'] ?? "");
+            carddav::update_abook($this->config['abookid'], array('sync_token' => $sync_token));
 
             $duration = time() - $start_refresh;
             carddav::$logger->debug("server refresh took $duration seconds");
@@ -437,10 +450,10 @@ class carddav_backend extends rcube_addressbook
      * @param  boolean True to skip the count query (select only)
      * @return array   Indexed list of contact records, each a hash array
      */
-    public function list_records($cols=array(), $subset=0, $nocount=false)
+    public function list_records($cols = [], $subset = 0, $nocount = false)
     {
         // refresh from server if refresh interval passed
-        if ( $this->config['needs_update'] == 1 ) {
+        if ($this->config['needs_update'] == 1) {
             $this->refreshdb_from_server();
         }
 
@@ -472,6 +485,8 @@ class carddav_backend extends rcube_addressbook
         // true if we can use DB filtering or no filtering is requested
         $filter = $this->get_search_set();
         $this->determine_filter_params($cols,$subset, $firstrow, $numrows, $read_vcard);
+
+        carddav::$logger->debug("list_records_readdb " . implode(",", $cols) . " $read_vcard");
 
         $dbattr = $read_vcard ? 'vcard' : 'firstname,surname,email';
 
@@ -800,33 +815,56 @@ class carddav_backend extends rcube_addressbook
         return $result;
     }
 
+    private function parseVCard(string $vcf): VCard
+    {
+        // create vcard from current DB data to be updated with the new data
+        try {
+            $vcard = VObject\Reader::read($vcf, VObject\Reader::OPTION_FORGIVING);
+        } catch (Exception $e) {
+            carddav::$logger->warning("Update: Couldn't parse local vcard: $vcf");
+            return false;
+        }
+
+        return $vcard;
+    }
+
     /**
      * Get a specific contact record
      *
-     * @param mixed record identifier(s)
-     * @param boolean True to return record as associative array, otherwise a result set is returned
+     * @param mixed   $id    Record identifier(s)
+     * @param boolean $assoc True to return record as associative array, otherwise a result set is returned
      *
-     * @return mixed Result object with all record fields or False if not found
+     * @return rcube_result_set|array Result object with all record fields
      */
-    public function get_record($oid, $assoc_return=false)
+    public function get_record($id, $assoc = false)
     {
+        carddav::$logger->debug("get_record $id (return assoc: $assoc)");
         $this->result = $this->count();
 
-        $contact = self::get_dbrecord($oid, 'vcard');
-        if(!$contact) return false;
+        $contact = self::get_dbrecord($id, 'vcard');
+        if(!$contact) {
+            carddav::$logger->error("contact with database id $id not found");
+            return false;
+        }
 
-        $retval = $this->create_save_data_from_vcard($contact['vcard']);
+        $vcard = $this->parseVCard($contact['vcard']);
+        if ($vcard === false) {
+            return false;
+        }
+
+        $retval = $this->create_save_data_from_vcard($vcard);
         if(!$retval) {
+            carddav::$logger->error("failed to create save_data from contact (DB id: $id)");
             return false;
         }
         $vcfobj = $retval['vcf'];
         $retval = $retval['save_data'];
         $retval['__vcf'] = $vcfobj;
 
-        $retval['ID'] = $oid;
+        $retval['ID'] = $id;
         $this->result->add($retval);
-        $sql_arr = $assoc_return && $this->result ? $this->result->first() : null;
-        return $assoc_return && $sql_arr ? $sql_arr : $this->result;
+        $sql_arr = $assoc && $this->result ? $this->result->first() : null;
+        return $assoc && $sql_arr ? $sql_arr : $this->result;
     }
 
     private function put_record_to_carddav($id, $vcf, $etag='')
@@ -952,7 +990,7 @@ class carddav_backend extends rcube_addressbook
                 $save_data['photo'] = base64_decode($save_data['photo'], true);
             }
             if ($i >= 10){
-                lef::$helper->warn("PHOTO of ".$save_data['uid']." does not decode after 10 attempts...");
+                carddav::$logger->warning("PHOTO of ".$save_data['uid']." does not decode after 10 attempts...");
             }
         }
 
@@ -1139,14 +1177,17 @@ class carddav_backend extends rcube_addressbook
 
     private function download_photo(&$save_data)
     {
-        $opts = array( 'method'=>"GET" );
-        $uri = $save_data['photo'];
-        $reply = self::$helper->cdfopen($uri, $opts, $this->config);
-        if($this->check_http_status($reply) && $reply["status"] == 200) {
-            $save_data['photo'] = $reply['body'];
-            return true;
+        try {
+            $uri = $save_data['photo'];
+            carddav::$logger->warning("download_photo: Attempt to download photo from $uri");
+            $response = $this->davAbook->downloadResource($uri);
+            $save_data['photo'] = $response['body'];
+        } catch (\Exception $e) {
+            carddav::$logger->warning("download_photo: Attempt to download photo from $uri failed: $e");
+            return false;
         }
-        return false;
+
+        return true;
     }
 
     /**
@@ -1166,7 +1207,7 @@ class carddav_backend extends rcube_addressbook
      *           - vcf:          VCard object created from the given VCard
      *           - needs_update: boolean that indicates whether the card was modified
      */
-    private function create_save_data_from_vcard($vcard)
+    public function create_save_data_from_vcard($vcard)
     {
         $needs_update=false;
         $save_data = array(
@@ -1381,25 +1422,24 @@ class carddav_backend extends rcube_addressbook
         $this->preprocess_rc_savedata($save_data);
 
         // create vcard from current DB data to be updated with the new data
-        try {
-            $vcf = VObject\Reader::read($contact['vcard'], VObject\Reader::OPTION_FORGIVING);
-        } catch (Exception $e) {
-            carddav::$logger->warning("Update: Couldn't parse local vcard: ".$contact['vcard']);
+        $vcard = $this->parseVcard($contact['vcard']);
+        if ($vcard === false) {
             return false;
         }
 
-        $vcf = $this->create_vcard_from_save_data($save_data, $vcf);
-        if(!$vcf) {
+        $vcard = $this->create_vcard_from_save_data($save_data, $vcard);
+        if($vcard === false) {
             carddav::$logger->warning("Update: Couldn't adopt local vcard to new settings");
             return false;
         }
 
-        $vcfstr = $vcf->serialize();
-        if(!($etag=$this->put_record_to_carddav($contact['uri'], $vcfstr, $contact['etag']))) {
+        // serialize back modified vcard
+        $vcf = $vcard->serialize();
+        if(!($etag=$this->put_record_to_carddav($contact['uri'], $vcf, $contact['etag']))) {
             carddav::$logger->warning("Updating card on server failed");
             return false;
         }
-        $id = $this->dbstore_contact($etag,$contact['uri'],$vcfstr,$save_data,$id);
+        $id = $this->dbstore_contact($etag,$contact['uri'],$vcf,$save_data,$id);
         return ($id!=0);
     }
 
@@ -1868,7 +1908,7 @@ class carddav_backend extends rcube_addressbook
             $account = new Account(
                 $url,
                 $this->config["username"],
-                $this->config["password"],
+                self::$helper->decrypt_password($this->config["password"]),
                 $url
             );
             $this->davAbook = new AddressbookCollection($url, $account);
@@ -2024,10 +2064,10 @@ class carddav_backend extends rcube_addressbook
 
     public static function initClass()
     {
-        self::$helper = new carddav_common('BACKEND: ');
+        self::$helper = new carddav_common();
     }
 }
 
-carddav_backend::initClass();
+RoundcubeCarddavAddressbook::initClass();
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120
