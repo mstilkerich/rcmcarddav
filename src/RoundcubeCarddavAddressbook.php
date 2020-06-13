@@ -245,7 +245,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      * Determines the name to be displayed for a contact. The routine
      * distinguishes contact cards for individuals from organizations.
      */
-    private function set_displayname(&$save_data)
+    private static function set_displayname(&$save_data)
     {
         if(strcasecmp($save_data['showas'], 'COMPANY') == 0 && strlen($save_data['organization'])>0) {
             $save_data['name']     = $save_data['organization'];
@@ -298,14 +298,12 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      */
     public function dbstore_group($etag, $uri, $vcfstr, $save_data, $dbid = null)
     {
-        return $this->dbstore_base('groups',$etag,$uri,$vcfstr,$save_data,$dbid);
+        return $this->dbstore_base('groups', $etag, $uri, $vcfstr, $save_data, $dbid);
     }
 
-    private function dbstore_base($table, $etag, $uri, $vcfstr, $save_data, $dbid)
+    private function dbstore_base($table, $etag, $uri, $vcfstr, $save_data, $dbid, $xcol = [], $xval = [])
     {
         $dbh = rcmail::get_instance()->db;
-        $xcol = [];
-        $xval = [];
 
         // get rid of the %u placeholder in the URI, otherwise the refresh operation
         // will not be able to match local cards with those provided by the server
@@ -388,7 +386,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             }
         }
 
-        return $this->dbstore_base('contacts',$etag,$uri,$vcfstr,$save_data,$dbid,$xcol,$xval);
+        return $this->dbstore_base('contacts', $etag, $uri, $vcfstr, $save_data, $dbid, $xcol, $xval);
     }
 
     /**
@@ -432,33 +430,26 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     /**
      * List the current set of contact records
      *
-     * @param  array   List of cols to show, Null means all
-     * @param  int     Only return this number of records, use negative values for tail
-     * @param  boolean True to skip the count query (select only)
-     * @return array   Indexed list of contact records, each a hash array
+     * @param array $cols   List of cols to show (null means all)
+     * @param int   $subset Only return this number of records, use negative values for tail
+     *
+     * @return array Indexed list of contact records, each a hash array
      */
-    public function list_records($cols = [], $subset = 0, $nocount = false)
+    public function list_records($cols = null, $subset = 0)
     {
         // refresh from server if refresh interval passed
         if ($this->config['needs_update'] == 1) {
             $this->refreshdb_from_server();
         }
 
-        // if the count is not requested we can save one query
-        if($nocount) {
-            $this->result = new rcube_result_set();
-        } else {
-            $this->result = $this->count();
-        }
+        $this->result = $this->count();
 
         $records = $this->list_records_readdb($cols,$subset);
-        if($nocount) {
-            $this->result->count = $records;
-        } else if ($this->list_page <= 1) {
+        if ($this->list_page <= 1) {
             if ($records < $this->page_size && $subset == 0) {
                 $this->result->count = $records;
             } else {
-                $this->result->count = $this->_count($cols);
+                $this->result->count = $this->_count();
             }
         }
 
@@ -473,7 +464,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         $filter = $this->get_search_set();
         $this->determine_filter_params($cols,$subset, $firstrow, $numrows, $read_vcard);
 
-        carddav::$logger->debug("list_records_readdb " . implode(",", $cols) . " $read_vcard");
+        carddav::$logger->debug("list_records_readdb " . (isset($cols) ? implode(",", $cols) : "ALL") . " $read_vcard");
 
         $dbattr = $read_vcard ? 'vcard' : 'firstname,surname,email';
 
@@ -744,7 +735,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     }
 
     // Determines and returns the number of cards matching the current search criteria
-    private function _count($cols = [])
+    private function _count()
     {
         if($this->total_cards < 0) {
             $dbh = rcmail::get_instance()->db;
@@ -765,7 +756,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     private function determine_filter_params($cols, $subset, &$firstrow, &$numrows, &$read_vcard)
     {
         // determine whether we have to parse the vcard or if only db cols are requested
-        $read_vcard = !$cols || count(array_intersect($cols, $this->table_cols)) < count($cols);
+        $read_vcard = (!isset($cols)) || (count(array_intersect($cols, $this->table_cols)) < count($cols));
 
         // determine result subset needed
         $firstrow = ($subset>=0) ?
@@ -805,14 +796,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     private function parseVCard(string $vcf): VCard
     {
         // create vcard from current DB data to be updated with the new data
-        try {
-            $vcard = VObject\Reader::read($vcf, VObject\Reader::OPTION_FORGIVING);
-        } catch (\Exception $e) {
-            carddav::$logger->warning("Update: Couldn't parse local vcard: $vcf");
-            return false;
-        }
-
-        return $vcard;
+        return VObject\Reader::read($vcf, VObject\Reader::OPTION_FORGIVING);
     }
 
     /**
@@ -825,33 +809,35 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      */
     public function get_record($id, $assoc = false)
     {
-        carddav::$logger->debug("get_record $id (return assoc: $assoc)");
-        $this->result = $this->count();
+        try {
+            carddav::$logger->debug("get_record $id (return assoc: $assoc)");
+            $this->result = $this->count();
 
-        $contact = self::get_dbrecord($id, 'vcard');
-        if(!$contact) {
-            carddav::$logger->error("contact with database id $id not found");
+            $contact = self::get_dbrecord($id, 'vcard');
+            if(!$contact) {
+                carddav::$logger->error("contact with database id $id not found");
+                return false;
+            }
+
+            $vcard = $this->parseVCard($contact['vcard']);
+
+            $retval = $this->create_save_data_from_vcard($vcard);
+            if(!$retval) {
+                carddav::$logger->error("failed to create save_data from contact (DB id: $id)");
+                return false;
+            }
+            $vcfobj = $retval['vcf'];
+            $retval = $retval['save_data'];
+            $retval['__vcf'] = $vcfobj;
+
+            $retval['ID'] = $id;
+            $this->result->add($retval);
+            $sql_arr = $assoc && $this->result ? $this->result->first() : null;
+            return $assoc && $sql_arr ? $sql_arr : $this->result;
+        } catch (\Exception $e) {
+            carddav::$logger->error("Could not get contact $id: " . $e->getMessage());
             return false;
         }
-
-        $vcard = $this->parseVCard($contact['vcard']);
-        if ($vcard === false) {
-            return false;
-        }
-
-        $retval = $this->create_save_data_from_vcard($vcard);
-        if(!$retval) {
-            carddav::$logger->error("failed to create save_data from contact (DB id: $id)");
-            return false;
-        }
-        $vcfobj = $retval['vcf'];
-        $retval = $retval['save_data'];
-        $retval['__vcf'] = $vcfobj;
-
-        $retval['ID'] = $id;
-        $this->result->add($retval);
-        $sql_arr = $assoc && $this->result ? $this->result->first() : null;
-        return $assoc && $sql_arr ? $sql_arr : $this->result;
     }
 
     private function put_record_to_carddav($id, $vcf, $etag='')
@@ -1278,7 +1264,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         }
 
         // set displayname according to settings
-        $this->set_displayname($save_data);
+        self::set_displayname($save_data);
 
         return array(
             'save_data'    => $save_data,
@@ -1290,7 +1276,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
     const MAX_PHOTO_SIZE = 256;
 
-    public function xabcropphoto($vcard, &$save_data)
+    private static function xabcropphoto($vcard, &$save_data)
     {
         if (!function_exists('gd_info') || $vcard == null) {
             return $vcard;
@@ -1337,10 +1323,10 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      */
     public function insert($save_data, $check=false)
     {
-        $this->preprocess_rc_savedata($save_data);
-        $this->createCardDavObj();
-
         try {
+            $this->preprocess_rc_savedata($save_data);
+            $this->createCardDavObj();
+
             $vcard = $this->create_vcard_from_save_data($save_data);
             $this->davAbook->createCard($vcard);
             $this->refreshdb_from_server();
@@ -1352,7 +1338,6 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         } catch (\Exception $e) {
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
         }
-
         return false;
     }
 
@@ -1376,48 +1361,46 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         }
 
         // generate display name according to display order setting
-        $this->set_displayname($save_data);
+        self::set_displayname($save_data);
     }
 
     /**
      * Update a specific contact record
      *
-     * @param mixed Record identifier
-     * @param array Assoziative array with save data
+     * @param mixed $id        Record identifier
+     * @param array $save_cols Associative array with save data
      *  Keys:   Field name with optional section in the form FIELD:SECTION
      *  Values: Field value. Can be either a string or an array of strings for multiple values
-     * @return boolean True on success, False on error
+     *
+     * @return mixed On success if ID has been changed returns ID, otherwise True, False on error
      */
     public function update($id, $save_data)
     {
-        // get current DB data
-        $contact = self::get_dbrecord($id,'id,cuid,uri,etag,vcard,showas');
-        if(!$contact) return false;
+        try {
+            // complete save_data
+            $save_data['showas'] = $contact['showas'];
+            $this->preprocess_rc_savedata($save_data);
+            $this->createCardDavObj();
 
-        // complete save_data
-        $save_data['showas'] = $contact['showas'];
-        $this->preprocess_rc_savedata($save_data);
+            // get current DB data
+            $contact = self::get_dbrecord($id,'id,cuid,uri,etag,vcard,showas');
+            if($contact === false) {
+                throw new \Exception("Contact $id to update not found in database");
+            }
 
-        // create vcard from current DB data to be updated with the new data
-        $vcard = $this->parseVcard($contact['vcard']);
-        if ($vcard === false) {
+
+            // create vcard from current DB data to be updated with the new data
+            $vcard = $this->parseVCard($contact['vcard']);
+            $vcard = $this->create_vcard_from_save_data($save_data, $vcard);
+            $this->davAbook->updateCard($contact['uri'], $vcard, $contact['etag']);
+            $this->refreshdb_from_server();
+
+            return true;
+        } catch (\Exception $e) {
+            $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
+            carddav::$logger->error("Failed to update contact $id: " . $e->getMessage());
             return false;
         }
-
-        $vcard = $this->create_vcard_from_save_data($save_data, $vcard);
-        if($vcard === false) {
-            carddav::$logger->warning("Update: Couldn't adopt local vcard to new settings");
-            return false;
-        }
-
-        // serialize back modified vcard
-        $vcf = $vcard->serialize();
-        if(!($etag=$this->put_record_to_carddav($contact['uri'], $vcf, $contact['etag']))) {
-            carddav::$logger->warning("Updating card on server failed");
-            return false;
-        }
-        $id = $this->dbstore_contact($etag,$contact['uri'],$vcf,$save_data,$id);
-        return ($id!=0);
     }
 
     /**

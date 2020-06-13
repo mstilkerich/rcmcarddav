@@ -29,15 +29,16 @@ class SyncHandlerRoundcube implements SyncHandler
     public function __construct(RoundcubeCarddavAddressbook $rcAbook)
     {
         $this->rcAbook = $rcAbook;
+        $abookId = $this->rcAbook->getId();
 
         // determine existing local contact URIs and ETAGs
-        $contacts = RoundcubeCarddavAddressbook::get_dbrecord($this->id,'id,uri,etag','contacts',false,'abook_id');
+        $contacts = RoundcubeCarddavAddressbook::get_dbrecord($abookId,'id,uri,etag','contacts',false,'abook_id');
         foreach($contacts as $contact) {
             $this->existing_card_cache[$contact['uri']] = $contact;
         }
 
         // determine existing local group URIs and ETAGs
-        $groups = RoundcubeCarddavAddressbook::get_dbrecord($this->id,'id,uri,etag','groups',false,'abook_id');
+        $groups = RoundcubeCarddavAddressbook::get_dbrecord($abookId,'id,uri,etag','groups',false,'abook_id');
         foreach($groups as $group) {
             $this->existing_grpcard_cache[$group['uri']] = $group;
         }
@@ -53,7 +54,7 @@ class SyncHandlerRoundcube implements SyncHandler
 
         if($save_data['kind'] === 'group') {
             $dbid = $this->existing_grpcard_cache[$uri]["id"] ?? null;
-            carddav::$logger->debug('Changed Group ' . $save_data['name']);
+            carddav::$logger->debug("Changed Group $uri " . $save_data['name']);
             // delete current group members (will be reinserted if needed below)
             if ($dbid) {
                 RoundcubeCarddavAddressbook::delete_dbrecord($dbid,'group_user','group_id');
@@ -79,6 +80,7 @@ class SyncHandlerRoundcube implements SyncHandler
                 }
             }
         } else { // individual/other
+            $dbid = $this->existing_card_cache[$uri]["id"] ?? null;
             if (trim($save_data['name']) == '') { // roundcube display fix for contacts that don't have first/last names
                 if (trim($save_data['nickname'] ?? "") !== '') {
                     $save_data['name'] = $save_data['nickname'];
@@ -92,8 +94,10 @@ class SyncHandlerRoundcube implements SyncHandler
                 }
             }
 
-            carddav::$logger->debug('Changed Individual ' . $save_data['name']);
-            $this->rcAbook->dbstore_contact($etag,$uri, $vcf, $save_data, $dbid);
+            carddav::$logger->debug("Changed Individual $uri " . $save_data['name']);
+            if ($this->rcAbook->dbstore_contact($etag, $uri, $vcf, $save_data, $dbid) === false) {
+                throw new \Exception("Storing contact $uri to database failed");
+            }
         }
     }
 
