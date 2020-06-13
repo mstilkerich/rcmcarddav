@@ -1406,28 +1406,36 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     /**
      * Mark one or more contact records as deleted
      *
-     * @param array  Record identifiers
-     * @param bool   Remove records irreversible (see self::undelete)
+     * @param array $ids   Record identifiers
+     * @param bool  $force Remove records irreversible (see self::undelete)
      */
     public function delete($ids, $force = true)
     {
         $deleted = 0;
-        foreach ($ids as $dbid) {
-            $contact = self::get_dbrecord($dbid,'uri');
-            if(!$contact) continue;
 
-            // delete contact from all groups it is contained in
-            $groups = $this->get_record_groups($dbid);
-            foreach($groups as $group_id => $grpname)
-                $this->remove_from_group($group_id, $dbid);
+        try {
+            $this->createCardDavObj();
+            foreach ($ids as $dbid) {
+                $contact = self::get_dbrecord($dbid,'uri');
+                if($contact === false) {
+                    carddav::$logger->error("Record $dbid requested for deletion not found in database");
+                } else {
+                    // delete contact from all groups it is contained in
+                    $groups = $this->get_record_groups($dbid);
+                    foreach($groups as $group_id => $grpname) {
+                        $this->remove_from_group($group_id, $dbid);
+                    }
 
-            if($this->delete_record_from_carddav($contact['uri'])) {
-                $deleted += self::delete_dbrecord($dbid);
+                    $this->davAbook->deleteCard($contact['uri']);
+                    ++$deleted;
+                }
             }
+            $this->refreshdb_from_server();
+        } catch (\Exeption $e) {
+            $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
+            carddav::$logger->error("Failed to update contact $id: " . $e->getMessage());
         }
 
-        if($this->total_cards != -1)
-            $this->total_cards -= $deleted;
         return $deleted;
     }
 
