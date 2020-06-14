@@ -1085,6 +1085,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     private function download_photo(&$save_data)
     {
         try {
+            $this->createCardDavObj();
             $uri = $save_data['photo'];
             carddav::$logger->warning("download_photo: Attempt to download photo from $uri");
             $response = $this->davAbook->downloadResource($uri);
