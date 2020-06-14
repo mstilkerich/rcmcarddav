@@ -28,33 +28,6 @@ class carddav_common
     // encryption scheme
     public static $pwstore_scheme = 'encrypted';
 
-    public static function concaturl($str, $cat)
-    {
-        preg_match(";(^https?://[^/]+)(.*);", $str, $match);
-        $hostpart = $match[1];
-        $urlpart  = $match[2];
-
-        // is $cat already a full URL?
-        if(strpos($cat, '://') !== FALSE) {
-            return $cat;
-        }
-
-        // is $cat a simple filename?
-        // then attach it to the URL
-        if (substr($cat, 0, 1) != "/"){
-            $urlpart .= "/$cat";
-
-            // $cat is a full path, the append it to the
-            // hostpart only
-        } else {
-            $urlpart = $cat;
-        }
-
-        // remove // in the path
-        $urlpart = preg_replace(';//+;','/',$urlpart);
-        return $hostpart.$urlpart;
-    }
-
     // password helpers
     private static function carddav_des_key()
     {
@@ -101,24 +74,6 @@ class carddav_common
 
         // default: base64-coded password
         return '{BASE64}'.base64_encode($clear);
-    }
-
-    public static function password_scheme($crypt)
-    {
-        if(strpos($crypt, '{IGNORE}') === 0)
-            return 'ignore';
-
-        if(strpos($crypt, '{ENCRYPTED}') === 0)
-            return 'encrypted';
-
-        if(strpos($crypt, '{DES_KEY}') === 0)
-            return 'des_key';
-
-        if(strpos($crypt, '{BASE64}') === 0)
-            return 'base64';
-
-        // unknown scheme, assume cleartext
-        return 'plain';
     }
 
     public static function decrypt_password($crypt)

@@ -28,7 +28,6 @@ require_once("carddav_common.php");
 class carddav extends rcube_plugin
 {
 	public static $logger;
-	private static $helper;
 
 	// the dummy task is used by the calendar plugin, which requires
 	// the addressbook to be initialized
@@ -153,9 +152,6 @@ class carddav extends rcube_plugin
 	{{{
 	$dbh = rcmail::get_instance()->db;
 	$prefs = carddav_common::get_adminsettings();
-
-	// migrate old settings
-	RoundcubeCarddavAddressbook::migrateconfig();
 
 	// read existing presets from DB
 	$sql_result = $dbh->query('SELECT * FROM ' .
