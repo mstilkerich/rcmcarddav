@@ -1,4 +1,5 @@
 <?php
+
 /*
     RCM CardDAV Plugin
     Copyright (C) 2011-2016 Benjamin Schieder <rcmcarddav@wegwerf.anderdonau.de>,
@@ -140,16 +141,17 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         ); /* } */
         $this->addextrasubtypes();
 
-        if($this->config['presetname']) {
+        if ($this->config['presetname']) {
             $prefs = carddav_common::get_adminsettings();
-            if($prefs[$this->config['presetname']]['readonly'])
+            if ($prefs[$this->config['presetname']]['readonly']) {
                 $this->readonly = true;
+            }
         }
 
         // refresh the address book if the update interval expired
         // this requires a completely initialized RoundcubeCarddavAddressbook object, so it
         // needs to be at the end of this constructor
-        if ($this->config["needs_update"]){
+        if ($this->config["needs_update"]) {
             $this->refreshdb_from_server(true);
         }
     }
@@ -168,10 +170,14 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     private function storeextrasubtype($typename, $subtype)
     {
         $dbh = rcmail::get_instance()->db;
-        $sql_result = $dbh->query('INSERT INTO ' .
+        $sql_result = $dbh->query(
+            'INSERT INTO ' .
             $dbh->table_name('carddav_xsubtypes') .
             ' (typename,subtype,abook_id) VALUES (?,?,?)',
-            $typename, $subtype, $this->id);
+            $typename,
+            $subtype,
+            $this->id
+        );
     }
 
     /**
@@ -185,14 +191,14 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     {
         $this->xlabels = [];
 
-        foreach($this->coltypes as $k => $v) {
-            if(key_exists('subtypes', $v)) {
+        foreach ($this->coltypes as $k => $v) {
+            if (key_exists('subtypes', $v)) {
                 $this->xlabels[$k] = [];
             }
         }
 
         // read extra subtypes
-        $xtypes = self::get_dbrecord($this->id,'typename,subtype','xsubtypes',false,'abook_id');
+        $xtypes = self::get_dbrecord($this->id, 'typename,subtype', 'xsubtypes', false, 'abook_id');
 
         foreach ($xtypes as $row) {
             $this->coltypes[$row['typename']]['subtypes'][] = $row['subtype'];
@@ -247,31 +253,34 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      */
     private static function set_displayname(&$save_data)
     {
-        if(strcasecmp($save_data['showas'], 'COMPANY') == 0 && strlen($save_data['organization'])>0) {
+        if (strcasecmp($save_data['showas'], 'COMPANY') == 0 && strlen($save_data['organization']) > 0) {
             $save_data['name']     = $save_data['organization'];
         }
 
         // we need a displayname; if we do not have one, try to make one up
-        if(strlen($save_data['name']) == 0) {
+        if (strlen($save_data['name']) == 0) {
             $dname = [];
-            if(strlen($save_data['firstname'])>0)
+            if (strlen($save_data['firstname']) > 0) {
                 $dname[] = $save_data['firstname'];
-            if(strlen($save_data['surname'])>0)
+            }
+            if (strlen($save_data['surname']) > 0) {
                 $dname[] = $save_data['surname'];
+            }
 
-            if(count($dname) > 0) {
+            if (count($dname) > 0) {
                 $save_data['name'] = implode(' ', $dname);
-
             } else { // no name? try email and phone
                 $ep_keys = array_keys($save_data);
                 $ep_keys = preg_grep(";^(email|phone):;", $ep_keys);
                 sort($ep_keys, SORT_STRING);
-                foreach($ep_keys as $ep_key) {
+                foreach ($ep_keys as $ep_key) {
                     $ep_vals = $save_data[$ep_key];
-                    if(!is_array($ep_vals)) $ep_vals = array($ep_vals);
+                    if (!is_array($ep_vals)) {
+                        $ep_vals = array($ep_vals);
+                    }
 
-                    foreach($ep_vals as $ep_val) {
-                        if(strlen($ep_val)>0) {
+                    foreach ($ep_vals as $ep_val) {
+                        if (strlen($ep_val) > 0) {
                             $save_data['name'] = $ep_val;
                             break 2;
                         }
@@ -280,8 +289,9 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             }
 
             // still no name? set to unknown and hope the user will fix it
-            if(strlen($save_data['name']) == 0)
+            if (strlen($save_data['name']) == 0) {
                 $save_data['name'] = 'Unset Displayname';
+            }
         }
     }
 
@@ -312,24 +322,27 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         // get rid of the %u placeholder in the URI, otherwise the refresh operation
         // will not be able to match local cards with those provided by the server
         $username = $this->config['username'];
-        if($username === "%u") {
+        if ($username === "%u") {
             $username = $_SESSION['username'];
         }
 
         $carddesc = $uri ?? "(entry not backed by card)";
-        $xcol[] = 'name';  $xval[] = $save_data['name'];
+        $xcol[] = 'name';
+        $xval[] = $save_data['name'];
 
         if (isset($etag)) {
-            $xcol[] = 'etag';  $xval[] = $etag;
+            $xcol[] = 'etag';
+            $xval[] = $etag;
         }
 
         if (isset($vcfstr)) {
-            $xcol[] = 'vcard'; $xval[] = $vcfstr;
+            $xcol[] = 'vcard';
+            $xval[] = $vcfstr;
         }
 
-        if(isset($dbid)) {
+        if (isset($dbid)) {
             carddav::$logger->debug("UPDATE card $dbid/$carddesc in $table");
-            $xval[]=$dbid;
+            $xval[] = $dbid;
             $sql_result = $dbh->query('UPDATE ' .
                 $dbh->table_name("carddav_$table") .
                 ' SET ' . implode('=?,', $xcol) . '=?' .
@@ -337,20 +350,25 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         } else {
             carddav::$logger->debug("INSERT card $carddesc to $table");
 
-            $xcol[] = 'abook_id'; $xval[] = $this->id;
+            $xcol[] = 'abook_id';
+            $xval[] = $this->id;
 
             if (isset($uri)) {
                 $uri = str_replace("%u", $username, $uri);
-                $xcol[] = 'uri';      $xval[] = $uri;
+                $xcol[] = 'uri';
+                $xval[] = $uri;
             }
             if (isset($save_data['cuid'])) {
-                $xcol[] = 'cuid';     $xval[] = $save_data['cuid'];
+                $xcol[] = 'cuid';
+                $xval[] = $save_data['cuid'];
             }
 
-            $sql_result = $dbh->query('INSERT INTO ' .
+            $sql_result = $dbh->query(
+                'INSERT INTO ' .
                 $dbh->table_name("carddav_$table") .
-                ' (' . implode(',',$xcol) . ') VALUES (?' . str_repeat(',?', count($xcol)-1) .')',
-                $xval);
+                ' (' . implode(',', $xcol) . ') VALUES (?' . str_repeat(',?', count($xcol) - 1) . ')',
+                $xval
+            );
 
             $dbid = $dbh->insert_id("carddav_$table");
         }
@@ -381,17 +399,17 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         // build email search string
         $email_keys = preg_grep('/^email(:|$)/', array_keys($save_data));
         $email_addrs = [];
-        foreach($email_keys as $email_key) {
+        foreach ($email_keys as $email_key) {
             $email_addrs = array_merge($email_addrs, (array) $save_data[$email_key]);
         }
         $save_data['email'] = implode(', ', $email_addrs);
 
         // extra columns for the contacts table
-        $xcol_all=array('firstname','surname','organization','showas','email');
+        $xcol_all = array('firstname','surname','organization','showas','email');
         $xcol = [];
         $xval = [];
-        foreach($xcol_all as $k) {
-            if(key_exists($k,$save_data)) {
+        foreach ($xcol_all as $k) {
+            if (key_exists($k, $save_data)) {
                 $xcol[] = $k;
                 $xval[] = $save_data[$k];
             }
@@ -424,18 +442,21 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             carddav::$logger->debug("server refresh took $duration seconds");
 
             // set last_updated timestamp
-            $dbh->query('UPDATE ' .
+            $dbh->query(
+                'UPDATE ' .
                 $dbh->table_name('carddav_addressbooks') .
-                ' SET last_updated=' . $dbh->now() .' WHERE id=?',
-                $this->id);
+                ' SET last_updated=' . $dbh->now() . ' WHERE id=?',
+                $this->id
+            );
 
             if ($showUIMsg) {
                 $rcmail->output->show_message(
-                    $this->frontend->gettext(array('name'=>'cd_msg_synchronized', 'vars' => array(
+                    $this->frontend->gettext(array('name' => 'cd_msg_synchronized', 'vars' => array(
                         'name' => $this->get_name(),
                         'duration' => $duration,
                     )
-                )));
+                    ))
+                );
             }
         } catch (\Exception $e) {
             carddav::$logger->error("Errors occurred during the refresh of addressbook " . $this->id . ": $e");
@@ -454,7 +475,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     {
         $this->result = $this->count();
 
-        $records = $this->list_records_readdb($cols,$subset);
+        $records = $this->list_records_readdb($cols, $subset);
         if ($this->list_page <= 1) {
             if ($records < $this->page_size && $subset == 0) {
                 $this->result->count = $records;
@@ -466,13 +487,13 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         return ($records > 0) ? $this->result : false;
     }
 
-    private function list_records_readdb($cols, $subset=0, $count_only=false)
+    private function list_records_readdb($cols, $subset = 0, $count_only = false)
     {
         $dbh = rcmail::get_instance()->db;
 
         // true if we can use DB filtering or no filtering is requested
         $filter = $this->get_search_set();
-        $this->determine_filter_params($cols,$subset, $firstrow, $numrows, $read_vcard);
+        $this->determine_filter_params($cols, $subset, $firstrow, $numrows, $read_vcard);
 
         carddav::$logger->debug("list_records_readdb " . (isset($cols) ? implode(",", $cols) : "ALL") . " $read_vcard");
 
@@ -483,16 +504,16 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
         $xfrom = '';
         $xwhere = '';
-        if($this->group_id) {
+        if ($this->group_id) {
             $xfrom = ',' . $dbh->table_name('carddav_group_user');
             $xwhere = ' AND id=contact_id AND group_id=' . $dbh->quote($this->group_id) . ' ';
         }
 
-        if ($this->config['presetname']){
+        if ($this->config['presetname']) {
             $prefs = carddav_common::get_adminsettings();
-            if (key_exists("require_always", $prefs[$this->config['presetname']])){
-                foreach ($prefs[$this->config['presetname']]["require_always"] as $col){
-                    $xwhere .= " AND $col <> ".$dbh->quote('')." ";
+            if (key_exists("require_always", $prefs[$this->config['presetname']])) {
+                foreach ($prefs[$this->config['presetname']]["require_always"] as $col) {
+                    $xwhere .= " AND $col <> " . $dbh->quote('') . " ";
                 }
             }
         }
@@ -501,10 +522,11 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         $sort_column = $this->sort_col ? $this->sort_col : 'surname';
         $sort_order  = $this->sort_order ? $this->sort_order : 'ASC';
 
-        $sql_result = $dbh->limitquery("SELECT id,name,$dbattr FROM " .
+        $sql_result = $dbh->limitquery(
+            "SELECT id,name,$dbattr FROM " .
             $dbh->table_name('carddav_contacts') . $xfrom .
             ' WHERE abook_id=? ' . $xwhere .
-            ($this->filter ? " AND (".$this->filter.")" : "") .
+            ($this->filter ? " AND (" . $this->filter . ")" : "") .
             " ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $sort_column . " END) "
             . $sort_order,
             $limit_index,
@@ -513,8 +535,8 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         );
 
         $addresses = [];
-        while($contact = $dbh->fetch_assoc($sql_result)) {
-            if($read_vcard) {
+        while ($contact = $dbh->fetch_assoc($sql_result)) {
+            if ($read_vcard) {
                 try {
                     $vcf = VObject\Reader::read($contact['vcard'], VObject\Reader::OPTION_FORGIVING);
                     $save_data = $this->create_save_data_from_vcard($vcf);
@@ -522,13 +544,13 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                     $save_data = false;
                 }
 
-                if (!$save_data){
-                    carddav::$logger->warning("Couldn't parse vcard ".$contact['vcard']);
+                if (!$save_data) {
+                    carddav::$logger->warning("Couldn't parse vcard " . $contact['vcard']);
                     continue;
                 }
 
                 // needed by the calendar plugin
-                if(is_array($cols) && in_array('vcard', $cols)) {
+                if (is_array($cols) && in_array('vcard', $cols)) {
                     $save_data['save_data']['vcard'] = $contact['vcard'];
                 }
 
@@ -536,18 +558,19 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             } else {
                 $save_data = [];
                 foreach ($cols as $col) {
-                    if(strcmp($col,'email')==0)
+                    if (strcmp($col, 'email') == 0) {
                         $save_data[$col] = preg_split('/,\s*/', $contact[$col]);
-                    else
+                    } else {
                         $save_data[$col] = $contact[$col];
+                    }
                 }
             }
             $addresses[] = array('ID' => $contact['id'], 'name' => $contact['name'], 'save_data' => $save_data);
         }
 
-        if(!$count_only) {
+        if (!$count_only) {
             // create results for roundcube
-            foreach($addresses as $a) {
+            foreach ($addresses as $a) {
                 $a['save_data']['ID'] = $a['ID'];
                 $this->result->add($a['save_data']);
             }
@@ -570,13 +593,15 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      *
      * @return object rcube_result_set Contact records and 'count' value
      */
-    public function search($fields, $value, $mode=0, $select=true, $nocount=false, $required = [])
+    public function search($fields, $value, $mode = 0, $select = true, $nocount = false, $required = [])
     {
         $dbh = rcmail::get_instance()->db;
-        if (!is_array($fields))
+        if (!is_array($fields)) {
             $fields = array($fields);
-        if (!is_array($required) && !empty($required))
+        }
+        if (!is_array($required) && !empty($required)) {
             $required = array($required);
+        }
 
         $where = $and_where = [];
         $mode = intval($mode);
@@ -589,7 +614,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             if ($col == 'ID' || $col == $this->primary_key) {
                 $ids     = !is_array($value) ? explode(self::SEPARATOR, $value) : $value;
                 $ids     = $dbh->array2list($ids, 'integer');
-                $where[] = $this->primary_key.' IN ('.$ids.')';
+                $where[] = $this->primary_key . ' IN (' . $ids . ')';
                 continue;
             }
 
@@ -622,7 +647,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                     if ($mode & 1) {
                         // strict
                         $words[] = '(' . $dbh->ilike('vcard', $word . $WS . '%')
-                            . ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word . $WS .'%')
+                            . ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word . $WS . '%')
                             . ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word) . ')';
                     } elseif ($mode & 2) {
                         // prefix
@@ -634,20 +659,21 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                     }
                 }
                 $where[] = '(' . join(' AND ', $words) . ')';
-                if (is_array($value))
+                if (is_array($value)) {
                     $post_search[$col] = mb_strtolower($val);
+                }
             }
         }
 
-        if ($this->config['presetname']){
+        if ($this->config['presetname']) {
             $prefs = carddav_common::get_adminsettings();
-            if (key_exists("require_always", $prefs[$this->config['presetname']])){
+            if (key_exists("require_always", $prefs[$this->config['presetname']])) {
                 $required = array_merge($prefs[$this->config['presetname']]["require_always"], $required);
             }
         }
 
         foreach (array_intersect($required, $this->table_cols) as $col) {
-            $and_where[] = $dbh->quoteIdentifier($col).' <> '.$dbh->quote('');
+            $and_where[] = $dbh->quoteIdentifier($col) . ' <> ' . $dbh->quote('');
         }
 
         if (!empty($where)) {
@@ -655,8 +681,9 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             $where = join(is_array($value) ? ' AND ' : ' OR ', $where);
         }
 
-        if (!empty($and_where))
+        if (!empty($and_where)) {
             $where = ($where ? "($where) AND " : '') . join(' AND ', $and_where);
+        }
 
         // Post-searching in vCard data fields
         // we will search in all records and then build a where clause for their IDs
@@ -665,8 +692,9 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             // build key name regexp
             $regexp = '/^(' . implode(array_keys($post_search), '|') . ')(?:.*)$/';
             // use initial WHERE clause, to limit records number if possible
-            if (!empty($where))
+            if (!empty($where)) {
                 $this->set_search_set($where);
+            }
 
             // count result pages
             $cnt   = $this->count();
@@ -674,7 +702,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             $scnt  = count($post_search);
 
             // get (paged) result
-            for ($i=0; $i<$pages; $i++) {
+            for ($i = 0; $i < $pages; $i++) {
                 $this->list_records(null, $i, true);
                 while ($row = $this->result->next()) {
                     $id = $row[$this->primary_key];
@@ -711,7 +739,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
             // build WHERE clause
             $ids = $dbh->array2list($ids, 'integer');
-            $where = $this->primary_key.' IN ('.$ids.')';
+            $where = $this->primary_key . ' IN (' . $ids . ')';
 
             // when we know we have an empty result
             if ($ids == '0') {
@@ -722,10 +750,11 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
         if (!empty($where)) {
             $this->set_search_set($where);
-            if ($select)
+            if ($select) {
                 $this->list_records(null, 0, $nocount);
-            else
+            } else {
                 $this->result = $this->count();
+            }
         }
 
         return $this->result;
@@ -739,22 +768,23 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     public function count()
     {
         carddav::$logger->debug("count()");
-        if($this->total_cards < 0) {
+        if ($this->total_cards < 0) {
             $this->_count();
         }
-        return new rcube_result_set($this->total_cards, ($this->list_page-1) * $this->page_size);
+        return new rcube_result_set($this->total_cards, ($this->list_page - 1) * $this->page_size);
     }
 
     // Determines and returns the number of cards matching the current search criteria
     private function _count()
     {
-        if($this->total_cards < 0) {
+        if ($this->total_cards < 0) {
             $dbh = rcmail::get_instance()->db;
 
-            $sql_result = $dbh->query('SELECT COUNT(id) as total_cards FROM ' .
+            $sql_result = $dbh->query(
+                'SELECT COUNT(id) as total_cards FROM ' .
                 $dbh->table_name('carddav_contacts') .
                 ' WHERE abook_id=?' .
-                ($this->filter ? " AND (".$this->filter.")" : ""),
+                ($this->filter ? " AND (" . $this->filter . ")" : ""),
                 $this->id
             );
 
@@ -770,8 +800,8 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         $read_vcard = (!isset($cols)) || (count(array_intersect($cols, $this->table_cols)) < count($cols));
 
         // determine result subset needed
-        $firstrow = ($subset>=0) ?
-            $this->result->first : ($this->result->first+$this->page_size+$subset);
+        $firstrow = ($subset >= 0) ?
+            $this->result->first : ($this->result->first + $this->page_size + $subset);
         $numrows  = $subset ? abs($subset) : $this->page_size;
     }
 
@@ -809,7 +839,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             $vcard = $this->parseVCard($contact['vcard']);
 
             $retval = $this->create_save_data_from_vcard($vcard);
-            if(!$retval) {
+            if (!$retval) {
                 carddav::$logger->error("failed to create save_data from contact (DB id: $id)");
                 return false;
             }
@@ -835,10 +865,10 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     /**
      * Creates a new or updates an existing vcard from save data.
      */
-    private function create_vcard_from_save_data($save_data, $vcf=null)
+    private function create_vcard_from_save_data($save_data, $vcf = null)
     {
         unset($save_data['vcard']);
-        if(isset($vcf)) {
+        if (isset($vcf)) {
             // update revision
             $vcf->REV = gmdate("Y-m-d\TH:i:s\Z");
         } else {
@@ -850,7 +880,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         }
 
         // N is mandatory
-        if(key_exists('kind',$save_data) && $save_data['kind'] === 'group') {
+        if (key_exists('kind', $save_data) && $save_data['kind'] === 'group') {
             $vcf->N = [$save_data['name'],"","","",""];
         } else {
             $vcf->N = [
@@ -863,17 +893,19 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         }
 
         $new_org_value = [];
-        if (key_exists("organization", $save_data) &&
-            strlen($save_data['organization']) > 0 ){
+        if (
+            key_exists("organization", $save_data) &&
+            strlen($save_data['organization']) > 0
+        ) {
             $new_org_value[] = $save_data['organization'];
         }
 
-        if (key_exists("department", $save_data)){
-            if (is_array($save_data['department'])){
+        if (key_exists("department", $save_data)) {
+            if (is_array($save_data['department'])) {
                 foreach ($save_data['department'] as $key => $value) {
                     $new_org_value[] = $value;
                 }
-            } else if (strlen($save_data['department']) > 0){
+            } elseif (strlen($save_data['department']) > 0) {
                 $new_org_value[] = $save_data['department'];
             }
         }
@@ -890,25 +922,25 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                 $data = (is_array($save_data[$key])) ?  $save_data[$key][0] : $save_data[$key];
                 if (strlen($data) > 0) {
                     $val = rcube_utils::strtotime($data);
-                    $save_data[$key] = date('Y-m-d',$val);
+                    $save_data[$key] = date('Y-m-d', $val);
                 }
             }
         }
 
-        if (key_exists('photo', $save_data) && strlen($save_data['photo']) > 0 && base64_decode($save_data['photo'], true) !== FALSE){
+        if (key_exists('photo', $save_data) && strlen($save_data['photo']) > 0 && base64_decode($save_data['photo'], true) !== false) {
             carddav::$logger->debug("photo is base64 encoded. Decoding...");
-            $i=0;
-            while(base64_decode($save_data['photo'], true)!==FALSE && $i++ < 10){
+            $i = 0;
+            while (base64_decode($save_data['photo'], true) !== false && $i++ < 10) {
                 carddav::$logger->debug("Decoding $i...");
                 $save_data['photo'] = base64_decode($save_data['photo'], true);
             }
-            if ($i >= 10){
-                carddav::$logger->warning("PHOTO of ".$save_data['uid']." does not decode after 10 attempts...");
+            if ($i >= 10) {
+                carddav::$logger->warning("PHOTO of " . $save_data['uid'] . " does not decode after 10 attempts...");
             }
         }
 
         // process all simple attributes
-        foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
+        foreach ($this->vcf2rc['simple'] as $vkey => $rckey) {
             if (key_exists($rckey, $save_data)) {
                 $data = (is_array($save_data[$rckey])) ? $save_data[$rckey][0] : $save_data[$rckey];
                 if (strlen($data) > 0) {
@@ -926,22 +958,22 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         }
 
         // process all multi-value attributes
-        foreach ($this->vcf2rc['multi'] as $vkey => $rckey){
+        foreach ($this->vcf2rc['multi'] as $vkey => $rckey) {
             // delete and fully recreate all entries
             // there is no easy way of mapping an address in the existing card
             // to an address in the save data, as subtypes may have changed
             unset($vcf->{$vkey});
 
             $stmap = array( $rckey => 'other' );
-            foreach ($this->coltypes[$rckey]['subtypes'] AS $subtype){
-                $stmap[ $rckey.':'.$subtype ] = $subtype;
+            foreach ($this->coltypes[$rckey]['subtypes'] as $subtype) {
+                $stmap[ $rckey . ':' . $subtype ] = $subtype;
             }
 
-            foreach ($stmap as $rcqkey => $subtype){
-                if(key_exists($rcqkey, $save_data)) {
+            foreach ($stmap as $rcqkey => $subtype) {
+                if (key_exists($rcqkey, $save_data)) {
                     $avalues = is_array($save_data[$rcqkey]) ? $save_data[$rcqkey] : array($save_data[$rcqkey]);
-                    foreach($avalues as $evalue) {
-                        if (strlen($evalue) > 0){
+                    foreach ($avalues as $evalue) {
+                        if (strlen($evalue) > 0) {
                             $prop = $vcf->add($vkey, $evalue);
                             $this->set_attr_label($vcf, $prop, $rckey, $subtype); // set label
                         }
@@ -952,17 +984,18 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
         // process address entries
         unset($vcf->ADR);
-        foreach ($this->coltypes['address']['subtypes'] AS $subtype){
-            $rcqkey = 'address:'.$subtype;
+        foreach ($this->coltypes['address']['subtypes'] as $subtype) {
+            $rcqkey = 'address:' . $subtype;
 
-            if(key_exists($rcqkey, $save_data)) {
-                foreach($save_data[$rcqkey] as $avalue) {
-                    if ( strlen($avalue['street'])
+            if (key_exists($rcqkey, $save_data)) {
+                foreach ($save_data[$rcqkey] as $avalue) {
+                    if (
+                        strlen($avalue['street'])
                         || strlen($avalue['locality'])
                         || strlen($avalue['region'])
                         || strlen($avalue['zipcode'])
-                        || strlen($avalue['country'])) {
-
+                        || strlen($avalue['country'])
+                    ) {
                         $prop = $vcf->add('ADR', array(
                             '',
                             '',
@@ -986,8 +1019,8 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         $group = $pvalue->group;
 
         // X-ABLabel?
-        if(in_array($newlabel, $this->xlabels[$attrname])) {
-            if(!$group) {
+        if (in_array($newlabel, $this->xlabels[$attrname])) {
+            if (!$group) {
                 do {
                     $group = $this->guid();
                 } while (null !== $vcard->{$group . '.X-ABLabel'});
@@ -996,8 +1029,10 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
                 // delete standard label if we had one
                 $oldlabel = $pvalue['TYPE'];
-                if(strlen($oldlabel)>0 &&
-                    in_array($oldlabel, $this->coltypes[$attrname]['subtypes'])) {
+                if (
+                    strlen($oldlabel) > 0 &&
+                    in_array($oldlabel, $this->coltypes[$attrname]['subtypes'])
+                ) {
                     unset($pvalue['TYPE']);
                 }
             }
@@ -1008,19 +1043,21 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
         // Standard Label
         $had_xlabel = false;
-        if($group) { // delete group label property if present
+        if ($group) { // delete group label property if present
             $had_xlabel = isset($vcard->{$group . '.X-ABLabel'});
             unset($vcard->{$group . '.X-ABLabel'});
         }
 
         // add or replace?
         $oldlabel = $pvalue['TYPE'];
-        if(strlen($oldlabel)>0 &&
-            in_array($oldlabel, $this->coltypes[$attrname]['subtypes'])) {
+        if (
+            strlen($oldlabel) > 0 &&
+            in_array($oldlabel, $this->coltypes[$attrname]['subtypes'])
+        ) {
             $had_xlabel = false; // replace
         }
 
-        if($had_xlabel &&is_array($pvalue['TYPE'])) {
+        if ($had_xlabel && is_array($pvalue['TYPE'])) {
             $new_type = $pvalue['TYPE'];
             array_unshift($new_type, $newlabel);
         } else {
@@ -1037,48 +1074,51 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         $xlabel = '';
         $fallback = null;
 
-        if(isset($pvalue['TYPE'])) {
-            foreach($pvalue['TYPE'] as $type)
-            {
+        if (isset($pvalue['TYPE'])) {
+            foreach ($pvalue['TYPE'] as $type) {
                 $type = strtolower($type);
-                if(is_array($this->coltypes[$attrname]['subtypes']) && in_array($type, $this->coltypes[$attrname]['subtypes']) )
-                {
+                if (is_array($this->coltypes[$attrname]['subtypes']) && in_array($type, $this->coltypes[$attrname]['subtypes'])) {
                     $fallback = $type;
-                    if(!(is_array($this->fallbacktypes[$attrname])
-                        && in_array($type, $this->fallbacktypes[$attrname])))
-                    {
+                    if (
+                        !(is_array($this->fallbacktypes[$attrname])
+                        && in_array($type, $this->fallbacktypes[$attrname]))
+                    ) {
                         return $type;
                     }
                 }
             }
         }
 
-        if($fallback) { return $fallback; }
+        if ($fallback) {
+            return $fallback;
+        }
 
         // check for a custom label using Apple's X-ABLabel extension
         $group = $pvalue->group;
-        if($group) {
+        if ($group) {
             $xlabel = $vcard->{$group . '.X-ABLabel'};
-            if($xlabel) {
+            if ($xlabel) {
                 $xlabel = $xlabel->getParts();
-                if($xlabel)
+                if ($xlabel) {
                     $xlabel = $xlabel[0];
+                }
             }
 
             // strange Apple label that I don't know to interpret
-            if(strlen($xlabel)<=0) {
+            if (strlen($xlabel) <= 0) {
                 return 'other';
             }
 
-            if(preg_match(';_\$!<(.*)>!\$_;', $xlabel, $matches)) {
+            if (preg_match(';_\$!<(.*)>!\$_;', $xlabel, $matches)) {
                 $match = strtolower($matches[1]);
-                if(in_array($match, $this->coltypes[$attrname]['subtypes']))
+                if (in_array($match, $this->coltypes[$attrname]['subtypes'])) {
                     return $match;
+                }
                 return 'other';
             }
 
             // add to known types if new
-            if(!in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
+            if (!in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
                 $this->storeextrasubtype($attrname, $xlabel);
                 $this->coltypes[$attrname]['subtypes'][] = $xlabel;
             }
@@ -1123,79 +1163,79 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      */
     public function create_save_data_from_vcard($vcard)
     {
-        $needs_update=false;
+        $needs_update = false;
         $save_data = array(
             // DEFAULTS
             'kind'   => 'individual',
         );
 
-        foreach ($this->vcf2rc['simple'] as $vkey => $rckey){
+        foreach ($this->vcf2rc['simple'] as $vkey => $rckey) {
             $property = $vcard->{$vkey};
-            if ($property !== null){
+            if ($property !== null) {
                 $p = $property->getParts();
                 $save_data[$rckey] = $p[0];
             }
         }
 
         // inline photo if external reference
-        if(key_exists('photo', $save_data)) {
+        if (key_exists('photo', $save_data)) {
             $kind = $vcard->PHOTO['VALUE'];
-            if($kind && strcasecmp('uri', $kind)==0) {
-                if($this->download_photo($save_data)) {
+            if ($kind && strcasecmp('uri', $kind) == 0) {
+                if ($this->download_photo($save_data)) {
                     $props = [];
                     foreach ($vcard->PHOTO->parameters() as $property => $value) {
-                        if(strcasecmp($property, 'VALUE') != 0) {
+                        if (strcasecmp($property, 'VALUE') != 0) {
                             $props[$property] = $value;
                         }
                     }
                     $props['ENCODING'] = 'b';
                     unset($vcard->PHOTO);
                     $vcard->add('PHOTO', $save_data['photo'], $props);
-                    $needs_update=true;
+                    $needs_update = true;
                 }
             }
             self::xabcropphoto($vcard, $save_data);
         }
 
         $property = $vcard->N;
-        if ($property !== null){
+        if ($property !== null) {
             $N = $property->getParts();
-            switch(count($N)){
-            case 5:
-                $save_data['suffix']     = $N[4];
-            case 4:
-                $save_data['prefix']     = $N[3];
-            case 3:
-                $save_data['middlename'] = $N[2];
-            case 2:
-                $save_data['firstname']  = $N[1];
-            case 1:
-                $save_data['surname']    = $N[0];
+            switch (count($N)) {
+                case 5:
+                    $save_data['suffix']     = $N[4];
+                case 4:
+                    $save_data['prefix']     = $N[3];
+                case 3:
+                    $save_data['middlename'] = $N[2];
+                case 2:
+                    $save_data['firstname']  = $N[1];
+                case 1:
+                    $save_data['surname']    = $N[0];
             }
         }
 
         $property = $vcard->ORG;
-        if ($property){
+        if ($property) {
             $ORG = $property->getParts();
             $save_data['organization'] = $ORG[0];
-            for ($i = 1; $i <= count($ORG); $i++){
+            for ($i = 1; $i <= count($ORG); $i++) {
                 $save_data['department'][] = $ORG[$i];
             }
         }
 
-        foreach ($this->vcf2rc['multi'] as $key => $value){
+        foreach ($this->vcf2rc['multi'] as $key => $value) {
             $property = $vcard->{$key};
             if ($property !== null) {
-                foreach ($property as $property_instance){
+                foreach ($property as $property_instance) {
                     $p = $property_instance->getParts();
                     $label = $this->get_attr_label($vcard, $property_instance, $value);
-                    $save_data[$value.':'.$label][] = $p[0];
+                    $save_data[$value . ':' . $label][] = $p[0];
                 }
             }
         }
 
         $property = ($vcard->ADR) ?: [];
-        foreach ($property as $property_instance){
+        foreach ($property as $property_instance) {
             $p = $property_instance->getParts();
             $label = $this->get_attr_label($vcard, $property_instance, 'address');
             $adr = array(
@@ -1207,7 +1247,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                 'zipcode'  => $p[5], // postal code
                 'country'  => $p[6], // country name
             );
-            $save_data['address:'.$label][] = $adr;
+            $save_data['address:' . $label][] = $adr;
         }
 
         // set displayname according to settings
@@ -1268,7 +1308,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      *
      * @return mixed The created record ID on success, False on error
      */
-    public function insert($save_data, $check=false)
+    public function insert($save_data, $check = false)
     {
         try {
             carddav::$logger->debug("insert(" . $save_data["name"] . ", $check)");
@@ -1296,15 +1336,17 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     {
         // heuristic to determine X-ABShowAs setting
         // organization set but neither first nor surname => showas company
-        if(!$save_data['surname'] && !$save_data['firstname']
-            && $save_data['organization'] && !key_exists('showas',$save_data)) {
+        if (
+            !$save_data['surname'] && !$save_data['firstname']
+            && $save_data['organization'] && !key_exists('showas', $save_data)
+        ) {
             $save_data['showas'] = 'COMPANY';
         }
-        if(!key_exists('showas',$save_data)) {
+        if (!key_exists('showas', $save_data)) {
             $save_data['showas'] = 'INDIVIDUAL';
         }
         // organization not set but showas==company => show as regular
-        if(!$save_data['organization'] && $save_data['showas']==='COMPANY') {
+        if (!$save_data['organization'] && $save_data['showas'] === 'COMPANY') {
             $save_data['showas'] = 'INDIVIDUAL';
         }
 
@@ -1331,7 +1373,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             $this->createCardDavObj();
 
             // get current DB data
-            $contact = self::get_dbrecord($id,'id,cuid,uri,etag,vcard,showas');
+            $contact = self::get_dbrecord($id, 'id,cuid,uri,etag,vcard,showas');
 
             // create vcard from current DB data to be updated with the new data
             $vcard = $this->parseVCard($contact['vcard']);
@@ -1364,13 +1406,17 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
             $contacts = self::get_dbrecord($ids, 'cuid,uri', 'contacts', false);
             $contact_cuids = array_map(
-                function ($v) { return $v["cuid"]; },
+                function ($v) {
+                    return $v["cuid"];
+                },
                 $contacts
             );
 
             // remove contacts from VCard based groups - get groups that the contacts are members of
             $groupids = array_map(
-                function ($v) { return $v["group_id"]; },
+                function ($v) {
+                    return $v["group_id"];
+                },
                 self::get_dbrecord($ids, 'group_id', 'group_user', false, 'contact_id')
             );
 
@@ -1427,7 +1473,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
                 foreach ($ids as $cid) {
                     try {
-                        $contact = self::get_dbrecord($cid,'cuid');
+                        $contact = self::get_dbrecord($cid, 'cuid');
                         $vcard->add('X-ADDRESSBOOKSERVER-MEMBER', "urn:uuid:" . $contact['cuid']);
                         ++$added;
                     } catch (\Exception $e) {
@@ -1443,9 +1489,8 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
                 $this->adjustContactCategories(
                     $ids,
-                    function (array &$groups, $contact_id) use ($groupname, &$added)
-                    {
-                        if(self::stringsAddRemove($groups, [ $groupname ])) {
+                    function (array &$groups, $contact_id) use ($groupname, &$added) {
+                        if (self::stringsAddRemove($groups, [ $groupname ])) {
                             carddav::$logger->debug("Adding contact $contact_id to category $groupname");
                             ++$added;
                             return true;
@@ -1489,13 +1534,15 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             }
 
             // get current DB data
-            $group = self::get_dbrecord($group_id,'id,name,uri,etag,vcard','groups');
+            $group = self::get_dbrecord($group_id, 'id,name,uri,etag,vcard', 'groups');
 
             // if vcard is set, this group is based on a KIND=group VCard
             if (isset($group['vcard'])) {
                 $contacts = self::get_dbrecord($ids, "cuid", "contacts", false);
                 $deleted = $this->removeContactsFromVCardBasedGroup(
-                    array_map(function ($v) { return $v["cuid"]; }, $contacts),
+                    array_map(function ($v) {
+                        return $v["cuid"];
+                    }, $contacts),
                     $group
                 );
 
@@ -1581,7 +1628,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     {
         carddav::$logger->debug("get_record_groups($id)");
         $dbh = rcmail::get_instance()->db;
-        $sql_result = $dbh->query('SELECT id,name FROM '.
+        $sql_result = $dbh->query('SELECT id,name FROM ' .
             $dbh->table_name('carddav_group_user') . ',' .
             $dbh->table_name('carddav_groups') .
             ' WHERE contact_id=? AND id=group_id', $id);
@@ -1604,8 +1651,8 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         $this->total_cards = -1;
         if (isset($gid)) {
             $dbh = rcmail::get_instance()->db;
-            $this->filter = "EXISTS(SELECT * FROM ".$dbh->table_name("carddav_group_user")."
-                WHERE group_id = '{$gid}' AND contact_id = ".$dbh->table_name("carddav_contacts").".id)";
+            $this->filter = "EXISTS(SELECT * FROM " . $dbh->table_name("carddav_group_user") . "
+                WHERE group_id = '{$gid}' AND contact_id = " . $dbh->table_name("carddav_contacts") . ".id)";
         } else {
             $this->filter = '';
         }
@@ -1651,22 +1698,24 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         $dbh = rcmail::get_instance()->db;
 
         $searchextra = "";
-        if ($search !== null){
+        if ($search !== null) {
             if ($mode & rcube_addressbook::SEARCH_STRICT) {
                 $searchextra = $dbh->ilike('name', $search);
             } elseif ($mode & rcube_addressbook::SEARCH_PREFIX) {
-                $searchextra = $dbh->ilike('name',"$search%");
+                $searchextra = $dbh->ilike('name', "$search%");
             } else {
-                $searchextra = $dbh->ilike('name',"%$search%");
+                $searchextra = $dbh->ilike('name', "%$search%");
             }
             $searchextra = ' AND ' . $searchextra;
         }
 
-        $sql_result = $dbh->query('SELECT id,name from ' .
+        $sql_result = $dbh->query(
+            'SELECT id,name from ' .
             $dbh->table_name('carddav_groups') .
             ' WHERE abook_id=?' . $searchextra .
             ' ORDER BY name ASC',
-            $this->id);
+            $this->id
+        );
 
         $groups = [];
         while ($row = $dbh->fetch_assoc($sql_result)) {
@@ -1743,8 +1792,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                 $contact_ids = $this->getContactIdsForGroup($group_id);
                 $this->adjustContactCategories(
                     $contact_ids,
-                    function(array &$groups, $contact_id) use ($groupname)
-                    {
+                    function (array &$groups, $contact_id) use ($groupname) {
                         return self::stringsAddRemove($groups, [], [$groupname]);
                     }
                 );
@@ -1788,8 +1836,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                 $contact_ids = $this->getContactIdsForGroup($group_id);
                 $this->adjustContactCategories(
                     $contact_ids,
-                    function(array &$groups, $contact_id) use ($oldname)
-                    {
+                    function (array &$groups, $contact_id) use ($oldname) {
                         return self::stringsAddRemove($groups, [ $newname ], [ $oldname ]);
                     }
                 );
@@ -1883,12 +1930,12 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
     public static function get_dbrecord(
         $id,
-        $cols='*',
-        $table='contacts',
-        $retsingle=true,
-        $idfield='id',
+        $cols = '*',
+        $table = 'contacts',
+        $retsingle = true,
+        $idfield = 'id',
         $other_conditions = []
-    ) : array {
+    ): array {
         $dbh = rcmail::get_instance()->db;
 
         $idfield = $dbh->quoteIdentifier($idfield);
@@ -1908,7 +1955,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         }
 
         // single result row expected?
-        if($retsingle) {
+        if ($retsingle) {
             $ret = $dbh->fetch_assoc($sql_result);
             if ($ret === false) {
                 throw new \Exception("Single-row query ($sql) without result");
@@ -1917,14 +1964,14 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         } else {
             // multiple rows requested
             $ret = [];
-            while($row = $dbh->fetch_assoc($sql_result)) {
+            while ($row = $dbh->fetch_assoc($sql_result)) {
                 $ret[] = $row;
             }
             return $ret;
         }
     }
 
-    public static function delete_dbrecord($ids, $table='contacts', $idfield='id', $other_conditions = [])
+    public static function delete_dbrecord($ids, $table = 'contacts', $idfield = 'id', $other_conditions = [])
     {
         $dbh = rcmail::get_instance()->db;
 
@@ -2004,7 +2051,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
             // cludge, agreed, but the MDB abstraction seems to have no way of
             // doing time calculations...
-            $timequery = '('. $dbh->now() . ' > ';
+            $timequery = '(' . $dbh->now() . ' > ';
             if ($dbh->db_provider === 'sqlite') {
                 $timequery .= ' datetime(last_updated,refresh_time))';
             } elseif ($dbh->db_provider === 'mysql') {
@@ -2013,14 +2060,17 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                 $timequery .= ' last_updated+refresh_time)';
             }
 
-            $abookrow = self::get_dbrecord($abookid,
+            $abookrow = self::get_dbrecord(
+                $abookid,
                 'id as abookid,name,username,password,url,presetname,sync_token,authentication_scheme,'
-                . $timequery . ' as needs_update', 'addressbooks');
+                . $timequery . ' as needs_update',
+                'addressbooks'
+            );
 
             if ($dbh->db_provider === 'postgres') {
                 // postgres will return 't'/'f' here for true/false, normalize it to 1/0
                 $nu = $abookrow['needs_update'];
-                $nu = ($nu==1 || $nu=='t')?1:0;
+                $nu = ($nu == 1 || $nu == 't') ? 1 : 0;
                 $abookrow['needs_update'] = $nu;
             }
         } catch (\Exception $e) {
@@ -2041,7 +2091,9 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     private function getContactIdsForGroup(int $groupid): array
     {
         $records = self::get_dbrecord($groupid, 'contact_id', 'group_user', false, 'group_id');
-        return array_map(function($v) { return $v["contact_id"]; }, $records);
+        return array_map(function ($v) {
+            return $v["contact_id"];
+        }, $records);
     }
 
     /**
@@ -2060,7 +2112,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     private function adjustContactCategories(array $contact_ids, callable $callback): void
     {
         foreach ($contact_ids as $contact_id) {
-            $contact = self::get_dbrecord($contact_id,'id,uri,etag,vcard');
+            $contact = self::get_dbrecord($contact_id, 'id,uri,etag,vcard');
             $vcard = $this->parseVCard($contact['vcard']);
             $groups = isset($vcard->CATEGORIES) ? $vcard->CATEGORIES->getParts() : [];
 

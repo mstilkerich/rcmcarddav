@@ -35,14 +35,14 @@ class SyncHandlerRoundcube implements SyncHandler
         $abookId = $this->rcAbook->getId();
 
         // determine existing local contact URIs and ETAGs
-        $contacts = RoundcubeCarddavAddressbook::get_dbrecord($abookId,'id,uri,etag','contacts',false,'abook_id');
-        foreach($contacts as $contact) {
+        $contacts = RoundcubeCarddavAddressbook::get_dbrecord($abookId, 'id,uri,etag', 'contacts', false, 'abook_id');
+        foreach ($contacts as $contact) {
             $this->existing_card_cache[$contact['uri']] = $contact;
         }
 
         // determine existing local group URIs and ETAGs
-        $groups = RoundcubeCarddavAddressbook::get_dbrecord($abookId,'id,uri,etag,name','groups',false,'abook_id');
-        foreach($groups as $group) {
+        $groups = RoundcubeCarddavAddressbook::get_dbrecord($abookId, 'id,uri,etag,name', 'groups', false, 'abook_id');
+        foreach ($groups as $group) {
             if (isset($group['uri'])) { // these are groups defined by a KIND=group VCard
                 $this->existing_grpcard_cache[$group['uri']] = $group;
             } else { // these are groups derived from CATEGORIES in the contact VCards
@@ -59,17 +59,17 @@ class SyncHandlerRoundcube implements SyncHandler
         $vcf = $vcfobj->serialize();
         $save_data = $save_data_arr['save_data'];
 
-        if($save_data['kind'] === 'group') {
+        if ($save_data['kind'] === 'group') {
             $dbid = $this->existing_grpcard_cache[$uri]["id"] ?? null;
             carddav::$logger->debug("Changed Group $uri " . $save_data['name']);
             // delete current group members (will be reinserted if needed below)
             if (isset($dbid)) {
-                RoundcubeCarddavAddressbook::delete_dbrecord($dbid,'group_user','group_id');
+                RoundcubeCarddavAddressbook::delete_dbrecord($dbid, 'group_user', 'group_id');
             }
 
             // store group card
             $dbid = $this->rcAbook->dbstore_group($save_data, $dbid, $etag, $uri, $vcf);
-            if($dbid !== false) {
+            if ($dbid !== false) {
                 // record group members for deferred store
                 $this->users_to_add[$dbid] = [];
 
@@ -77,9 +77,9 @@ class SyncHandlerRoundcube implements SyncHandler
                 $members = $vcfobj->{'X-ADDRESSBOOKSERVER-MEMBER'} ?? [];
 
                 carddav::$logger->debug("Group $dbid has " . count($members) . " members");
-                foreach($members as $mbr) {
+                foreach ($members as $mbr) {
                     $mbrc = explode(':', (string) $mbr);
-                    if(count($mbrc)!=3 || $mbrc[0] !== 'urn' || $mbrc[1] !== 'uuid') {
+                    if (count($mbrc) != 3 || $mbrc[0] !== 'urn' || $mbrc[1] !== 'uuid') {
                         carddav::$logger->warning("don't know how to interpret group membership: $mbr");
                         continue;
                     }
@@ -93,7 +93,7 @@ class SyncHandlerRoundcube implements SyncHandler
                     $save_data['name'] = $save_data['nickname'];
                 } else {
                     foreach ($save_data as $key => $val) {
-                        if (strpos($key,'email') !== false) {
+                        if (strpos($key, 'email') !== false) {
                             $save_data['name'] = $val[0];
                             break;
                         }
@@ -117,7 +117,7 @@ class SyncHandlerRoundcube implements SyncHandler
             }
 
             foreach ($categories as $category) {
-                if(isset($this->existing_category_groupids[$category])) {
+                if (isset($this->existing_category_groupids[$category])) {
                     $group_dbid = $this->existing_category_groupids[$category];
                 } else {
                     $gsave_data = [
@@ -131,7 +131,7 @@ class SyncHandlerRoundcube implements SyncHandler
                 }
 
                 if ($group_dbid !== false) {
-                    if(!isset($this->users_to_add[$group_dbid])) {
+                    if (!isset($this->users_to_add[$group_dbid])) {
                         $this->users_to_add[$group_dbid] = [];
                     }
                     $this->users_to_add[$group_dbid][] = $dbh->quote($save_data['cuid']);
@@ -178,9 +178,9 @@ class SyncHandlerRoundcube implements SyncHandler
     {
         $dbh = rcmail::get_instance()->db;
         $abookId = $this->rcAbook->getId();
-        foreach($this->users_to_add as $dbid => $cuids) {
-            if(count($cuids) > 0) {
-                $sql_result = $dbh->query('INSERT INTO '.
+        foreach ($this->users_to_add as $dbid => $cuids) {
+            if (count($cuids) > 0) {
+                $sql_result = $dbh->query('INSERT INTO ' .
                     $dbh->table_name('carddav_group_user') .
                     ' (group_id,contact_id) SELECT ?,id from ' .
                     $dbh->table_name('carddav_contacts') .
