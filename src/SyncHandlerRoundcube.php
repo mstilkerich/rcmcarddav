@@ -23,8 +23,11 @@ class SyncHandlerRoundcube implements SyncHandler
     private $existing_card_cache = [];
     /** @var array Maps URIs of KIND=group cards to an associative array containing etag and (database) id */
     private $existing_grpcard_cache = [];
-    /** @var array used to record which users need to be added to which groups */
+    /** @var array used to record which users need to be added to which groups (group DB-Id => [Contact UIDs]) */
     private $users_to_add = [];
+
+    /** @var array maps group names to database ids */
+    private $existing_category_groupids = [];
 
     public function __construct(RoundcubeCarddavAddressbook $rcAbook)
     {
@@ -38,9 +41,13 @@ class SyncHandlerRoundcube implements SyncHandler
         }
 
         // determine existing local group URIs and ETAGs
-        $groups = RoundcubeCarddavAddressbook::get_dbrecord($abookId,'id,uri,etag','groups',false,'abook_id');
+        $groups = RoundcubeCarddavAddressbook::get_dbrecord($abookId,'id,uri,etag,name','groups',false,'abook_id');
         foreach($groups as $group) {
-            $this->existing_grpcard_cache[$group['uri']] = $group;
+            if (isset($group['uri'])) { // these are groups defined by a KIND=group VCard
+                $this->existing_grpcard_cache[$group['uri']] = $group;
+            } else { // these are groups derived from CATEGORIES in the contact VCards
+                $this->existing_category_groupids[$group['name']] = $group['id'];
+            }
         }
     }
 
@@ -56,12 +63,12 @@ class SyncHandlerRoundcube implements SyncHandler
             $dbid = $this->existing_grpcard_cache[$uri]["id"] ?? null;
             carddav::$logger->debug("Changed Group $uri " . $save_data['name']);
             // delete current group members (will be reinserted if needed below)
-            if ($dbid) {
+            if (isset($dbid)) {
                 RoundcubeCarddavAddressbook::delete_dbrecord($dbid,'group_user','group_id');
             }
 
             // store group card
-            $dbid = $this->rcAbook->dbstore_group($etag,$uri,$vcf,$save_data,$dbid);
+            $dbid = $this->rcAbook->dbstore_group($save_data, $dbid, $etag, $uri, $vcf);
             if($dbid !== false) {
                 // record group members for deferred store
                 $this->users_to_add[$dbid] = [];
@@ -91,6 +98,45 @@ class SyncHandlerRoundcube implements SyncHandler
                             break;
                         }
                     }
+                }
+            }
+
+            // delete current member from category groups (will be reinserted if needed below)
+            RoundcubeCarddavAddressbook::delete_dbrecord(
+                $dbid,
+                'group_user',
+                'contact_id',
+                [ "group_id" => array_values($this->existing_category_groupids) ]
+            );
+
+            $categories = [];
+            if (isset($vcfobj->CATEGORIES)) {
+                // remove all whitespace categories
+                $categories = $vcfobj->CATEGORIES->getParts();
+                RoundcubeCarddavAddressbook::stringsAddRemove($categories);
+            }
+
+            foreach ($categories as $category) {
+                if(isset($this->existing_category_groupids[$category])) {
+                    $group_dbid = $this->existing_category_groupids[$category];
+                } else {
+                    $gsave_data = [
+                        'name' => $category,
+                        'kind' => 'group'
+                    ];
+                    $group_dbid = $this->rcAbook->dbstore_group($gsave_data);
+                    if ($group_dbid !== false) {
+                        $this->existing_category_groupids[$category] = $group_dbid;
+                    }
+                }
+
+                if ($group_dbid !== false) {
+                    if(!isset($this->users_to_add[$group_dbid])) {
+                        $this->users_to_add[$group_dbid] = [];
+                    }
+                    $this->users_to_add[$group_dbid][] = $dbh->quote($save_data['cuid']);
+                } else {
+                    carddav::$logger->error("Failed to add contact $uri to group $category");
                 }
             }
 

@@ -325,6 +325,14 @@ class carddav extends rcube_plugin
 			$content_active = $checkbox->show($abook['active']?1:0);
 		}
 
+		if (self::no_override('use_categories', $abook, $prefs) || $abook['id'] !== "new") {
+			$content_use_categories = $abook['use_categories'] ? $this->gettext('cd_enabled') : $this->gettext('cd_disabled');
+		} else {
+			// check box for use categories
+			$checkbox = new html_checkbox(array('name' => $abookid.'_cd_use_categories', 'value' => 1));
+			$content_use_categories = $checkbox->show($abook['use_categories']?1:0);
+		}
+
 		if (self::no_override('username', $abook, $prefs)) {
 			// %V parses username for macosx, replaces periods and @ by _, work around bugs in contacts.app
 			$content_username = $abook['username'] === '%V' ? str_replace('@','_', str_replace('.','_',$_SESSION['username'])) : $abook['username'] === '%u' ? $_SESSION['username'] : $abook['username'] === '%l' ? $rcmail->user->get_username('local') : $abook['username'];
@@ -374,6 +382,7 @@ class carddav extends rcube_plugin
 			'options' => array(
 				array('title'=> rcmail::Q($this->gettext('cd_name')), 'content' => $content_name),
 				array('title'=> rcmail::Q($this->gettext('cd_active')), 'content' => $content_active),
+				array('title'=> rcmail::Q($this->gettext('cd_use_categories')), 'content' => $content_use_categories),
 				array('title'=> rcmail::Q($this->gettext('cd_username')), 'content' => $content_username),
 				array('title'=> rcmail::Q($this->gettext('cd_password')), 'content' => $content_password),
 				array('title'=> rcmail::Q($this->gettext('cd_url')), 'content' => $content_url),
@@ -437,6 +446,7 @@ class carddav extends rcube_plugin
 				array(
 					'id'           => 'new',
 					'active'       => 1,
+					'use_categories' => 1,
 					'username'     => '',
 					'url'          => '',
 					'name'         => '',
@@ -486,6 +496,7 @@ class carddav extends rcube_plugin
 					'username' => rcube_utils::get_input_value($abookid."_cd_username", rcube_utils::INPUT_POST, true),
 					'url' => rcube_utils::get_input_value($abookid."_cd_url", rcube_utils::INPUT_POST),
 					'active' => isset($_POST[$abookid.'_cd_active']) ? 1 : 0,
+					'use_categories' => isset($_POST[$abookid.'_cd_use_categories']) ? 1 : 0,
 					'refresh_time' => rcube_utils::get_input_value($abookid."_cd_refresh_time", rcube_utils::INPUT_POST),
 				);
 
@@ -519,6 +530,7 @@ class carddav extends rcube_plugin
 			$pass   = rcube_utils::get_input_value('new_cd_password', rcube_utils::INPUT_POST, true);
 			$pass = carddav_common::encrypt_password($pass);
 			$abname = rcube_utils::get_input_value('new_cd_name', rcube_utils::INPUT_POST);
+			$use_categories = intval(rcube_utils::get_input_value('new_cd_use_categories', rcube_utils::INPUT_POST, true), 0);
 
 			$account = new Account($srv, $usr, carddav_common::decrypt_password($pass));
 			$discover = new Discovery();
@@ -532,6 +544,7 @@ class carddav extends rcube_plugin
 						'name'     => "$abname (" . $abook->getName() . ")",
 						'username' => $usr,
 						'password' => $pass,
+						'use_categories' => $use_categories,
 						'url'      => $abook->getUri(),
 						'refresh_time' => rcube_utils::get_input_value('new_cd_refresh_time', rcube_utils::INPUT_POST)
 					]);
@@ -555,9 +568,14 @@ class carddav extends rcube_plugin
 	// ...custom subtypes
 	RoundcubeCarddavAddressbook::delete_dbrecord($abookid,'xsubtypes','abook_id');
 	// ...groups and memberships
-	$delgroups = RoundcubeCarddavAddressbook::get_dbrecord($abookid, 'id as group_id', 'groups', false, 'abook_id');
+	$delgroups = array_map(
+		function($v) { return $v["id"]; },
+		RoundcubeCarddavAddressbook::get_dbrecord($abookid, 'id', 'groups', false, 'abook_id')
+	);
+	if (count($delgroups) > 0) {
+		RoundcubeCarddavAddressbook::delete_dbrecord($delgroups,'group_user','group_id');
+	}
 	RoundcubeCarddavAddressbook::delete_dbrecord($abookid,'groups','abook_id');
-	RoundcubeCarddavAddressbook::delete_dbrecord($delgroups,'group_user','group_id');
 	}}}
 
 	private static function insert_abook($pa)
@@ -595,7 +613,7 @@ class carddav extends rcube_plugin
 	}
 
 	// optional fields
-	$qfo = array('active','presetname','refresh_time');
+	$qfo = array('active','presetname','use_categories','refresh_time');
 	foreach($qfo as $f) {
 		if(array_key_exists($f,$pa)) {
 			$qf[] = $f;
@@ -662,5 +680,3 @@ class carddav extends rcube_plugin
 	}}}
 
 }
-
-?>
