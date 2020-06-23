@@ -51,7 +51,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     // database ID of the addressbook
     private $id;
 
-    /** @var string An additional filter to limit contact searches (content: SQL WHERE clause on contacts table) */
+    /** @var ?string An additional filter to limit contact searches (content: SQL WHERE clause on contacts table) */
     private $filter;
 
     private $result;
@@ -496,7 +496,14 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
         // true if we can use DB filtering or no filtering is requested
         $filter = $this->get_search_set();
-        $this->determine_filter_params($cols, $subset, $firstrow, $numrows, $read_vcard);
+
+        // determine whether we have to parse the vcard or if only db cols are requested
+        $read_vcard = (!isset($cols)) || (count(array_intersect($cols, $this->table_cols)) < count($cols));
+
+        // determine result subset needed
+        $firstrow = ($subset >= 0) ?
+            $this->result->first : ($this->result->first + $this->page_size + $subset);
+        $numrows  = $subset ? abs($subset) : $this->page_size;
 
         carddav::$logger->debug("list_records_readdb " . (isset($cols) ? implode(",", $cols) : "ALL") . " $read_vcard");
 
@@ -541,7 +548,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         while ($contact = $dbh->fetch_assoc($sql_result)) {
             if ($read_vcard) {
                 try {
-                    $vcf = VObject\Reader::read($contact['vcard'], VObject\Reader::OPTION_FORGIVING);
+                    $vcf = $this->parseVCard($contact['vcard']);
                     $save_data = $this->create_save_data_from_vcard($vcf);
                 } catch (\Exception $e) {
                     $save_data = false;
@@ -560,6 +567,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                 $save_data = $save_data['save_data'];
             } else {
                 $save_data = [];
+                $cols = $cols ?? []; // note: $cols is always an array at this point, this is for the static analyzer
                 foreach ($cols as $col) {
                     if (strcmp($col, 'email') == 0) {
                         $save_data[$col] = preg_split('/,\s*/', $contact[$col]);
@@ -611,6 +619,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         $mode = intval($mode);
         $WS = ' ';
         $AS = self::SEPARATOR;
+        $post_search = [];
 
         // build the $where array; each of its entries is an SQL search condition
         foreach ($fields as $idx => $col) {
@@ -647,6 +656,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             }
             // vCard field
             else {
+                $words = [];
                 foreach (explode(" ", self::normalize_string($val)) as $word) {
                     if ($mode & 1) {
                         // strict
@@ -798,17 +808,6 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         return $this->total_cards;
     }
 
-    private function determine_filter_params($cols, $subset, &$firstrow, &$numrows, &$read_vcard)
-    {
-        // determine whether we have to parse the vcard or if only db cols are requested
-        $read_vcard = (!isset($cols)) || (count(array_intersect($cols, $this->table_cols)) < count($cols));
-
-        // determine result subset needed
-        $firstrow = ($subset >= 0) ?
-            $this->result->first : ($this->result->first + $this->page_size + $subset);
-        $numrows  = $subset ? abs($subset) : $this->page_size;
-    }
-
     /**
      * Return the last result set
      *
@@ -819,7 +818,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         return $this->result;
     }
 
-    private function parseVCard(string $vcf): VCard
+    private function parseVCard(string $vcf): VObject\Document
     {
         // create vcard from current DB data to be updated with the new data
         return VObject\Reader::read($vcf, VObject\Reader::OPTION_FORGIVING);
@@ -1126,9 +1125,9 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
     private function download_photo(&$save_data)
     {
+        $uri = $save_data['photo'];
         try {
             $this->createCardDavObj();
-            $uri = $save_data['photo'];
             carddav::$logger->warning("download_photo: Attempt to download photo from $uri");
             $response = $this->davAbook->downloadResource($uri);
             $save_data['photo'] = $response['body'];
@@ -1517,7 +1516,6 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      */
     public function remove_from_group($group_id, $ids)
     {
-        carddav::$logger->debug("remove_from_group($group_id, [" . implode(",", $ids) . "])");
         $abook_id = $this->id;
         $deleted = 0;
 
@@ -1527,6 +1525,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             if (!is_array($ids)) {
                 $ids = explode(self::SEPARATOR, $ids);
             }
+            carddav::$logger->debug("remove_from_group($group_id, [" . implode(",", $ids) . "])");
 
             // get current DB data
             $group = self::get_dbrecord($group_id, 'id,name,uri,etag,vcard', 'groups');
