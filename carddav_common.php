@@ -115,18 +115,19 @@ class carddav_common
     // admin settings from config.inc.php
     public static function get_adminsettings()
     {
-        if(is_array(self::$admin_settings))
+        if (is_array(self::$admin_settings)) {
             return self::$admin_settings;
+        }
 
         $rcmail = rcmail::get_instance();
         $prefs = array();
         $configfile = dirname(__FILE__)."/config.inc.php";
-        if (file_exists($configfile)){
-            require("$configfile");
+        if (file_exists($configfile)) {
+            include($configfile);
         }
         self::$admin_settings = $prefs;
 
-        if(is_array($prefs['_GLOBAL'])) {
+        if(isset($prefs['_GLOBAL']['pwstore_scheme'])) {
             $scheme = $prefs['_GLOBAL']['pwstore_scheme'];
             if(preg_match("/^(plain|base64|encrypted|des_key)$/", $scheme))
                 self::$pwstore_scheme = $scheme;

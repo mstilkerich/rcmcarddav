@@ -19,10 +19,13 @@
         }
     ],
     "require": {
-        "php": ">=5.6.18",
+        "php": ">=7.1.0",
         "sabre/vobject": "^4.3",
 		"roundcube/plugin-installer": "*",
         "mstilkerich/carddavclient": "dev-master"
+    },
+    "require-dev": {
+        "vimeo/psalm": "^3.11"
     },
     "extra": {
         "roundcube": {
@@ -33,6 +36,5 @@
 		"psr-4": {
 			"MStilkerich\\CardDavAddressbook4Roundcube\\": "src/"
 		}
-	},
-	"minimum-stability": "dev-master"
+	}
 }

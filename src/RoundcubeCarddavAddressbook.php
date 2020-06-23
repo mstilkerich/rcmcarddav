@@ -50,7 +50,8 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
     // database ID of the addressbook
     private $id;
-    // currently active search filter
+
+    /** @var string An additional filter to limit contact searches (content: SQL WHERE clause on contacts table) */
     private $filter;
 
     private $result;
@@ -61,8 +62,9 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
     const SEPARATOR = ',';
 
-    // total number of contacts in address book
+    /** @var int total number of contacts in address book. Negative if not computed yet. */
     private $total_cards = -1;
+
     // attributes that are redundantly stored in the contact table and need
     // not be parsed from the vcard
     private $table_cols = array('id', 'name', 'email', 'firstname', 'surname');
@@ -469,7 +471,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      * @param array $cols   List of cols to show (null means all)
      * @param int   $subset Only return this number of records, use negative values for tail
      *
-     * @return array Indexed list of contact records, each a hash array
+     * @return rcube_result_set Indexed list of contact records, each a hash array
      */
     public function list_records($cols = null, $subset = 0)
     {
@@ -484,10 +486,10 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             }
         }
 
-        return ($records > 0) ? $this->result : false;
+        return $this->result;
     }
 
-    private function list_records_readdb($cols, $subset = 0, $count_only = false)
+    private function list_records_readdb($cols, $subset = 0): int
     {
         $dbh = rcmail::get_instance()->db;
 
@@ -568,13 +570,12 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             $addresses[] = array('ID' => $contact['id'], 'name' => $contact['name'], 'save_data' => $save_data);
         }
 
-        if (!$count_only) {
-            // create results for roundcube
-            foreach ($addresses as $a) {
-                $a['save_data']['ID'] = $a['ID'];
-                $this->result->add($a['save_data']);
-            }
+        // create results for roundcube
+        foreach ($addresses as $a) {
+            $a['save_data']['ID'] = $a['ID'];
+            $this->result->add($a['save_data']);
         }
+
         return count($addresses);
     }
 
@@ -690,7 +691,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         if (!empty($post_search)) {
             $ids = array(0);
             // build key name regexp
-            $regexp = '/^(' . implode(array_keys($post_search), '|') . ')(?:.*)$/';
+            $regexp = '/^(' . implode('|', array_keys($post_search)) . ')(?:.*)$/';
             // use initial WHERE clause, to limit records number if possible
             if (!empty($where)) {
                 $this->set_search_set($where);
@@ -833,27 +834,19 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     {
         try {
             carddav::$logger->debug("get_record($id, $assoc)");
-            $this->result = $this->count();
 
             $contact = self::get_dbrecord($id, 'vcard');
             $vcard = $this->parseVCard($contact['vcard']);
+            [ 'save_data' => $save_data ] = $this->create_save_data_from_vcard($vcard);
+            $save_data['ID'] = $id;
 
-            $retval = $this->create_save_data_from_vcard($vcard);
-            if (!$retval) {
-                carddav::$logger->error("failed to create save_data from contact (DB id: $id)");
-                return false;
-            }
-            $vcfobj = $retval['vcf'];
-            $retval = $retval['save_data'];
-            $retval['__vcf'] = $vcfobj;
+            $this->result = new rcube_result_set(1);
+            $this->result->add($save_data);
 
-            $retval['ID'] = $id;
-            $this->result->add($retval);
-            $sql_arr = $assoc && $this->result ? $this->result->first() : null;
-            return $assoc && $sql_arr ? $sql_arr : $this->result;
+            return $assoc ? $save_data : $this->result;
         } catch (\Exception $e) {
             carddav::$logger->error("Could not get contact $id: " . $e->getMessage());
-            return false;
+            return $assoc ? [] : new rcube_result_set();
         }
     }
 
@@ -1156,7 +1149,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      * for storage.
      *
      * @param  VCard Sabre VCard object
-     * @return mixed  false on failure, otherwise associative array with keys:
+     * @return array associative array with keys:
      *           - save_data:    Roundcube representation of the VCard
      *           - vcf:          VCard object created from the given VCard
      *           - needs_update: boolean that indicates whether the card was modified
@@ -1368,12 +1361,12 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     {
         try {
             // complete save_data
-            $save_data['showas'] = $contact['showas'];
             $this->preprocess_rc_savedata($save_data);
             $this->createCardDavObj();
 
             // get current DB data
             $contact = self::get_dbrecord($id, 'id,cuid,uri,etag,vcard,showas');
+            $save_data['showas'] = $contact['showas'];
 
             // create vcard from current DB data to be updated with the new data
             $vcard = $this->parseVCard($contact['vcard']);
@@ -1436,9 +1429,9 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
             // and sync back the changes to the cache
             $this->refreshdb_from_server();
-        } catch (\Exeption $e) {
+        } catch (\Exception $e) {
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
-            carddav::$logger->error("Failed to update contact $id: " . $e->getMessage());
+            carddav::$logger->error("Failed to delete contacts [" . implode(",", $ids) . "]:" . $e->getMessage());
         }
 
         return $deleted;
@@ -1506,7 +1499,6 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         } catch (\Exception $e) {
             carddav::$logger->error("add_to_group: " . $e->getMessage());
             $this->set_error(self::ERROR_SAVING, $e->getMessage());
-            return false;
         }
 
         return $added;
@@ -1569,7 +1561,6 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         } catch (\Exception $e) {
             carddav::$logger->error("remove_from_group: " . $e->getMessage());
             $this->set_error(self::ERROR_SAVING, $e->getMessage());
-            return false;
         }
 
         return $deleted;
@@ -1648,13 +1639,14 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     {
         carddav::$logger->debug("set_group($gid)");
         $this->group_id = $gid;
-        $this->total_cards = -1;
+
         if (isset($gid)) {
             $dbh = rcmail::get_instance()->db;
-            $this->filter = "EXISTS(SELECT * FROM " . $dbh->table_name("carddav_group_user") . "
-                WHERE group_id = '{$gid}' AND contact_id = " . $dbh->table_name("carddav_contacts") . ".id)";
+
+            $this->set_search_set("EXISTS(SELECT * FROM " . $dbh->table_name("carddav_group_user") . "
+                WHERE group_id = '{$gid}' AND contact_id = " . $dbh->table_name("carddav_contacts") . ".id)");
         } else {
-            $this->filter = '';
+            $this->reset();
         }
     }
 
@@ -1667,8 +1659,6 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      */
     public function get_group($group_id)
     {
-        $result = null;
-
         try {
             carddav::$logger->debug("get_group($group_id)");
 
@@ -1679,6 +1669,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         } catch (\Exception $e) {
             carddav::$logger->error("get_group($group_id): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
+            return [];
         }
 
         return $result;
@@ -1813,7 +1804,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      * @param string $newname  New name to set for this group
      * @param string &$newid   New group identifier (if changed, otherwise don't set)
      *
-     * @return boolean New name on success, false if no data was changed
+     * @return boolean|string New name on success, false if no data was changed
      */
     public function rename_group($group_id, $newname, &$newid)
     {
@@ -1836,7 +1827,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                 $contact_ids = $this->getContactIdsForGroup($group_id);
                 $this->adjustContactCategories(
                     $contact_ids,
-                    function (array &$groups, $contact_id) use ($oldname) {
+                    function (array &$groups, $contact_id) use ($oldname, $newname) {
                         return self::stringsAddRemove($groups, [ $newname ], [ $oldname ]);
                     }
                 );
@@ -2030,7 +2021,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      * of the object already involves communication with the server to query the properties
      * of the addressbook collection.
      */
-    private function createCardDavObj()
+    private function createCardDavObj(): void
     {
         if (!isset($this->davAbook)) {
             $url = $this->config["url"];
@@ -2084,11 +2075,11 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     /**
      * Provides an array of the contact database ids that belong to the given group.
      *
-     * @param int $groupid The database ID of the group whose contacts shall be queried.
+     * @param string $groupid The database ID of the group whose contacts shall be queried.
      *
-     * @return int[] An array of the group's contacts' database IDs.
+     * @return string[] An array of the group's contacts' database IDs.
      */
-    private function getContactIdsForGroup(int $groupid): array
+    private function getContactIdsForGroup(string $groupid): array
     {
         $records = self::get_dbrecord($groupid, 'contact_id', 'group_user', false, 'group_id');
         return array_map(function ($v) {
@@ -2100,7 +2091,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      * Adjusts the CATEGORIES property of a list of contacts using a given callback function and, if changed, stores the
      * changed VCard to the server.
      *
-     * @param int[] $contact_ids A list of contact database IDs for that CATEGORIES should be adapted
+     * @param string[] $contact_ids A list of contact database IDs for that CATEGORIES should be adapted
      * @param callable $callback A callback function, that performs the adjustment of the CATEGORIES values. It is
      *                           called for each contact with two parameters: The first is an array of the values of the
      *                           CATEGORIES property, which should be taken by reference and modified in place. The
