@@ -470,10 +470,11 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      *
      * @param array $cols   List of cols to show (null means all)
      * @param int   $subset Only return this number of records, use negative values for tail
+     * @param bool  $nocount True to skip the count query (select only)
      *
      * @return rcube_result_set Indexed list of contact records, each a hash array
      */
-    public function list_records($cols = null, $subset = 0)
+    public function list_records($cols = null, $subset = 0, $nocount = false)
     {
         $this->result = $this->count();
 
@@ -489,7 +490,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         return $this->result;
     }
 
-    private function list_records_readdb($cols, $subset = 0): int
+    private function list_records_readdb($cols, $subset = 0, $count_only = false): int
     {
         $dbh = rcmail::get_instance()->db;
 
@@ -571,9 +572,11 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         }
 
         // create results for roundcube
-        foreach ($addresses as $a) {
-            $a['save_data']['ID'] = $a['ID'];
-            $this->result->add($a['save_data']);
+        if (!$count_only) {
+            foreach ($addresses as $a) {
+                $a['save_data']['ID'] = $a['ID'];
+                $this->result->add($a['save_data']);
+            }
         }
 
         return count($addresses);
