@@ -36,7 +36,7 @@ class RoundcubeLogger extends AbstractLogger
      *
      * @param string $loglevel One of the Psr\Log\LogLevel constants for log levels.
      */
-    public function setLogLevel(string $loglevel): void
+    final public function setLogLevel(string $loglevel): void
     {
         if (isset(self::LOGLEVELS[$loglevel])) {
             $this->loglevel = self::LOGLEVELS[$loglevel];
