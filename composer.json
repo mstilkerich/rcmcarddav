@@ -1,5 +1,5 @@
 {
-    "name": "mstilkerich/carddav",
+    "name": "roundcube/carddav",
     "type": "roundcube-plugin",
     "description": "CardDAV adapter for connecting to CardDAV-enabled addressbooks",
     "keywords": ["addressbook","carddav","contacts","owncloud","davical"],
