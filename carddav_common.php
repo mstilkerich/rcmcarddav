@@ -24,12 +24,12 @@ use MStilkerich\CardDavAddressbook4Roundcube\RoundcubeCarddavAddressbook;
 class carddav_common
 {
     // admin settings from config.inc.php
-    private static $admin_settings;
+    private static array $admin_settings;
     // encryption scheme
-    public static $pwstore_scheme = 'encrypted';
+    public static string $pwstore_scheme = 'encrypted';
 
     // password helpers
-    private static function carddav_des_key()
+    private static function carddav_des_key(): string
     {
         $rcmail = rcmail::get_instance();
         $imap_password = $rcmail->decrypt($_SESSION['password']);
@@ -39,7 +39,7 @@ class carddav_common
         return substr($imap_password, 0, 24);
     }
 
-    public static function encrypt_password($clear)
+    public static function encrypt_password(string $clear): string
     {
         if(strcasecmp(self::$pwstore_scheme, 'plain')===0)
             return $clear;
@@ -76,7 +76,7 @@ class carddav_common
         return '{BASE64}'.base64_encode($clear);
     }
 
-    public static function decrypt_password($crypt)
+    public static function decrypt_password(string $crypt): string
     {
         if(strpos($crypt, '{ENCRYPTED}') === 0) {
             // return {IGNORE} scheme if session password is empty (krb_authentication plugin)
@@ -113,9 +113,9 @@ class carddav_common
     }
 
     // admin settings from config.inc.php
-    public static function get_adminsettings()
+    public static function get_adminsettings(): array
     {
-        if (is_array(self::$admin_settings)) {
+        if (isset(self::$admin_settings)) {
             return self::$admin_settings;
         }
 

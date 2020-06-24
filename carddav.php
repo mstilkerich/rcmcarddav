@@ -27,13 +27,27 @@ require_once("carddav_common.php");
 
 class carddav extends rcube_plugin
 {
-    public static $logger;
+    public static RoundcubeLogger $logger;
 
     // the dummy task is used by the calendar plugin, which requires
     // the addressbook to be initialized
     public $task = 'addressbook|login|mail|settings|dummy';
 
-    public function checkMigrations(){
+    /**
+     * Default constructor.
+     *
+     * @param rcube_plugin_api $api Plugin API
+     */
+    public function __construct($api)
+    {
+        parent::__construct($api);
+
+        // we do not currently use the roundcube mechanism to save preferences
+        // but store preferences to custom database tables
+        $this->allowed_prefs = [];
+    }
+
+    public function checkMigrations(): void {
         $dbh = rcmail::get_instance()->db;
 
         $db_backend = "unknown";
@@ -102,7 +116,7 @@ class carddav extends rcube_plugin
         }
     }
 
-    public function init()
+    public function init(): void
     {
         self::$logger = new RoundcubeLogger("carddav");
 
@@ -146,7 +160,7 @@ class carddav extends rcube_plugin
         $this->include_stylesheet($skin_path . '/carddav.css');
     }
 
-    public function init_presets()
+    public function init_presets(): void
     {
         $dbh = rcmail::get_instance()->db;
         $prefs = carddav_common::get_adminsettings();
@@ -241,7 +255,7 @@ class carddav extends rcube_plugin
         }
     }
 
-    public function address_sources($p)
+    public function address_sources(array $p): array
     {
         $dbh = rcmail::get_instance()->db;
         $prefs = carddav_common::get_adminsettings();
@@ -267,16 +281,17 @@ class carddav extends rcube_plugin
         return $p;
     }
 
-    public function get_address_book($p)
+    public function get_address_book(array $p): array
     {
+        $dbh = rcmail::get_instance()->db;
         if (preg_match(";^carddav_(\d+)$;", $p['id'], $match)){
-            $p['instance'] = new RoundcubeCarddavAddressbook($match[1], $this);
+            $p['instance'] = new RoundcubeCarddavAddressbook($dbh, $match[1], $this);
         }
 
         return $p;
     }
 
-    private static function process_cd_time($refresht)
+    private static function process_cd_time(string $refresht): string
     {
         if(preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $refresht, $match)) {
             $refresht = sprintf("%02d:%02d:%02d", $match[1],
@@ -288,7 +303,7 @@ class carddav extends rcube_plugin
         return $refresht;
     }
 
-    private static function no_override($pref, $abook, $prefs)
+    private static function no_override(string $pref, array $abook, array $prefs): bool
     {
         $pn = $abook['presetname'];
         if(!$pn) return false;
@@ -310,7 +325,7 @@ class carddav extends rcube_plugin
     /**
      * Builds a setting block for one address book for the preference page.
      */
-    private function cd_preferences_buildblock($blockheader,$abook,$prefs)
+    private function cd_preferences_buildblock(string $blockheader, array $abook, array $prefs): array
     {
         $abookid = $abook['id'];
         $rcmail = rcmail::get_instance();
@@ -404,11 +419,18 @@ class carddav extends rcube_plugin
         return $retval;
     }
 
-    // user preferences
-    function cd_preferences($args)
+    /**
+     * Handler for preferences_list hook.
+     * Adds options blocks into CardDAV settings sections in Preferences.
+     *
+     * @param array Original parameters
+     *
+     * @return array Modified parameters
+     */
+    public function cd_preferences(array $args): array
     {
         if($args['section'] != 'cd_preferences')
-            return;
+            return $args;
 
         $this->include_stylesheet($this->local_skin_path().'/carddav.css');
         $prefs = carddav_common::get_adminsettings();
@@ -453,11 +475,11 @@ class carddav extends rcube_plugin
                 ), $prefs);
         }
 
-        return($args);
+        return $args;
     }
 
     // add a section to the preferences tab
-    function cd_preferences_section($args)
+    public function cd_preferences_section(array $args): array
     {
         $prefs = carddav_common::get_adminsettings();
         if (!isset($prefs['_GLOBAL']['hide_preferences']) || (isset($prefs['_GLOBAL']['hide_preferences']) && $prefs['_GLOBAL']['hide_preferences'] === FALSE)) {
@@ -466,40 +488,53 @@ class carddav extends rcube_plugin
                 'section' => rcmail::Q($this->gettext('cd_title'))
             );
         }
-        return($args);
+        return $args;
     }
 
-    // save preferences
-    function cd_save($args)
+    /**
+     * Hook function called when the user saves the preferences.
+     *
+     * This function is called for any preferences section, not just that of the carddav plugin, so we need to check
+     * first whether we are in the proper section.
+     */
+    public function cd_save(array $args): array
     {
-        if($args['section'] != 'cd_preferences')
-            return;
+        $dbh = rcmail::get_instance()->db;
+
+        if($args['section'] != 'cd_preferences') {
+            return $args;
+        }
+
         $prefs = carddav_common::get_adminsettings();
-        if (isset($prefs['_GLOBAL']['hide_preferences']) && $prefs['_GLOBAL']['hide_preferences'] === TRUE) {
-            return;
+        if (isset($prefs['_GLOBAL']['hide_preferences']) && $prefs['_GLOBAL']['hide_preferences'] === true) {
+            return $args;
         }
 
         // update existing in DB
-        $abooks = RoundcubeCarddavAddressbook::get_dbrecord($_SESSION['user_id'],'id,presetname',
-            'addressbooks', false, 'user_id');
+        $abooks = RoundcubeCarddavAddressbook::get_dbrecord(
+            $_SESSION['user_id'],
+            'id,presetname',
+            'addressbooks',
+            false,
+            'user_id'
+        );
 
         foreach($abooks as $abook) {
             $abookid = $abook['id'];
-            if( isset($_POST[$abookid."_cd_delete"]) ) {
+            if( isset($_POST["${abookid}_cd_delete"]) ) {
                 self::delete_abook($abookid);
-
             } else {
                 $newset = array (
-                    'name' => rcube_utils::get_input_value($abookid."_cd_name", rcube_utils::INPUT_POST),
-                    'username' => rcube_utils::get_input_value($abookid."_cd_username", rcube_utils::INPUT_POST, true),
-                    'url' => rcube_utils::get_input_value($abookid."_cd_url", rcube_utils::INPUT_POST),
+                    'name' => rcube_utils::get_input_value("${abookid}_cd_name", rcube_utils::INPUT_POST),
+                    'username' => rcube_utils::get_input_value("${abookid}_cd_username", rcube_utils::INPUT_POST, true),
+                    'url' => rcube_utils::get_input_value("${abookid}_cd_url", rcube_utils::INPUT_POST),
                     'active' => isset($_POST[$abookid.'_cd_active']) ? 1 : 0,
                     'use_categories' => isset($_POST[$abookid.'_cd_use_categories']) ? 1 : 0,
-                    'refresh_time' => rcube_utils::get_input_value($abookid."_cd_refresh_time", rcube_utils::INPUT_POST),
+                    'refresh_time' => rcube_utils::get_input_value("${abookid}_cd_refresh_time", rcube_utils::INPUT_POST),
                 );
 
                 // only set the password if the user entered a new one
-                $password = rcube_utils::get_input_value($abookid."_cd_password", rcube_utils::INPUT_POST, true);
+                $password = rcube_utils::get_input_value("${abookid}_cd_password", rcube_utils::INPUT_POST, true);
                 if(strlen($password) > 0) {
                     $newset['password'] = $password;
                 }
@@ -513,8 +548,8 @@ class carddav extends rcube_plugin
 
                 self::update_abook($abookid, $newset);
 
-                if(isset($_POST[$abookid."_cd_resync"])) {
-                    $backend = new RoundcubeCarddavAddressbook($abookid, $this);
+                if(isset($_POST["${abookid}_cd_resync"])) {
+                    $backend = new RoundcubeCarddavAddressbook($dbh, $abookid, $this);
                     $backend->refreshdb_from_server();
                 }
             }
@@ -539,7 +574,7 @@ class carddav extends rcube_plugin
                 foreach($abooks as $abook) {
                     self::$logger->debug("ADDING ABOOK " . print_r($srv,true));
                     self::insert_abook([
-                        'name'     => "$abname (" . $abook->getName() . ")",
+                        'name'     => "$abname ({$abook->getName()})",
                         'username' => $usr,
                         'password' => $pass,
                         'use_categories' => $use_categories,
@@ -553,10 +588,10 @@ class carddav extends rcube_plugin
             }
         }
 
-        return($args);
+        return $args;
     }
 
-    private static function delete_abook($abookid)
+    private static function delete_abook(string $abookid): void
     {
         RoundcubeCarddavAddressbook::delete_dbrecord($abookid,'addressbooks');
         // we explicitly delete all data belonging to the addressbook, since
@@ -567,7 +602,7 @@ class carddav extends rcube_plugin
         RoundcubeCarddavAddressbook::delete_dbrecord($abookid,'xsubtypes','abook_id');
         // ...groups and memberships
         $delgroups = array_map(
-            function($v) { return $v["id"]; },
+            function(array $v): string { return $v["id"]; },
             RoundcubeCarddavAddressbook::get_dbrecord($abookid, 'id', 'groups', false, 'abook_id')
         );
         if (count($delgroups) > 0) {
@@ -576,7 +611,7 @@ class carddav extends rcube_plugin
         RoundcubeCarddavAddressbook::delete_dbrecord($abookid,'groups','abook_id');
     }
 
-    private static function insert_abook($pa)
+    private static function insert_abook(array $pa): void
     {
         $dbh = rcmail::get_instance()->db;
 
@@ -606,7 +641,9 @@ class carddav extends rcube_plugin
         $qf=array('name','username','password','url','user_id');
         $qv=array();
         foreach($qf as $f) {
-            if(!array_key_exists($f,$pa)) return false;
+            if(!array_key_exists($f,$pa)) {
+                throw new \Exception("Required parameter $f not provided for new addressbook");
+            }
             $qv[] = $pa[$f];
         }
 
@@ -626,7 +663,7 @@ class carddav extends rcube_plugin
         );
     }
 
-    public static function update_abook($abookid, $pa)
+    public static function update_abook(string $abookid, array $pa): void
     {
         $dbh = rcmail::get_instance()->db;
 
@@ -666,7 +703,7 @@ class carddav extends rcube_plugin
                 $qv[] = $pa[$f];
             }
         }
-        if(count($qf) <= 0) return true;
+        if(count($qf) <= 0) return;
 
         $qv[] = $abookid;
         $dbh->query('UPDATE ' .

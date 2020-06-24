@@ -102,12 +102,14 @@ class SyncHandlerRoundcube implements SyncHandler
             }
 
             // delete current member from category groups (will be reinserted if needed below)
-            RoundcubeCarddavAddressbook::delete_dbrecord(
-                $dbid,
-                'group_user',
-                'contact_id',
-                [ "group_id" => array_values($this->existing_category_groupids) ]
-            );
+            if (isset($dbid)) {
+                RoundcubeCarddavAddressbook::delete_dbrecord(
+                    $dbid,
+                    'group_user',
+                    'contact_id',
+                    [ "group_id" => array_values($this->existing_category_groupids) ]
+                );
+            }
 
             $categories = [];
             if (isset($vcfobj->CATEGORIES)) {
