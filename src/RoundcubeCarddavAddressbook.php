@@ -1742,7 +1742,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
      */
     public function list_groups($search = null, $mode = 0): array
     {
-        carddav::$logger->debug("list_groups($search, $mode)");
+        carddav::$logger->debug("list_groups(" . ($search ?? 'null') . ", $mode)");
 
         $searchextra = "";
         if ($search !== null) {
