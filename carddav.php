@@ -27,7 +27,8 @@ require_once("carddav_common.php");
 
 class carddav extends rcube_plugin
 {
-    public static RoundcubeLogger $logger;
+    /** @var RoundcubeLogger $logger */
+    public static $logger;
 
     // the dummy task is used by the calendar plugin, which requires
     // the addressbook to be initialized

@@ -23,10 +23,10 @@ use MStilkerich\CardDavAddressbook4Roundcube\RoundcubeCarddavAddressbook;
 
 class carddav_common
 {
-    // admin settings from config.inc.php
-    private static array $admin_settings;
-    // encryption scheme
-    public static string $pwstore_scheme = 'encrypted';
+    /** @var array $admin_settings admin settings from config.inc.php */
+    private static $admin_settings;
+    /** @var string $pwstore_scheme encryption scheme */
+    public static $pwstore_scheme = 'encrypted';
 
     // password helpers
     private static function carddav_des_key(): string

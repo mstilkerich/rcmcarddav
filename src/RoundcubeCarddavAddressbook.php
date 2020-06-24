@@ -38,44 +38,52 @@ use carddav_common;
 
 class RoundcubeCarddavAddressbook extends rcube_addressbook
 {
-    // the carddav frontend object
-    private carddav $frontend;
+    /** @var carddav $frontend the frontend object */
+    private $frontend;
 
     /** @var rcube_db The database handle */
-    private rcube_db $db;
+    private $db;
 
-    // the DAV AddressbookCollection Object
-    private ?AddressbookCollection $davAbook = null;
+    /** @var ?AddressbookCollection $davAbook the DAV AddressbookCollection Object */
+    private $davAbook = null;
 
-    // database primary key, used by RC to search by ID
-    public string $primary_key = 'id';
-    public array $coltypes;
-    private array $fallbacktypes = array( 'email' => array('internet') );
+    /** @var string $primary_key database primary key, used by RC to search by ID */
+    public $primary_key = 'id';
 
-    // database ID of the addressbook
-    private string $id;
+    /** @var array $coltypes */
+    public $coltypes;
+
+    /** @var array $fallbacktypes */
+    private $fallbacktypes = array( 'email' => array('internet') );
+
+    /** @var string $id database ID of the addressbook */
+    private $id;
 
     /** @var ?string An additional filter to limit contact searches (content: SQL WHERE clause on contacts table) */
     private $filter;
 
-    private ?rcube_result_set $result = null;
+    /** @var ?rcube_result_set $result */
+    private $result = null;
 
-    // configuration of the addressbook
-    private array $config;
-    // custom labels defined in the addressbook
-    private array $xlabels;
+    /** @var array $config configuration of the addressbook */
+    private $config;
+
+    /** @var array $xlabels custom labels defined in the addressbook */
+    private $xlabels;
 
     const SEPARATOR = ',';
 
     /** @var int total number of contacts in address book. Negative if not computed yet. */
     private $total_cards = -1;
 
-    // attributes that are redundantly stored in the contact table and need
-    // not be parsed from the vcard
-    private array $table_cols = array('id', 'name', 'email', 'firstname', 'surname');
+    /** @var array $table_cols
+     * attributes that are redundantly stored in the contact table and need
+     * not be parsed from the vcard
+     */
+    private $table_cols = array('id', 'name', 'email', 'firstname', 'surname');
 
-    // maps VCard property names to roundcube keys
-    private array $vcf2rc = array(
+    /** @var array $vcf2rc maps VCard property names to roundcube keys */
+    private $vcf2rc = array(
         'simple' => array(
             'BDAY' => 'birthday',
             'FN' => 'name',
@@ -101,8 +109,8 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         ),
     );
 
-    // array with list of potential date fields for formatting
-    private array $datefields = array('birthday', 'anniversary');
+    /** @var array $datefields list of potential date fields for formatting */
+    private $datefields = array('birthday', 'anniversary');
 
     public function __construct(rcube_db $dbconn, string $dbid, carddav $frontend)
     {
