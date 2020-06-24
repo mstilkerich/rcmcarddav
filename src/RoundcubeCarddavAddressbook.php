@@ -692,7 +692,9 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             // vCard field
             else {
                 $words = [];
-                foreach (explode(" ", rcube_utils::normalize_string($val)) as $word) {
+                /** @var string $search_val second parameter asks normalize_string to return a string */
+                $search_val = rcube_utils::normalize_string($val, false);
+                foreach (explode(" ", $search_val) as $word) {
                     if ($mode & 1) {
                         // strict
                         $words[] = '(' . $this->db->ilike('vcard', $word . $WS . '%')
@@ -854,8 +856,10 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     private function parseVCard(string $vcf): VCard
     {
         // create vcard from current DB data to be updated with the new data
-        /** @var VCard $vcard */
         $vcard = VObject\Reader::read($vcf, VObject\Reader::OPTION_FORGIVING);
+        if (!($vcard instanceof VCard)) {
+            throw new \Exception("parseVCard: parsing of string did not result in a VCard object: $vcf");
+        }
         return $vcard;
     }
 
@@ -1005,6 +1009,9 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                     foreach ($avalues as $evalue) {
                         if (strlen($evalue) > 0) {
                             $prop = $vcard->add($vkey, $evalue);
+                            if (!($prop instanceof VObject\Property)) {
+                                throw new \Exception("Sabre did not return a propertyafter adding $vkey property");
+                            }
                             $this->set_attr_label($vcard, $prop, $rckey, $subtype); // set label
                         }
                     }
@@ -1017,7 +1024,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         foreach ($this->coltypes['address']['subtypes'] as $subtype) {
             $rcqkey = 'address:' . $subtype;
 
-            if (key_exists($rcqkey, $save_data)) {
+            if (is_array($save_data[$rcqkey])) {
                 foreach ($save_data[$rcqkey] as $avalue) {
                     if (
                         strlen($avalue['street'])
@@ -1026,7 +1033,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                         || strlen($avalue['zipcode'])
                         || strlen($avalue['country'])
                     ) {
-                        $prop = $vcard->add('ADR', array(
+                        $prop = $vcard->add('ADR', [
                             '',
                             '',
                             $avalue['street'],
@@ -1034,7 +1041,11 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                             $avalue['region'],
                             $avalue['zipcode'],
                             $avalue['country'],
-                        ));
+                        ]);
+
+                        if (!($prop instanceof VObject\Property)) {
+                            throw new \Exception("Sabre did not provide a property object when adding ADR");
+                        }
                         $this->set_attr_label($vcard, $prop, 'address', $subtype); // set label
                     }
                 }
@@ -1064,7 +1075,8 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
                 // delete standard label if we had one
                 $oldlabel = $pvalue['TYPE'];
                 if (
-                    strlen($oldlabel) > 0 &&
+                    ($oldlabel instanceof VObject\Parameter) &&
+                    (strlen((string) $oldlabel) > 0) &&
                     in_array($oldlabel, $this->coltypes[$attrname]['subtypes'])
                 ) {
                     unset($pvalue['TYPE']);
@@ -1085,8 +1097,9 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         // add or replace?
         $oldlabel = $pvalue['TYPE'];
         if (
-            strlen($oldlabel) > 0 &&
-            in_array($oldlabel, $this->coltypes[$attrname]['subtypes'])
+            ($oldlabel instanceof VObject\Parameter) &&
+            (strlen((string) $oldlabel) > 0) &&
+            in_array((string) $oldlabel, $this->coltypes[$attrname]['subtypes'])
         ) {
             $had_xlabel = false; // replace
         }
@@ -1213,9 +1226,11 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         }
 
         // inline photo if external reference
-        if (key_exists('photo', $save_data)) {
+        // note: isset($vcard->PHOTO) is true if $save_data['photo'] exists, the check
+        // is for the static analyzer
+        if (key_exists('photo', $save_data) && isset($vcard->PHOTO)) {
             $kind = $vcard->PHOTO['VALUE'];
-            if (isset($kind) && strcasecmp('uri', $kind) == 0) {
+            if (($kind instanceof VObject\Parameter) && strcasecmp('uri', (string) $kind) == 0) {
                 if ($this->download_photo($save_data)) {
                     $props = [];
                     foreach ($vcard->PHOTO->parameters() as $property => $value) {
@@ -1307,12 +1322,12 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         if ($photo == null) {
             return $vcard;
         }
-        $abcrop = $vcard->PHOTO['X-ABCROP-RECTANGLE'];
-        if ($abcrop == null) {
+        $abcrop = $photo['X-ABCROP-RECTANGLE'];
+        if (!($abcrop instanceof VObject\Parameter)) {
             return $vcard;
         }
 
-        $parts = explode('&', $abcrop);
+        $parts = explode('&', (string) $abcrop);
         $x = intval($parts[1]);
         $y = intval($parts[2]);
         $w = intval($parts[3]);
@@ -1320,7 +1335,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         $dw = min($w, self::MAX_PHOTO_SIZE);
         $dh = min($h, self::MAX_PHOTO_SIZE);
 
-        $src = imagecreatefromstring($photo);
+        $src = imagecreatefromstring((string) $photo);
         $dst = imagecreatetruecolor($dw, $dh);
         imagecopyresampled($dst, $src, 0, 0, $x, imagesy($src) - $y - $h, $dw, $dh, $w, $h);
 
@@ -1353,7 +1368,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             $vcard = $this->create_vcard_from_save_data($save_data);
             $davAbook->createCard($vcard);
             $this->refreshdb_from_server();
-            $contact = self::get_dbrecord($vcard->UID, 'id', 'contacts', true, 'cuid');
+            $contact = self::get_dbrecord((string) $vcard->UID, 'id', 'contacts', true, 'cuid');
 
             if (isset($contact["id"])) {
                 return $contact["id"];
@@ -1392,12 +1407,12 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
     /**
      * Update a specific contact record
      *
-     * @param string $id        Record identifier
+     * @param mixed $id        Record identifier
      * @param array $save_data Associative array with save data
      *  Keys:   Field name with optional section in the form FIELD:SECTION
      *  Values: Field value. Can be either a string or an array of strings for multiple values
      *
-     * @return string|bool On success if ID has been changed returns ID, otherwise True, False on error
+     * @return mixed On success if ID has been changed returns ID, otherwise True, False on error
      */
     public function update($id, $save_data)
     {
@@ -1630,7 +1645,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         foreach ($contact_cuids as $cuid) {
             $search_for = "urn:uuid:$cuid";
             $found = false;
-            foreach ($vcard->{'X-ADDRESSBOOKSERVER-MEMBER'} as $member) {
+            foreach (($vcard->{'X-ADDRESSBOOKSERVER-MEMBER'} ?? []) as $member) {
                 if ($member == $search_for) {
                     $vcard->remove($member);
                     $found = true;
@@ -1786,7 +1801,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
 
                 $this->refreshdb_from_server();
 
-                $group = self::get_dbrecord($vcard->UID, 'id,name', 'groups', true, 'cuid');
+                $group = self::get_dbrecord((string) $vcard->UID, 'id,name', 'groups', true, 'cuid');
 
                 if (isset($group["id"])) {
                     return $group;
@@ -2164,7 +2179,10 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         foreach ($contact_ids as $contact_id) {
             $contact = self::get_dbrecord($contact_id, 'id,uri,etag,vcard');
             $vcard = $this->parseVCard($contact['vcard']);
-            $groups = isset($vcard->CATEGORIES) ? $vcard->CATEGORIES->getParts() : [];
+            $groups = [];
+            if (isset($vcard->{"CATEGORIES"})) {
+               $groups =  $vcard->CATEGORIES->getParts();
+            }
 
             if ($callback($groups, $contact_id) !== false) {
                 if (count($groups) > 0) {
