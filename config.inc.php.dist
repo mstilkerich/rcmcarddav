@@ -34,6 +34,14 @@
 // too old.
 $prefs['_GLOBAL']['suppress_version_warning'] = false;
 
+// Specify minimum loglevels for logging for the plugin and the HTTP client
+// Use the constants from \Psr\Log\LogLevel, any of the following are possible:
+// DEBUG, INFO, NOTICE, WARNING, ERROR, CRITICAL, ALERT, EMERGENCY
+//  (currently, anything above ERROR is not used and will effectively disable logging)
+// If not specified here, defaults to ERROR
+$prefs['_GLOBAL']['loglevel'] = \Psr\Log\LogLevel::WARNING;
+$prefs['_GLOBAL']['loglevel_http'] = \Psr\Log\LogLevel::ERROR;
+
 //// ** ADDRESSBOOK PRESETS
 
 // Each addressbook preset takes the following form:

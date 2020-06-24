@@ -119,9 +119,17 @@ class carddav extends rcube_plugin
 
     public function init(): void
     {
-        self::$logger = new RoundcubeLogger("carddav");
+        $prefs = carddav_common::get_adminsettings();
 
-        $http_logger = new RoundcubeLogger("carddav_http");
+        self::$logger = new RoundcubeLogger(
+            "carddav",
+            $prefs['_GLOBAL']['loglevel'] ?? \Psr\Log\LogLevel::ERROR
+        );
+        $http_logger = new RoundcubeLogger(
+            "carddav_http",
+            $prefs['_GLOBAL']['loglevel_http'] ?? \Psr\Log\LogLevel::ERROR
+        );
+
         Config::init(self::$logger, $http_logger);
 
         $this->add_texts('localization/', false);
