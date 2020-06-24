@@ -1,47 +1,46 @@
-RCMCardDAV
-==========
+# RCMCardDAV
 
 CardDAV plugin for the RoundCube Webmailer
 
-Upgrading from 1.0
-==================
+## Upgrade Notes
 
-There is no upgrade path from the 1.0 version. You need to manually remove RCMCardDAV 1.0, drop its tables from your database and start with a fresh installation.
+__Caution: v4 is currently in development and there are some known issues:__
+- The database migration script for SQLite is not available yet - do not use with SQLite at this time
 
-Upgrading from 2.0.x
-==================
+### Upgrading from 3.0.x
+
+- Database migration happens automatically.
+- If you want more verbose than default logging, this must now be configured in config.inc.php. See the distributed file config.inc.php.dist for examples.
+- GSSAPI is currently not supported (not tested and thus will likely not work because of new HTTP client library in v4).
+
+### Upgrading from 2.0.x
 
 There is no supported upgrade path from the 2.0.x version. You need to manually remove RCMCardDAV 2.0.x, drop its tables from your database and start with a fresh installation.
 
-Requirements
-============
-RCMCardDAV requires at least PHP 5.6.18. Older versions might work if the version check is disabled using the `$prefs['_GLOBAL']['suppress_version_warning']` configuration entry, but this is unsupported. 
+### Upgrading from 1.0
 
-Installation
-============
+There is no upgrade path from the 1.0 version. You need to manually remove RCMCardDAV 1.0, drop its tables from your database and start with a fresh installation.
 
-RCMCardDAV can be installed via composer, from a release tarball or from a git clone. This list is in increasing difficulty, with composer being the easiest method.
 
-Please note that due to version incompatibilities of depending libraries, this plugin might be incompatible to Kolabs calendar plugin. There is a compatible version available here: `http://git.faster-it.de/roundcube_calendar/`.
+## Requirements
+RCMCardDAV 4.x requires at least PHP 7.1.
 
-Intallation steps:
+## Installation
+
+The supported method of installation is by using composer.
+
+Installation steps (all paths in the following instructions are relative to the _root directory_ of your roundcube installation):
 - Log out of Roundcube!
   This is important because RCMCardDAV runs its database initialisation / update procedure only when a user logs in!
-- Get RCMCardDAV
-  - Via composer:
-    - Add `"roundcube/carddav": "dev-master"` to your composer.json file and install with `php composer.phar install`.
-  - Via release tarball:
-    - Download and extract the release tarball into `roundcube/plugins` directory and rename the extracted directory to `carddav`. The tarball contains all necessary dependencies and does not need composer.
-  - Via git:
-    - Please do not do not do this unless you have a very good reason for it! Check the file [INSTALLFROMGIT.md](INSTALLFROMGIT.md) for instructions.
+- Get [composer](https://getcomposer.org/download/)
+- Install RCMCardDAV via composer.
+  - Add `"roundcube/carddav": "v4.x-dev"` to the composer.json file of your roundcube installation
+  - Install with `php composer.phar install --no-dev`.
+  - You should now find the plugin installed under `plugins/carddav`
 - Configure RCMCardDAV
-  If you want to configure preset addressbooks for your users, copy the file `config.inc.php.dist` to `config.inc.php` and edit it as you need.
-- Make sure that the files and directories are owned by the user and group that your webserver runs as. For Debian GNU/Linux that would be:
-  `chown -R www-data:www-data roundcubemail/plugins/carddav`
-- Install the curl php extension if not already present:
-  `sudo apt-get install php5-curl`
+  If you want to configure preset addressbooks for your users, edit `plugins/carddav/config.inc.php` as you need.
 - Enable RCMCardDAV in Roundcube:
-  Open the file `roundcube/config/config.inc.php` and add `carddav` to the array `$config['plugins']`.
+  Open the file `config/config.inc.php` and add `carddav` to the array `$config['plugins']`.
 - Login to Roundcube and setup your addressbook by navigation to the Settings page and click on CardDAV.
 
-In case of errors, check the files `roundcube/logs/*`.
+In case of errors, check the files `logs/*`.
