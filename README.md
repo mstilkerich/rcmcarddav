@@ -35,7 +35,7 @@ Installation steps (all paths in the following instructions are relative to the 
 - Get [composer](https://getcomposer.org/download/)
 - Install RCMCardDAV via composer.
   - Add `"roundcube/carddav": "v4.x-dev"` to the composer.json file of your roundcube installation
-  - Install with `php composer.phar install --no-dev`.
+  - Install with `php composer.phar install --no-dev`. When updating, use `php composer.phar update --no-dev` instead.
   - You should now find the plugin installed under `plugins/carddav`
 - Configure RCMCardDAV
   If you want to configure preset addressbooks for your users, edit `plugins/carddav/config.inc.php` as you need.
