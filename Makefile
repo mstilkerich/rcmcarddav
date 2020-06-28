@@ -5,7 +5,7 @@ all: staticanalyses doc
 staticanalyses: phpcompatcheck psalmanalysis
 
 stylecheck:
-	vendor/bin/phpcs --colors --standard=PSR12 src/
+	vendor/bin/phpcs --colors --standard=PSR12 *.php src/
 
 phpcompatcheck:
 	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 src/
