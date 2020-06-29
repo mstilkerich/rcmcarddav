@@ -5,7 +5,7 @@ CardDAV plugin for the RoundCube Webmailer
 ## Upgrade Notes
 
 __Caution: v4 is currently in development and there are some known issues:__
-- The database migration script for SQLite is not available yet - do not use with SQLite at this time
+- currently none
 
 ### Upgrading from 3.0.x
 
