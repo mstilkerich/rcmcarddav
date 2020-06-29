@@ -35,7 +35,7 @@ use rcmail;
 use rcube_db;
 use carddav;
 
-class RoundcubeCarddavAddressbook extends rcube_addressbook
+class Addressbook extends rcube_addressbook
 {
     /**
      * @var int MAX_PHOTO_SIZE Maximum size of a photo dimension in pixels.
@@ -355,7 +355,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         }
 
         // refresh the address book if the update interval expired
-        // this requires a completely initialized RoundcubeCarddavAddressbook object, so it
+        // this requires a completely initialized Addressbook object, so it
         // needs to be at the end of this constructor
         if ($this->config["needs_update"]) {
             $this->resync(true);

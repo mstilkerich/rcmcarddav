@@ -16,7 +16,7 @@ use carddav;
 
 class SyncHandlerRoundcube implements SyncHandler
 {
-    /** @var RoundcubeCarddavAddressbook */
+    /** @var Addressbook */
     private $rcAbook;
 
     /** @var array Maps URIs to an associative array containing etag and (database) id */
@@ -29,7 +29,7 @@ class SyncHandlerRoundcube implements SyncHandler
     /** @var array maps group names to database ids */
     private $existing_category_groupids = [];
 
-    public function __construct(RoundcubeCarddavAddressbook $rcAbook)
+    public function __construct(Addressbook $rcAbook)
     {
         $this->rcAbook = $rcAbook;
         $abookId = $this->rcAbook->getId();
@@ -118,7 +118,7 @@ class SyncHandlerRoundcube implements SyncHandler
             if (isset($vcfobj->CATEGORIES)) {
                 // remove all whitespace categories
                 $categories = $vcfobj->CATEGORIES->getParts();
-                RoundcubeCarddavAddressbook::stringsAddRemove($categories);
+                Addressbook::stringsAddRemove($categories);
             }
 
             foreach ($categories as $category) {

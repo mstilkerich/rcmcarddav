@@ -21,9 +21,7 @@
  */
 use MStilkerich\CardDavClient\{Account, Config};
 use MStilkerich\CardDavClient\Services\Discovery;
-use MStilkerich\CardDavAddressbook4Roundcube\RoundcubeLogger;
-use MStilkerich\CardDavAddressbook4Roundcube\RoundcubeCarddavAddressbook;
-use MStilkerich\CardDavAddressbook4Roundcube\Database;
+use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Database, RoundcubeLogger};
 
 // phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
 class carddav extends rcube_plugin
@@ -315,7 +313,7 @@ class carddav extends rcube_plugin
     {
         $dbh = rcmail::get_instance()->db;
         if (preg_match(";^carddav_(\d+)$;", $p['id'], $match)) {
-            $p['instance'] = new RoundcubeCarddavAddressbook($dbh, $match[1], $this);
+            $p['instance'] = new Addressbook($dbh, $match[1], $this);
         }
 
         return $p;
@@ -649,7 +647,7 @@ class carddav extends rcube_plugin
                 self::updateAddressbook($abookid, $newset);
 
                 if (isset($_POST["${abookid}_cd_resync"])) {
-                    $backend = new RoundcubeCarddavAddressbook($dbh, $abookid, $this);
+                    $backend = new Addressbook($dbh, $abookid, $this);
                     $backend->resync();
                 }
             }
