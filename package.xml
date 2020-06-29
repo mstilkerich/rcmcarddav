@@ -37,10 +37,6 @@
 				<tasks:replace from="@name@" to="name" type="package-info"/>
 				<tasks:replace from="@package_version@" to="version" type="package-info"/>
 			</file>
-			<file name="carddav_common.php" role="php">
-				<tasks:replace from="@name@" to="name" type="package-info"/>
-				<tasks:replace from="@package_version@" to="version" type="package-info"/>
-			</file>
 			<file name="carddav_backend.php" role="php">
 				<tasks:replace from="@name@" to="name" type="package-info"/>
 				<tasks:replace from="@package_version@" to="version" type="package-info"/>

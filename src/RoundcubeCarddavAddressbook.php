@@ -34,7 +34,6 @@ use MStilkerich\CardDavAddressbook4Roundcube\SyncHandlerRoundcube;
 use rcmail;
 use rcube_db;
 use carddav;
-use carddav_common;
 
 class RoundcubeCarddavAddressbook extends rcube_addressbook
 {
@@ -349,7 +348,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         $this->addextrasubtypes();
 
         if ($this->config['presetname']) {
-            $prefs = carddav_common::get_adminsettings();
+            $prefs = carddav::getAdminSettings();
             if ($prefs[$this->config['presetname']]['readonly']) {
                 $this->readonly = true;
             }
@@ -519,7 +518,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             $synchandler = new SyncHandlerRoundcube($this);
             $syncmgr = new Sync();
             $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token'] ?? "");
-            carddav::update_abook($this->config['abookid'], array('sync_token' => $sync_token));
+            carddav::updateAddressbook($this->config['abookid'], array('sync_token' => $sync_token));
             $this->config['sync_token'] = $sync_token;
             $this->config['needs_update'] = 0;
 
@@ -611,7 +610,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         }
 
         if ($this->config['presetname']) {
-            $prefs = carddav_common::get_adminsettings();
+            $prefs = carddav::getAdminSettings();
             if (key_exists("require_always", $prefs[$this->config['presetname']])) {
                 foreach ($prefs[$this->config['presetname']]["require_always"] as $col) {
                     $xwhere .= " AND $col <> " . $this->db->quote('') . " ";
@@ -774,7 +773,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
         }
 
         if ($this->config['presetname']) {
-            $prefs = carddav_common::get_adminsettings();
+            $prefs = carddav::getAdminSettings();
             if (key_exists("require_always", $prefs[$this->config['presetname']])) {
                 $required = array_merge($prefs[$this->config['presetname']]["require_always"], $required);
             }
@@ -2068,7 +2067,7 @@ class RoundcubeCarddavAddressbook extends rcube_addressbook
             $account = new Account(
                 $url,
                 $this->config["username"],
-                carddav_common::decrypt_password($this->config["password"]),
+                carddav::decryptPassword($this->config["password"]),
                 $url
             );
             $this->davAbook = new AddressbookCollection($url, $account);

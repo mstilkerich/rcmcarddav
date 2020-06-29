@@ -9,7 +9,6 @@
 >
     <projectFiles>
 		<directory name="src/" />
-		<file name ="carddav_common.php" />
 		<file name ="carddav.php" />
     </projectFiles>
 
