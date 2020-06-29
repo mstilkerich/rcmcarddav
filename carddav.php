@@ -23,6 +23,7 @@ use MStilkerich\CardDavClient\{Account, Config};
 use MStilkerich\CardDavClient\Services\Discovery;
 use MStilkerich\CardDavAddressbook4Roundcube\RoundcubeLogger;
 use MStilkerich\CardDavAddressbook4Roundcube\RoundcubeCarddavAddressbook;
+use MStilkerich\CardDavAddressbook4Roundcube\Database;
 
 require_once("carddav_common.php");
 
@@ -488,7 +489,7 @@ class carddav extends rcube_plugin
             }
         }
 
-        $abooks = RoundcubeCarddavAddressbook::dbGet($_SESSION['user_id'], '*', 'addressbooks', false, 'user_id');
+        $abooks = Database::get($_SESSION['user_id'], '*', 'addressbooks', false, 'user_id');
         foreach ($abooks as $abook) {
             $presetname = $abook['presetname'];
             if (
@@ -557,7 +558,7 @@ class carddav extends rcube_plugin
         }
 
         // update existing in DB
-        $abooks = RoundcubeCarddavAddressbook::dbGet(
+        $abooks = Database::get(
             $_SESSION['user_id'],
             'id,presetname',
             'addressbooks',
@@ -638,24 +639,24 @@ class carddav extends rcube_plugin
 
     private static function delete_abook(string $abookid): void
     {
-        RoundcubeCarddavAddressbook::dbDelete($abookid, 'addressbooks');
+        Database::delete($abookid, 'addressbooks');
         // we explicitly delete all data belonging to the addressbook, since
         // cascaded deleted are not supported by all database backends
         // ...contacts
-        RoundcubeCarddavAddressbook::dbDelete($abookid, 'contacts', 'abook_id');
+        Database::delete($abookid, 'contacts', 'abook_id');
         // ...custom subtypes
-        RoundcubeCarddavAddressbook::dbDelete($abookid, 'xsubtypes', 'abook_id');
+        Database::delete($abookid, 'xsubtypes', 'abook_id');
         // ...groups and memberships
         $delgroups = array_map(
             function (array $v): string {
                 return $v["id"];
             },
-            RoundcubeCarddavAddressbook::dbGet($abookid, 'id', 'groups', false, 'abook_id')
+            Database::get($abookid, 'id', 'groups', false, 'abook_id')
         );
         if (count($delgroups) > 0) {
-            RoundcubeCarddavAddressbook::dbDelete($delgroups, 'group_user', 'group_id');
+            Database::delete($delgroups, 'group_user', 'group_id');
         }
-        RoundcubeCarddavAddressbook::dbDelete($abookid, 'groups', 'abook_id');
+        Database::delete($abookid, 'groups', 'abook_id');
     }
 
     private static function insert_abook(array $pa): void

@@ -35,13 +35,13 @@ class SyncHandlerRoundcube implements SyncHandler
         $abookId = $this->rcAbook->getId();
 
         // determine existing local contact URIs and ETAGs
-        $contacts = RoundcubeCarddavAddressbook::dbGet($abookId, 'id,uri,etag', 'contacts', false, 'abook_id');
+        $contacts = Database::get($abookId, 'id,uri,etag', 'contacts', false, 'abook_id');
         foreach ($contacts as $contact) {
             $this->existing_card_cache[$contact['uri']] = $contact;
         }
 
         // determine existing local group URIs and ETAGs
-        $groups = RoundcubeCarddavAddressbook::dbGet($abookId, 'id,uri,etag,name', 'groups', false, 'abook_id');
+        $groups = Database::get($abookId, 'id,uri,etag,name', 'groups', false, 'abook_id');
         foreach ($groups as $group) {
             if (isset($group['uri'])) { // these are groups defined by a KIND=group VCard
                 $this->existing_grpcard_cache[$group['uri']] = $group;
@@ -53,6 +53,7 @@ class SyncHandlerRoundcube implements SyncHandler
 
     public function addressObjectChanged(string $uri, string $etag, VCard $card): void
     {
+        $abookId = $this->rcAbook->getId();
         $dbh = rcmail::get_instance()->db;
         $save_data_arr = $this->rcAbook->convVCard2Rcube($card);
         $vcfobj = $save_data_arr['vcf'];
@@ -64,11 +65,11 @@ class SyncHandlerRoundcube implements SyncHandler
             carddav::$logger->debug("Changed Group $uri " . $save_data['name']);
             // delete current group members (will be reinserted if needed below)
             if (isset($dbid)) {
-                RoundcubeCarddavAddressbook::dbDelete($dbid, 'group_user', 'group_id');
+                Database::delete($dbid, 'group_user', 'group_id');
             }
 
             // store group card
-            $dbid = $this->rcAbook->dbStoreGroup($save_data, $dbid, $etag, $uri, $vcf);
+            $dbid = Database::storeGroup($abookId, $save_data, $dbid, $etag, $uri, $vcf);
             if ($dbid !== false) {
                 // record group members for deferred store
                 $this->users_to_add[$dbid] = [];
@@ -105,7 +106,7 @@ class SyncHandlerRoundcube implements SyncHandler
             // Unless: this is a new contact (dbid not set), or we do not have any CATEGORIES-based groups in this
             // addressbook ($this->existing_category_groupids empty)
             if (isset($dbid) && (!empty($this->existing_category_groupids))) {
-                RoundcubeCarddavAddressbook::dbDelete(
+                Database::delete(
                     $dbid,
                     'group_user',
                     'contact_id',
@@ -128,7 +129,7 @@ class SyncHandlerRoundcube implements SyncHandler
                         'name' => $category,
                         'kind' => 'group'
                     ];
-                    $group_dbid = $this->rcAbook->dbStoreGroup($gsave_data);
+                    $group_dbid = Database::storeGroup($abookId, $gsave_data);
                     if ($group_dbid !== false) {
                         $this->existing_category_groupids[$category] = $group_dbid;
                     }
@@ -145,7 +146,8 @@ class SyncHandlerRoundcube implements SyncHandler
             }
 
             carddav::$logger->debug("Changed Individual $uri " . $save_data['name']);
-            if ($this->rcAbook->dbStoreContact($etag, $uri, $vcf, $save_data, $dbid) === false) {
+            $this->rcAbook->preprocessRcubeData($save_data);
+            if (Database::storeContact($abookId, $etag, $uri, $vcf, $save_data, $dbid) === false) {
                 throw new \Exception("Storing contact $uri to database failed");
             }
         }
@@ -155,9 +157,9 @@ class SyncHandlerRoundcube implements SyncHandler
     {
         carddav::$logger->debug("Deleted card $uri");
         if (isset($this->existing_card_cache[$uri]["id"])) {
-            RoundcubeCarddavAddressbook::dbDelete($this->existing_card_cache[$uri]["id"]);
+            Database::delete($this->existing_card_cache[$uri]["id"]);
         } elseif (isset($this->existing_grpcard_cache[$uri]["id"])) {
-            RoundcubeCarddavAddressbook::dbDelete($this->existing_grpcard_cache[$uri]["id"], 'groups');
+            Database::delete($this->existing_grpcard_cache[$uri]["id"], 'groups');
         } else {
             carddav::$logger->warning("Server reported deleted card $uri for that no DB entry exists");
         }
