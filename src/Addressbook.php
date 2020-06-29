@@ -86,7 +86,7 @@ class Addressbook extends rcube_addressbook
      * attributes that are redundantly stored in the contact table and need
      * not be parsed from the vcard
      */
-    private $table_cols = array('id', 'name', 'email', 'firstname', 'surname');
+    private $table_cols = ['id', 'name', 'email', 'firstname', 'surname'];
 
     /** @var array $vcf2rc maps VCard property names to roundcube keys */
     private $vcf2rc = array(
@@ -681,8 +681,14 @@ class Addressbook extends rcube_addressbook
     /**
      * Search contacts
      *
+     * This function can either perform a simple search, where several fields are matched on whether any of them
+     * contains a specific value, or an advanced search, where several fields are checked to match with individual
+     * values. The distinction is coded into the $value parameter: if it contains a single value only, the list of
+     * fields is matched on whether any of them matches, if $value is an array, each value is matched against the
+     * corresponding index in $fields and all fields must match for an entry to be found.
+     *
      * @param mixed   $fields   The field name of array of field names to search in
-     * @param mixed   $value    Search value (or array of values when $fields is array)
+     * @param mixed   $value    Search value (or array of values if $fields is array and advanced search shall be done)
      * @param int     $mode     Matching mode:
      *                          0 - partial (*abc*),
      *                          1 - strict (=),
@@ -708,13 +714,152 @@ class Addressbook extends rcube_addressbook
             $required = empty($required) ? [] : [$required];
         }
 
-        $where = $and_where = [];
+        carddav::$logger->debug(
+            "search("
+            . "[" . implode(", ", $fields) . "], "
+            . (is_array($value) ? "[" . implode(", ", $value) . "]" : $value) . ", "
+            . "$mode, $select, $nocount, "
+            . "[" . implode(", ", $required) . "]"
+            . ")"
+        );
+
         $mode = intval($mode);
+
+        // (1) build the SQL WHERE clause for the fields to check against specific values
+        [$whereclause, $post_search] = $this->buildDatabaseSearchFilter($fields, $value, $mode);
+
+        // (2) Additionally, the search may request some fields not to be empty.
+        // Compute the corresponding search clause and append to the existing one from (1)
+
+        // this is an optional filter configured by the administrator that requires the given fields be not empty
+        if ($this->config['presetname']) {
+            $presetname = $this->config['presetname'];
+            $prefs = carddav::getAdminSettings();
+            $required = array_unique(array_merge($required, $prefs[$presetname]["require_always"] ?? []));
+        }
+
+        $and_where = [];
+        foreach (array_intersect($required, $this->table_cols) as $col) {
+            $and_where[] = $this->db->quote_identifier($col) . ' <> ' . $this->db->quote('');
+        }
+
+        if (!empty($and_where)) {
+            $and_whereclause = join(' AND ', $and_where);
+
+            if (empty($whereclause)) {
+                $whereclause = $and_whereclause;
+            } else {
+                $whereclause = "($whereclause) AND $and_whereclause";
+            }
+        }
+
+        // Post-searching in vCard data fields
+        // we will search in all records and then build a where clause for their IDs
+        if (!empty($post_search)) {
+            $ids = array(0);
+            // build key name regexp
+            $regexp = '/^(' . implode('|', array_keys($post_search)) . ')(?:.*)$/';
+            // use initial WHERE clause, to limit records number if possible
+            if (!empty($whereclause)) {
+                $this->set_search_set($whereclause);
+            }
+
+            // count result pages
+            $cnt   = $this->count();
+            $pages = ceil($cnt / $this->page_size);
+            $scnt  = count($post_search);
+
+            // get (paged) result
+            for ($i = 0; $i < $pages; $i++) {
+                $result = $this->list_records(null, $i, true);
+
+                while (
+                    /** @var ?array */
+                    $row = $result->next()
+                ) {
+                    $id = $row[$this->primary_key];
+                    $found = [];
+                    foreach (preg_grep($regexp, array_keys($row)) as $col) {
+                        $pos     = strpos($col, ':');
+                        $colname = $pos ? substr($col, 0, $pos) : $col;
+                        $search  = $post_search[$colname];
+                        foreach ((array)$row[$col] as $value) {
+                            // composite field, e.g. address
+                            foreach ((array)$value as $val) {
+                                $val = mb_strtolower($val);
+                                if ($mode & 1) {
+                                    $got = ($val == $search);
+                                } elseif ($mode & 2) {
+                                    $got = ($search == substr($val, 0, strlen($search)));
+                                } else {
+                                    $got = (strpos($val, $search) !== false);
+                                }
+
+                                if ($got) {
+                                    $found[$colname] = true;
+                                    break 2;
+                                }
+                            }
+                        }
+                    }
+                    // all fields match
+                    if (count($found) >= $scnt) {
+                        $ids[] = $id;
+                    }
+                }
+            }
+
+            // build WHERE clause
+            $ids = $this->db->array2list($ids, 'integer');
+            $whereclause = $this->primary_key . ' IN (' . $ids . ')';
+
+            // when we know we have an empty result
+            if ($ids == '0') {
+                $this->set_search_set($whereclause);
+                $result = new rcube_result_set(0, 0);
+                $this->result = $result;
+                return $result;
+            }
+        }
+
+        $this->set_search_set($whereclause);
+        if ($select) {
+            $result = $this->list_records(null, 0, $nocount);
+        } else {
+            $result = $this->count();
+            $this->result = $result;
+        }
+
+        return $result;
+    }
+
+    /**
+     * This function builds an array of search criteria (SQL WHERE clauses) for matching the requested
+     * contact search fields against fields of the carddav_contacts table according to the given search $mode.
+     *
+     * Only some fields are contained as individual columns in the carddav_contacts table, as indicated by
+     * $this->table_cols. The remaining fields need to be searched for in the VCards, which are a single column in the
+     * database. Therefore, the SQL filter can only match against the VCard in its entirety, but will not check if the
+     * correct property of the VCard contained the value. Thus, if such search fields are queried, the SQL result needs
+     * to be post-filtered with a check for these particular fields against the VCard properties.
+     *
+     * This function returns two values in an indexed array:
+     *   index 0: A string containing the WHERE clause for the SQL part of the search
+     *   index 1: An associative array (fieldname => search value), listing the search fields that need to be checked
+     *            in the VCard properties
+     *
+     * @param mixed   $fields   The field name of array of field names to search in
+     * @param mixed   $value    Search value (or array of values if $fields is array and advanced search shall be done)
+     * @param int     $mode     Matching mode, see search()
+     */
+    private function buildDatabaseSearchFilter($fields, $value, $mode): array
+    {
         $WS = ' ';
         $AS = self::SEPARATOR;
+
+        $where = [];
         $post_search = [];
 
-        // build the $where array; each of its entries is an SQL search condition
         foreach ($fields as $idx => $col) {
             // direct ID search
             if ($col == 'ID' || $col == $this->primary_key) {
@@ -772,99 +917,13 @@ class Addressbook extends rcube_addressbook
             }
         }
 
-        if ($this->config['presetname']) {
-            $prefs = carddav::getAdminSettings();
-            if (key_exists("require_always", $prefs[$this->config['presetname']])) {
-                $required = array_merge($prefs[$this->config['presetname']]["require_always"], $required);
-            }
-        }
 
-        foreach (array_intersect($required, $this->table_cols) as $col) {
-            $and_where[] = $this->db->quote_identifier($col) . ' <> ' . $this->db->quote('');
-        }
-
+        $whereclause = "";
         if (!empty($where)) {
             // use AND operator for advanced searches
-            $where = join(is_array($value) ? ' AND ' : ' OR ', $where);
+            $whereclause = join(is_array($value) ? ' AND ' : ' OR ', $where);
         }
-
-        if (!empty($and_where)) {
-            $where = ($where ? "($where) AND " : '') . join(' AND ', $and_where);
-        }
-
-        // Post-searching in vCard data fields
-        // we will search in all records and then build a where clause for their IDs
-        if (!empty($post_search)) {
-            $ids = array(0);
-            // build key name regexp
-            $regexp = '/^(' . implode('|', array_keys($post_search)) . ')(?:.*)$/';
-            // use initial WHERE clause, to limit records number if possible
-            if (!empty($where)) {
-                $this->set_search_set($where);
-            }
-
-            // count result pages
-            $cnt   = $this->count();
-            $pages = ceil($cnt / $this->page_size);
-            $scnt  = count($post_search);
-
-            // get (paged) result
-            for ($i = 0; $i < $pages; $i++) {
-                $this->list_records(null, $i, true);
-                while ($row = $this->result->next()) {
-                    $id = $row[$this->primary_key];
-                    $found = [];
-                    foreach (preg_grep($regexp, array_keys($row)) as $col) {
-                        $pos     = strpos($col, ':');
-                        $colname = $pos ? substr($col, 0, $pos) : $col;
-                        $search  = $post_search[$colname];
-                        foreach ((array)$row[$col] as $value) {
-                            // composite field, e.g. address
-                            foreach ((array)$value as $val) {
-                                $val = mb_strtolower($val);
-                                if ($mode & 1) {
-                                    $got = ($val == $search);
-                                } elseif ($mode & 2) {
-                                    $got = ($search == substr($val, 0, strlen($search)));
-                                } else {
-                                    $got = (strpos($val, $search) !== false);
-                                }
-
-                                if ($got) {
-                                    $found[$colname] = true;
-                                    break 2;
-                                }
-                            }
-                        }
-                    }
-                    // all fields match
-                    if (count($found) >= $scnt) {
-                        $ids[] = $id;
-                    }
-                }
-            }
-
-            // build WHERE clause
-            $ids = $this->db->array2list($ids, 'integer');
-            $where = $this->primary_key . ' IN (' . $ids . ')';
-
-            // when we know we have an empty result
-            if ($ids == '0') {
-                $this->set_search_set($where);
-                return ($this->result = new rcube_result_set(0, 0));
-            }
-        }
-
-        if (!empty($where)) {
-            $this->set_search_set($where);
-            if ($select) {
-                $this->list_records(null, 0, $nocount);
-            } else {
-                $this->result = $this->count();
-            }
-        }
-
-        return $this->result;
+        return [$whereclause, $post_search];
     }
 
     /**
