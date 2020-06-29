@@ -2,7 +2,7 @@
 
 all: staticanalyses doc
 
-staticanalyses: phpcompatcheck psalmanalysis
+staticanalyses: phpcompatcheck stylecheck psalmanalysis
 
 stylecheck:
 	vendor/bin/phpcs --colors --standard=PSR12 *.php src/
