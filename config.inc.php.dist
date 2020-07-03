@@ -62,15 +62,10 @@ $prefs['<Presetname>'] = array(
 	// auto-updated for this preset
 	'fixed'        =>  array( < 0 or more of the other attribute keys > ),
 
-	// normally, the URL of an addressbook is permanently fixed and can
-	// not be changed. There may be corner cases where making the URL
-	// changeable may be desirable. set 'unfixed' to 'url' for that
-	// 'unfixed'	=> 'url',
-
 	// always require these attributes, even for addressbook view
 	'require_always' => ['email'],
 
-	// hide this preset from CalDAV preferences section so users can't even
+	// hide this preset from CardDAV preferences section so users can't even
 	// see it
 	'hide' => <true or false>,
 );
@@ -100,7 +95,7 @@ $prefs['<Presetname>'] = array(
 //               become user.name).
 //               Also, %d is available to get only the domain part of the
 //               username (eg: user.name@example.com will become example.com).
-//               In some cases %V might be usefull: it replaces @ and . by _.
+//               In some cases %V might be useful: it replaces @ and . by _.
 //               (eg: user.name@example.com will become user_name_example_com)
 //
 // password:     CardDAV password to access the addressbook. Set this setting
@@ -169,17 +164,12 @@ $prefs['<Presetname>'] = array(
 //                 belonging to the old preset will be deleted upon the next
 //                 login of the user and freshly created.
 //
-// unfixed:      Array of parameter keys that usually can not be changed by the user.
-//               Currently, this only affects the 'url' parameter and should be
-//               carefully evaluated if you want to allow the user to change the URL.
-//               If in doubt, do not set this option.
-//
 // require_always: If set, this database field is required to be non-empty
 //               for ALL queries, even just for displaying members. This may be
 //               useful if you have shared, read-only addressbooks with a lot
 //               of contacts that do not have an email address.
 //
-// hide:         Whether this preset should be hidden from the CalDAV listing
+// hide:         Whether this preset should be hidden from the CardDAV listing
 //               on the preferences page.
 
 

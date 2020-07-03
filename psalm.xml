@@ -13,6 +13,6 @@
     </projectFiles>
 
 	<extraFiles>
-		<directory name="/var/www/roundcubetest/program/" />
+		<directory name="../roundcubemail/program/" />
 	</extraFiles>
 </psalm>

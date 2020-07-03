@@ -2125,12 +2125,12 @@ class Addressbook extends rcube_addressbook
     {
         if (!isset($this->davAbook)) {
             $url = $this->config["url"];
-            $account = new Account(
-                $url,
-                $this->config["username"],
-                carddav::decryptPassword($this->config["password"]),
-                $url
-            );
+
+            // only the username and password are stored to DB before replacing placeholders
+            $username = carddav::replacePlaceholdersUsername($this->config["username"]);
+            $password = carddav::replacePlaceholdersPassword(carddav::decryptPassword($this->config["password"]));
+
+            $account = new Account($url, $username, $password, $url);
             $this->davAbook = new AddressbookCollection($url, $account);
         }
 

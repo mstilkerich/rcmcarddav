@@ -19,6 +19,7 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
+
 use MStilkerich\CardDavClient\{Account, Config};
 use MStilkerich\CardDavClient\Services\Discovery;
 use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Database, RoundcubeLogger};
@@ -223,7 +224,7 @@ class carddav extends rcube_plugin
                         $pa = [];
 
                         foreach ($preset['fixed'] as $k) {
-                            if (array_key_exists($k, $abookrow) &&   array_key_exists($k, $preset)) {
+                            if (key_exists($k, $abookrow) && key_exists($k, $preset)) {
                                 // only update the name if it is used
                                 if ($k === 'name') {
                                     if (!$preset['carddav_name_only']) {
@@ -235,6 +236,10 @@ class carddav extends rcube_plugin
                                             $pa['name'] = $preset['name'] . substr($fullname, $cnpos);
                                         }
                                     }
+                                } elseif ($k === 'url') {
+                                    // the URL cannot be automatically updated, as it was discovered and normally will
+                                    // not exactly match the discovery URI. Resetting it to the discovery URI would
+                                    // break the addressbook record
                                 } elseif ($abookrow[$k] != $preset[$k]) {
                                     $pa[$k] = $preset[$k];
                                 }
@@ -253,21 +258,36 @@ class carddav extends rcube_plugin
                 unset($existing_presets[$presetname]);
             } else { // create new
                 $preset['presetname'] = $presetname;
-                $preset['password']   = self::encryptPassword($preset['password']);
                 $abname = $preset['name'];
 
-                $account = new Account($preset['url'], $preset['username'], $preset['password']);
-                $discover = new Discovery();
-                $abooks = $discover->discoverAddressbooks($account);
+                try {
+                    $username = self::replacePlaceholdersUsername($preset['username']);
+                    $url = self::replacePlaceholdersUrl($preset['url']);
+                    $password = self::replacePlaceholdersPassword($preset['password']);
 
-                foreach ($abooks as $abook) {
-                    if ($preset['carddav_name_only']) {
-                        $preset['name'] = $abook->getName();
-                    } else {
-                        $preset['name'] = "$abname (" . $abook->getName() . ')';
+                    self::$logger->debug("Adding preset for $username ($password) at URL $url");
+                    $account = new Account(
+                        self::replacePlaceholdersUrl($preset['url']),
+                        self::replacePlaceholdersUsername($preset['username']),
+                        self::replacePlaceholdersPassword($preset['password'])
+                    );
+                    $discover = new Discovery();
+                    $abooks = $discover->discoverAddressbooks($account);
+
+                    $preset['password']   = self::encryptPassword($preset['password']);
+
+                    foreach ($abooks as $abook) {
+                        if ($preset['carddav_name_only']) {
+                            $preset['name'] = $abook->getName();
+                        } else {
+                            $preset['name'] = "$abname (" . $abook->getName() . ')';
+                        }
+
+                        $preset['url'] = $abook->getUri();
+                        self::insertAddressbook($preset);
                     }
-                    $preset['url'] = $abook->getUri();
-                    self::insertAddressbook($preset);
+                } catch (\Exception $e) {
+                    self::$logger->error("Error adding addressbook from preset $presetname: {$e->getMessage()}");
                 }
             }
         }
@@ -278,6 +298,37 @@ class carddav extends rcube_plugin
                 self::deleteAddressbook($abookrow['id']);
             }
         }
+    }
+
+    public static function replacePlaceholdersUsername(string $username): string
+    {
+        $rcmail = rcmail::get_instance();
+        $username = strtr($username, [
+            '%u' => $_SESSION['username'],
+            '%l' => $rcmail->user->get_username('local'),
+            '%d' => $rcmail->user->get_username('domain'),
+            // %V parses username for macosx, replaces periods and @ by _, work around bugs in contacts.app
+            '%V' => strtr($_SESSION['username'], "@.", "__")
+        ]);
+
+        return $username;
+    }
+
+    // only needed inside this class because the URL is not stored with placeholders
+    private static function replacePlaceholdersUrl(string $url): string
+    {
+        // currently same as for username
+        return self::replacePlaceholdersUsername($url);
+    }
+
+    public static function replacePlaceholdersPassword(string $password): string
+    {
+        if ($password == '%p') {
+            $rcmail = rcmail::get_instance();
+            $password = $rcmail->decrypt($_SESSION['password']);
+        }
+
+        return $password;
     }
 
     public function listAddressbooks(array $p): array
@@ -334,28 +385,17 @@ class carddav extends rcube_plugin
         return $refresht;
     }
 
-    private static function isOverrideAllowed(string $pref, array $abook, array $prefs): bool
+    private static function noOverrideAllowed(string $pref, array $abook, array $prefs): bool
     {
         $pn = $abook['presetname'];
-        if (!$pn) {
+        if (!isset($pn)) {
             return false;
-        }
-
-        // generally, url is fixed, unless it is mentioned in 'unfixed'
-        if ($pref === 'url') {
-            if (!is_array($prefs[$pn])) {
-                return true;
-            }
-            if (!is_array($prefs[$pn]['unfixed'])) {
-                return true;
-            }
-
-            return in_array($pref, $prefs[$pn]['unfixed']);
         }
 
         if (!is_array($prefs[$pn])) {
             return false;
         }
+
         if (!is_array($prefs[$pn]['fixed'])) {
             return false;
         }
@@ -371,7 +411,7 @@ class carddav extends rcube_plugin
         $abookid = $abook['id'];
         $rcmail = rcmail::get_instance();
 
-        if (self::isOverrideAllowed('active', $abook, $prefs)) {
+        if (self::noOverrideAllowed('active', $abook, $prefs)) {
             $content_active = $prefs[$abook['presetname']]
                 ? $this->gettext('cd_enabled')
                 : $this->gettext('cd_disabled');
@@ -381,7 +421,7 @@ class carddav extends rcube_plugin
             $content_active = $checkbox->show($abook['active'] ? "1" : "0");
         }
 
-        if (self::isOverrideAllowed('use_categories', $abook, $prefs) || $abook['id'] !== "new") {
+        if (self::noOverrideAllowed('use_categories', $abook, $prefs)) {
             $content_use_categories = $abook['use_categories']
                 ? $this->gettext('cd_enabled')
                 : $this->gettext('cd_disabled');
@@ -391,17 +431,8 @@ class carddav extends rcube_plugin
             $content_use_categories = $checkbox->show($abook['use_categories'] ? "1" : "0");
         }
 
-        if (self::isOverrideAllowed('username', $abook, $prefs)) {
-            // %V parses username for macosx, replaces periods and @ by _, work around bugs in contacts.app
-            if ($abook['username'] === '%V') {
-                $content_username = str_replace('@', '_', str_replace('.', '_', $_SESSION['username']));
-            } elseif ($abook['username'] === '%u') {
-                $content_username = $_SESSION['username'];
-            } elseif ($abook['username'] === '%l') {
-                $content_username = $rcmail->user->get_username('local');
-            } else {
-                $content_username = $abook['username'];
-            }
+        if (self::noOverrideAllowed('username', $abook, $prefs)) {
+            $content_username = self::replacePlaceholdersUsername($abook['username']);
         } else {
             // input box for username
             $input = new html_inputfield([
@@ -413,7 +444,7 @@ class carddav extends rcube_plugin
             $content_username = $input->show();
         }
 
-        if (self::isOverrideAllowed('password', $abook, $prefs)) {
+        if (self::noOverrideAllowed('password', $abook, $prefs)) {
             $content_password = "***";
         } else {
             // input box for password
@@ -426,9 +457,10 @@ class carddav extends rcube_plugin
             $content_password = $input->show();
         }
 
-        if (self::isOverrideAllowed('url', $abook, $prefs)) {
-            $content_url = str_replace("%u", $abook['username'], $abook['url']);
-        } else {
+        // generally, url is fixed, as it results from discovery and has no direct correlation with the admin setting
+        // if the URL of the addressbook changes, all URIs of our database objects would have to change, too -> in such
+        // cases, deleting and re-adding the addressbook would be simpler
+        if ($abook['id'] === "new") {
             // input box for URL
             $size = max(strlen($abook['url']), 40);
             $input = new html_inputfield([
@@ -439,10 +471,12 @@ class carddav extends rcube_plugin
                 'size' => $size
             ]);
             $content_url = $input->show();
+        } else {
+            $content_url = $abook['url'];
         }
 
         // input box for refresh time
-        if (self::isOverrideAllowed('refresh_time', $abook, $prefs)) {
+        if (self::noOverrideAllowed('refresh_time', $abook, $prefs)) {
             $content_refresh_time =  $abook['refresh_time'];
         } else {
             $input = new html_inputfield([
@@ -454,12 +488,12 @@ class carddav extends rcube_plugin
             ]);
             $content_refresh_time = $input->show();
         }
+
         if (isset($abook['last_updated'])) {
-            $content_refresh_time .=  ' (' . rcube::Q($this->gettext('cd_lastupdate_time'))
-                . ': ' . $abook['last_updated'] . ')';
+            $content_refresh_time .=  rcube::Q($this->gettext('cd_lastupdate_time')) . ': ' . $abook['last_updated'];
         }
 
-        if (self::isOverrideAllowed('name', $abook, $prefs)) {
+        if (self::noOverrideAllowed('name', $abook, $prefs)) {
             $content_name = $abook['name'];
         } else {
             $input = new html_inputfield([
@@ -622,7 +656,6 @@ class carddav extends rcube_plugin
                 $newset = [
                     'name' => rcube_utils::get_input_value("${abookid}_cd_name", rcube_utils::INPUT_POST),
                     'username' => rcube_utils::get_input_value("${abookid}_cd_username", rcube_utils::INPUT_POST, true),
-                    'url' => rcube_utils::get_input_value("${abookid}_cd_url", rcube_utils::INPUT_POST),
                     'active' => isset($_POST[$abookid . '_cd_active']) ? 1 : 0,
                     'use_categories' => isset($_POST[$abookid . '_cd_use_categories']) ? 1 : 0,
                     'refresh_time' => rcube_utils::get_input_value(
@@ -639,7 +672,7 @@ class carddav extends rcube_plugin
 
                 // remove admin only settings
                 foreach ($newset as $pref => $value) {
-                    if (self::isOverrideAllowed($pref, $abook, $prefs)) {
+                    if (self::noOverrideAllowed($pref, $abook, $prefs)) {
                         unset($newset[$pref]);
                     }
                 }
@@ -659,29 +692,35 @@ class carddav extends rcube_plugin
             $srv    = rcube_utils::get_input_value('new_cd_url', rcube_utils::INPUT_POST);
             $usr    = rcube_utils::get_input_value('new_cd_username', rcube_utils::INPUT_POST, true);
             $pass   = rcube_utils::get_input_value('new_cd_password', rcube_utils::INPUT_POST, true);
-            $pass = self::encryptPassword($pass);
             $abname = rcube_utils::get_input_value('new_cd_name', rcube_utils::INPUT_POST);
             $use_categories = rcube_utils::get_input_value('new_cd_use_categories', rcube_utils::INPUT_POST, true);
 
-            $account = new Account($srv, $usr, self::decryptPassword($pass));
-            $discover = new Discovery();
-            $abooks = $discover->discoverAddressbooks($account);
+            try {
+                $account = new Account($srv, $usr, self::replacePlaceholdersPassword($pass));
+                $discover = new Discovery();
+                $abooks = $discover->discoverAddressbooks($account);
 
-            if (count($abooks) > 0) {
-                foreach ($abooks as $abook) {
-                    self::$logger->debug("ADDING ABOOK " . print_r($srv, true));
-                    self::insertAddressbook([
-                        'name'     => "$abname ({$abook->getName()})",
-                        'username' => $usr,
-                        'password' => $pass,
-                        'use_categories' => ($use_categories == "1") ? 1 : 0,
-                        'url'      => $abook->getUri(),
-                        'refresh_time' => rcube_utils::get_input_value('new_cd_refresh_time', rcube_utils::INPUT_POST)
-                    ]);
+                if (count($abooks) > 0) {
+                    foreach ($abooks as $abook) {
+                        self::$logger->debug("ADDING ABOOK $usr @ $srv");
+                        self::insertAddressbook([
+                            'name'     => "$abname ({$abook->getName()})",
+                            'username' => $usr,
+                            'password' => self::encryptPassword($pass),
+                            'use_categories' => ($use_categories == "1") ? 1 : 0,
+                            'url'      => $abook->getUri(),
+                            'refresh_time' => rcube_utils::get_input_value(
+                                'new_cd_refresh_time',
+                                rcube_utils::INPUT_POST
+                            )
+                        ]);
+                    }
+                } else {
+                    throw new \Exception($abname . ': ' . $this->gettext('cd_err_noabfound'));
                 }
-            } else {
+            } catch (\Exception $e) {
                 $args['abort'] = true;
-                $args['message'] = $abname . ': ' . $this->gettext('cd_err_noabfound');
+                $args['message'] = $e->getMessage();
             }
         }
 
@@ -719,21 +758,8 @@ class carddav extends rcube_plugin
             $pa['refresh_time'] = self::parseTimeParameter($pa['refresh_time']);
         }
         /* Ensure field lengths */
-        if (array_key_exists('name', $pa)) {
-            if (strlen($pa['name']) > 64) {
-                $pa['name'] = substr($pa['name'], 0, 64);
-            }
-        }
-        if (array_key_exists('username', $pa)) {
-            if (strlen($pa['username']) > 255) {
-                $pa['username'] = substr($pa['username'], 0, 255);
-            }
-        }
-        if (array_key_exists('presetname', $pa)) {
-            if (strlen($pa['presetname']) > 255) {
-                $pa['presetname'] = substr($pa['presetname'], 0, 255);
-            }
-        }
+        self::checkAddressbookFieldLengths($pa);
+
         $pa['user_id']      = $_SESSION['user_id'];
 
         // required fields
@@ -763,6 +789,28 @@ class carddav extends rcube_plugin
         );
     }
 
+    /**
+     * Checks that the values for addressbook fields fit into their database types.
+     *
+     * @param string[] $attrs An associative array of database columns and their values.
+     */
+    private static function checkAddressbookFieldLengths($attrs): void
+    {
+        $limits = [
+            'name' => 64,
+            'username' => 255,
+            'password' => 255,
+        ];
+
+        foreach ($limits as $key => $limit) {
+            if (array_key_exists($key, $attrs)) {
+                if (strlen($attrs[$key]) > $limit) {
+                    throw new \Exception("The addressbook $key must not exceed $limit characters in length");
+                }
+            }
+        }
+    }
+
     public static function updateAddressbook(string $abookid, array $pa): void
     {
         $dbh = rcmail::get_instance()->db;
@@ -778,21 +826,7 @@ class carddav extends rcube_plugin
         }
 
         /* Ensure field lengths */
-        if (array_key_exists('name', $pa)) {
-            if (strlen($pa['name']) > 64) {
-                $pa['name'] = substr($pa['name'], 0, 64);
-            }
-        }
-        if (array_key_exists('username', $pa)) {
-            if (strlen($pa['username']) > 255) {
-                $pa['username'] = substr($pa['username'], 0, 255);
-            }
-        }
-        if (array_key_exists('presetname', $pa)) {
-            if (strlen($pa['presetname']) > 255) {
-                $pa['presetname'] = substr($pa['presetname'], 0, 255);
-            }
-        }
+        self::checkAddressbookFieldLengths($pa);
 
         // optional fields
         $qfo = array('name','username','password','url','active','refresh_time','sync_token');
