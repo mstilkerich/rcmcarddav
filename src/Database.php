@@ -31,7 +31,7 @@ class Database
      * @param array  associative array containing the roundcube save data for the contact
      * @param ?string optionally, database id of the contact if the store operation is an update
      *
-     * @return string|bool  The database id of the created or updated card, false on error.
+     * @return string The database id of the created or updated card.
      */
     public static function storeContact(
         string $abookid,
@@ -76,7 +76,7 @@ class Database
      * @param ?string path to the VCard on the CardDAV server
      * @param ?string string representation of the VCard
      *
-     * @return string|bool The database id of the created or updated card, false on error.
+     * @return string The database id of the created or updated card.
      */
     public static function storeGroup(
         string $abookid,
@@ -103,7 +103,7 @@ class Database
         ?string $dbid,
         array $xcol = [],
         array $xval = []
-    ): string {
+    ) {
         $dbh = rcmail::get_instance()->db;
 
         $carddesc = $uri ?? "(entry not backed by card)";
@@ -150,6 +150,7 @@ class Database
             );
 
             $dbid = $dbh->insert_id("carddav_$table");
+            $dbid = is_bool($dbid) ? "" /* error thrown below */ : (string) $dbid;
         }
 
         if ($dbh->is_error()) {

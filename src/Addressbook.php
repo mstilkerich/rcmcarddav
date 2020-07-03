@@ -1928,12 +1928,7 @@ class Addressbook extends rcube_addressbook
 
             if ($this->config['use_categories']) {
                 $groupid = Database::storeGroup($this->id, $save_data);
-
-                if ($groupid !== false) {
-                    return [ 'id' => $groupid, 'name' => $name ];
-                }
-
-                throw new \Exception("New group could not be stored to database");
+                return [ 'id' => $groupid, 'name' => $name ];
             } else {
                 $davAbook = $this->getCardDavObj();
                 $vcard = $this->convRcube2VCard($save_data);
