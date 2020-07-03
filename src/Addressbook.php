@@ -1603,11 +1603,13 @@ class Addressbook extends rcube_addressbook
                 Database::get($ids, 'group_id', 'group_user', false, 'contact_id')
             );
 
-            $groups = Database::get($groupids, "id,etag,uri,vcard", "groups", false);
+            if (!empty($groupids)) {
+                $groups = Database::get($groupids, "id,etag,uri,vcard", "groups", false);
 
-            foreach ($groups as $group) {
-                if (isset($group["vcard"])) {
-                    $this->removeContactsFromVCardBasedGroup($contact_cuids, $group);
+                foreach ($groups as $group) {
+                    if (isset($group["vcard"])) {
+                        $this->removeContactsFromVCardBasedGroup($contact_cuids, $group);
+                    }
                 }
             }
 
