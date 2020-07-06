@@ -161,8 +161,24 @@ class Database
     }
 
     /**
+     * Gets rows from a database table.
+     *
      * @param string|string[] $id A single database ID (string) or an array of database IDs if several records should be
-     *                            queried. These IDs are queried against the database column specified by $idfield.
+     *                            queried. These IDs are queried against the database column specified by $idfield. Can
+     *                            be a single or multiple values, null is not permitted.
+     * @param string $cols        A comma-separated list of database column names used in the SELECT clause of the SQL
+     *                            statement. By default, all columns are selected.
+     * @param string $table       Name of the database table to select from, without the carddav_ prefix.
+     * @param bool $retsingle     If true, exactly one single row is expected as result. If false, any number of rows is
+     *                            expected as result.
+     * @param string $idfield     The name of the column against which $id is matched.
+     * @param array  $other_conditions An associative array with database column names as keys and their match criterion
+     *                                 as value.
+     * @return array              If $retsingle is true and no error occurred, returns an associative row array with the
+     *                            matching row, where keys are fieldnames and their value is the corresponding database
+     *                            value of the field in the result row. If $retsingle is false, a possibly empty array
+     *                            of such row-arrays is returned.
+     * @see self::getConditionQuery()
      */
     public static function get(
         $id,
@@ -174,7 +190,6 @@ class Database
     ): array {
         $dbh = rcmail::get_instance()->db;
 
-        $idfield = $dbh->quote_identifier($idfield);
         $sql = "SELECT $cols FROM " . $dbh->table_name("carddav_$table") . ' WHERE ';
 
         // Main selection condition
@@ -208,22 +223,30 @@ class Database
     }
 
     /**
-     * @param string|string[] $ids A single database ID (string) or an array of database IDs if several records should
-     *                             be queried. These IDs are queried against the database column specified by $idfield.
+     * Deletes rows from a database table.
+     *
+     * @param string|string[] $id A single database ID (string) or an array of database IDs if several records should be
+     *                            queried. These IDs are queried against the database column specified by $idfield. Can
+     *                            be a single or multiple values, null is not permitted.
+     * @param string $table       Name of the database table to select from, without the carddav_ prefix.
+     * @param string $idfield     The name of the column against which $id is matched.
+     * @param array  $other_conditions An associative array with database column names as keys and their match criterion
+     *                                 as value.
+     * @return int                The number of rows deleted.
+     * @see self::getConditionQuery()
      */
     public static function delete(
-        $ids,
+        $id,
         string $table = 'contacts',
         string $idfield = 'id',
         array $other_conditions = []
     ): int {
         $dbh = rcmail::get_instance()->db;
 
-        $idfield = $dbh->quote_identifier($idfield);
         $sql = "DELETE FROM " . $dbh->table_name("carddav_$table") . " WHERE ";
 
         // Main selection condition
-        $sql .= self::getConditionQuery($dbh, $idfield, $ids);
+        $sql .= self::getConditionQuery($dbh, $idfield, $id);
 
         // Append additional conditions
         $sql .= self::getOtherConditionsQuery($dbh, $other_conditions);
@@ -278,22 +301,37 @@ class Database
     }
 
     /**
-     * @param string|string[] $value The value to check field for. Either a single value passed as string, or an array
-     *                               of multiple values.
+     * Creates a condition query on a database column to be used in an SQL WHERE clause.
+     *
+     * @param rcube_db $dbh The roundcube database handle.
+     * @param string $field Name of the database column. Prefix with ! to invert the condition.
+     * @param ?string|string[] $value The value to check field for. Can be one of the following:
+     *          - null: Assert that the field is NULL (or not NULL if inverted)
+     *          - string: Assert that the field value matches $value (or does not match value, if inverted)
+     *          - string[]: Assert that the field matches one of the strings in values (or none, if inverted)
      */
     private static function getConditionQuery(rcube_db $dbh, string $field, $value): string
     {
-        $sql = $dbh->quote_identifier($field);
+        $invertCondition = false;
+        if ($field[0] === "!") {
+            $field = substr($field, 1);
+            $invertCondition = true;
+        }
 
-        if (is_array($value)) {
+        $sql = $dbh->quote_identifier($field);
+        if (!isset($value)) {
+            $sql .= $invertCondition ? ' IS NOT NULL' : ' IS NULL';
+        } elseif (is_array($value)) {
             if (count($value) > 0) {
                 $quoted_values = array_map([ $dbh, 'quote' ], $value);
-                $sql .= " IN (" . implode(",", $quoted_values) . ")";
+                $sql .= $invertCondition ? " NOT IN" : " IN";
+                $sql .= " (" . implode(",", $quoted_values) . ")";
             } else {
                 throw new \Exception("getConditionQuery $field - empty values array provided");
             }
         } else {
-            $sql .= ' = ' . $dbh->quote($value);
+            $sql .= $invertCondition ? ' <> ' : ' = ';
+            $sql .= $dbh->quote($value);
         }
 
         return $sql;
