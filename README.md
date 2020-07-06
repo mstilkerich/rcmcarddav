@@ -11,7 +11,6 @@ __Caution: v4 is currently in development and there are some known issues:__
 
 - Database migration happens automatically.
 - If you want more verbose than default logging, this must now be configured in config.inc.php. See the distributed file config.inc.php.dist for examples.
-- GSSAPI is currently not supported (not tested and thus will likely not work because of new HTTP client library in v4).
 
 ### Upgrading from 2.0.x
 
