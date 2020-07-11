@@ -194,7 +194,20 @@ class Database
     }
 
     /**
+     * Inserts a new contact or group into the database, or updates an existing one.
      *
+     * If the address object is not backed by an object on the server side (CATEGORIES-type groups), the parameters
+     * $etag, $uri and $vcfstr are not applicable and shall be passed as NULL.
+     *
+     * @param string $table The target table, without carddav_ prefix (contacts or groups)
+     * @param string $abookid The database ID of the addressbook the address object belongs to.
+     * @param ?string $etag The ETag value of the CardDAV-server address object that this object is created from.
+     * @param ?string $uri  The URI of the CardDAV-server address object that this object is created from.
+     * @param ?string $vcfstr The VCard string of the CardDAV-server address object that this object is created from.
+     * @param string[] $save_data The Roundcube representation of the address object.
+     * @param ?string $dbid If an existing object is updated, this specifies its database id.
+     * @param string[] $xcol Database column names of attributes to insert.
+     * @param string[] $xval The values to insert into the column specified by $xcol at the corresponding index.
      * @return string The database id of the created or updated card.
      */
     private static function storeAddressObject(
@@ -207,7 +220,7 @@ class Database
         ?string $dbid,
         array $xcol = [],
         array $xval = []
-    ) {
+    ): string {
         $dbh = rcmail::get_instance()->db;
 
         $carddesc = $uri ?? "(entry not backed by card)";
@@ -226,11 +239,8 @@ class Database
 
         if (isset($dbid)) {
             self::$logger->debug("UPDATE card $dbid/$carddesc in $table");
-            $xval[] = $dbid;
-            $sql_result = $dbh->query('UPDATE ' .
-                $dbh->table_name("carddav_$table") .
-                ' SET ' . implode('=?,', $xcol) . '=?' .
-                ' WHERE id=?', $xval);
+
+            self::update($dbid, $xcol, $xval, $table, 'id');
         } else {
             self::$logger->debug("INSERT card $carddesc to $table");
 
@@ -246,22 +256,83 @@ class Database
                 $xval[] = $save_data['cuid'];
             }
 
-            $sql_result = $dbh->query(
-                'INSERT INTO ' .
-                $dbh->table_name("carddav_$table") .
-                ' (' . implode(',', $xcol) . ') VALUES (?' . str_repeat(',?', count($xcol) - 1) . ')',
-                $xval
-            );
-
-            $dbid = $dbh->insert_id("carddav_$table");
-            $dbid = is_bool($dbid) ? "" /* error thrown below */ : (string) $dbid;
+            $dbid = self::insert($table, $xcol, $xval);
         }
 
+
+        return $dbid;
+    }
+
+    /**
+     * Stores a new entity to the database.
+     *
+     * @param string $table The database table to store the entity to.
+     * @param string[] $cols Database column names of attributes to insert.
+     * @param string[] $vals The values to insert into the column specified by $cols at the corresponding index.
+     * @return string The database id of the created database record.
+     */
+    public static function insert(string $table, array $cols, array $vals): string
+    {
+        $dbh = rcmail::get_instance()->db;
+
+        $sql = 'INSERT INTO ' . $dbh->table_name("carddav_$table") .
+            '(' . implode(",", $cols)  . ') ' .
+            'VALUES (?' . str_repeat(',?', count($cols) - 1) . ')';
+
+        $sql_result = $dbh->query($sql, $vals);
+
+        $dbid = $dbh->insert_id("carddav_$table");
+        $dbid = is_bool($dbid) ? "" /* error thrown below */ : (string) $dbid;
+
         if ($dbh->is_error()) {
+            self::$logger->error("Database::insert ($sql) ERROR: " . $dbh->is_error());
             throw new \Exception($dbh->is_error());
         }
 
         return $dbid;
+    }
+
+    /**
+     * Updates records in a database table.
+     *
+     * @param string|string[] $id A single database ID (string) or an array of database IDs if several records should be
+     *                            updated. These IDs are queried against the database column specified by $idfield. Can
+     *                            be a single or multiple values, null is not permitted.
+     * @param string $table       Name of the database table to select from, without the carddav_ prefix.
+     * @param string $idfield     The name of the column against which $id is matched.
+     * @param string[] $cols      Database column names of attributes to update.
+     * @param string[] $vals      The values to set into the column specified by $cols at the corresponding index.
+     * @param array  $other_conditions An associative array with database column names as keys and their match criterion
+     *                                 as value.
+     * @return int                The number of rows updated.
+     * @see self::getConditionQuery()
+     */
+    public static function update(
+        $id,
+        array $cols,
+        array $vals,
+        string $table = 'contacts',
+        string $idfield = 'id',
+        array $other_conditions = []
+    ): int {
+        $dbh = rcmail::get_instance()->db;
+        $sql = 'UPDATE ' . $dbh->table_name("carddav_$table") . ' SET ' . implode("=?,", $cols) . '=? WHERE ';
+
+        // Main selection condition
+        $sql .= self::getConditionQuery($dbh, $idfield, $id);
+
+        // Append additional conditions
+        $sql .= self::getOtherConditionsQuery($dbh, $other_conditions);
+
+        self::$logger->debug("UPDATE $table ($sql)");
+        $sql_result = $dbh->query($sql, $vals);
+
+        if ($dbh->is_error()) {
+            self::$logger->error("Database::update ($sql) ERROR: " . $dbh->is_error());
+            throw new \Exception($dbh->is_error());
+        }
+
+        return $dbh->affected_rows($sql_result);
     }
 
     /**
@@ -330,7 +401,7 @@ class Database
      * Deletes rows from a database table.
      *
      * @param string|string[] $id A single database ID (string) or an array of database IDs if several records should be
-     *                            queried. These IDs are queried against the database column specified by $idfield. Can
+     *                            deleted. These IDs are queried against the database column specified by $idfield. Can
      *                            be a single or multiple values, null is not permitted.
      * @param string $table       Name of the database table to select from, without the carddav_ prefix.
      * @param string $idfield     The name of the column against which $id is matched.

@@ -93,20 +93,13 @@ class carddav extends rcube_plugin
         $config = rcmail::get_instance()->config;
         $sources = (array) $config->get('autocomplete_addressbooks', array('sql'));
 
-        $dbh = rcmail::get_instance()->db;
-        $sql_result = $dbh->query(
-            'SELECT id FROM ' .
-            $dbh->table_name('carddav_addressbooks') .
-            ' WHERE user_id=? AND active=1',
-            $_SESSION['user_id']
+        $sources = array_map(
+            function (array $v): string {
+                return "carddav_{$v['id']}";
+            },
+            Database::get($_SESSION['user_id'], 'id', 'addressbooks', false, 'user_id', [ 'active' => '1' ])
         );
 
-        while ($abookrow = $dbh->fetch_assoc($sql_result)) {
-            $abookname = "carddav_" . $abookrow['id'];
-            if (!in_array($abookname, $sources)) {
-                $sources[] = $abookname;
-            }
-        }
         $config->set('autocomplete_addressbooks', $sources);
         $skin_path = $this->local_skin_path();
         $this->include_stylesheet($skin_path . '/carddav.css');
@@ -166,7 +159,6 @@ class carddav extends rcube_plugin
 
     public function initPresets(): void
     {
-        $dbh = rcmail::get_instance()->db;
         $prefs = self::getAdminSettings();
 
         // Get all existing addressbooks of this user that have been created from presets
@@ -272,32 +264,37 @@ class carddav extends rcube_plugin
         return $password;
     }
 
+    /**
+     * Adds the user's CardDAV addressbooks to Roundcube's addressbook list.
+     */
     public function listAddressbooks(array $p): array
     {
-        $dbh = rcmail::get_instance()->db;
         $prefs = self::getAdminSettings();
 
-        $sql_result = $dbh->query(
-            'SELECT id,name,presetname FROM ' .
-            $dbh->table_name('carddav_addressbooks') .
-            ' WHERE user_id=? AND active=1',
-            $_SESSION['user_id']
+        $abooks = Database::get(
+            $_SESSION['user_id'],
+            "id,name,presetname",
+            "addressbooks",
+            false,
+            "user_id",
+            [ "active" => "1" ]
         );
 
-        while ($abookrow = $dbh->fetch_assoc($sql_result)) {
+        foreach ($abooks as $abook) {
             $ro = false;
-            if ($abookrow['presetname'] && $prefs[$abookrow['presetname']]['readonly']) {
+            if (isset($abook['presetname']) && $prefs[$abook['presetname']]['readonly']) {
                 $ro = true;
             }
 
-            $p['sources']["carddav_" . $abookrow['id']] = array(
-                'id' => "carddav_" . $abookrow['id'],
-                'name' => $abookrow['name'],
+            $p['sources']["carddav_" . $abook['id']] = [
+                'id' => "carddav_" . $abook['id'],
+                'name' => $abook['name'],
                 'groups' => true,
                 'autocomplete' => true,
                 'readonly' => $ro,
-            );
+            ];
         }
+
         return $p;
     }
 
@@ -569,8 +566,6 @@ class carddav extends rcube_plugin
      */
     public function savePreferences(array $args): array
     {
-        $dbh = rcmail::get_instance()->db;
-
         if ($args['section'] != 'cd_preferences') {
             return $args;
         }
@@ -621,6 +616,7 @@ class carddav extends rcube_plugin
                 self::updateAddressbook($abookid, $newset);
 
                 if (isset($_POST["${abookid}_cd_resync"])) {
+                    $dbh = rcmail::get_instance()->db;
                     $backend = new Addressbook($dbh, $abookid, $this);
                     $backend->resync();
                 }
@@ -692,8 +688,6 @@ class carddav extends rcube_plugin
 
     private static function insertAddressbook(array $pa): void
     {
-        $dbh = rcmail::get_instance()->db;
-
         // check parameters
         if (key_exists('refresh_time', $pa)) {
             $pa['refresh_time'] = self::parseTimeParameter($pa['refresh_time']);
@@ -727,12 +721,7 @@ class carddav extends rcube_plugin
             }
         }
 
-        $dbh->query(
-            'INSERT INTO ' . $dbh->table_name('carddav_addressbooks') .
-            '(' . implode(',', $qf)  . ') ' .
-            'VALUES (?' . str_repeat(',?', count($qf) - 1) . ')',
-            $qv
-        );
+        Database::insert("addressbooks", $qf, $qv);
     }
 
     /**
@@ -759,8 +748,6 @@ class carddav extends rcube_plugin
 
     public static function updateAddressbook(string $abookid, array $pa): void
     {
-        $dbh = rcmail::get_instance()->db;
-
         // check parameters
         if (key_exists('refresh_time', $pa)) {
             $pa['refresh_time'] = self::parseTimeParameter($pa['refresh_time']);
@@ -775,9 +762,9 @@ class carddav extends rcube_plugin
         self::checkAddressbookFieldLengths($pa);
 
         // optional fields
-        $qfo = array('name','username','password','url','active','refresh_time','sync_token');
-        $qf = array();
-        $qv = array();
+        $qfo = ['name','username','password','url','active','refresh_time','sync_token'];
+        $qf = [];
+        $qv = [];
 
         foreach ($qfo as $f) {
             if (key_exists($f, $pa)) {
@@ -789,14 +776,7 @@ class carddav extends rcube_plugin
             return;
         }
 
-        $qv[] = $abookid;
-        $dbh->query(
-            'UPDATE ' .
-            $dbh->table_name('carddav_addressbooks') .
-            ' SET ' . implode('=?,', $qf) . '=?' .
-            ' WHERE id=?',
-            $qv
-        );
+        Database::update($abookid, $qf, $qv, "addressbooks");
     }
 
     // admin settings from config.inc.php
