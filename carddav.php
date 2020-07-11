@@ -347,7 +347,6 @@ class carddav extends rcube_plugin
     private function buildSettingsBlock(string $blockheader, array $abook, array $prefs): array
     {
         $abookid = $abook['id'];
-        $rcmail = rcmail::get_instance();
 
         if (self::noOverrideAllowed('active', $abook, $prefs)) {
             $content_active = $prefs[$abook['presetname']]
@@ -786,7 +785,6 @@ class carddav extends rcube_plugin
             return self::$admin_settings;
         }
 
-        $rcmail = rcmail::get_instance();
         $prefs = array();
         $configfile = dirname(__FILE__) . "/config.inc.php";
         if (file_exists($configfile)) {
