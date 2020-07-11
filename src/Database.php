@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
-use carddav;
 use rcmail;
 use rcube_db;
-use Psr\Log\LoggerInterface;
 
 /**
  * Access module for the roundcube database.
@@ -22,6 +20,112 @@ use Psr\Log\LoggerInterface;
  */
 class Database
 {
+    /** @var RoundcubeLogger $logger */
+    private static $logger;
+
+    /**
+     * Initializes the Database class.
+     *
+     * Must be called before using any methods in this class.
+     *
+     * @param RoundcubeLogger $logger A logger object that log messages can be sent to.
+     */
+    public static function init(RoundcubeLogger $logger): void
+    {
+        self::$logger = $logger;
+    }
+
+    /**
+     * Checks if the database schema is up to date and performs migrations if needed.
+     *
+     * If this function encounters an error, it will abort execution of the migrations. The database will be
+     * in a potentially broken state, causing further errors when the plugin is executed. Unfortunately, I do not see a
+     * better way to handle errors. Throwing an exception would result in Roundcube not being usable at all for the user
+     * in case of errors.
+     *
+     * @param string $dbPrefix The optional prefix to all database table names as configured in Roundcube.
+     * @param string $scriptDir Path of the parent directory containing all the migration scripts, each in a subdir.
+     */
+    public static function checkMigrations(string $dbPrefix, string $scriptDir): void
+    {
+        $dbh = rcmail::get_instance()->db;
+
+        // We only support the non-commercial database types supported by roundcube, so quit with an error
+        switch ($dbh->db_provider) {
+            case "mysql":
+                $db_backend = "mysql";
+                break;
+            case "sqlite":
+                $db_backend = "sqlite3";
+                break;
+            case "pgsql":
+            case "postgres":
+                $db_backend = "postgres";
+                break;
+            default:
+                self::$logger->critical("Unsupported database backend: " . $dbh->db_provider);
+                return;
+        }
+
+        // (1) Determine which migration scripts are available, in alphabetical ascending order
+        $migrationsAvailable = [];
+        foreach (scandir($scriptDir, SCANDIR_SORT_ASCENDING) as $migrationDir) {
+            if (preg_match("/^\d{4}-/", $migrationDir)) {
+                $migrationsAvailable[] = $migrationDir;
+            }
+        }
+
+        // (2) Determine which migration scripts have already been executed. This must handle the initial case that
+        //     the plugin's database tables to not exist yet, in which case they will be initialized.
+        $migrationsDone = [];
+        $dbh->set_option('ignore_key_errors', true);
+        $sql_result = $dbh->query('SELECT filename FROM ' . $dbh->table_name('carddav_migrations')) ?: [];
+        while ($processed = $dbh->fetch_assoc($sql_result)) {
+            $migrationsDone[$processed['filename']] = true;
+        }
+        $dbh->set_option('ignore_key_errors', null);
+
+        foreach ($migrationsAvailable as $migration) {
+            // skip migrations that have already been done
+            if (key_exists($migration, $migrationsDone)) {
+                continue;
+            }
+
+            $migrationScript = "$scriptDir/$migration/$db_backend.sql";
+
+            self::$logger->notice("In migration: $migration");
+            $queries_raw = file_get_contents($migrationScript);
+
+            if ($queries_raw === false) {
+                self::$logger->error("Failed to read migration script: $migrationScript - aborting");
+                return;
+            }
+
+            $queryCount = preg_match_all('/.+?;/s', $queries_raw, $queries);
+            self::$logger->debug("Found $queryCount queries in $migrationScript");
+            if ($queryCount > 0) {
+                foreach ($queries[0] as $query) {
+                    $query = str_replace("TABLE_PREFIX", $dbPrefix, $query);
+                    $dbh->query($query);
+
+                    if ($dbh->is_error()) {
+                        self::$logger->error("Migration query ($query) failed: " . $dbh->is_error());
+                        return;
+                    }
+                }
+                $dbh->query(
+                    "INSERT INTO " . $dbh->table_name("carddav_migrations") . " (filename) VALUES (?)",
+                    $migration
+                );
+
+                if ($dbh->is_error()) {
+                    self::$logger->error("Recording exec of migration $migrationScript failed: " . $dbh->is_error());
+                    return;
+                }
+            }
+        }
+    }
+
     /**
      * Stores a contact to the local database.
      *
@@ -121,14 +225,14 @@ class Database
         }
 
         if (isset($dbid)) {
-            carddav::$logger->debug("UPDATE card $dbid/$carddesc in $table");
+            self::$logger->debug("UPDATE card $dbid/$carddesc in $table");
             $xval[] = $dbid;
             $sql_result = $dbh->query('UPDATE ' .
                 $dbh->table_name("carddav_$table") .
                 ' SET ' . implode('=?,', $xcol) . '=?' .
                 ' WHERE id=?', $xval);
         } else {
-            carddav::$logger->debug("INSERT card $carddesc to $table");
+            self::$logger->debug("INSERT card $carddesc to $table");
 
             $xcol[] = 'abook_id';
             $xval[] = $abookid;
@@ -201,7 +305,7 @@ class Database
         $sql_result = $dbh->query($sql);
 
         if ($dbh->is_error()) {
-            carddav::$logger->error("Database::get ($sql) ERROR: " . $dbh->is_error());
+            self::$logger->error("Database::get ($sql) ERROR: " . $dbh->is_error());
             throw new \Exception($dbh->is_error());
         }
 
@@ -251,12 +355,12 @@ class Database
         // Append additional conditions
         $sql .= self::getOtherConditionsQuery($dbh, $other_conditions);
 
-        carddav::$logger->debug("Database::delete $sql");
+        self::$logger->debug("Database::delete $sql");
 
         $sql_result = $dbh->query($sql);
 
         if ($dbh->is_error()) {
-            carddav::$logger->error("Database::delete ($sql) ERROR: " . $dbh->is_error());
+            self::$logger->error("Database::delete ($sql) ERROR: " . $dbh->is_error());
             throw new \Exception($dbh->is_error());
         }
 
@@ -293,7 +397,7 @@ class Database
                 $abookrow['needs_update'] = $nu;
             }
         } catch (\Exception $e) {
-            carddav::$logger->error("Error in processing configuration $abookid: " . $e->getMessage());
+            self::$logger->error("Error in processing configuration $abookid: " . $e->getMessage());
             throw $e;
         }
 

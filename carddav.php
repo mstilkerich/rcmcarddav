@@ -54,80 +54,6 @@ class carddav extends rcube_plugin
         $this->allowed_prefs = [];
     }
 
-    public function checkMigrations(): void
-    {
-        $dbh = rcmail::get_instance()->db;
-
-        $db_backend = "unknown";
-
-        switch ($dbh->db_provider) {
-            case "mysql":
-                $db_backend = "mysql";
-                break;
-            case "sqlite":
-                $db_backend = "sqlite3";
-                break;
-            case "pgsql":
-            case "postgres":
-                $db_backend = "postgres";
-                break;
-        }
-
-        if ($db_backend == "unknown") {
-            self::$logger->error("Unknown database backend: " . $dbh->db_provider);
-            return;
-        }
-
-        # first initialize the carddav_migrations table if it doesn't exist.
-        $config = rcmail::get_instance()->config;
-        $migrations = array_diff(scandir(dirname(__FILE__) . "/dbmigrations/"), array('..', '.'));
-        $mignew = array();
-        foreach ($migrations as $k => $v) {
-            $mignew[] = $v;
-        }
-        $migrations = $mignew;
-        $qmarks = "?";
-        for ($i = 1; $i < count($migrations); $i++) {
-            $qmarks .= ",?";
-        }
-
-        $dbh->set_option('ignore_key_errors', true);
-        $sql_result = $dbh->query('SELECT * FROM ' .
-            $dbh->table_name('carddav_migrations') .
-            ' WHERE filename IN (' . $qmarks . ');', $migrations);
-
-        if ($sql_result) {
-            while ($processed = $dbh->fetch_assoc($sql_result)) {
-                if (($key = array_search($processed['filename'], $migrations)) !== false) {
-                    unset($migrations[$key]);
-                }
-            }
-        }
-        $dbh->set_option('ignore_key_errors', null);
-
-        foreach ($migrations as $migration) {
-            self::$logger->notice("In migration: $migration");
-            $queries_raw = file_get_contents(dirname(__FILE__) . "/dbmigrations/$migration/$db_backend.sql");
-            $match_count = preg_match_all('/(.+?;)/s', $queries_raw, $matches);
-            self::$logger->debug('Found ' . $match_count . ' matches');
-            if ($match_count > 0) {
-                // array will have two elements, each holding all queries. Only iterate over one of them
-                foreach ($matches[0] as $query) {
-                    if (strlen($query) > 0) {
-                        $query = str_replace("TABLE_PREFIX", $config->get('db_prefix', ""), $query);
-                        $dbh->query($query);
-                    }
-                }
-                $dbh->query(
-                    "INSERT INTO " . $dbh->table_name("carddav_migrations") . " (filename) VALUES (?)",
-                    $migration
-                );
-            } else {
-                self::$logger->debug("Did not match any instructions from migration " . $migration);
-            }
-        }
-    }
-
     public function init(): void
     {
         $prefs = self::getAdminSettings();
@@ -141,7 +67,10 @@ class carddav extends rcube_plugin
             $prefs['_GLOBAL']['loglevel_http'] ?? \Psr\Log\LogLevel::ERROR
         );
 
+        // initialize carddavclient library
         Config::init(self::$logger, $http_logger);
+
+        Database::init(self::$logger);
 
         $this->add_texts('localization/', false);
 
@@ -181,6 +110,13 @@ class carddav extends rcube_plugin
         $config->set('autocomplete_addressbooks', $sources);
         $skin_path = $this->local_skin_path();
         $this->include_stylesheet($skin_path . '/carddav.css');
+    }
+
+    public function checkMigrations(): void
+    {
+        $scriptDir = dirname(__FILE__) . "/dbmigrations/";
+        $config = rcmail::get_instance()->config;
+        Database::checkMigrations($config->get('db_prefix', ""), $scriptDir);
     }
 
     /**
