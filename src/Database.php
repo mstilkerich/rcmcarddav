@@ -18,7 +18,7 @@ use rcube_db;
  * @todo At the moment, this class is just a container for the already existing methods and only partially fulfills its
  *   purpose stated above.
  */
-class Database
+abstract class Database
 {
     /** @var RoundcubeLogger $logger */
     private static $logger;
@@ -298,10 +298,10 @@ class Database
      * @param string|string[] $id A single database ID (string) or an array of database IDs if several records should be
      *                            updated. These IDs are queried against the database column specified by $idfield. Can
      *                            be a single or multiple values, null is not permitted.
-     * @param string $table       Name of the database table to select from, without the carddav_ prefix.
-     * @param string $idfield     The name of the column against which $id is matched.
      * @param string[] $cols      Database column names of attributes to update.
      * @param string[] $vals      The values to set into the column specified by $cols at the corresponding index.
+     * @param string $table       Name of the database table to select from, without the carddav_ prefix.
+     * @param string $idfield     The name of the column against which $id is matched.
      * @param array  $other_conditions An associative array with database column names as keys and their match criterion
      *                                 as value.
      * @return int                The number of rows updated.
@@ -473,6 +473,19 @@ class Database
         }
 
         return $abookrow;
+    }
+
+    /**
+     * Return SQL function for current time and date
+     *
+     * @param int $interval Optional interval (in seconds) to add/subtract
+     *
+     * @return string SQL function to use in query
+     */
+    public static function now(int $interval = 0): string
+    {
+        $dbh = rcmail::get_instance()->db;
+        return $dbh->now($interval);
     }
 
     /**

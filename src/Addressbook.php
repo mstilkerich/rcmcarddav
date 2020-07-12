@@ -375,14 +375,7 @@ class Addressbook extends rcube_addressbook
      */
     private function storeextrasubtype(string $typename, string $subtype): void
     {
-        $sql_result = $this->db->query(
-            'INSERT INTO ' .
-            $this->db->table_name('carddav_xsubtypes') .
-            ' (typename,subtype,abook_id) VALUES (?,?,?)',
-            $typename,
-            $subtype,
-            $this->id
-        );
+        Database::insert("xsubtypes", ["typename", "subtype", "abook_id"], [$typename, $subtype, $this->id]);
     }
 
     /**
@@ -526,12 +519,7 @@ class Addressbook extends rcube_addressbook
             carddav::$logger->debug("server refresh took $duration seconds");
 
             // set last_updated timestamp
-            $this->db->query(
-                'UPDATE ' .
-                $this->db->table_name('carddav_addressbooks') .
-                ' SET last_updated=' . $this->db->now() . ' WHERE id=?',
-                $this->id
-            );
+            Database::update($this->id, ["last_updated"], [Database::now()], "addressbooks");
 
             if ($showUIMsg) {
                 $rcmail = rcmail::get_instance();
