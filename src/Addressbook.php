@@ -130,220 +130,42 @@ class Addressbook extends rcube_addressbook
         $this->config   = Database::getAbookCfg($dbid);
 
         $rc = rcmail::get_instance();
+
+        // XXX roundcube has further default types: maidenname, im
         $this->coltypes = [
-            'name' => [
-                'type' => 'text',
-                'size' => 40,
-                'maxlength' => 50,
-                'limit' => 1,
-                'label' => $rc->gettext('name'),
-                'category' => 'main'
-            ],
-            'firstname' => [
-                'type' => 'text',
-                'size' => 19,
-                'maxlength' => 50,
-                'limit' => 1,
-                'label' => $rc->gettext('firstname'),
-                'category' => 'main'
-            ],
-            'surname' => [
-                'type' => 'text',
-                'size' => 19,
-                'maxlength' => 50,
-                'limit' => 1,
-                'label' => $rc->gettext('surname'),
-                'category' => 'main'
-            ],
+            'name' => [],
+            'firstname' => [],
+            'surname' => [],
             'email' => [
-                'type' => 'text',
-                'size' => 40,
-                'maxlength' => 50,
-                'label' => $rc->gettext('email'),
                 'subtypes' => ['home','work','other','internet'],
-                'category' => 'main'
             ],
-            'middlename' => [
-                'type' => 'text',
-                'size' => 19,
-                'maxlength' => 50,
-                'limit' => 1,
-                'label' => $rc->gettext('middlename'),
-                'category' => 'main'
-            ],
-            'prefix' => [
-                'type' => 'text',
-                'size' => 8,
-                'maxlength' => 20,
-                'limit' => 1,
-                'label' => $rc->gettext('nameprefix'),
-                'category' => 'main'
-            ],
-            'suffix' => [
-                'type' => 'text',
-                'size' => 8,
-                'maxlength' => 20,
-                'limit' => 1,
-                'label' => $rc->gettext('namesuffix'),
-                'category' => 'main'
-            ],
-            'nickname' => [
-                'type' => 'text',
-                'size' => 40,
-                'maxlength' => 50,
-                'limit' => 1,
-                'label' => $rc->gettext('nickname'),
-                'category' => 'main'
-            ],
-            'jobtitle' => [
-                'type' => 'text',
-                'size' => 40,
-                'maxlength' => 50,
-                'limit' => 1,
-                'label' => $rc->gettext('jobtitle'),
-                'category' => 'main'
-            ],
-            'organization' => [
-                'type' => 'text',
-                'size' => 40,
-                'maxlength' => 50,
-                'limit' => 1,
-                'label' => $rc->gettext('organization'),
-                'category' => 'main'
-            ],
-            'department' => [
-                'type' => 'text',
-                'size' => 40,
-                'maxlength' => 50,
-                'label' => $rc->gettext('department'),
-                'category' => 'main'
-            ],
-            'gender' => [
-                'type' => 'select',
-                'limit' => 1,
-                'label' => $rc->gettext('gender'),
-                'options' => ['male' => $rc->gettext('male'),
-                'female' => $rc->gettext('female')],
-                'category' => 'personal'
-            ],
+            'middlename' => [],
+            'prefix' => [],
+            'suffix' => [],
+            'nickname' => [],
+            'jobtitle' => [],
+            'organization' => [],
+            'department' => [],
+            'gender' => [],
             'phone' => [
-                'type' => 'text',
-                'size' => 40,
-                'maxlength' => 20,
-                'label' => $rc->gettext('phone'),
                 'subtypes' => [
-                    'home','home2','work','work2','mobile','cell','main','homefax','workfax','car','pager','video',
+                    'home','home2','work','work2','mobile','main','homefax','workfax','car','pager','video',
                     'assistant','other'
                 ],
-                'category' => 'main'
             ],
             'address' => [
-                'type' => 'composite',
-                'label' => $rc->gettext('address'),
                 'subtypes' => ['home','work','other'],
-                'childs' => [
-                    'street' => [
-                        'type' => 'text',
-                        'size' => 40,
-                        'maxlength' => 50,
-                        'label' => $rc->gettext('street'),
-                        'category' => 'main'
-                    ],
-                    'locality' => [
-                        'type' => 'text',
-                        'size' => 28,
-                        'maxlength' => 50,
-                        'label' => $rc->gettext('locality'),
-                        'category' => 'main'
-                    ],
-                    'zipcode' => [
-                        'type' => 'text',
-                        'size' => 8,
-                        'maxlength' => 15,
-                        'label' => $rc->gettext('zipcode'),
-                        'category' => 'main'
-                    ],
-                    'region' => [
-                        'type' => 'text',
-                        'size' => 12,
-                        'maxlength' => 50,
-                        'label' => $rc->gettext('region'),
-                        'category' => 'main'
-                    ],
-                    'country' => [
-                        'type' => 'text',
-                        'size' => 40,
-                        'maxlength' => 50,
-                        'label' => $rc->gettext('country'),
-                        'category' => 'main'
-                    ],
-                ],
-                'category' => 'main'
             ],
-            'birthday' => [
-                'type' => 'date',
-                'size' => 12,
-                'maxlength' => 16,
-                'label' => $rc->gettext('birthday'),
-                'limit' => 1,
-                'render_func' => 'rcmail_format_date_col',
-                'category' => 'personal'
-            ],
-            'anniversary' => [
-                'type' => 'date',
-                'size' => 12,
-                'maxlength' => 16,
-                'label' => $rc->gettext('anniversary'),
-                'limit' => 1,
-                'render_func' => 'rcmail_format_date_col',
-                'category' => 'personal'
-            ],
+            'birthday' => [],
+            'anniversary' => [],
             'website' => [
-                'type' => 'text',
-                'size' => 40,
-                'maxlength' => 50,
-                'label' => $rc->gettext('website'),
                 'subtypes' => ['homepage','work','blog','profile','other'],
-                'category' => 'main'
             ],
-            'notes' => [
-                'type' => 'textarea',
-                'size' => 40,
-                'rows' => 15,
-                'maxlength' => 500,
-                'label' => $rc->gettext('notes'),
-                'limit' => 1
-            ],
-            'photo' => [
-                'type' => 'image',
-                'limit' => 1,
-                'category' => 'main'
-            ],
-            'assistant' => [
-                'type' => 'text',
-                'size' => 40,
-                'maxlength' => 50,
-                'limit' => 1,
-                'label' => $rc->gettext('assistant'),
-                'category' => 'personal'
-            ],
-            'manager' => [
-                'type' => 'text',
-                'size' => 40,
-                'maxlength' => 50,
-                'limit' => 1,
-                'label' => $rc->gettext('manager'),
-                'category' => 'personal'
-            ],
-            'spouse' => [
-                'type' => 'text',
-                'size' => 40,
-                'maxlength' => 50,
-                'limit' => 1,
-                'label' => $rc->gettext('spouse'),
-                'category' => 'personal'
-            ],
-            // TODO: define fields for vcards like GEO, KEY
+            'notes' => [],
+            'photo' => [],
+            'assistant' => [],
+            'manager' => [],
+            'spouse' => [],
         ];
         $this->addextrasubtypes();
 
