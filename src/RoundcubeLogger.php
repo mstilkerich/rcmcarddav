@@ -8,6 +8,9 @@ use Psr\Log\{AbstractLogger,LogLevel};
 
 class RoundcubeLogger extends AbstractLogger
 {
+    /**
+     * @var int[] Assigns each log level a numerical severity value.
+     */
     private const LOGLEVELS = [
         LogLevel::DEBUG     => 1,
         LogLevel::INFO      => 2,
@@ -25,10 +28,14 @@ class RoundcubeLogger extends AbstractLogger
     /** @var int $loglevel The minimum log level for that messages are reported */
     private $loglevel;
 
-    public function __construct(string $logfile, string $loglevel = LogLevel::ERROR)
+    /** @var bool $redact If true, attempt to redact confidential information from HTTP logs */
+    private $redact;
+
+    public function __construct(string $logfile, string $loglevel = LogLevel::ERROR, bool $redact = true)
     {
         $this->logfile = $logfile;
         $this->setLogLevel($loglevel);
+        $this->redact = $redact;
     }
 
     /**
@@ -57,8 +64,23 @@ class RoundcubeLogger extends AbstractLogger
     {
         if (isset(self::LOGLEVELS[$level]) && self::LOGLEVELS[$level] >= $this->loglevel) {
             $ctx = empty($context) ? "" : json_encode($context);
-            \rcmail::write_log($this->logfile, $message . $ctx);
+            $message = "$message $ctx";
+            if ($this->redact) {
+                $message = $this->redactMessage($message);
+            }
+            \rcmail::write_log($this->logfile, $message);
         }
+    }
+
+    private function redactMessage(string $message): string
+    {
+        // Authorization header
+        $message = preg_replace(
+            "/^Authorization: .*$/m",
+            "Authorization: --- REDACTED BY " . self::class . " ---",
+            $message
+        );
+        return $message;
     }
 }
 
