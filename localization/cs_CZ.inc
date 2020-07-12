@@ -6,7 +6,6 @@ $labels = Array(
 	'cd_username'=> "Uživatel",
 	'cd_password'=> "Heslo",
 	'cd_url'=> "URL",
-	'cd_php_too_old'=> "\"Nainstalovaná verze PHP je zastaralá. Aktualizujte PHP na verzi 5.6.18 nebo vyšší! V současnosti máte nainstalovanou následující verzi:",
 	'cd_name'=> "Název adresáře kontaktů CardDAV",
 	'cd_delete'=> "Odstranit tento adresář kontaktů",
 	'cd_name_new'=> "Nastavit nový adresář kontaktů",

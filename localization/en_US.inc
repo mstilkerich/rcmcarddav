@@ -6,7 +6,6 @@ $labels = Array(
 	'cd_username' => 'Username',
 	'cd_password' => 'Password',
 	'cd_url' => 'URL',
-	'cd_php_too_old' => "Your version of PHP is too old! Please update to at least 5.6.18! You got the following version installed:",
 	'cd_name' => "Name of the addressbook",
 	'cd_use_categories' => "Use CATEGORIES instead of KIND=group (RFC6350)\nwhen creating new contact groups",
 	'cd_delete' => "Remove this addressbook",

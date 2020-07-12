@@ -488,18 +488,6 @@ class carddav extends rcube_plugin
         $this->include_stylesheet($this->local_skin_path() . '/carddav.css');
         $prefs = self::getAdminSettings();
 
-        if (!$prefs['_GLOBAL']['suppress_version_warning']) {
-            if (version_compare(PHP_VERSION, '5.6.18', '<')) {
-                $args['blocks']['cd_preferences'] = array(
-                    'options' => array(
-                        array('title' => rcmail::Q($this->gettext('cd_php_too_old')), 'content' => PHP_VERSION)
-                    ),
-                    'name' => rcmail::Q($this->gettext('cd_title'))
-                );
-                return $args;
-            }
-        }
-
         $abooks = Database::get($_SESSION['user_id'], '*', 'addressbooks', false, 'user_id');
         foreach ($abooks as $abook) {
             $presetname = $abook['presetname'];
