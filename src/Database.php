@@ -484,8 +484,11 @@ abstract class Database
      */
     public static function now(int $interval = 0): string
     {
-        $dbh = rcmail::get_instance()->db;
-        return $dbh->now($interval);
+        $timestamp = time() + $interval;
+
+        // this format is a valid constant for MySQL/Postgres TIMESTAMP as well as SQLite DATETIME values
+        $timestr = date("Y-m-d H:i:s", $timestamp);
+        return $timestr;
     }
 
     /**
