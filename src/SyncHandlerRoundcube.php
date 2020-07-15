@@ -16,6 +16,9 @@ use carddav;
 
 class SyncHandlerRoundcube implements SyncHandler
 {
+    /** @var bool hadErrors If true, errors that did not cause the sync to be aborted occurred. */
+    public $hadErrors = false;
+
     /** @var Addressbook */
     private $rcAbook;
 
@@ -51,14 +54,21 @@ class SyncHandlerRoundcube implements SyncHandler
         }
     }
 
-    public function addressObjectChanged(string $uri, string $etag, VCard $card): void
+    public function addressObjectChanged(string $uri, string $etag, ?VCard $card): void
     {
+        // in case an individual card has an error, we continue syncing the rest
+        if (!isset($card)) {
+            carddav::$logger->error("Card $uri changed, but error in retrieving address data (card ignored)");
+            $this->hadErrors = true;
+            return;
+        }
+
         $abookId = $this->rcAbook->getId();
         $dbh = rcmail::get_instance()->db;
-        $save_data_arr = $this->rcAbook->convVCard2Rcube($card);
-        $vcfobj = $save_data_arr['vcf'];
-        $vcf = $vcfobj->serialize();
-        $save_data = $save_data_arr['save_data'];
+
+        // card may be changed during conversion, in particular inlining of the PHOTO
+        [ 'save_data' => $save_data, 'vcf' => $card ] = $this->rcAbook->convVCard2Rcube($card);
+        $vcf = $card->serialize();
 
         if ($save_data['kind'] === 'group') {
             $dbid = $this->existing_grpcard_cache[$uri]["id"] ?? null;
@@ -79,7 +89,7 @@ class SyncHandlerRoundcube implements SyncHandler
             $this->users_to_add[$dbid] = [];
 
             // X-ADDRESSBOOKSERVER-MEMBER:urn:uuid:51A7211B-358B-4996-90AD-016D25E77A6E
-            $members = $vcfobj->{'X-ADDRESSBOOKSERVER-MEMBER'} ?? [];
+            $members = $card->{'X-ADDRESSBOOKSERVER-MEMBER'} ?? [];
 
             carddav::$logger->debug("Group $dbid has " . count($members) . " members");
             foreach ($members as $mbr) {
@@ -122,9 +132,9 @@ class SyncHandlerRoundcube implements SyncHandler
             }
 
             $categories = [];
-            if (isset($vcfobj->CATEGORIES)) {
+            if (isset($card->CATEGORIES)) {
                 // remove all whitespace categories
-                $categories = $vcfobj->CATEGORIES->getParts();
+                $categories = $card->CATEGORIES->getParts();
                 Addressbook::stringsAddRemove($categories);
             }
 

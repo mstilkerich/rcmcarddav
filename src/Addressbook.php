@@ -352,6 +352,10 @@ class Addressbook extends rcube_addressbook
                     )
                     ))
                 );
+
+                if ($synchandler->hadErrors) {
+                    $this->set_error(rcube_addressbook::ERROR_SAVING, "Non-fatal errors occurred during sync");
+                }
             }
         } catch (\Exception $e) {
             carddav::$logger->error("Errors occurred during the refresh of addressbook " . $this->id . ": $e");
