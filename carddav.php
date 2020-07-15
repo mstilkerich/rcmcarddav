@@ -567,8 +567,6 @@ class carddav extends rcube_plugin
             'use_categories' => $use_categories,
         ];
 
-        self::$logger->debug("BEFORE: " . var_export($result, true));
-
         if ($abookId == 'new') {
             // detect if the POST request contains user-provided info for this addressbook or not
             // (Problem: unchecked checkboxes don't appear with POSTed values, so we cannot discern not set values from
@@ -602,8 +600,6 @@ class carddav extends rcube_plugin
                 }
             }
         }
-
-        self::$logger->debug("AFTER: " . var_export($result, true));
 
         // this is for the static analyzer only, which will not detect from the above that
         // array values will never be NULL
