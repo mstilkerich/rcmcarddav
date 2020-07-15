@@ -384,12 +384,14 @@ class carddav extends rcube_plugin
         if (self::noOverrideAllowed('password', $abook, $prefs)) {
             $content_password = "***";
         } else {
+            // only display the password if it was entered for a new addressbook
+            $show_pw_val = ($abook['id'] === "new" && isset($abook['password'])) ? $abook['password'] : '';
             // input box for password
             $input = new html_inputfield([
                 'name' => $abookid . '_cd_password',
                 'type' => 'password',
                 'autocomplete' => 'off',
-                'value' => ''
+                'value' => $show_pw_val
             ]);
             $content_password = $input->show();
         }
@@ -511,21 +513,100 @@ class carddav extends rcube_plugin
         if (!key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) {
             $args['blocks']['cd_preferences_section_new'] = $this->buildSettingsBlock(
                 rcmail::Q($this->gettext('cd_newabboxtitle')),
-                array(
-                    'id'           => 'new',
-                    'active'       => 1,
-                    'use_categories' => 1,
-                    'username'     => '',
-                    'url'          => '',
-                    'name'         => '',
-                    'refresh_time' => 1,
-                    'presetname'   => '',
-                ),
+                self::getAddressbookSettingsFromPOST('new'),
                 $prefs
             );
         }
 
         return $args;
+    }
+
+    /**
+     * This function gets the addressbook settings from a POST request.
+     *
+     * The behavior varies depending on whether the settings for an existing or a new addressbook are queried.
+     * For an existing addressbook, the result array will only have keys set for POSTed values. In particular, this
+     * means that for fixed settings of preset addressbooks, no setting values will be contained.
+     * For a new addressbook, all settings are set in the resulting array. If not provided by the user, default values
+     * are used.
+     *
+     * @param string $abookId The ID of the addressbook ("new" for new addressbooks, otherwise the numeric DB id)
+     * @return string[] An array with addressbook column keys and their setting.
+     */
+    private static function getAddressbookSettingsFromPOST(string $abookId): array
+    {
+        /** @var string[] $boolOptions These options have checkbox elements and are NULL in post if deselected */
+        $boolOptions = [ 'active', 'use_categories' ];
+        $nonEmptyDefaults = [
+            "refresh_time" => "01:00:00",
+            "active" => "1",
+            "use_categories" => "1",
+        ];
+
+        // for name we must not whether it is null or not to detect whether the settings form was POSTed or not
+        $name = rcube_utils::get_input_value("${abookId}_cd_name", rcube_utils::INPUT_POST);
+        $active = rcube_utils::get_input_value("${abookId}_cd_active", rcube_utils::INPUT_POST);
+        $use_categories = rcube_utils::get_input_value("${abookId}_cd_use_categories", rcube_utils::INPUT_POST);
+
+        $result = [
+            'id' => $abookId,
+            'name' => $name,
+            'username' => rcube_utils::get_input_value("${abookId}_cd_username", rcube_utils::INPUT_POST, true),
+            'password' => rcube_utils::get_input_value("${abookId}_cd_password", rcube_utils::INPUT_POST, true),
+            'url' => rcube_utils::get_input_value("${abookId}_cd_url", rcube_utils::INPUT_POST),
+            'refresh_time' => rcube_utils::get_input_value("${abookId}_cd_refresh_time", rcube_utils::INPUT_POST),
+            'active' => $active,
+            'use_categories' => $use_categories,
+        ];
+
+        self::$logger->debug("BEFORE: " . var_export($result, true));
+
+        if ($abookId == 'new') {
+            // detect if the POST request contains user-provided info for this addressbook or not
+            // (Problem: unchecked checkboxes don't appear with POSTed values, so we cannot discern not set values from
+            // actively unchecked values).
+            if (isset($name)) {
+                foreach ($boolOptions as $boolOpt) {
+                    if (!isset($result[$boolOpt])) {
+                        $result[$boolOpt] = "0";
+                    }
+                }
+            }
+            $result["presetname"] = "";
+
+            // for new addressbooks, carry over the posted values or set defaults otherwise
+            foreach ($result as $k => $v) {
+                if (!isset($v)) {
+                    $result[$k] = $nonEmptyDefaults[$k] ?? '';
+                }
+            }
+        } else {
+            // for existing addressbooks, we only set the keys for that values were POSTed
+            // (for fixed settings, no values are posted)
+            foreach ($result as $k => $v) {
+                if (!isset($v)) {
+                    unset($result[$k]);
+                }
+            }
+            foreach ($boolOptions as $boolOpt) {
+                if (!isset($result[$boolOpt])) {
+                    $result[$boolOpt] = "0";
+                }
+            }
+        }
+
+        self::$logger->debug("AFTER: " . var_export($result, true));
+
+        // this is for the static analyzer only, which will not detect from the above that
+        // array values will never be NULL
+        $r = [];
+        foreach ($result as $k => $v) {
+            if (isset($v)) {
+                $r[$k] = $v;
+            }
+        }
+
+        return $r;
     }
 
     // add a section to the preferences tab
@@ -576,21 +657,11 @@ class carddav extends rcube_plugin
             if (isset($_POST["${abookid}_cd_delete"])) {
                 self::deleteAddressbook($abookid);
             } else {
-                $newset = [
-                    'name' => rcube_utils::get_input_value("${abookid}_cd_name", rcube_utils::INPUT_POST),
-                    'username' => rcube_utils::get_input_value("${abookid}_cd_username", rcube_utils::INPUT_POST, true),
-                    'active' => isset($_POST[$abookid . '_cd_active']) ? 1 : 0,
-                    'use_categories' => isset($_POST[$abookid . '_cd_use_categories']) ? 1 : 0,
-                    'refresh_time' => rcube_utils::get_input_value(
-                        "${abookid}_cd_refresh_time",
-                        rcube_utils::INPUT_POST
-                    )
-                ];
+                $newset = self::getAddressbookSettingsFromPOST($abookid);
 
                 // only set the password if the user entered a new one
-                $password = rcube_utils::get_input_value("${abookid}_cd_password", rcube_utils::INPUT_POST, true);
-                if (strlen($password) > 0) {
-                    $newset['password'] = $password;
+                if (empty($newset['password'])) {
+                    unset($newset['password']);
                 }
 
                 // remove admin only settings
@@ -611,36 +682,29 @@ class carddav extends rcube_plugin
         }
 
         // add a new address book?
-        $new = rcube_utils::get_input_value('new_cd_name', rcube_utils::INPUT_POST);
-        if ((!key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) && strlen($new) > 0) {
-            $srv    = rcube_utils::get_input_value('new_cd_url', rcube_utils::INPUT_POST);
-            $usr    = rcube_utils::get_input_value('new_cd_username', rcube_utils::INPUT_POST, true);
-            $pass   = rcube_utils::get_input_value('new_cd_password', rcube_utils::INPUT_POST, true);
-            $abname = rcube_utils::get_input_value('new_cd_name', rcube_utils::INPUT_POST);
-            $use_categories = rcube_utils::get_input_value('new_cd_use_categories', rcube_utils::INPUT_POST, true);
-
+        $new = self::getAddressbookSettingsFromPOST('new');
+        if ((!key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) && !empty($new['name'])) {
             try {
-                $account = new Account($srv, $usr, self::replacePlaceholdersPassword($pass));
+                $account = new Account(
+                    $new['url'],
+                    $new['username'],
+                    self::replacePlaceholdersPassword($new['password'])
+                );
                 $discover = new Discovery();
                 $abooks = $discover->discoverAddressbooks($account);
 
                 if (count($abooks) > 0) {
+                    $basename = $new['name'];
+
                     foreach ($abooks as $abook) {
-                        self::$logger->debug("ADDING ABOOK $usr @ $srv");
-                        self::insertAddressbook([
-                            'name'     => "$abname ({$abook->getName()})",
-                            'username' => $usr,
-                            'password' => $pass,
-                            'use_categories' => ($use_categories == "1") ? 1 : 0,
-                            'url'      => $abook->getUri(),
-                            'refresh_time' => rcube_utils::get_input_value(
-                                'new_cd_refresh_time',
-                                rcube_utils::INPUT_POST
-                            )
-                        ]);
+                        $new['url'] = $abook->getUri();
+                        $new['name'] = "$basename ({$abook->getName()})";
+
+                        self::$logger->debug("ADDING ABOOK {$new['username']} @ {$new['url']}");
+                        self::insertAddressbook($new);
                     }
                 } else {
-                    throw new \Exception($abname . ': ' . $this->gettext('cd_err_noabfound'));
+                    throw new \Exception($new['name'] . ': ' . $this->gettext('cd_err_noabfound'));
                 }
             } catch (\Exception $e) {
                 $args['abort'] = true;
@@ -749,7 +813,7 @@ class carddav extends rcube_plugin
         self::checkAddressbookFieldLengths($pa);
 
         // optional fields
-        $qfo = ['name','username','password','url','active','refresh_time','sync_token'];
+        $qfo = ['name','username','password','url','active','refresh_time','sync_token','use_categories'];
         $qf = [];
         $qv = [];
 
