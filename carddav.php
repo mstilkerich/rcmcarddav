@@ -27,6 +27,14 @@ use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Database, RoundcubeLo
 // phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
 class carddav extends rcube_plugin
 {
+
+    /** @var string[] ABOOK_PROPS A list of addressbook property keys. These are both found in the settings form as well
+     *                            as in the database as columns.
+     */
+    private const ABOOK_PROPS = [
+        "name", "active", "use_categories", "username", "password", "url", "refresh_time", "sync_token"
+    ];
+
     /** @var string $pwstore_scheme encryption scheme */
     private static $pwstore_scheme = 'encrypted';
 
@@ -703,6 +711,11 @@ class carddav extends rcube_plugin
                         self::$logger->debug("ADDING ABOOK {$new['username']} @ {$new['url']}");
                         self::insertAddressbook($new);
                     }
+
+                    // new addressbook added successfully -> clear the data from the form
+                    foreach (self::ABOOK_PROPS as $k) {
+                        unset($_POST["new_cd_$k"]);
+                    }
                 } else {
                     throw new \Exception($new['name'] . ': ' . $this->gettext('cd_err_noabfound'));
                 }
@@ -813,11 +826,10 @@ class carddav extends rcube_plugin
         self::checkAddressbookFieldLengths($pa);
 
         // optional fields
-        $qfo = ['name','username','password','url','active','refresh_time','sync_token','use_categories'];
         $qf = [];
         $qv = [];
 
-        foreach ($qfo as $f) {
+        foreach (self::ABOOK_PROPS as $f) {
             if (key_exists($f, $pa)) {
                 $qf[] = $f;
                 $qv[] = $pa[$f];
