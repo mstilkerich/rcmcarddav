@@ -807,7 +807,7 @@ class Addressbook extends rcube_addressbook
         try {
             carddav::$logger->debug("get_record($id, $assoc)");
 
-            $contact = Database::get($id, 'vcard');
+            $contact = Database::get($id, 'vcard', 'contacts', true, 'id', ["abook_id" => $this->id]);
             $vcard = $this->parseVCard($contact['vcard']);
             [ 'save_data' => $save_data ] = $this->convVCard2Rcube($vcard);
             $save_data['ID'] = $id;
@@ -1313,7 +1313,7 @@ class Addressbook extends rcube_addressbook
             $vcard = $this->convRcube2VCard($save_data);
             $davAbook->createCard($vcard);
             $this->resync();
-            $contact = Database::get((string) $vcard->UID, 'id', 'contacts', true, 'cuid');
+            $contact = Database::get((string) $vcard->UID, 'id', 'contacts', true, 'cuid', ["abook_id" => $this->id]);
 
             if (isset($contact["id"])) {
                 return $contact["id"];
@@ -1367,7 +1367,7 @@ class Addressbook extends rcube_addressbook
             $davAbook = $this->getCardDavObj();
 
             // get current DB data
-            $contact = Database::get($id, 'id,cuid,uri,etag,vcard,showas');
+            $contact = Database::get($id, "uri,etag,vcard,showas", "contacts", true, "id", ["abook_id" => $this->id]);
             $save_data['showas'] = $contact['showas'];
 
             // create vcard from current DB data to be updated with the new data
@@ -1401,7 +1401,16 @@ class Addressbook extends rcube_addressbook
         try {
             $davAbook = $this->getCardDavObj();
 
-            $contacts = Database::get($ids, 'cuid,uri', 'contacts', false);
+            $contacts = Database::get($ids, 'id,cuid,uri', 'contacts', false, "id", ["abook_id" => $this->id]);
+
+            // make sure we only have contacts in $ids that belong to this addressbook
+            $ids = array_map(
+                function (array $v): string {
+                    return $v["id"];
+                },
+                $contacts
+            );
+
             $contact_cuids = array_map(
                 function (array $v): string {
                     return $v["cuid"];
@@ -1464,20 +1473,20 @@ class Addressbook extends rcube_addressbook
             }
 
             // get current DB data
-            $group = Database::get($group_id, 'name,uri,etag,vcard', 'groups');
+            $group = Database::get($group_id, 'name,uri,etag,vcard', 'groups', true, "id", ["abook_id" => $this->id]);
 
             // if vcard is set, this group is based on a KIND=group VCard
             if (isset($group['vcard'])) {
                 // create vcard from current DB data to be updated with the new data
                 $vcard = $this->parseVCard($group['vcard']);
 
-                foreach ($ids as $cid) {
+                $contacts = Database::get($ids, "id, cuid", "contacts", false, "id", ["abook_id" => $this->id]);
+                foreach ($contacts as $contact) {
                     try {
-                        $contact = Database::get($cid, 'cuid');
                         $vcard->add('X-ADDRESSBOOKSERVER-MEMBER', "urn:uuid:" . $contact['cuid']);
                         ++$added;
                     } catch (\Exception $e) {
-                        carddav::$logger->warning("add_to_group: Contact with ID $cid not found in database");
+                        carddav::$logger->warning("add_to_group: Contact with ID {$contact['cuid']} not found in DB");
                     }
                 }
 
@@ -1488,7 +1497,7 @@ class Addressbook extends rcube_addressbook
                 $groupname = $group["name"];
 
                 $this->adjustContactCategories(
-                    $ids,
+                    $ids, // unfiltered ids allowed in adjustContactCategories()
                     function (array &$groups, string $contact_id) use ($groupname, &$added): bool {
                         if (self::stringsAddRemove($groups, [ $groupname ])) {
                             carddav::$logger->debug("Adding contact $contact_id to category $groupname");
@@ -1532,11 +1541,11 @@ class Addressbook extends rcube_addressbook
             carddav::$logger->debug("remove_from_group($group_id, [" . implode(",", $ids) . "])");
 
             // get current DB data
-            $group = Database::get($group_id, 'id,name,uri,etag,vcard', 'groups');
+            $group = Database::get($group_id, 'name,uri,etag,vcard', 'groups', true, "id", ["abook_id" => $this->id]);
 
             // if vcard is set, this group is based on a KIND=group VCard
             if (isset($group['vcard'])) {
-                $contacts = Database::get($ids, "cuid", "contacts", false);
+                $contacts = Database::get($ids, "id, cuid", "contacts", false, "id", ["abook_id" => $this->id]);
                 $deleted = $this->removeContactsFromVCardBasedGroup(
                     array_map(function (array $v): string {
                         return $v["cuid"];
@@ -1549,7 +1558,7 @@ class Addressbook extends rcube_addressbook
                 $groupname = $group["name"];
 
                 $this->adjustContactCategories(
-                    $ids,
+                    $ids, // unfiltered ids allowed in adjustContactCategories()
                     function (array &$groups, string $contact_id) use ($groupname, &$deleted): bool {
                         if (self::stringsAddRemove($groups, [], [$groupname])) {
                             carddav::$logger->debug("Removing contact $contact_id from category $groupname");
@@ -1579,7 +1588,7 @@ class Addressbook extends rcube_addressbook
      * i. e. the function returns a value greater than 0.
      *
      * @param string[] $contact_cuids The VCard UIDs of the contacts to remove from the group.
-     * @param array    $group         Array with keys id, etag, uri and vcard containing the corresponding fields of the
+     * @param array    $group         Array with keys etag, uri and vcard containing the corresponding fields of the
      *                                group, where vcard is the serialized string form of the VCard.
      *
      * @return int The number of members actually removed from the group.
@@ -1629,7 +1638,7 @@ class Addressbook extends rcube_addressbook
         $sql_result = $this->db->query('SELECT id,name FROM ' .
             $this->db->table_name('carddav_group_user') . ',' .
             $this->db->table_name('carddav_groups') .
-            ' WHERE contact_id=? AND id=group_id', $id);
+            ' WHERE contact_id=? AND id=group_id AND abook_id=?', $id, $this->id);
 
         $res = [];
         while ($row = $this->db->fetch_assoc($sql_result)) {
@@ -1642,19 +1651,26 @@ class Addressbook extends rcube_addressbook
     /**
      * Setter for the current group
      *
-     * @param string $gid Database identifier of the group
+     * @param string $gid Database identifier of the group. 0 to reset the group filter.
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function set_group($gid): void
     {
-        carddav::$logger->debug("set_group($gid)");
-        $this->group_id = $gid;
+        try {
+            carddav::$logger->debug("set_group($gid)");
 
-        if (isset($gid)) {
-            $this->set_search_set("EXISTS(SELECT * FROM " . $this->db->table_name("carddav_group_user") . "
-                WHERE group_id = '{$gid}' AND contact_id = " . $this->db->table_name("carddav_contacts") . ".id)");
-        } else {
-            $this->reset();
+            // check the database - this throws an exception if the group cannot be found
+            $group = Database::get($gid, "id", "groups", true, "id", ["abook_id" => $this->id]);
+            $this->group_id = $group["id"];
+
+            if ($gid) {
+                $this->set_search_set("EXISTS(SELECT * FROM " . $this->db->table_name("carddav_group_user") . "
+                    WHERE group_id = '{$gid}' AND contact_id = " . $this->db->table_name("carddav_contacts") . ".id)");
+            } else {
+                $this->reset();
+            }
+        } catch (\Exception $e) {
+            carddav::$logger->error("set_group($gid): " . $e->getMessage());
         }
     }
 
@@ -1674,7 +1690,7 @@ class Addressbook extends rcube_addressbook
             // As of 1.4.6, roundcube is interested in name and email properties of a group,
             // i. e. if the group as a distribution list had an email address of its own. Otherwise, it will fall back
             // to getting the individual members' addresses
-            $result = Database::get($group_id, 'id,name', 'groups');
+            $result = Database::get($group_id, 'id,name', 'groups', true, "id", ["abook_id" => $this->id]);
         } catch (\Exception $e) {
             carddav::$logger->error("get_group($group_id): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
@@ -1778,7 +1794,7 @@ class Addressbook extends rcube_addressbook
             carddav::$logger->debug("delete_group($group_id)");
             $davAbook = $this->getCardDavObj();
 
-            $group = Database::get($group_id, 'name,uri', 'groups');
+            $group = Database::get($group_id, 'name,uri', 'groups', true, "id", ["abook_id" => $this->id]);
 
             if (isset($group["uri"])) { // KIND=group VCard-based group
                 $davAbook->deleteCard($group["uri"]);
@@ -1819,7 +1835,7 @@ class Addressbook extends rcube_addressbook
             carddav::$logger->debug("rename_group($group_id, $newname)");
             $davAbook = $this->getCardDavObj();
 
-            $group = Database::get($group_id, 'uri,name,etag,vcard', 'groups');
+            $group = Database::get($group_id, 'uri,name,etag,vcard', 'groups', true, "id", ["abook_id" => $this->id]);
 
             if (isset($group["uri"])) { // KIND=group VCard-based group
                 $vcard = $this->parseVCard($group["vcard"]);
@@ -1977,15 +1993,24 @@ class Addressbook extends rcube_addressbook
     private function adjustContactCategories(array $contact_ids, callable $callback): void
     {
         $davAbook = $this->getCardDavObj();
-        foreach ($contact_ids as $contact_id) {
-            $contact = Database::get($contact_id, 'id,uri,etag,vcard');
+
+        $contacts = Database::get(
+            $contact_ids,
+            "id,uri,etag,vcard",
+            "contacts",
+            false,
+            "id",
+            ["abook_id" => $this->id]
+        );
+
+        foreach ($contacts as $contact) {
             $vcard = $this->parseVCard($contact['vcard']);
             $groups = [];
             if (isset($vcard->{"CATEGORIES"})) {
                 $groups =  $vcard->CATEGORIES->getParts();
             }
 
-            if ($callback($groups, $contact_id) !== false) {
+            if ($callback($groups, $contact["id"]) !== false) {
                 if (count($groups) > 0) {
                     $vcard->CATEGORIES = $groups;
                 } else {

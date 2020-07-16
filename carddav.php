@@ -48,6 +48,11 @@ class carddav extends rcube_plugin
     // the addressbook to be initialized
     public $task = 'addressbook|login|mail|settings|dummy';
 
+    /** @var ?string[] $abooksDb Cache of the user's addressbook DB entries.
+     *                           Associative array mapping addressbook IDs to DB rows.
+     */
+    private static $abooksDb = null;
+
     /**
      * Default constructor.
      *
@@ -102,10 +107,10 @@ class carddav extends rcube_plugin
         $sources = (array) $config->get('autocomplete_addressbooks', array('sql'));
 
         $sources = array_map(
-            function (array $v): string {
-                return "carddav_{$v['id']}";
+            function (string $id): string {
+                return "carddav_$id";
             },
-            Database::get($_SESSION['user_id'], 'id', 'addressbooks', false, 'user_id', [ 'active' => '1' ])
+            array_keys(self::getAddressbooks())
         );
 
         $config->set('autocomplete_addressbooks', $sources);
@@ -170,14 +175,7 @@ class carddav extends rcube_plugin
         $prefs = self::getAdminSettings();
 
         // Get all existing addressbooks of this user that have been created from presets
-        $existing_abooks = Database::get(
-            $_SESSION['user_id'],
-            '*',
-            'addressbooks',
-            false,
-            'user_id',
-            ['!presetname' => null]
-        );
+        $existing_abooks = self::getAddressbooks(false, true);
 
         // Group the addressbooks by their preset
         $existing_presets = [];
@@ -279,24 +277,15 @@ class carddav extends rcube_plugin
     {
         $prefs = self::getAdminSettings();
 
-        $abooks = Database::get(
-            $_SESSION['user_id'],
-            "id,name,presetname",
-            "addressbooks",
-            false,
-            "user_id",
-            [ "active" => "1" ]
-        );
-
-        foreach ($abooks as $abook) {
+        foreach (self::getAddressbooks() as $abookId => $abookrow) {
             $ro = false;
-            if (isset($abook['presetname']) && $prefs[$abook['presetname']]['readonly']) {
+            if (isset($abookrow['presetname']) && $prefs[$abookrow['presetname']]['readonly']) {
                 $ro = true;
             }
 
-            $p['sources']["carddav_" . $abook['id']] = [
-                'id' => "carddav_" . $abook['id'],
-                'name' => $abook['name'],
+            $p['sources']["carddav_$abookId"] = [
+                'id' => "carddav_$abookId",
+                'name' => $abookrow['name'],
                 'groups' => true,
                 'autocomplete' => true,
                 'readonly' => $ro,
@@ -306,11 +295,26 @@ class carddav extends rcube_plugin
         return $p;
     }
 
+    /**
+     * Hook called by roundcube to retrieve the instance of an addressbook.
+     *
+     * @param array $p The passed array contains the keys:
+     *     id: ID of the addressbook as passed to roundcube in the listAddressbooks hook.
+     *     writeable: Whether the addressbook needs to be writeable (checked by roundcube after returning an instance).
+     * @return array Returns the passed array extended by a key instance pointing to the addressbook object.
+     *     If the addressbook is not provided by the plugin, simply do not set the instance and return what was passed.
+     */
     public function getAddressbook(array $p): array
     {
         $dbh = rcmail::get_instance()->db;
         if (preg_match(";^carddav_(\d+)$;", $p['id'], $match)) {
-            $p['instance'] = new Addressbook($dbh, $match[1], $this);
+            $abookId = $match[1];
+            $abooks = self::getAddressbooks(false);
+
+            // check that this addressbook ID actually refers to one of the user's addressbooks
+            if (isset($abooks[$abookId])) {
+                $p['instance'] = new Addressbook($dbh, $match[1], $this);
+            }
         }
 
         return $p;
@@ -498,23 +502,18 @@ class carddav extends rcube_plugin
         $this->include_stylesheet($this->local_skin_path() . '/carddav.css');
         $prefs = self::getAdminSettings();
 
-        $abooks = Database::get($_SESSION['user_id'], '*', 'addressbooks', false, 'user_id');
-        foreach ($abooks as $abook) {
-            $presetname = $abook['presetname'];
+        foreach (self::getAddressbooks(false) as $abookId => $abookrow) {
+            $presetname = $abookrow['presetname'];
             if (
                 empty($presetname)
-                || (!isset($prefs[$presetname]['hide']) || ($prefs[$presetname]['hide'] === false))
+                || !isset($prefs[$presetname]['hide'])
+                || $prefs[$presetname]['hide'] === false
             ) {
-                $abookid = $abook['id'];
-                $blockhdr = $abook['name'];
-                if ($abook['presetname']) {
-                    $blockhdr .= str_replace(
-                        "_PRESETNAME_",
-                        $abook['presetname'],
-                        rcmail::Q($this->gettext('cd_frompreset'))
-                    );
+                $blockhdr = $abookrow['name'];
+                if (!empty($presetname)) {
+                    $blockhdr .= str_replace("_PRESETNAME_", $presetname, rcmail::Q($this->gettext('cd_frompreset')));
                 }
-                $args['blocks']['cd_preferences' . $abookid] = $this->buildSettingsBlock($blockhdr, $abook, $prefs);
+                $args["blocks"]["cd_preferences$abookId"] = $this->buildSettingsBlock($blockhdr, $abookrow, $prefs);
             }
         }
 
@@ -648,20 +647,11 @@ class carddav extends rcube_plugin
         }
 
         // update existing in DB
-        $abooks = Database::get(
-            $_SESSION['user_id'],
-            'id,presetname',
-            'addressbooks',
-            false,
-            'user_id'
-        );
-
-        foreach ($abooks as $abook) {
-            $abookid = $abook['id'];
-            if (isset($_POST["${abookid}_cd_delete"])) {
-                self::deleteAddressbook($abookid);
+        foreach (self::getAddressbooks(false) as $abookId => $abookrow) {
+            if (isset($_POST["${abookId}_cd_delete"])) {
+                self::deleteAddressbook($abookId);
             } else {
-                $newset = self::getAddressbookSettingsFromPOST($abookid);
+                $newset = self::getAddressbookSettingsFromPOST($abookId);
 
                 // only set the password if the user entered a new one
                 if (empty($newset['password'])) {
@@ -670,16 +660,16 @@ class carddav extends rcube_plugin
 
                 // remove admin only settings
                 foreach ($newset as $pref => $value) {
-                    if (self::noOverrideAllowed($pref, $abook, $prefs)) {
+                    if (self::noOverrideAllowed($pref, $abookrow, $prefs)) {
                         unset($newset[$pref]);
                     }
                 }
 
-                self::updateAddressbook($abookid, $newset);
+                self::updateAddressbook($abookId, $newset);
 
-                if (isset($_POST["${abookid}_cd_resync"])) {
+                if (isset($_POST["${abookId}_cd_resync"])) {
                     $dbh = rcmail::get_instance()->db;
-                    $backend = new Addressbook($dbh, $abookid, $this);
+                    $backend = new Addressbook($dbh, $abookId, $this);
                     $backend->resync();
                 }
             }
@@ -743,7 +733,9 @@ class carddav extends rcube_plugin
         if (count($delgroups) > 0) {
             Database::delete($delgroups, 'group_user', 'group_id');
         }
+
         Database::delete($abookid, 'groups', 'abook_id');
+        self::$abooksDb = null;
     }
 
     private static function insertAddressbook(array $pa): void
@@ -782,6 +774,7 @@ class carddav extends rcube_plugin
         }
 
         Database::insert("addressbooks", $qf, $qv);
+        self::$abooksDb = null;
     }
 
     /**
@@ -836,6 +829,7 @@ class carddav extends rcube_plugin
         }
 
         Database::update($abookid, $qf, $qv, "addressbooks");
+        self::$abooksDb = null;
     }
 
     // admin settings from config.inc.php
@@ -946,6 +940,38 @@ class carddav extends rcube_plugin
 
         // unknown scheme, assume cleartext
         return $crypt;
+    }
+
+    /**
+     * Returns all the users addressbooks, optionally filtered.
+     *
+     * @param $activeOnly If true, only the active addressbooks of the user are returned.
+     * @param $presetsOnly If true, only the addressbooks created from an admin preset are returned.
+     */
+    private static function getAddressbooks(bool $activeOnly = true, bool $presetsOnly = false): array
+    {
+        if (!isset(self::$abooksDb)) {
+            self::$abooksDb = [];
+            foreach (Database::get($_SESSION['user_id'], '*', 'addressbooks', false, 'user_id') as $abookrow) {
+                self::$abooksDb[$abookrow["id"]] = $abookrow;
+            }
+        }
+
+        $result = self::$abooksDb;
+
+        if ($activeOnly) {
+            $result = array_filter($result, function (array $v): bool {
+                return $v["active"] == "1";
+            });
+        }
+
+        if ($presetsOnly) {
+            $result = array_filter($result, function (array $v): bool {
+                return !empty($v["presetname"]);
+            });
+        }
+
+        return $result;
     }
 }
 
