@@ -333,7 +333,7 @@ class Addressbook extends rcube_addressbook
             $synchandler = new SyncHandlerRoundcube($this);
             $syncmgr = new Sync();
             $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token'] ?? "");
-            carddav::updateAddressbook($this->config['abookid'], array('sync_token' => $sync_token));
+            carddav::updateAddressbook($this->config['id'], array('sync_token' => $sync_token));
             $this->config['sync_token'] = $sync_token;
             $this->config['needs_update'] = 0;
 

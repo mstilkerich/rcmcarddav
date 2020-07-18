@@ -456,7 +456,7 @@ abstract class Database
 
             $abookrow = self::get(
                 $abookid,
-                'id as abookid,name,username,password,url,presetname,sync_token,authentication_scheme,'
+                'id,name,username,password,url,presetname,sync_token,authentication_scheme,use_categories,'
                 . $timequery . ' as needs_update',
                 'addressbooks'
             );
