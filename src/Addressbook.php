@@ -70,6 +70,11 @@ class Addressbook extends rcube_addressbook
     /** @var ?string An additional filter to limit contact searches (content: SQL WHERE clause on contacts table) */
     private $filter;
 
+    /** @var string[] $requiredProps A list of addressobject fields that must not be empty, otherwise the addressobject
+     *                               will be hidden.
+     */
+    private $requiredProps;
+
     /** @var ?rcube_result_set $result */
     private $result = null;
 
@@ -118,14 +123,15 @@ class Addressbook extends rcube_addressbook
     /** @var array $datefields list of potential date fields for formatting */
     private $datefields = array('birthday', 'anniversary');
 
-    public function __construct(rcube_db $dbconn, string $dbid, carddav $frontend)
+    public function __construct(rcube_db $dbconn, string $dbid, carddav $frontend, bool $readonly, array $requiredProps)
     {
         $this->db = $dbconn;
 
         $this->frontend = $frontend;
         $this->ready    = !$dbconn->is_error();
         $this->groups   = true;
-        $this->readonly = false;
+        $this->readonly = $readonly;
+        $this->requiredProps = $requiredProps;
         $this->id       = $dbid;
         $this->config   = Database::getAbookCfg($dbid);
 
@@ -168,13 +174,6 @@ class Addressbook extends rcube_addressbook
             'spouse' => [],
         ];
         $this->addextrasubtypes();
-
-        if ($this->config['presetname']) {
-            $prefs = carddav::getAdminSettings();
-            if ($prefs[$this->config['presetname']]['readonly']) {
-                $this->readonly = true;
-            }
-        }
 
         // refresh the address book if the update interval expired
         // this requires a completely initialized Addressbook object, so it
@@ -423,13 +422,8 @@ class Addressbook extends rcube_addressbook
             $xwhere = ' AND id=contact_id AND group_id=' . $this->db->quote($this->group_id) . ' ';
         }
 
-        if ($this->config['presetname']) {
-            $prefs = carddav::getAdminSettings();
-            if (key_exists("require_always", $prefs[$this->config['presetname']])) {
-                foreach ($prefs[$this->config['presetname']]["require_always"] as $col) {
-                    $xwhere .= " AND $col <> " . $this->db->quote('') . " ";
-                }
-            }
+        foreach (array_intersect($this->requiredProps, $this->table_cols) as $col) {
+            $xwhere .= " AND $col <> " . $this->db->quote('') . " ";
         }
 
         // Workaround for Roundcube versions < 0.7.2
@@ -546,11 +540,7 @@ class Addressbook extends rcube_addressbook
         // Compute the corresponding search clause and append to the existing one from (1)
 
         // this is an optional filter configured by the administrator that requires the given fields be not empty
-        if ($this->config['presetname']) {
-            $presetname = $this->config['presetname'];
-            $prefs = carddav::getAdminSettings();
-            $required = array_unique(array_merge($required, $prefs[$presetname]["require_always"] ?? []));
-        }
+        $required = array_unique(array_merge($required, $this->requiredProps));
 
         $and_where = [];
         foreach (array_intersect($required, $this->table_cols) as $col) {

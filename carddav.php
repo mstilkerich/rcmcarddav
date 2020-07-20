@@ -87,15 +87,18 @@ class carddav extends rcube_plugin
 
         $this->add_texts('localization/', false);
 
-        $this->add_hook('addressbooks_list', array($this, 'listAddressbooks'));
-        $this->add_hook('addressbook_get', array($this, 'getAddressbook'));
+        $this->add_hook('addressbooks_list', [$this, 'listAddressbooks']);
+        $this->add_hook('addressbook_get', [$this, 'getAddressbook']);
 
-        $this->add_hook('preferences_list', array($this, 'buildPreferencesPage'));
-        $this->add_hook('preferences_save', array($this, 'savePreferences'));
-        $this->add_hook('preferences_sections_list', array($this, 'addPreferencesSection'));
+        // if preferences are configured as hidden by the admin, don't register the hooks handling preferences
+        if (!($prefs['_GLOBAL']['hide_preferences'] ?? false)) {
+            $this->add_hook('preferences_list', [$this, 'buildPreferencesPage']);
+            $this->add_hook('preferences_save', [$this, 'savePreferences']);
+            $this->add_hook('preferences_sections_list', [$this, 'addPreferencesSection']);
+        }
 
-        $this->add_hook('login_after', array($this, 'checkMigrations'));
-        $this->add_hook('login_after', array($this, 'initPresets'));
+        $this->add_hook('login_after', [$this, 'checkMigrations']);
+        $this->add_hook('login_after', [$this, 'initPresets']);
 
         if (!key_exists('user_id', $_SESSION)) {
             return;
@@ -104,7 +107,7 @@ class carddav extends rcube_plugin
         // use this address book for autocompletion queries
         // (maybe this should be configurable by the user?)
         $config = rcmail::get_instance()->config;
-        $sources = (array) $config->get('autocomplete_addressbooks', array('sql'));
+        $sources = (array) $config->get('autocomplete_addressbooks', ['sql']);
 
         $sources = array_map(
             function (string $id): string {
@@ -130,11 +133,15 @@ class carddav extends rcube_plugin
      */
     private function updatePresetAddressbooks(array $preset, array $existing_abooks): void
     {
+        if (!is_array($preset["fixed"] ?? "")) {
+            return;
+        }
+
         foreach ($existing_abooks as $abookrow) {
             // decrypt password so that the comparison works
             $abookrow['password'] = self::decryptPassword($abookrow['password']);
 
-            // update: only admin fix keys, only if it's fixed
+            // update only those attributes marked as fixed by the admin
             // otherwise there may be user changes that should not be destroyed
             $pa = [];
 
@@ -142,7 +149,7 @@ class carddav extends rcube_plugin
                 if (key_exists($k, $abookrow) && key_exists($k, $preset)) {
                     // only update the name if it is used
                     if ($k === 'name') {
-                        if (!$preset['carddav_name_only']) {
+                        if (!($preset['carddav_name_only'] ?? false)) {
                             $fullname = $abookrow['name'];
                             $cnpos = strpos($fullname, ' (');
                             if ($cnpos === false && $preset['name'] != $fullname) {
@@ -156,17 +163,19 @@ class carddav extends rcube_plugin
                         // not exactly match the discovery URI. Resetting it to the discovery URI would
                         // break the addressbook record
                     } elseif ($abookrow[$k] != $preset[$k]) {
-                        $pa[$k] = $preset[$k];
+                        if (is_bool($preset[$k])) {
+                            $pa[$k] = $preset[$k] ? '1' : '0';
+                        } else {
+                            $pa[$k] = $preset[$k];
+                        }
                     }
                 }
             }
 
             // only update if something changed
-            if (count($pa) === 0) {
-                continue;
+            if (!empty($pa)) {
+                self::updateAddressbook($abookrow['id'], $pa);
             }
-
-            self::updateAddressbook($abookrow['id'], $pa);
         }
     }
 
@@ -313,7 +322,19 @@ class carddav extends rcube_plugin
 
             // check that this addressbook ID actually refers to one of the user's addressbooks
             if (isset($abooks[$abookId])) {
-                $p['instance'] = new Addressbook($dbh, $match[1], $this);
+                $presetname = $abooks[$abookId]["presetname"] ?? null;
+                $readonly = false;
+                $requiredProps = [];
+
+                if (isset($presetname)) {
+                    $prefs = self::getAdminSettings();
+                    $readonly = isset($prefs[$presetname]["readonly"])
+                        ? ($prefs[$presetname]["readonly"] ? true : false)
+                        : false;
+
+                    $requiredProps = $prefs[$presetname]["require_always"] ?? [];
+                }
+                $p['instance'] = new Addressbook($dbh, $abookId, $this, $readonly, $requiredProps);
             }
         }
 
@@ -358,15 +379,13 @@ class carddav extends rcube_plugin
      */
     private function buildSettingsBlock(string $blockheader, array $abook, array $prefs): array
     {
-        $abookid = $abook['id'];
+        $abookId = $abook['id'];
 
         if (self::noOverrideAllowed('active', $abook, $prefs)) {
-            $content_active = $prefs[$abook['presetname']]
-                ? $this->gettext('cd_enabled')
-                : $this->gettext('cd_disabled');
+            $content_active = $abook['active'] ? $this->gettext('cd_enabled') : $this->gettext('cd_disabled');
         } else {
             // check box for activating
-            $checkbox = new html_checkbox(['name' => $abookid . '_cd_active', 'value' => 1]);
+            $checkbox = new html_checkbox(['name' => $abookId . '_cd_active', 'value' => 1]);
             $content_active = $checkbox->show($abook['active'] ? "1" : "0");
         }
 
@@ -376,7 +395,7 @@ class carddav extends rcube_plugin
                 : $this->gettext('cd_disabled');
         } else {
             // check box for use categories
-            $checkbox = new html_checkbox(['name' => $abookid . '_cd_use_categories', 'value' => 1]);
+            $checkbox = new html_checkbox(['name' => $abookId . '_cd_use_categories', 'value' => 1]);
             $content_use_categories = $checkbox->show($abook['use_categories'] ? "1" : "0");
         }
 
@@ -385,7 +404,7 @@ class carddav extends rcube_plugin
         } else {
             // input box for username
             $input = new html_inputfield([
-                'name' => $abookid . '_cd_username',
+                'name' => $abookId . '_cd_username',
                 'type' => 'text',
                 'autocomplete' => 'off',
                 'value' => $abook['username']
@@ -400,7 +419,7 @@ class carddav extends rcube_plugin
             $show_pw_val = ($abook['id'] === "new" && isset($abook['password'])) ? $abook['password'] : '';
             // input box for password
             $input = new html_inputfield([
-                'name' => $abookid . '_cd_password',
+                'name' => $abookId . '_cd_password',
                 'type' => 'password',
                 'autocomplete' => 'off',
                 'value' => $show_pw_val
@@ -415,7 +434,7 @@ class carddav extends rcube_plugin
             // input box for URL
             $size = max(strlen($abook['url']), 40);
             $input = new html_inputfield([
-                'name' => $abookid . '_cd_url',
+                'name' => $abookId . '_cd_url',
                 'type' => 'text',
                 'autocomplete' => 'off',
                 'value' => $abook['url'],
@@ -428,10 +447,10 @@ class carddav extends rcube_plugin
 
         // input box for refresh time
         if (self::noOverrideAllowed('refresh_time', $abook, $prefs)) {
-            $content_refresh_time =  $abook['refresh_time'];
+            $content_refresh_time =  $abook['refresh_time'] . ", ";
         } else {
             $input = new html_inputfield([
-                'name' => $abookid . '_cd_refresh_time',
+                'name' => $abookId . '_cd_refresh_time',
                 'type' => 'text',
                 'autocomplete' => 'off',
                 'value' => $abook['refresh_time'],
@@ -448,7 +467,7 @@ class carddav extends rcube_plugin
             $content_name = $abook['name'];
         } else {
             $input = new html_inputfield([
-                'name' => $abookid . '_cd_name',
+                'name' => $abookId . '_cd_name',
                 'type' => 'text',
                 'autocomplete' => 'off',
                 'value' => $abook['name'],
@@ -457,27 +476,27 @@ class carddav extends rcube_plugin
             $content_name = $input->show();
         }
 
-        $retval = array(
-            'options' => array(
-                array('title' => rcmail::Q($this->gettext('cd_name')), 'content' => $content_name),
-                array('title' => rcmail::Q($this->gettext('cd_active')), 'content' => $content_active),
-                array('title' => rcmail::Q($this->gettext('cd_use_categories')), 'content' => $content_use_categories),
-                array('title' => rcmail::Q($this->gettext('cd_username')), 'content' => $content_username),
-                array('title' => rcmail::Q($this->gettext('cd_password')), 'content' => $content_password),
-                array('title' => rcmail::Q($this->gettext('cd_url')), 'content' => $content_url),
-                array('title' => rcmail::Q($this->gettext('cd_refresh_time')), 'content' => $content_refresh_time),
-            ),
+        $retval = [
+            'options' => [
+                ['title' => rcmail::Q($this->gettext('cd_name')), 'content' => $content_name],
+                ['title' => rcmail::Q($this->gettext('cd_active')), 'content' => $content_active],
+                ['title' => rcmail::Q($this->gettext('cd_use_categories')), 'content' => $content_use_categories],
+                ['title' => rcmail::Q($this->gettext('cd_username')), 'content' => $content_username],
+                ['title' => rcmail::Q($this->gettext('cd_password')), 'content' => $content_password],
+                ['title' => rcmail::Q($this->gettext('cd_url')), 'content' => $content_url],
+                ['title' => rcmail::Q($this->gettext('cd_refresh_time')), 'content' => $content_refresh_time],
+            ],
             'name' => $blockheader
-        );
+        ];
 
-        if (!$abook['presetname'] && preg_match('/^\d+$/', $abookid)) {
-            $checkbox = new html_checkbox(array('name' => $abookid . '_cd_delete', 'value' => 1));
+        if (!$abook['presetname'] && preg_match('/^\d+$/', $abookId)) {
+            $checkbox = new html_checkbox(['name' => $abookId . '_cd_delete', 'value' => 1]);
             $content_delete = $checkbox->show("0");
             $retval['options'][] = ['title' => rcmail::Q($this->gettext('cd_delete')), 'content' => $content_delete];
         }
 
-        if (preg_match('/^\d+$/', $abookid)) {
-            $checkbox = new html_checkbox(array('name' => $abookid . '_cd_resync', 'value' => 1));
+        if (preg_match('/^\d+$/', $abookId)) {
+            $checkbox = new html_checkbox(['name' => $abookId . '_cd_resync', 'value' => 1]);
             $content_resync = $checkbox->show("0");
             $retval['options'][] = ['title' => rcmail::Q($this->gettext('cd_resync')), 'content' => $content_resync];
         }
@@ -501,8 +520,26 @@ class carddav extends rcube_plugin
 
         $this->include_stylesheet($this->local_skin_path() . '/carddav.css');
         $prefs = self::getAdminSettings();
+        $abooks = self::getAddressbooks(false);
+        uasort(
+            $abooks,
+            function (array $a, array $b): int {
+                // presets first
+                $ret = strcasecmp($b["presetname"] ?? "", $a["presetname"] ?? "");
+                if ($ret == 0) {
+                    // then alphabetically by name
+                    $ret = strcasecmp($a["name"] ?? "", $b["name"] ?? "");
+                }
+                if ($ret == 0) {
+                    // finally by id (normally the names will differ)
+                    $ret = $a["id"] <=> $b["id"];
+                }
+                return $ret;
+            }
+        );
 
-        foreach (self::getAddressbooks(false) as $abookId => $abookrow) {
+
+        foreach ($abooks as $abookId => $abookrow) {
             $presetname = $abookrow['presetname'];
             if (
                 empty($presetname)
@@ -517,7 +554,8 @@ class carddav extends rcube_plugin
             }
         }
 
-        if (!key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) {
+        // if allowed by admin, provide a block for entering data for a new addressbook
+        if (!($prefs['_GLOBAL']['fixed'] ?? false)) {
             $args['blocks']['cd_preferences_section_new'] = $this->buildSettingsBlock(
                 rcmail::Q($this->gettext('cd_newabboxtitle')),
                 self::getAddressbookSettingsFromPOST('new'),
@@ -616,16 +654,10 @@ class carddav extends rcube_plugin
     public function addPreferencesSection(array $args): array
     {
         $prefs = self::getAdminSettings();
-        if (
-            !isset($prefs['_GLOBAL']['hide_preferences'])
-            || (isset($prefs['_GLOBAL']['hide_preferences'])
-                && $prefs['_GLOBAL']['hide_preferences'] === false)
-        ) {
-            $args['list']['cd_preferences'] = array(
-                'id'      => 'cd_preferences',
-                'section' => rcmail::Q($this->gettext('cd_title'))
-            );
-        }
+        $args['list']['cd_preferences'] = [
+            'id'      => 'cd_preferences',
+            'section' => rcmail::Q($this->gettext('cd_title'))
+        ];
         return $args;
     }
 
@@ -642,9 +674,6 @@ class carddav extends rcube_plugin
         }
 
         $prefs = self::getAdminSettings();
-        if (isset($prefs['_GLOBAL']['hide_preferences']) && $prefs['_GLOBAL']['hide_preferences'] === true) {
-            return $args;
-        }
 
         // update existing in DB
         foreach (self::getAddressbooks(false) as $abookId => $abookrow) {
@@ -669,7 +698,8 @@ class carddav extends rcube_plugin
 
                 if (isset($_POST["${abookId}_cd_resync"])) {
                     $dbh = rcmail::get_instance()->db;
-                    $backend = new Addressbook($dbh, $abookId, $this);
+                    // read-only and required properties don't matter here, this instance is short-lived for sync only
+                    $backend = new Addressbook($dbh, $abookId, $this, true, []);
                     $backend->resync();
                 }
             }
@@ -677,7 +707,10 @@ class carddav extends rcube_plugin
 
         // add a new address book?
         $new = self::getAddressbookSettingsFromPOST('new');
-        if ((!key_exists('_GLOBAL', $prefs) || !$prefs['_GLOBAL']['fixed']) && !empty($new['name'])) {
+        if (
+            !($prefs['_GLOBAL']['fixed'] ?? false) // creation of addressbooks allowed by admin
+            && !empty($new['name']) // user entered a name (and hopefully more data) for a new addressbook
+        ) {
             try {
                 $account = new Account(
                     $new['url'],
@@ -714,27 +747,27 @@ class carddav extends rcube_plugin
         return $args;
     }
 
-    private static function deleteAddressbook(string $abookid): void
+    private static function deleteAddressbook(string $abookId): void
     {
-        Database::delete($abookid, 'addressbooks');
+        Database::delete($abookId, 'addressbooks');
         // we explicitly delete all data belonging to the addressbook, since
         // cascaded deleted are not supported by all database backends
         // ...contacts
-        Database::delete($abookid, 'contacts', 'abook_id');
+        Database::delete($abookId, 'contacts', 'abook_id');
         // ...custom subtypes
-        Database::delete($abookid, 'xsubtypes', 'abook_id');
+        Database::delete($abookId, 'xsubtypes', 'abook_id');
         // ...groups and memberships
         $delgroups = array_map(
             function (array $v): string {
                 return $v["id"];
             },
-            Database::get($abookid, 'id', 'groups', false, 'abook_id')
+            Database::get($abookId, 'id', 'groups', false, 'abook_id')
         );
         if (count($delgroups) > 0) {
             Database::delete($delgroups, 'group_user', 'group_id');
         }
 
-        Database::delete($abookid, 'groups', 'abook_id');
+        Database::delete($abookId, 'groups', 'abook_id');
         self::$abooksDb = null;
     }
 
@@ -755,8 +788,8 @@ class carddav extends rcube_plugin
         $pa['user_id']      = $_SESSION['user_id'];
 
         // required fields
-        $qf = array('name','username','password','url','user_id');
-        $qv = array();
+        $qf = ['name','username','password','url','user_id'];
+        $qv = [];
         foreach ($qf as $f) {
             if (!key_exists($f, $pa)) {
                 throw new \Exception("Required parameter $f not provided for new addressbook");
@@ -765,7 +798,7 @@ class carddav extends rcube_plugin
         }
 
         // optional fields
-        $qfo = array('active','presetname','use_categories','refresh_time');
+        $qfo = ['active','presetname','use_categories','refresh_time'];
         foreach ($qfo as $f) {
             if (key_exists($f, $pa)) {
                 $qf[] = $f;
@@ -799,7 +832,7 @@ class carddav extends rcube_plugin
         }
     }
 
-    public static function updateAddressbook(string $abookid, array $pa): void
+    public static function updateAddressbook(string $abookId, array $pa): void
     {
         // check parameters
         if (key_exists('refresh_time', $pa)) {
@@ -828,18 +861,18 @@ class carddav extends rcube_plugin
             return;
         }
 
-        Database::update($abookid, $qf, $qv, "addressbooks");
+        Database::update($abookId, $qf, $qv, "addressbooks");
         self::$abooksDb = null;
     }
 
     // admin settings from config.inc.php
-    public static function getAdminSettings(): array
+    private static function getAdminSettings(): array
     {
         if (isset(self::$admin_settings)) {
             return self::$admin_settings;
         }
 
-        $prefs = array();
+        $prefs = [];
         $configfile = dirname(__FILE__) . "/config.inc.php";
         if (file_exists($configfile)) {
             include($configfile);
