@@ -262,8 +262,7 @@ class carddav extends rcube_plugin
         return $username;
     }
 
-    // only needed inside this class because the URL is not stored with placeholders
-    private static function replacePlaceholdersUrl(string $url): string
+    public static function replacePlaceholdersUrl(string $url): string
     {
         // currently same as for username
         return self::replacePlaceholdersUsername($url);

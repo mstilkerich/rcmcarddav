@@ -85,45 +85,75 @@ abstract class Database
         }
         $dbh->set_option('ignore_key_errors', null);
 
+        // (3) Execute the migration scripts that have not been executed before
         foreach ($migrationsAvailable as $migration) {
             // skip migrations that have already been done
             if (key_exists($migration, $migrationsDone)) {
                 continue;
             }
 
-            $migrationScript = "$scriptDir/$migration/$db_backend.sql";
-
             self::$logger->notice("In migration: $migration");
-            $queries_raw = file_get_contents($migrationScript);
 
-            if ($queries_raw === false) {
-                self::$logger->error("Failed to read migration script: $migrationScript - aborting");
+            $phpMigrationScript = "$scriptDir/$migration/migrate.php";
+            $sqlMigrationScript = "$scriptDir/$migration/$db_backend.sql";
+
+            if (file_exists($phpMigrationScript)) {
+                include $phpMigrationScript;
+                $migrationClass = "\MStilkerich\CardDavAddressbook4Roundcube\DBMigrations\Migration"
+                    . substr($migration, 0, 4); // the 4-digit number
+
+                /**
+                 * @psalm-suppress InvalidStringClass
+                 * @var DBMigrationInterface $migrationObj
+                 */
+                $migrationObj = new $migrationClass();
+                $migrationObj->migrate($dbh, self::$logger);
+            } elseif (file_exists($sqlMigrationScript)) {
+                if (self::performSqlMigration($sqlMigrationScript, $dbPrefix, $dbh) === false) {
+                    return; // error already logged
+                }
+            } else {
+                self::$logger->warning("No migration script found for: $migration");
+                // do not continue with other scripts that may depend on this one
                 return;
             }
 
-            $queryCount = preg_match_all('/.+?;/s', $queries_raw, $queries);
-            self::$logger->debug("Found $queryCount queries in $migrationScript");
-            if ($queryCount > 0) {
-                foreach ($queries[0] as $query) {
-                    $query = str_replace("TABLE_PREFIX", $dbPrefix, $query);
-                    $dbh->query($query);
+            $dbh->query(
+                "INSERT INTO " . $dbh->table_name("carddav_migrations") . " (filename) VALUES (?)",
+                $migration
+            );
 
-                    if ($dbh->is_error()) {
-                        self::$logger->error("Migration query ($query) failed: " . $dbh->is_error());
-                        return;
-                    }
-                }
-                $dbh->query(
-                    "INSERT INTO " . $dbh->table_name("carddav_migrations") . " (filename) VALUES (?)",
-                    $migration
-                );
+            if ($dbh->is_error()) {
+                self::$logger->error("Recording exec of migration $migration failed: " . $dbh->is_error());
+                return;
+            }
+        }
+    }
+
+    private static function performSqlMigration(string $migrationScript, string $dbPrefix, rcube_db $dbh): bool
+    {
+        $queries_raw = file_get_contents($migrationScript);
+
+        if ($queries_raw === false) {
+            self::$logger->error("Failed to read migration script: $migrationScript - aborting");
+            return false;
+        }
+
+        $queryCount = preg_match_all('/.+?;/s', $queries_raw, $queries);
+        self::$logger->debug("Found $queryCount queries in $migrationScript");
+        if ($queryCount > 0) {
+            foreach ($queries[0] as $query) {
+                $query = str_replace("TABLE_PREFIX", $dbPrefix, $query);
+                $dbh->query($query);
 
                 if ($dbh->is_error()) {
-                    self::$logger->error("Recording exec of migration $migrationScript failed: " . $dbh->is_error());
-                    return;
+                    self::$logger->error("Migration query ($query) failed: " . $dbh->is_error());
+                    return false;
                 }
             }
         }
+
+        return true;
     }
 
     /**
