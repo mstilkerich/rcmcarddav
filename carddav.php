@@ -900,35 +900,35 @@ class carddav extends rcube_plugin
 
     public static function encryptPassword(string $clear): string
     {
-        if (strcasecmp(self::$pwstore_scheme, 'plain') === 0) {
+        $scheme = self::$pwstore_scheme;
+
+        if (strcasecmp($scheme, 'plain') === 0) {
             return $clear;
         }
 
-        if (strcasecmp(self::$pwstore_scheme, 'encrypted') === 0) {
-            // return {IGNORE} scheme if session password is empty (krb_authentication plugin)
-            if (empty($_SESSION['password'])) {
-                return '{IGNORE}';
+        if (strcasecmp($scheme, 'encrypted') === 0) {
+            if (empty($_SESSION['password'])) { // no key for encryption available, downgrade to DES_KEY
+                $scheme = 'des_key';
+            } else {
+                // encrypted with IMAP password
+                $rcmail = rcmail::get_instance();
+
+                $imap_password = self::getDesKey();
+                $deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
+
+                $crypted = $rcmail->encrypt($clear, 'carddav_des_key');
+
+                // there seems to be no way to unset a preference
+                $deskey_backup = $rcmail->config->set('carddav_des_key', '');
+
+                return '{ENCRYPTED}' . $crypted;
             }
-
-            // encrypted with IMAP password
-            $rcmail = rcmail::get_instance();
-
-            $imap_password = self::getDesKey();
-            $deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
-
-            $crypted = $rcmail->encrypt($clear, 'carddav_des_key');
-
-            // there seems to be no way to unset a preference
-            $deskey_backup = $rcmail->config->set('carddav_des_key', '');
-
-            return '{ENCRYPTED}' . $crypted;
         }
 
-        if (strcasecmp(self::$pwstore_scheme, 'des_key') === 0) {
+        if (strcasecmp($scheme, 'des_key') === 0) {
             // encrypted with global des_key
             $rcmail = rcmail::get_instance();
             $crypted = $rcmail->encrypt($clear);
-
             return '{DES_KEY}' . $crypted;
         }
 
@@ -939,9 +939,10 @@ class carddav extends rcube_plugin
     public static function decryptPassword(string $crypt): string
     {
         if (strpos($crypt, '{ENCRYPTED}') === 0) {
-            // return {IGNORE} scheme if session password is empty (krb_authentication plugin)
+            // return empty password if decruption key not available
             if (empty($_SESSION['password'])) {
-                return '{IGNORE}';
+                self::$logger->warning("Cannot decrypt password as now session password is available");
+                return "";
             }
 
             $crypt = substr($crypt, strlen('{ENCRYPTED}'));
