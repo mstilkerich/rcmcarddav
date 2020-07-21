@@ -55,5 +55,5 @@ Releases of RCMCardDAV are also provided as a tarball than can be extracted to r
 
 Configuration is optional. See [ADMIN-SETTINGS.MD](ADMIN-SETTINGS.MD) for a description of administrative settings.
 
-- Copy the template `config.inc.php.dist` to `config.inc.php`
+- Copy the template `config.inc.php.dist` to `config.inc.php` (composer may already have done this for you)
 - Edit `plugins/carddav/config.inc.php` as you need.
