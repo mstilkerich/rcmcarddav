@@ -5,10 +5,10 @@ all: staticanalyses doc
 staticanalyses: phpcompatcheck stylecheck psalmanalysis
 
 stylecheck:
-	vendor/bin/phpcs --colors --standard=PSR12 *.php src/
+	vendor/bin/phpcs --colors --standard=PSR12 *.php src/ dbmigrations/
 
 phpcompatcheck:
-	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 src/
+	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/
 
 psalmanalysis:
 	vendor/bin/psalm

@@ -9,6 +9,7 @@
 >
     <projectFiles>
 		<directory name="src/" />
+		<directory name="dbmigrations/" />
 		<file name ="carddav.php" />
     </projectFiles>
 
