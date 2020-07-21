@@ -27,7 +27,6 @@ use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Database, RoundcubeLo
 // phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
 class carddav extends rcube_plugin
 {
-
     /** @var string[] ABOOK_PROPS A list of addressbook property keys. These are both found in the settings form as well
      *                            as in the database as columns.
      */
@@ -60,6 +59,12 @@ class carddav extends rcube_plugin
      */
     public function __construct($api)
     {
+        // This supports a self-contained tarball installation of the plugin, at the risk of having conflicts with other
+        // versions of the library installed in the global roundcube vendor directory (-> use not recommended)
+        if (file_exists(dirname(__FILE__) . "/vendor/autoload.php")) {
+            include_once dirname(__FILE__) . "/vendor/autoload.php";
+        }
+
         parent::__construct($api);
 
         // we do not currently use the roundcube mechanism to save preferences
