@@ -11,7 +11,7 @@ settings are optional, i.e. the plugin will be functional without.
 ## Logging configuration
 
 The plugin uses roundcube's facilities for logging. It creates two log files, `carddav.log` and `carddav_http.log`. The
-latter contains a log of the HTTP traffic. Because of its verbosity, it is put in a seperate log file and can also be
+latter contains a log of the HTTP traffic. Because of its verbosity, it is put in a separate log file and can also be
 configured with a separate log level. The log files are found in the `logs/` subdirectory of the roundcube installation,
 if logging to files is configured in the roundcube configuration.
 
