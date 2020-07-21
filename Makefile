@@ -17,3 +17,9 @@ doc:
 	rm -r ~/www/carddavclient/*
 	#phpDocumentor.phar -d src/ -t ~/www/carddavclient --title="CardDAV Client Library" 
 	../phpdocumentor/bin/phpdoc -d src/ -t ~/www/carddavclient --title="CardDAV Client Library" 
+
+tarball:
+	VERS=$$(git tag --points-at HEAD); \
+		if [ -z "$$VERS" ]; then echo "Error: HEAD has no version tag"; exit 1; else \
+			git archive --format tgz --prefix carddav/ -o carddav-$$VERS.tgz --worktree-attributes HEAD; \
+		fi
