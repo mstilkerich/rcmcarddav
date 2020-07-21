@@ -170,7 +170,7 @@ class SyncHandlerRoundcube implements SyncHandler
         } elseif (isset($this->existing_grpcard_cache[$uri]["id"])) {
             Database::delete($this->existing_grpcard_cache[$uri]["id"], 'groups');
         } else {
-            carddav::$logger->warning("Server reported deleted card $uri for that no DB entry exists");
+            carddav::$logger->notice("Server reported deleted card $uri for that no DB entry exists");
         }
     }
 
