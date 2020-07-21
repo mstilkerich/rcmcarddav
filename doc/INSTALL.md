@@ -41,8 +41,8 @@ Releases of RCMCardDAV are also provided as a tarball than can be extracted to r
   This is important because RCMCardDAV runs its database initialisation / update procedure only when a user logs in!
 - Get [composer](https://getcomposer.org/download/)
 - Download the release tarball from [here](releases/)
-- Extract the tarball to the roundcube/plugins directory (assuming roundcube is installed at `/usr/share/roundcube`)
-  `cd /usr/share/roundcube/plugins && tar xvzf /tmp/carddav-4.0.0.tgz`
+- Extract the tarball to the roundcube/plugins directory (assuming roundcube is installed at `/var/lib/roundcube`)
+  `cd /var/lib/roundcube/plugins && tar xvzf /tmp/carddav-4.0.0.tgz`
 - Install the plugin's dependencies with `php composer.phar install --no-dev`. To update to the latest versions of the
   depended-on libraries, use `php composer.phar update --no-dev` instead.
 - [Configure](#configuration) the plugin if needed.
