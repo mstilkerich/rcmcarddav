@@ -1,3 +1,4 @@
 config.inc.php
-composer.phar
 /vendor
+composer.*
+*.tgz

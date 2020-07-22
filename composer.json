@@ -5,7 +5,6 @@
     "keywords": ["addressbook","carddav","contacts","owncloud","davical"],
     "homepage": "https://www.benjamin-schieder.de/carddav.html",
     "license": "GPL-2.0",
-    "version": "3.0.3",
     "authors": [
         {
             "name": "Benjamin Schieder",
@@ -19,20 +18,25 @@
             "role": "Developer"
         }
     ],
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "git://github.com/blind-coder/rcmcarddav.git"
-        }
-    ],
     "require": {
-        "php": ">=5.6.18",
-        "nategood/httpful": "~0.2",
-        "sabre/vobject": "~3.4"
+        "php": ">=7.1.0",
+        "sabre/vobject": "^4.3",
+        "roundcube/plugin-installer": "*",
+        "mstilkerich/carddavclient": "*"
+    },
+    "require-dev": {
+        "vimeo/psalm": "^3.11",
+        "phpcompatibility/php-compatibility": "*",
+        "dealerdirect/phpcodesniffer-composer-installer": "^0.6.0"
     },
     "extra": {
         "roundcube": {
-            "min-version": "1.0.0"
+            "min-version": "1.2.0"
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "MStilkerich\\CardDavAddressbook4Roundcube\\": "src/"
         }
     }
 }
