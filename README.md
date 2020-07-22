@@ -13,9 +13,6 @@ See [INSTALL.md](doc/INSTALL.md) for installation instructions.
 
 ## Upgrade Notes
 
-__Caution: v4 is currently in development and there are some known issues:__
-- currently none
-
 ### Upgrading from 3.0.x
 
 - Database migration happens automatically.
