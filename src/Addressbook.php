@@ -1789,18 +1789,24 @@ class Addressbook extends rcube_addressbook
             if (isset($group["uri"])) { // KIND=group VCard-based group
                 $davAbook->deleteCard($group["uri"]);
                 $this->resync();
-                return true;
             } else { // CATEGORIES-type group
                 $groupname = $group["name"];
                 $contact_ids = $this->getContactIdsForGroup($group_id);
-                $this->adjustContactCategories(
-                    $contact_ids,
-                    function (array &$groups, string $contact_id) use ($groupname): bool {
-                        return self::stringsAddRemove($groups, [], [$groupname]);
-                    }
-                );
-                return true;
+
+                if (empty($contact_ids)) {
+                    // will not be deleted by sync, delete right now
+                    Database::delete($group_id, "groups", "id", ["abook_id" => $this->id]);
+                } else {
+                    $this->adjustContactCategories(
+                        $contact_ids,
+                        function (array &$groups, string $contact_id) use ($groupname): bool {
+                            return self::stringsAddRemove($groups, [], [$groupname]);
+                        }
+                    );
+                    $this->resync();
+                }
             }
+            return true;
         } catch (\Exception $e) {
             carddav::$logger->error("delete_group($group_id): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
