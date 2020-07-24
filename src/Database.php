@@ -107,7 +107,9 @@ abstract class Database
                  * @var DBMigrationInterface $migrationObj
                  */
                 $migrationObj = new $migrationClass();
-                $migrationObj->migrate($dbh, self::$logger);
+                if ($migrationObj->migrate($dbh, self::$logger) === false) {
+                    return; // error already logged
+                }
             } elseif (file_exists($sqlMigrationScript)) {
                 if (self::performSqlMigration($sqlMigrationScript, $dbPrefix, $dbh) === false) {
                     return; // error already logged
