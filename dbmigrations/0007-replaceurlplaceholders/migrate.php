@@ -20,17 +20,19 @@ class Migration0007 implements DBMigrationInterface
         $users_table = $dbh->table_name("users");
         $abook_table = $dbh->table_name("carddav_addressbooks");
 
+        $for_update = ($dbh->db_provider === "sqlite") ? "" : " FOR UPDATE";
+
         if (
-            $dbh->query("BEGIN") === false
+            $dbh->startTransaction() === false
             || ($sql_result = $dbh->query(
                 "SELECT a.id,a.url,u.username "
                 . "FROM $abook_table as a, $users_table as u "
                 . "WHERE a.user_id = u.user_id"
-                . " FOR UPDATE"
+                . $for_update
             )) === false
         ) {
             $logger->error("Error in PHP-based migration Migration0007: " . $dbh->is_error());
-            $dbh->query("ROLLBACK");
+            $dbh->rollbackTransaction();
             return false;
         }
 
@@ -42,13 +44,13 @@ class Migration0007 implements DBMigrationInterface
                         "Error in PHP-based migration Migration0007 (UPDATE {$row['id']}): "
                         . $dbh->is_error()
                     );
-                    $dbh->query("ROLLBACK");
+                    $dbh->rollbackTransaction();
                     return false;
                 }
             }
         }
 
-        if ($dbh->query("COMMIT") === false) {
+        if ($dbh->endTransaction() === false) {
             $logger->error("Error in PHP-based migration Migration0007 (COMMIT): " . $dbh->is_error());
             return false;
         }
