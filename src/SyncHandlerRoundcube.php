@@ -32,6 +32,9 @@ class SyncHandlerRoundcube implements SyncHandler
     /** @var string[] maps group names to database ids */
     private $existing_category_groupids = [];
 
+    /** @var string[] a list of group IDs that may be cleared from the DB if empty and CATEGORY-type */
+    private $clearGroupCandidates = [];
+
     public function __construct(Addressbook $rcAbook)
     {
         $this->rcAbook = $rcAbook;
@@ -165,10 +168,24 @@ class SyncHandlerRoundcube implements SyncHandler
     public function addressObjectDeleted(string $uri): void
     {
         carddav::$logger->debug("Deleted card $uri");
+
         if (isset($this->existing_card_cache[$uri]["id"])) {
-            Database::delete($this->existing_card_cache[$uri]["id"]);
+            // delete contact
+            $dbid = $this->existing_card_cache[$uri]["id"];
+
+            /* CATEGORY-type groups may become empty as a user is deleted and should then be deleted as well. Record
+             * what groups the user belonged to.
+             */
+            $group_ids = array_column(Database::get($dbid, "group_id", "group_user", false, "contact_id"), "group_id");
+            $this->clearGroupCandidates = array_merge($this->clearGroupCandidates, $group_ids);
+
+            Database::delete($dbid, "group_user", "contact_id");
+            Database::delete($dbid);
         } elseif (isset($this->existing_grpcard_cache[$uri]["id"])) {
-            Database::delete($this->existing_grpcard_cache[$uri]["id"], 'groups');
+            // delete VCard-type group
+            $dbid = $this->existing_grpcard_cache[$uri]["id"];
+            Database::delete($dbid, "group_user", "group_id");
+            Database::delete($dbid, "groups");
         } else {
             carddav::$logger->notice("Server reported deleted card $uri for that no DB entry exists");
         }
@@ -201,6 +218,21 @@ class SyncHandlerRoundcube implements SyncHandler
                     $dbh->table_name('carddav_contacts') .
                     ' WHERE abook_id=? AND cuid IN (' . implode(',', $cuids) . ')', $dbid, $abookId);
                 carddav::$logger->debug("Added " . $dbh->affected_rows($sql_result) . " contacts to group $dbid");
+            }
+        }
+
+        // Delete all CATEGORY-TYPE groups that had their last contacts deleted during this sync
+        $group_ids = array_unique($this->clearGroupCandidates);
+        if (!empty($group_ids)) {
+            $group_ids_nonempty = array_column(
+                Database::get($group_ids, "group_id", "group_user", false, "group_id"),
+                "group_id"
+            );
+
+            $group_ids_empty = array_diff($group_ids, $group_ids_nonempty);
+            if (!empty($group_ids_empty)) {
+                carddav::$logger->debug("Delete empty CATEGORY-type groups: " . implode(",", $group_ids_empty));
+                Database::delete($group_ids_empty, "groups", "id", [ "uri" => null, "abook_id" => $abookId ]);
             }
         }
     }
