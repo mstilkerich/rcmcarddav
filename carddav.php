@@ -761,13 +761,8 @@ class carddav extends rcube_plugin
         // ...custom subtypes
         Database::delete($abookId, 'xsubtypes', 'abook_id');
         // ...groups and memberships
-        $delgroups = array_map(
-            function (array $v): string {
-                return $v["id"];
-            },
-            Database::get($abookId, 'id', 'groups', false, 'abook_id')
-        );
-        if (count($delgroups) > 0) {
+        $delgroups = array_column(Database::get($abookId, 'id', 'groups', false, 'abook_id'), "id");
+        if (!empty($delgroups)) {
             Database::delete($delgroups, 'group_user', 'group_id');
         }
 

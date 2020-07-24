@@ -1394,27 +1394,11 @@ class Addressbook extends rcube_addressbook
             $contacts = Database::get($ids, 'id,cuid,uri', 'contacts', false, "id", ["abook_id" => $this->id]);
 
             // make sure we only have contacts in $ids that belong to this addressbook
-            $ids = array_map(
-                function (array $v): string {
-                    return $v["id"];
-                },
-                $contacts
-            );
-
-            $contact_cuids = array_map(
-                function (array $v): string {
-                    return $v["cuid"];
-                },
-                $contacts
-            );
+            $ids = array_column($contacts, "id");
+            $contact_cuids = array_column($contacts, "cuid");
 
             // remove contacts from VCard based groups - get groups that the contacts are members of
-            $groupids = array_map(
-                function (array $v): string {
-                    return $v["group_id"];
-                },
-                Database::get($ids, 'group_id', 'group_user', false, 'contact_id')
-            );
+            $groupids = array_column(Database::get($ids, 'group_id', 'group_user', false, 'contact_id'), "group_id");
 
             if (!empty($groupids)) {
                 $groups = Database::get($groupids, "id,etag,uri,vcard", "groups", false);
@@ -1536,12 +1520,7 @@ class Addressbook extends rcube_addressbook
             // if vcard is set, this group is based on a KIND=group VCard
             if (isset($group['vcard'])) {
                 $contacts = Database::get($ids, "id, cuid", "contacts", false, "id", ["abook_id" => $this->id]);
-                $deleted = $this->removeContactsFromVCardBasedGroup(
-                    array_map(function (array $v): string {
-                        return $v["cuid"];
-                    }, $contacts),
-                    $group
-                );
+                $deleted = $this->removeContactsFromVCardBasedGroup(array_column($contacts, "cuid"), $group);
 
             // if vcard is not set, this group comes from the CATEGORIES property of the contacts it comprises
             } else {
@@ -1968,9 +1947,7 @@ class Addressbook extends rcube_addressbook
     private function getContactIdsForGroup(string $groupid): array
     {
         $records = Database::get($groupid, 'contact_id', 'group_user', false, 'group_id');
-        return array_map(function (array $v): string {
-            return $v["contact_id"];
-        }, $records);
+        return array_column($records, "contact_id");
     }
 
     /**
