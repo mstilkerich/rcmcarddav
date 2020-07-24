@@ -23,6 +23,9 @@ abstract class Database
     /** @var RoundcubeLogger $logger */
     private static $logger;
 
+    /** @var ?rcube_db $dbHandle */
+    private static $dbHandle;
+
     /**
      * Initializes the Database class.
      *
@@ -33,6 +36,21 @@ abstract class Database
     public static function init(RoundcubeLogger $logger): void
     {
         self::$logger = $logger;
+    }
+
+    public static function getDbHandle(): rcube_db
+    {
+        if (!isset(self::$dbHandle)) {
+            $dbh = rcmail::get_instance()->db;
+            self::$dbHandle = $dbh;
+
+            // attempt to enable foreign key constraints on SQLite. May fail if not supported
+            if ($dbh->db_provider == "sqlite") {
+                $dbh->query('PRAGMA FOREIGN_KEYS=ON;');
+            }
+        }
+
+        return self::$dbHandle;
     }
 
     /**
@@ -48,7 +66,7 @@ abstract class Database
      */
     public static function checkMigrations(string $dbPrefix, string $scriptDir): void
     {
-        $dbh = rcmail::get_instance()->db;
+        $dbh = self::getDbHandle();
 
         // We only support the non-commercial database types supported by roundcube, so quit with an error
         switch ($dbh->db_provider) {
@@ -253,7 +271,7 @@ abstract class Database
         array $xcol = [],
         array $xval = []
     ): string {
-        $dbh = rcmail::get_instance()->db;
+        $dbh = self::getDbHandle();
 
         $carddesc = $uri ?? "(entry not backed by card)";
         $xcol[] = 'name';
@@ -305,7 +323,7 @@ abstract class Database
      */
     public static function insert(string $table, array $cols, array $vals): string
     {
-        $dbh = rcmail::get_instance()->db;
+        $dbh = self::getDbHandle();
 
         $sql = 'INSERT INTO ' . $dbh->table_name("carddav_$table") .
             '(' . implode(",", $cols)  . ') ' .
@@ -347,7 +365,7 @@ abstract class Database
         string $idfield = 'id',
         array $other_conditions = []
     ): int {
-        $dbh = rcmail::get_instance()->db;
+        $dbh = self::getDbHandle();
         $sql = 'UPDATE ' . $dbh->table_name("carddav_$table") . ' SET ' . implode("=?,", $cols) . '=? WHERE ';
 
         // Main selection condition
@@ -395,7 +413,7 @@ abstract class Database
         string $idfield = 'id',
         array $other_conditions = []
     ): array {
-        $dbh = rcmail::get_instance()->db;
+        $dbh = self::getDbHandle();
 
         $sql = "SELECT $cols FROM " . $dbh->table_name("carddav_$table") . ' WHERE ';
 
@@ -448,7 +466,7 @@ abstract class Database
         string $idfield = 'id',
         array $other_conditions = []
     ): int {
-        $dbh = rcmail::get_instance()->db;
+        $dbh = self::getDbHandle();
 
         $sql = "DELETE FROM " . $dbh->table_name("carddav_$table") . " WHERE ";
 
@@ -473,7 +491,7 @@ abstract class Database
     public static function getAbookCfg(string $abookid): array
     {
         try {
-            $dbh = rcmail::get_instance()->db;
+            $dbh = self::getDbHandle();
 
             // cludge, agreed, but the MDB abstraction seems to have no way of
             // doing time calculations...

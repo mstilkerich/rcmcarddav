@@ -64,7 +64,7 @@ class SyncHandlerRoundcube implements SyncHandler
         }
 
         $abookId = $this->rcAbook->getId();
-        $dbh = rcmail::get_instance()->db;
+        $dbh = Database::getDbHandle();
 
         // card may be changed during conversion, in particular inlining of the PHOTO
         [ 'save_data' => $save_data, 'vcf' => $card ] = $this->rcAbook->convVCard2Rcube($card);
@@ -191,7 +191,7 @@ class SyncHandlerRoundcube implements SyncHandler
 
     public function finalizeSync(): void
     {
-        $dbh = rcmail::get_instance()->db;
+        $dbh = Database::getDbHandle();
         $abookId = $this->rcAbook->getId();
         foreach ($this->users_to_add as $dbid => $cuids) {
             if (count($cuids) > 0) {

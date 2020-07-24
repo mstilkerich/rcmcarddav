@@ -319,7 +319,7 @@ class carddav extends rcube_plugin
      */
     public function getAddressbook(array $p): array
     {
-        $dbh = rcmail::get_instance()->db;
+        $dbh = Database::getDbHandle();
         if (preg_match(";^carddav_(\d+)$;", $p['id'], $match)) {
             $abookId = $match[1];
             $abooks = self::getAddressbooks(false);
@@ -701,7 +701,7 @@ class carddav extends rcube_plugin
                 self::updateAddressbook($abookId, $newset);
 
                 if (isset($_POST["${abookId}_cd_resync"])) {
-                    $dbh = rcmail::get_instance()->db;
+                    $dbh = Database::getDbHandle();
                     // read-only and required properties don't matter here, this instance is short-lived for sync only
                     $backend = new Addressbook($dbh, $abookId, $this, true, []);
                     $backend->resync();
