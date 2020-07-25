@@ -319,7 +319,6 @@ class carddav extends rcube_plugin
      */
     public function getAddressbook(array $p): array
     {
-        $dbh = Database::getDbHandle();
         if (preg_match(";^carddav_(\d+)$;", $p['id'], $match)) {
             $abookId = $match[1];
             $abooks = self::getAddressbooks(false);
@@ -338,7 +337,7 @@ class carddav extends rcube_plugin
 
                     $requiredProps = $prefs[$presetname]["require_always"] ?? [];
                 }
-                $p['instance'] = new Addressbook($dbh, $abookId, $this, $readonly, $requiredProps);
+                $p['instance'] = new Addressbook($abookId, $this, $readonly, $requiredProps);
             }
         }
 
@@ -701,9 +700,8 @@ class carddav extends rcube_plugin
                 self::updateAddressbook($abookId, $newset);
 
                 if (isset($_POST["${abookId}_cd_resync"])) {
-                    $dbh = Database::getDbHandle();
                     // read-only and required properties don't matter here, this instance is short-lived for sync only
-                    $backend = new Addressbook($dbh, $abookId, $this, true, []);
+                    $backend = new Addressbook($abookId, $this, true, []);
                     $backend->resync();
                 }
             }

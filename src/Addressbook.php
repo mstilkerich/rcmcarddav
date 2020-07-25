@@ -49,9 +49,6 @@ class Addressbook extends rcube_addressbook
     /** @var carddav $frontend the frontend object */
     private $frontend;
 
-    /** @var rcube_db The database handle */
-    private $db;
-
     /** @var ?AddressbookCollection $davAbook the DAV AddressbookCollection Object */
     private $davAbook = null;
 
@@ -123,12 +120,11 @@ class Addressbook extends rcube_addressbook
     /** @var array $datefields list of potential date fields for formatting */
     private $datefields = array('birthday', 'anniversary');
 
-    public function __construct(rcube_db $dbconn, string $dbid, carddav $frontend, bool $readonly, array $requiredProps)
+    public function __construct(string $dbid, carddav $frontend, bool $readonly, array $requiredProps)
     {
-        $this->db = $dbconn;
-
+        $dbh = Database::getDbHandle();
         $this->frontend = $frontend;
-        $this->ready    = !$dbconn->is_error();
+        $this->ready    = !$dbh->is_error();
         $this->groups   = true;
         $this->readonly = $readonly;
         $this->requiredProps = $requiredProps;
@@ -397,6 +393,8 @@ class Addressbook extends rcube_addressbook
 
     private function listRecordsReadDB(?array $cols, int $subset, rcube_result_set $result): int
     {
+        $dbh = Database::getDbHandle();
+
         // true if we can use DB filtering or no filtering is requested
         $filter = $this->get_search_set();
 
@@ -418,21 +416,21 @@ class Addressbook extends rcube_addressbook
         $xfrom = '';
         $xwhere = '';
         if ($this->group_id) {
-            $xfrom = ',' . $this->db->table_name('carddav_group_user');
-            $xwhere = ' AND id=contact_id AND group_id=' . $this->db->quote($this->group_id) . ' ';
+            $xfrom = ',' . $dbh->table_name('carddav_group_user');
+            $xwhere = ' AND id=contact_id AND group_id=' . $dbh->quote($this->group_id) . ' ';
         }
 
         foreach (array_intersect($this->requiredProps, $this->table_cols) as $col) {
-            $xwhere .= " AND $col <> " . $this->db->quote('') . " ";
+            $xwhere .= " AND $col <> " . $dbh->quote('') . " ";
         }
 
         // Workaround for Roundcube versions < 0.7.2
         $sort_column = $this->sort_col ? $this->sort_col : 'surname';
         $sort_order  = $this->sort_order ? $this->sort_order : 'ASC';
 
-        $sql_result = $this->db->limitquery(
+        $sql_result = $dbh->limitquery(
             "SELECT id,name,$dbattr FROM " .
-            $this->db->table_name('carddav_contacts') . $xfrom .
+            $dbh->table_name('carddav_contacts') . $xfrom .
             ' WHERE abook_id=? ' . $xwhere .
             ($this->filter ? " AND (" . $this->filter . ")" : "") .
             " ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $sort_column . " END) "
@@ -443,7 +441,7 @@ class Addressbook extends rcube_addressbook
         );
 
         $addresses = [];
-        while ($contact = $this->db->fetch_assoc($sql_result)) {
+        while ($contact = $dbh->fetch_assoc($sql_result)) {
             if ($read_vcard) {
                 try {
                     $vcf = $this->parseVCard($contact['vcard']);
@@ -515,6 +513,8 @@ class Addressbook extends rcube_addressbook
         $nocount = false,
         $required = []
     ) {
+        $dbh = Database::getDbHandle();
+
         if (!is_array($fields)) {
             $fields = array($fields);
         }
@@ -544,7 +544,7 @@ class Addressbook extends rcube_addressbook
 
         $and_where = [];
         foreach (array_intersect($required, $this->table_cols) as $col) {
-            $and_where[] = $this->db->quote_identifier($col) . ' <> ' . $this->db->quote('');
+            $and_where[] = $dbh->quote_identifier($col) . ' <> ' . $dbh->quote('');
         }
 
         if (!empty($and_where)) {
@@ -614,7 +614,7 @@ class Addressbook extends rcube_addressbook
             }
 
             // build WHERE clause
-            $ids = $this->db->array2list($ids, 'integer');
+            $ids = $dbh->array2list($ids, 'integer');
             $whereclause = $this->primary_key . ' IN (' . $ids . ')';
 
             // when we know we have an empty result
@@ -658,6 +658,7 @@ class Addressbook extends rcube_addressbook
      */
     private function buildDatabaseSearchFilter($fields, $value, $mode): array
     {
+        $dbh = Database::getDbHandle();
         $WS = ' ';
         $AS = self::SEPARATOR;
 
@@ -668,7 +669,7 @@ class Addressbook extends rcube_addressbook
             // direct ID search
             if ($col == 'ID' || $col == $this->primary_key) {
                 $ids     = !is_array($value) ? explode(self::SEPARATOR, $value) : $value;
-                $ids     = $this->db->array2list($ids, 'integer');
+                $ids     = $dbh->array2list($ids, 'integer');
                 $where[] = $this->primary_key . ' IN (' . $ids . ')';
                 continue;
             }
@@ -680,20 +681,20 @@ class Addressbook extends rcube_addressbook
                     // strict
                     $where[] =
                         // exact match 'name@domain.com'
-                        '(' . $this->db->ilike($col, $val)
+                        '(' . $dbh->ilike($col, $val)
                         // line beginning match 'name@domain.com,%'
-                        . ' OR ' . $this->db->ilike($col, $val . $AS . '%')
+                        . ' OR ' . $dbh->ilike($col, $val . $AS . '%')
                         // middle match '%, name@domain.com,%'
-                        . ' OR ' . $this->db->ilike($col, '%' . $AS . $WS . $val . $AS . '%')
+                        . ' OR ' . $dbh->ilike($col, '%' . $AS . $WS . $val . $AS . '%')
                         // line end match '%, name@domain.com'
-                        . ' OR ' . $this->db->ilike($col, '%' . $AS . $WS . $val) . ')';
+                        . ' OR ' . $dbh->ilike($col, '%' . $AS . $WS . $val) . ')';
                 } elseif ($mode & 2) {
                     // prefix
-                    $where[] = '(' . $this->db->ilike($col, $val . '%')
-                        . ' OR ' . $this->db->ilike($col, $AS . $WS . $val . '%') . ')';
+                    $where[] = '(' . $dbh->ilike($col, $val . '%')
+                        . ' OR ' . $dbh->ilike($col, $AS . $WS . $val . '%') . ')';
                 } else {
                     // partial
-                    $where[] = $this->db->ilike($col, '%' . $val . '%');
+                    $where[] = $dbh->ilike($col, '%' . $val . '%');
                 }
             } else { // vCard field
                 $words = [];
@@ -702,16 +703,16 @@ class Addressbook extends rcube_addressbook
                 foreach (explode(" ", $search_val) as $word) {
                     if ($mode & 1) {
                         // strict
-                        $words[] = '(' . $this->db->ilike('vcard', $word . $WS . '%')
-                            . ' OR ' . $this->db->ilike('vcard', '%' . $AS . $WS . $word . $WS . '%')
-                            . ' OR ' . $this->db->ilike('vcard', '%' . $AS . $WS . $word) . ')';
+                        $words[] = '(' . $dbh->ilike('vcard', $word . $WS . '%')
+                            . ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word . $WS . '%')
+                            . ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word) . ')';
                     } elseif ($mode & 2) {
                         // prefix
-                        $words[] = '(' . $this->db->ilike('vcard', $word . '%')
-                            . ' OR ' . $this->db->ilike('vcard', $AS . $WS . $word . '%') . ')';
+                        $words[] = '(' . $dbh->ilike('vcard', $word . '%')
+                            . ' OR ' . $dbh->ilike('vcard', $AS . $WS . $word . '%') . ')';
                     } else {
                         // partial
-                        $words[] = $this->db->ilike('vcard', '%' . $word . '%');
+                        $words[] = $dbh->ilike('vcard', '%' . $word . '%');
                     }
                 }
                 $where[] = '(' . join(' AND ', $words) . ')';
@@ -747,16 +748,18 @@ class Addressbook extends rcube_addressbook
     // Determines and returns the number of cards matching the current search criteria
     private function doCount(): int
     {
+        $dbh = Database::getDbHandle();
+
         if ($this->total_cards < 0) {
-            $sql_result = $this->db->query(
+            $sql_result = $dbh->query(
                 'SELECT COUNT(id) as total_cards FROM ' .
-                $this->db->table_name('carddav_contacts') .
+                $dbh->table_name('carddav_contacts') .
                 ' WHERE abook_id=?' .
                 ($this->filter ? " AND (" . $this->filter . ")" : ""),
                 $this->id
             );
 
-            $resultrow = $this->db->fetch_assoc($sql_result);
+            $resultrow = $dbh->fetch_assoc($sql_result);
             $this->total_cards = $resultrow['total_cards'];
         }
         return $this->total_cards;
@@ -1604,13 +1607,14 @@ class Addressbook extends rcube_addressbook
     public function get_record_groups($id): array
     {
         carddav::$logger->debug("get_record_groups($id)");
-        $sql_result = $this->db->query('SELECT id,name FROM ' .
-            $this->db->table_name('carddav_group_user') . ',' .
-            $this->db->table_name('carddav_groups') .
+        $dbh = Database::getDbHandle();
+        $sql_result = $dbh->query('SELECT id,name FROM ' .
+            $dbh->table_name('carddav_group_user') . ',' .
+            $dbh->table_name('carddav_groups') .
             ' WHERE contact_id=? AND id=group_id AND abook_id=?', $id, $this->id);
 
         $res = [];
-        while ($row = $this->db->fetch_assoc($sql_result)) {
+        while ($row = $dbh->fetch_assoc($sql_result)) {
             $res[$row['id']] = $row['name'];
         }
 
@@ -1633,8 +1637,9 @@ class Addressbook extends rcube_addressbook
             $this->group_id = $group["id"];
 
             if ($gid) {
-                $this->set_search_set("EXISTS(SELECT * FROM " . $this->db->table_name("carddav_group_user") . "
-                    WHERE group_id = '{$gid}' AND contact_id = " . $this->db->table_name("carddav_contacts") . ".id)");
+                $dbh = Database::getDbHandle();
+                $this->set_search_set("EXISTS(SELECT * FROM " . $dbh->table_name("carddav_group_user") . "
+                    WHERE group_id = '{$gid}' AND contact_id = " . $dbh->table_name("carddav_contacts") . ".id)");
             } else {
                 $this->reset();
             }
@@ -1681,29 +1686,30 @@ class Addressbook extends rcube_addressbook
     public function list_groups($search = null, $mode = 0): array
     {
         carddav::$logger->debug("list_groups(" . ($search ?? 'null') . ", $mode)");
+        $dbh = Database::getDbHandle();
 
         $searchextra = "";
         if ($search !== null) {
             if ($mode & rcube_addressbook::SEARCH_STRICT) {
-                $searchextra = $this->db->ilike('name', $search);
+                $searchextra = $dbh->ilike('name', $search);
             } elseif ($mode & rcube_addressbook::SEARCH_PREFIX) {
-                $searchextra = $this->db->ilike('name', "$search%");
+                $searchextra = $dbh->ilike('name', "$search%");
             } else {
-                $searchextra = $this->db->ilike('name', "%$search%");
+                $searchextra = $dbh->ilike('name', "%$search%");
             }
             $searchextra = ' AND ' . $searchextra;
         }
 
-        $sql_result = $this->db->query(
+        $sql_result = $dbh->query(
             'SELECT id,name from ' .
-            $this->db->table_name('carddav_groups') .
+            $dbh->table_name('carddav_groups') .
             ' WHERE abook_id=?' . $searchextra .
             ' ORDER BY name ASC',
             $this->id
         );
 
         $groups = [];
-        while ($row = $this->db->fetch_assoc($sql_result)) {
+        while ($row = $dbh->fetch_assoc($sql_result)) {
             $row['ID'] = $row['id'];
             $groups[] = $row;
         }
