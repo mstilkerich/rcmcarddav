@@ -126,6 +126,21 @@ class SyncHandlerRoundcube implements SyncHandler
             // Unless: this is a new contact (dbid not set), or we do not have any CATEGORIES-based groups in this
             // addressbook ($this->existing_category_groupids empty)
             if (isset($dbid) && (!empty($this->existing_category_groupids))) {
+                /* CATEGORY-type groups may become empty when members are removed. Record what CATEGORIES-type groups
+                 * the user belonged to.
+                 */
+                $group_ids = array_column(
+                    Database::get(
+                        $dbid,
+                        "group_id",
+                        "group_user",
+                        false,
+                        "contact_id",
+                        [ "group_id" => array_values($this->existing_category_groupids) ]
+                    ),
+                    "group_id"
+                );
+                $this->clearGroupCandidates = array_merge($this->clearGroupCandidates, $group_ids);
                 Database::delete(
                     $dbid,
                     'group_user',
@@ -176,7 +191,17 @@ class SyncHandlerRoundcube implements SyncHandler
             /* CATEGORY-type groups may become empty as a user is deleted and should then be deleted as well. Record
              * what groups the user belonged to.
              */
-            $group_ids = array_column(Database::get($dbid, "group_id", "group_user", false, "contact_id"), "group_id");
+            $group_ids = array_column(
+                Database::get(
+                    $dbid,
+                    "group_id",
+                    "group_user",
+                    false,
+                    "contact_id",
+                    [ "group_id" => array_values($this->existing_category_groupids) ]
+                ),
+                "group_id"
+            );
             $this->clearGroupCandidates = array_merge($this->clearGroupCandidates, $group_ids);
 
             Database::delete($dbid, "group_user", "contact_id");
