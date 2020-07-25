@@ -11,6 +11,13 @@ RCMCardDAV 4.x requires at least PHP 7.1. Dependencies are managed by composer, 
 
 See [INSTALL.md](doc/INSTALL.md) for installation instructions.
 
+## Documentation
+
+A (hopefully growing) documentation for various topics is found in the [doc](doc/) folder. Currently the following is available:
+
+- [Contact groups](doc/GROUPS.md)
+- [Plugin configuration by administrator](doc/ADMIN-SETTINGS.md)
+
 ## Upgrade Notes
 
 ### Upgrading from 3.0.x

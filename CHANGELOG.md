@@ -20,7 +20,7 @@ detailed changelog within the next weeks.
   the behavior is potentially broken and not easy to fix, it is removed for now.
 - The two kinds of contact groups (VCard-based vs. CATEGORIES-based) are not transparently supported to the possible
   extent. The configuration switch is only meaningful concerning the type of group used when a __new__ group is created
-  from RCMCardDAV.
+  from RCMCardDAV. See details [here](doc/GROUPS.md).
 - The CardDAV interaction is moved to a [library](https://github.com/mstilkerich/carddavclient). It is essentially a
   complete rewrite of the code communicating with the CardDAV servers and includes interoperability tests with many
   common servers, see [here](https://github.com/mstilkerich/carddavclient).
