@@ -31,7 +31,7 @@ With this variant, contact groups are stored as first-class address objects on t
 vCard. It appears this variant was originally developed by Apple, as it uses vCard properties with the
 `X-ADDRESSBOOKSERVER` prefix.
 
-[](img/Grouptype-vCard.svg)
+![VCard-type groups](img/Grouptype-vCard.svg)
 
 This type of group implementation is particularly used by Apple applications (macOS and iOS addressbooks) and services
 (iCloud).
@@ -45,7 +45,7 @@ vCard v4 property names, it uses the vCard v3 extension properties described bef
 This type of group implementation uses the `CATEGORIES` vCard property to store the groups a contact belongs to directly
 with the corresponding contact vCard.
 
-[](img/Grouptype-Categories.svg)
+![CATEGORIES-type groups](img/Grouptype-Categories.svg)
 
 This is a standard property of vCard v3, with the following purpose stated by
 [RFC 2426](https://tools.ietf.org/html/rfc2426):
