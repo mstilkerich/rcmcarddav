@@ -29,7 +29,9 @@ Essentially, two variants can be observed, which I will refer to as _VCard-type 
 
 With this variant, contact groups are stored as first-class address objects on the CardDAV server, each being a separate
 vCard. It appears this variant was originally developed by Apple, as it uses vCard properties with the
-`X-ADDRESSBOOKSERVER` prefix.
+`X-ADDRESSBOOKSERVER` prefix. The vCards are marked as groups by the `X-ADDRESSBOOKSERVER-KIND` property with the value
+_group_. The member contacts are referenced from within the group vCard by `X-ADDRESSBOOKSERVER-MEMBER` properties that
+reference the member contacts by their vCards' UID values.
 
 ![VCard-type groups](img/Grouptype-vCard.svg)
 
