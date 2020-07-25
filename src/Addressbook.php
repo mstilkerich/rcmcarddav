@@ -1819,21 +1819,25 @@ class Addressbook extends rcube_addressbook
 
                 $davAbook->updateCard($group["uri"], $vcard, $group["etag"]);
                 $this->resync();
-                return $newname;
             } else { // CATEGORIES-type group
                 $oldname = $group["name"];
                 $contact_ids = $this->getContactIdsForGroup($group_id);
-                $this->adjustContactCategories(
-                    $contact_ids,
-                    function (array &$groups, string $contact_id) use ($oldname, $newname): bool {
-                        return self::stringsAddRemove($groups, [ $newname ], [ $oldname ]);
-                    }
-                );
 
-                $this->resync(); // will insert the contact assignments as a new group
-                Database::delete($group_id, 'groups');
-                return $newname;
+                if (empty($contact_ids)) {
+                    // rename empty group in DB
+                    Database::update($group_id, ["name"], [$newname], "groups", "id", ["abook_id" => $this->id]);
+                } else {
+                    $this->adjustContactCategories(
+                        $contact_ids,
+                        function (array &$groups, string $contact_id) use ($oldname, $newname): bool {
+                            return self::stringsAddRemove($groups, [ $newname ], [ $oldname ]);
+                        }
+                    );
+
+                    $this->resync(); // will insert the contact assignments as a new group
+                }
             }
+            return $newname;
         } catch (\Exception $e) {
             carddav::$logger->error("rename_group($group_id, $newname): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
