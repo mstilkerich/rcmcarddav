@@ -7,6 +7,8 @@ CardDAV plugin for the RoundCube Webmailer
 RCMCardDAV 4.x requires at least PHP 7.1. Dependencies are managed by composer, if you are interested in a list, see the
 [composer.json](composer.json) file.
 
+The supported versions of roundcube and supported databases can be found in [SUPPORTED_ENVIRONMENT.md](doc/SUPPORTED_ENVIRONMENT.md).
+
 ## Installation
 
 See [INSTALL.md](doc/INSTALL.md) for installation instructions.
