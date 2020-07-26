@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_groups (
 	etag VARCHAR(255) NOT NULL, -- entity tag, can be used to check if card changed on server
 	uri  VARCHAR(255) NOT NULL, -- path of the card on the server
 	cuid VARCHAR(255) NOT NULL, -- unique identifier of the card within the collection
-	
+
 	PRIMARY KEY(id),
 	UNIQUE(uri,abook_id),
 	UNIQUE(cuid,abook_id),

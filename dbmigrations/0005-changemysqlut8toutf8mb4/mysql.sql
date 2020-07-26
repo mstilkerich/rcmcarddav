@@ -1,5 +1,7 @@
 -- table to store the configured address books
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks DROP INDEX `user_id`, ADD UNIQUE `user_id` (`user_id`, `presetname`(191)) USING BTREE;
+
+-- change the table default character set and all character columns (CHAR, VARCHAR, TEXT) to a utf8mb4 character set
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks CHANGE `name` `name` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks CHANGE `username` `username` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
