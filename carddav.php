@@ -750,13 +750,11 @@ class carddav extends rcube_plugin
 
     private static function deleteAddressbook(string $abookId): void
     {
-        Database::delete($abookId, 'addressbooks');
         // we explicitly delete all data belonging to the addressbook, since
         // cascaded deleted are not supported by all database backends
-        // ...contacts
-        Database::delete($abookId, 'contacts', 'abook_id');
         // ...custom subtypes
         Database::delete($abookId, 'xsubtypes', 'abook_id');
+
         // ...groups and memberships
         $delgroups = array_column(Database::get($abookId, 'id', 'groups', false, 'abook_id'), "id");
         if (!empty($delgroups)) {
@@ -764,6 +762,11 @@ class carddav extends rcube_plugin
         }
 
         Database::delete($abookId, 'groups', 'abook_id');
+
+        // ...contacts
+        Database::delete($abookId, 'contacts', 'abook_id');
+
+        Database::delete($abookId, 'addressbooks');
         self::$abooksDb = null;
     }
 
