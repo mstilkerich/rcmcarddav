@@ -778,9 +778,6 @@ class carddav extends rcube_plugin
             $pa['password'] = self::encryptPassword($pa['password']);
         }
 
-        /* Ensure field lengths */
-        self::checkAddressbookFieldLengths($pa);
-
         $pa['user_id']      = $_SESSION['user_id'];
 
         // required fields
@@ -806,28 +803,6 @@ class carddav extends rcube_plugin
         self::$abooksDb = null;
     }
 
-    /**
-     * Checks that the values for addressbook fields fit into their database types.
-     *
-     * @param string[] $attrs An associative array of database columns and their values.
-     */
-    private static function checkAddressbookFieldLengths($attrs): void
-    {
-        $limits = [
-            'name' => 64,
-            'username' => 255,
-            'password' => 255,
-        ];
-
-        foreach ($limits as $key => $limit) {
-            if (key_exists($key, $attrs)) {
-                if (strlen($attrs[$key]) > $limit) {
-                    throw new \Exception("The addressbook $key must not exceed $limit characters in length");
-                }
-            }
-        }
-    }
-
     public static function updateAddressbook(string $abookId, array $pa): void
     {
         // check parameters
@@ -839,9 +814,6 @@ class carddav extends rcube_plugin
         if (key_exists('password', $pa)) {
             $pa['password'] = self::encryptPassword($pa['password']);
         }
-
-        /* Ensure field lengths */
-        self::checkAddressbookFieldLengths($pa);
 
         // optional fields
         $qf = [];
