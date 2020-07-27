@@ -492,7 +492,7 @@ class carddav extends rcube_plugin
             'name' => $blockheader
         ];
 
-        if (!$abook['presetname'] && preg_match('/^\d+$/', $abookId)) {
+        if (empty($abook['presetname']) && preg_match('/^\d+$/', $abookId)) {
             $checkbox = new html_checkbox(['name' => $abookId . '_cd_delete', 'value' => 1]);
             $content_delete = $checkbox->show("0");
             $retval['options'][] = ['title' => rcmail::Q($this->gettext('cd_delete')), 'content' => $content_delete];
@@ -618,7 +618,6 @@ class carddav extends rcube_plugin
                     }
                 }
             }
-            $result["presetname"] = "";
 
             // for new addressbooks, carry over the posted values or set defaults otherwise
             foreach ($result as $k => $v) {
@@ -874,6 +873,13 @@ class carddav extends rcube_plugin
         if (file_exists($configfile)) {
             include($configfile);
         }
+
+        // empty preset key is not allowed
+        if (isset($prefs[""])) {
+            self::$logger->error("A preset key must be a non-empty string - ignoring preset!");
+            unset($prefs[""]);
+        }
+
         self::$admin_settings = $prefs;
 
         if (isset($prefs['_GLOBAL']['pwstore_scheme'])) {
