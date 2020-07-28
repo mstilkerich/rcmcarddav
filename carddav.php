@@ -74,64 +74,549 @@ class carddav extends rcube_plugin
 
     public function init(): void
     {
-        $prefs = self::getAdminSettings();
+        try {
+            $prefs = self::getAdminSettings();
 
-        self::$logger = new RoundcubeLogger(
-            "carddav",
-            $prefs['_GLOBAL']['loglevel'] ?? \Psr\Log\LogLevel::ERROR
-        );
-        $http_logger = new RoundcubeLogger(
-            "carddav_http",
-            $prefs['_GLOBAL']['loglevel_http'] ?? \Psr\Log\LogLevel::ERROR
-        );
+            self::$logger = new RoundcubeLogger(
+                "carddav",
+                $prefs['_GLOBAL']['loglevel'] ?? \Psr\Log\LogLevel::ERROR
+            );
+            $http_logger = new RoundcubeLogger(
+                "carddav_http",
+                $prefs['_GLOBAL']['loglevel_http'] ?? \Psr\Log\LogLevel::ERROR
+            );
 
-        // initialize carddavclient library
-        Config::init(self::$logger, $http_logger);
+            self::$logger->debug(__METHOD__);
 
-        Database::init(self::$logger);
+            // initialize carddavclient library
+            Config::init(self::$logger, $http_logger);
 
-        $this->add_texts('localization/', false);
+            Database::init(self::$logger);
 
-        $this->add_hook('addressbooks_list', [$this, 'listAddressbooks']);
-        $this->add_hook('addressbook_get', [$this, 'getAddressbook']);
+            $this->add_texts('localization/', false);
 
-        // if preferences are configured as hidden by the admin, don't register the hooks handling preferences
-        if (!($prefs['_GLOBAL']['hide_preferences'] ?? false)) {
-            $this->add_hook('preferences_list', [$this, 'buildPreferencesPage']);
-            $this->add_hook('preferences_save', [$this, 'savePreferences']);
-            $this->add_hook('preferences_sections_list', [$this, 'addPreferencesSection']);
+            $this->add_hook('addressbooks_list', [$this, 'listAddressbooks']);
+            $this->add_hook('addressbook_get', [$this, 'getAddressbook']);
+
+            // if preferences are configured as hidden by the admin, don't register the hooks handling preferences
+            if (!($prefs['_GLOBAL']['hide_preferences'] ?? false)) {
+                $this->add_hook('preferences_list', [$this, 'buildPreferencesPage']);
+                $this->add_hook('preferences_save', [$this, 'savePreferences']);
+                $this->add_hook('preferences_sections_list', [$this, 'addPreferencesSection']);
+            }
+
+            $this->add_hook('login_after', [$this, 'checkMigrations']);
+            $this->add_hook('login_after', [$this, 'initPresets']);
+
+            if (!key_exists('user_id', $_SESSION)) {
+                return;
+            }
+
+            // use this address book for autocompletion queries
+            // (maybe this should be configurable by the user?)
+            $config = rcmail::get_instance()->config;
+            $sources = (array) $config->get('autocomplete_addressbooks', ['sql']);
+
+            $carddav_sources = array_map(
+                function (string $id): string {
+                    return "carddav_$id";
+                },
+                array_keys(self::getAddressbooks())
+            );
+
+            $config->set('autocomplete_addressbooks', array_merge($sources, $carddav_sources));
+            $skin_path = $this->local_skin_path();
+            $this->include_stylesheet($skin_path . '/carddav.css');
+        } catch (\Exception $e) {
+            self::$logger->error("Could not init rcmcarddav: " . $e->getMessage());
         }
-
-        $this->add_hook('login_after', [$this, 'checkMigrations']);
-        $this->add_hook('login_after', [$this, 'initPresets']);
-
-        if (!key_exists('user_id', $_SESSION)) {
-            return;
-        }
-
-        // use this address book for autocompletion queries
-        // (maybe this should be configurable by the user?)
-        $config = rcmail::get_instance()->config;
-        $sources = (array) $config->get('autocomplete_addressbooks', ['sql']);
-
-        $sources = array_map(
-            function (string $id): string {
-                return "carddav_$id";
-            },
-            array_keys(self::getAddressbooks())
-        );
-
-        $config->set('autocomplete_addressbooks', $sources);
-        $skin_path = $this->local_skin_path();
-        $this->include_stylesheet($skin_path . '/carddav.css');
     }
+
+    /***************************************************************************************
+     *                                    HOOK FUNCTIONS
+     **************************************************************************************/
 
     public function checkMigrations(): void
     {
-        $scriptDir = dirname(__FILE__) . "/dbmigrations/";
-        $config = rcmail::get_instance()->config;
-        Database::checkMigrations($config->get('db_prefix', ""), $scriptDir);
+        try {
+            self::$logger->debug(__METHOD__);
+
+            $scriptDir = dirname(__FILE__) . "/dbmigrations/";
+            $config = rcmail::get_instance()->config;
+            Database::checkMigrations($config->get('db_prefix', ""), $scriptDir);
+        } catch (\Exception $e) {
+            self::$logger->error("Error execution DB schema migrations: " . $e->getMessage());
+        }
     }
+
+    public function initPresets(): void
+    {
+        try {
+            self::$logger->debug(__METHOD__);
+
+            $prefs = self::getAdminSettings();
+
+            // Get all existing addressbooks of this user that have been created from presets
+            $existing_abooks = self::getAddressbooks(false, true);
+
+            // Group the addressbooks by their preset
+            $existing_presets = [];
+            foreach ($existing_abooks as $abookrow) {
+                $pn = $abookrow['presetname'];
+                if (!key_exists($pn, $existing_presets)) {
+                    $existing_presets[$pn] = [];
+                }
+                $existing_presets[$pn][] = $abookrow;
+            }
+
+            // Walk over the current presets configured by the admin and add, update or delete addressbooks
+            foreach ($prefs as $presetname => $preset) {
+                // _GLOBAL contains plugin configuration not related to an addressbook preset - skip
+                if ($presetname === '_GLOBAL') {
+                    continue;
+                }
+
+                // addressbooks exist for this preset => update settings
+                if (key_exists($presetname, $existing_presets)) {
+                    if (is_array($preset['fixed'])) {
+                        $this->updatePresetAddressbooks($preset, $existing_presets[$presetname]);
+                    }
+                    unset($existing_presets[$presetname]);
+                } else { // create new
+                    $preset['presetname'] = $presetname;
+                    $abname = $preset['name'];
+
+                    try {
+                        $username = self::replacePlaceholdersUsername($preset['username']);
+                        $url = self::replacePlaceholdersUrl($preset['url']);
+                        $password = self::replacePlaceholdersPassword($preset['password']);
+
+                        self::$logger->debug("Adding preset for $username at URL $url");
+                        $account = new Account($url, $username, $password);
+                        $discover = new Discovery();
+                        $abooks = $discover->discoverAddressbooks($account);
+
+                        foreach ($abooks as $abook) {
+                            if ($preset['carddav_name_only']) {
+                                $preset['name'] = $abook->getName();
+                            } else {
+                                $preset['name'] = "$abname (" . $abook->getName() . ')';
+                            }
+
+                            $preset['url'] = $abook->getUri();
+                            self::insertAddressbook($preset);
+                        }
+                    } catch (\Exception $e) {
+                        self::$logger->error("Error adding addressbook from preset $presetname: {$e->getMessage()}");
+                    }
+                }
+            }
+
+            // delete existing preset addressbooks that were removed by admin
+            foreach ($existing_presets as $ep) {
+                self::$logger->debug("Deleting preset addressbooks for " . $_SESSION['user_id']);
+                foreach ($ep as $abookrow) {
+                    self::deleteAddressbook($abookrow['id']);
+                }
+            }
+        } catch (\Exception $e) {
+            self::$logger->error("Error initializing preconfigured addressbooks: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Adds the user's CardDAV addressbooks to Roundcube's addressbook list.
+     */
+    public function listAddressbooks(array $p): array
+    {
+        try {
+            self::$logger->debug(__METHOD__);
+
+            $prefs = self::getAdminSettings();
+
+            foreach (self::getAddressbooks() as $abookId => $abookrow) {
+                $ro = false;
+                if (isset($abookrow['presetname']) && $prefs[$abookrow['presetname']]['readonly']) {
+                    $ro = true;
+                }
+
+                $p['sources']["carddav_$abookId"] = [
+                    'id' => "carddav_$abookId",
+                    'name' => $abookrow['name'],
+                    'groups' => true,
+                    'autocomplete' => true,
+                    'readonly' => $ro,
+                ];
+            }
+        } catch (\Exception $e) {
+            self::$logger->error("Error reading carddav addressbooks: " . $e->getMessage());
+        }
+
+        return $p;
+    }
+
+    /**
+     * Hook called by roundcube to retrieve the instance of an addressbook.
+     *
+     * @param array $p The passed array contains the keys:
+     *     id: ID of the addressbook as passed to roundcube in the listAddressbooks hook.
+     *     writeable: Whether the addressbook needs to be writeable (checked by roundcube after returning an instance).
+     * @return array Returns the passed array extended by a key instance pointing to the addressbook object.
+     *     If the addressbook is not provided by the plugin, simply do not set the instance and return what was passed.
+     */
+    public function getAddressbook(array $p): array
+    {
+        try {
+            self::$logger->debug(__METHOD__ . "({$p['id']})");
+
+            if (preg_match(";^carddav_(\d+)$;", $p['id'], $match)) {
+                $abookId = $match[1];
+                $abooks = self::getAddressbooks(false);
+
+                // check that this addressbook ID actually refers to one of the user's addressbooks
+                if (isset($abooks[$abookId])) {
+                    $presetname = $abooks[$abookId]["presetname"] ?? null;
+                    $readonly = false;
+                    $requiredProps = [];
+
+                    if (isset($presetname)) {
+                        $prefs = self::getAdminSettings();
+                        $readonly = isset($prefs[$presetname]["readonly"])
+                            ? ($prefs[$presetname]["readonly"] ? true : false)
+                            : false;
+
+                        $requiredProps = $prefs[$presetname]["require_always"] ?? [];
+                    }
+                    $p['instance'] = new Addressbook($abookId, $this, $readonly, $requiredProps);
+                }
+            }
+        } catch (\Exception $e) {
+            self::$logger->error("Error loading carddav addressbook {$p['id']}: " . $e->getMessage());
+        }
+
+        return $p;
+    }
+
+    /**
+     * Handler for preferences_list hook.
+     * Adds options blocks into CardDAV settings sections in Preferences.
+     *
+     * @param array Original parameters
+     *
+     * @return array Modified parameters
+     */
+    public function buildPreferencesPage(array $args): array
+    {
+        try {
+            self::$logger->debug(__METHOD__);
+
+            if ($args['section'] != 'cd_preferences') {
+                return $args;
+            }
+
+            $this->include_stylesheet($this->local_skin_path() . '/carddav.css');
+            $prefs = self::getAdminSettings();
+            $abooks = self::getAddressbooks(false);
+            uasort(
+                $abooks,
+                function (array $a, array $b): int {
+                    // presets first
+                    $ret = strcasecmp($b["presetname"] ?? "", $a["presetname"] ?? "");
+                    if ($ret == 0) {
+                        // then alphabetically by name
+                        $ret = strcasecmp($a["name"] ?? "", $b["name"] ?? "");
+                    }
+                    if ($ret == 0) {
+                        // finally by id (normally the names will differ)
+                        $ret = $a["id"] <=> $b["id"];
+                    }
+                    return $ret;
+                }
+            );
+
+
+            $fromPresetStringLocalized = rcmail::Q($this->gettext('cd_frompreset'));
+            foreach ($abooks as $abookId => $abookrow) {
+                $presetname = $abookrow['presetname'];
+                if (
+                    empty($presetname)
+                    || !isset($prefs[$presetname]['hide'])
+                    || $prefs[$presetname]['hide'] === false
+                ) {
+                    $blockhdr = $abookrow['name'];
+                    if (!empty($presetname)) {
+                        $blockhdr .= str_replace("_PRESETNAME_", $presetname, $fromPresetStringLocalized);
+                    }
+                    $args["blocks"]["cd_preferences$abookId"] = $this->buildSettingsBlock($blockhdr, $abookrow, $prefs);
+                }
+            }
+
+            // if allowed by admin, provide a block for entering data for a new addressbook
+            if (!($prefs['_GLOBAL']['fixed'] ?? false)) {
+                $args['blocks']['cd_preferences_section_new'] = $this->buildSettingsBlock(
+                    rcmail::Q($this->gettext('cd_newabboxtitle')),
+                    self::getAddressbookSettingsFromPOST('new'),
+                    $prefs
+                );
+            }
+        } catch (\Exception $e) {
+            self::$logger->error("Error building carddav preferences page: " . $e->getMessage());
+        }
+
+        return $args;
+    }
+
+    // add a section to the preferences tab
+    public function addPreferencesSection(array $args): array
+    {
+        try {
+            self::$logger->debug(__METHOD__);
+
+            $args['list']['cd_preferences'] = [
+                'id'      => 'cd_preferences',
+                'section' => rcmail::Q($this->gettext('cd_title'))
+            ];
+        } catch (\Exception $e) {
+            self::$logger->error("Error adding carddav preferences section: " . $e->getMessage());
+        }
+        return $args;
+    }
+
+    /**
+     * Hook function called when the user saves the preferences.
+     *
+     * This function is called for any preferences section, not just that of the carddav plugin, so we need to check
+     * first whether we are in the proper section.
+     */
+    public function savePreferences(array $args): array
+    {
+        try {
+            self::$logger->debug(__METHOD__);
+
+            if ($args['section'] != 'cd_preferences') {
+                return $args;
+            }
+
+            $prefs = self::getAdminSettings();
+
+            // update existing in DB
+            foreach (self::getAddressbooks(false) as $abookId => $abookrow) {
+                if (isset($_POST["${abookId}_cd_delete"])) {
+                    self::deleteAddressbook($abookId);
+                } else {
+                    $newset = self::getAddressbookSettingsFromPOST($abookId);
+
+                    // only set the password if the user entered a new one
+                    if (empty($newset['password'])) {
+                        unset($newset['password']);
+                    }
+
+                    // remove admin only settings
+                    foreach ($newset as $pref => $value) {
+                        if (self::noOverrideAllowed($pref, $abookrow, $prefs)) {
+                            unset($newset[$pref]);
+                        }
+                    }
+
+                    self::updateAddressbook($abookId, $newset);
+
+                    if (isset($_POST["${abookId}_cd_resync"])) {
+                        // read-only and required properties don't matter here, this instance is short-lived for sync
+                        $backend = new Addressbook($abookId, $this, true, []);
+                        $backend->resync();
+                    }
+                }
+            }
+
+            // add a new address book?
+            $new = self::getAddressbookSettingsFromPOST('new');
+            if (
+                !($prefs['_GLOBAL']['fixed'] ?? false) // creation of addressbooks allowed by admin
+                && !empty($new['name']) // user entered a name (and hopefully more data) for a new addressbook
+            ) {
+                try {
+                    $account = new Account(
+                        $new['url'],
+                        $new['username'],
+                        self::replacePlaceholdersPassword($new['password'])
+                    );
+                    $discover = new Discovery();
+                    $abooks = $discover->discoverAddressbooks($account);
+
+                    if (count($abooks) > 0) {
+                        $basename = $new['name'];
+
+                        foreach ($abooks as $abook) {
+                            $new['url'] = $abook->getUri();
+                            $new['name'] = "$basename ({$abook->getName()})";
+
+                            self::$logger->debug("ADDING ABOOK {$new['username']} @ {$new['url']}");
+                            self::insertAddressbook($new);
+                        }
+
+                        // new addressbook added successfully -> clear the data from the form
+                        foreach (self::ABOOK_PROPS as $k) {
+                            unset($_POST["new_cd_$k"]);
+                        }
+                    } else {
+                        throw new \Exception($new['name'] . ': ' . $this->gettext('cd_err_noabfound'));
+                    }
+                } catch (\Exception $e) {
+                    $args['abort'] = true;
+                    $args['message'] = $e->getMessage();
+                }
+            }
+        } catch (\Exception $e) {
+            self::$logger->error("Error saving carddav preferences: " . $e->getMessage());
+        }
+
+        return $args;
+    }
+
+    /***************************************************************************************
+     *                                 PUBLIC FUNCTIONS
+     **************************************************************************************/
+
+    public static function updateAddressbook(string $abookId, array $pa): void
+    {
+        // check parameters
+        if (key_exists('refresh_time', $pa)) {
+            $pa['refresh_time'] = self::parseTimeParameter($pa['refresh_time']);
+        }
+
+        // encrypt the password before storing it
+        if (key_exists('password', $pa)) {
+            $pa['password'] = self::encryptPassword($pa['password']);
+        }
+
+        // optional fields
+        $qf = [];
+        $qv = [];
+
+        foreach (self::ABOOK_PROPS as $f) {
+            if (key_exists($f, $pa)) {
+                $qf[] = $f;
+                $qv[] = $pa[$f];
+            }
+        }
+        if (count($qf) <= 0) {
+            return;
+        }
+
+        Database::update($abookId, $qf, $qv, "addressbooks");
+        self::$abooksDb = null;
+    }
+
+    public static function replacePlaceholdersUsername(string $username): string
+    {
+        $rcmail = rcmail::get_instance();
+        $username = strtr($username, [
+            '%u' => $_SESSION['username'],
+            '%l' => $rcmail->user->get_username('local'),
+            '%d' => $rcmail->user->get_username('domain'),
+            // %V parses username for macosx, replaces periods and @ by _, work around bugs in contacts.app
+            '%V' => strtr($_SESSION['username'], "@.", "__")
+        ]);
+
+        return $username;
+    }
+
+    public static function replacePlaceholdersUrl(string $url): string
+    {
+        // currently same as for username
+        return self::replacePlaceholdersUsername($url);
+    }
+
+    public static function replacePlaceholdersPassword(string $password): string
+    {
+        if ($password == '%p') {
+            $rcmail = rcmail::get_instance();
+            $password = $rcmail->decrypt($_SESSION['password']);
+        }
+
+        return $password;
+    }
+
+    public static function encryptPassword(string $clear): string
+    {
+        $scheme = self::$pwstore_scheme;
+
+        if (strcasecmp($scheme, 'plain') === 0) {
+            return $clear;
+        }
+
+        if (strcasecmp($scheme, 'encrypted') === 0) {
+            if (empty($_SESSION['password'])) { // no key for encryption available, downgrade to DES_KEY
+                $scheme = 'des_key';
+            } else {
+                // encrypted with IMAP password
+                $rcmail = rcmail::get_instance();
+
+                $imap_password = self::getDesKey();
+                $deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
+
+                $crypted = $rcmail->encrypt($clear, 'carddav_des_key');
+
+                // there seems to be no way to unset a preference
+                $deskey_backup = $rcmail->config->set('carddav_des_key', '');
+
+                return '{ENCRYPTED}' . $crypted;
+            }
+        }
+
+        if (strcasecmp($scheme, 'des_key') === 0) {
+            // encrypted with global des_key
+            $rcmail = rcmail::get_instance();
+            $crypted = $rcmail->encrypt($clear);
+            return '{DES_KEY}' . $crypted;
+        }
+
+        // default: base64-coded password
+        return '{BASE64}' . base64_encode($clear);
+    }
+
+    public static function decryptPassword(string $crypt): string
+    {
+        if (strpos($crypt, '{ENCRYPTED}') === 0) {
+            // return empty password if decruption key not available
+            if (empty($_SESSION['password'])) {
+                self::$logger->warning("Cannot decrypt password as now session password is available");
+                return "";
+            }
+
+            $crypt = substr($crypt, strlen('{ENCRYPTED}'));
+            $rcmail = rcmail::get_instance();
+
+            $imap_password = self::getDesKey();
+            $deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
+
+            $clear = $rcmail->decrypt($crypt, 'carddav_des_key');
+
+            // there seems to be no way to unset a preference
+            $deskey_backup = $rcmail->config->set('carddav_des_key', '');
+
+            return $clear;
+        }
+
+        if (strpos($crypt, '{DES_KEY}') === 0) {
+            $crypt = substr($crypt, strlen('{DES_KEY}'));
+            $rcmail = rcmail::get_instance();
+
+            return $rcmail->decrypt($crypt);
+        }
+
+        if (strpos($crypt, '{BASE64}') === 0) {
+            $crypt = substr($crypt, strlen('{BASE64}'));
+            return base64_decode($crypt);
+        }
+
+        // unknown scheme, assume cleartext
+        return $crypt;
+    }
+
+    /***************************************************************************************
+     *                              PRIVATE FUNCTIONS
+     **************************************************************************************/
 
     /**
      * Updates the fixed fields of addressbooks derived from presets against the current admin settings.
@@ -182,166 +667,6 @@ class carddav extends rcube_plugin
                 self::updateAddressbook($abookrow['id'], $pa);
             }
         }
-    }
-
-    public function initPresets(): void
-    {
-        $prefs = self::getAdminSettings();
-
-        // Get all existing addressbooks of this user that have been created from presets
-        $existing_abooks = self::getAddressbooks(false, true);
-
-        // Group the addressbooks by their preset
-        $existing_presets = [];
-        foreach ($existing_abooks as $abookrow) {
-            $pn = $abookrow['presetname'];
-            if (!key_exists($pn, $existing_presets)) {
-                $existing_presets[$pn] = [];
-            }
-            $existing_presets[$pn][] = $abookrow;
-        }
-
-        // Walk over the current presets configured by the admin and add, update or delete addressbooks
-        foreach ($prefs as $presetname => $preset) {
-            // _GLOBAL contains plugin configuration not related to an addressbook preset - skip
-            if ($presetname === '_GLOBAL') {
-                continue;
-            }
-
-            // addressbooks exist for this preset => update settings
-            if (key_exists($presetname, $existing_presets)) {
-                if (is_array($preset['fixed'])) {
-                    $this->updatePresetAddressbooks($preset, $existing_presets[$presetname]);
-                }
-                unset($existing_presets[$presetname]);
-            } else { // create new
-                $preset['presetname'] = $presetname;
-                $abname = $preset['name'];
-
-                try {
-                    $username = self::replacePlaceholdersUsername($preset['username']);
-                    $url = self::replacePlaceholdersUrl($preset['url']);
-                    $password = self::replacePlaceholdersPassword($preset['password']);
-
-                    self::$logger->debug("Adding preset for $username at URL $url");
-                    $account = new Account($url, $username, $password);
-                    $discover = new Discovery();
-                    $abooks = $discover->discoverAddressbooks($account);
-
-                    foreach ($abooks as $abook) {
-                        if ($preset['carddav_name_only']) {
-                            $preset['name'] = $abook->getName();
-                        } else {
-                            $preset['name'] = "$abname (" . $abook->getName() . ')';
-                        }
-
-                        $preset['url'] = $abook->getUri();
-                        self::insertAddressbook($preset);
-                    }
-                } catch (\Exception $e) {
-                    self::$logger->error("Error adding addressbook from preset $presetname: {$e->getMessage()}");
-                }
-            }
-        }
-
-        // delete existing preset addressbooks that were removed by admin
-        foreach ($existing_presets as $ep) {
-            self::$logger->debug("Deleting preset addressbooks for " . $_SESSION['user_id']);
-            foreach ($ep as $abookrow) {
-                self::deleteAddressbook($abookrow['id']);
-            }
-        }
-    }
-
-    public static function replacePlaceholdersUsername(string $username): string
-    {
-        $rcmail = rcmail::get_instance();
-        $username = strtr($username, [
-            '%u' => $_SESSION['username'],
-            '%l' => $rcmail->user->get_username('local'),
-            '%d' => $rcmail->user->get_username('domain'),
-            // %V parses username for macosx, replaces periods and @ by _, work around bugs in contacts.app
-            '%V' => strtr($_SESSION['username'], "@.", "__")
-        ]);
-
-        return $username;
-    }
-
-    public static function replacePlaceholdersUrl(string $url): string
-    {
-        // currently same as for username
-        return self::replacePlaceholdersUsername($url);
-    }
-
-    public static function replacePlaceholdersPassword(string $password): string
-    {
-        if ($password == '%p') {
-            $rcmail = rcmail::get_instance();
-            $password = $rcmail->decrypt($_SESSION['password']);
-        }
-
-        return $password;
-    }
-
-    /**
-     * Adds the user's CardDAV addressbooks to Roundcube's addressbook list.
-     */
-    public function listAddressbooks(array $p): array
-    {
-        $prefs = self::getAdminSettings();
-
-        foreach (self::getAddressbooks() as $abookId => $abookrow) {
-            $ro = false;
-            if (isset($abookrow['presetname']) && $prefs[$abookrow['presetname']]['readonly']) {
-                $ro = true;
-            }
-
-            $p['sources']["carddav_$abookId"] = [
-                'id' => "carddav_$abookId",
-                'name' => $abookrow['name'],
-                'groups' => true,
-                'autocomplete' => true,
-                'readonly' => $ro,
-            ];
-        }
-
-        return $p;
-    }
-
-    /**
-     * Hook called by roundcube to retrieve the instance of an addressbook.
-     *
-     * @param array $p The passed array contains the keys:
-     *     id: ID of the addressbook as passed to roundcube in the listAddressbooks hook.
-     *     writeable: Whether the addressbook needs to be writeable (checked by roundcube after returning an instance).
-     * @return array Returns the passed array extended by a key instance pointing to the addressbook object.
-     *     If the addressbook is not provided by the plugin, simply do not set the instance and return what was passed.
-     */
-    public function getAddressbook(array $p): array
-    {
-        if (preg_match(";^carddav_(\d+)$;", $p['id'], $match)) {
-            $abookId = $match[1];
-            $abooks = self::getAddressbooks(false);
-
-            // check that this addressbook ID actually refers to one of the user's addressbooks
-            if (isset($abooks[$abookId])) {
-                $presetname = $abooks[$abookId]["presetname"] ?? null;
-                $readonly = false;
-                $requiredProps = [];
-
-                if (isset($presetname)) {
-                    $prefs = self::getAdminSettings();
-                    $readonly = isset($prefs[$presetname]["readonly"])
-                        ? ($prefs[$presetname]["readonly"] ? true : false)
-                        : false;
-
-                    $requiredProps = $prefs[$presetname]["require_always"] ?? [];
-                }
-                $p['instance'] = new Addressbook($abookId, $this, $readonly, $requiredProps);
-            }
-        }
-
-        return $p;
     }
 
     private static function parseTimeParameter(string $refresht): string
@@ -508,68 +833,6 @@ class carddav extends rcube_plugin
     }
 
     /**
-     * Handler for preferences_list hook.
-     * Adds options blocks into CardDAV settings sections in Preferences.
-     *
-     * @param array Original parameters
-     *
-     * @return array Modified parameters
-     */
-    public function buildPreferencesPage(array $args): array
-    {
-        if ($args['section'] != 'cd_preferences') {
-            return $args;
-        }
-
-        $this->include_stylesheet($this->local_skin_path() . '/carddav.css');
-        $prefs = self::getAdminSettings();
-        $abooks = self::getAddressbooks(false);
-        uasort(
-            $abooks,
-            function (array $a, array $b): int {
-                // presets first
-                $ret = strcasecmp($b["presetname"] ?? "", $a["presetname"] ?? "");
-                if ($ret == 0) {
-                    // then alphabetically by name
-                    $ret = strcasecmp($a["name"] ?? "", $b["name"] ?? "");
-                }
-                if ($ret == 0) {
-                    // finally by id (normally the names will differ)
-                    $ret = $a["id"] <=> $b["id"];
-                }
-                return $ret;
-            }
-        );
-
-
-        foreach ($abooks as $abookId => $abookrow) {
-            $presetname = $abookrow['presetname'];
-            if (
-                empty($presetname)
-                || !isset($prefs[$presetname]['hide'])
-                || $prefs[$presetname]['hide'] === false
-            ) {
-                $blockhdr = $abookrow['name'];
-                if (!empty($presetname)) {
-                    $blockhdr .= str_replace("_PRESETNAME_", $presetname, rcmail::Q($this->gettext('cd_frompreset')));
-                }
-                $args["blocks"]["cd_preferences$abookId"] = $this->buildSettingsBlock($blockhdr, $abookrow, $prefs);
-            }
-        }
-
-        // if allowed by admin, provide a block for entering data for a new addressbook
-        if (!($prefs['_GLOBAL']['fixed'] ?? false)) {
-            $args['blocks']['cd_preferences_section_new'] = $this->buildSettingsBlock(
-                rcmail::Q($this->gettext('cd_newabboxtitle')),
-                self::getAddressbookSettingsFromPOST('new'),
-                $prefs
-            );
-        }
-
-        return $args;
-    }
-
-    /**
      * This function gets the addressbook settings from a POST request.
      *
      * The behavior varies depending on whether the settings for an existing or a new addressbook are queried.
@@ -652,102 +915,6 @@ class carddav extends rcube_plugin
         return $r;
     }
 
-    // add a section to the preferences tab
-    public function addPreferencesSection(array $args): array
-    {
-        $prefs = self::getAdminSettings();
-        $args['list']['cd_preferences'] = [
-            'id'      => 'cd_preferences',
-            'section' => rcmail::Q($this->gettext('cd_title'))
-        ];
-        return $args;
-    }
-
-    /**
-     * Hook function called when the user saves the preferences.
-     *
-     * This function is called for any preferences section, not just that of the carddav plugin, so we need to check
-     * first whether we are in the proper section.
-     */
-    public function savePreferences(array $args): array
-    {
-        if ($args['section'] != 'cd_preferences') {
-            return $args;
-        }
-
-        $prefs = self::getAdminSettings();
-
-        // update existing in DB
-        foreach (self::getAddressbooks(false) as $abookId => $abookrow) {
-            if (isset($_POST["${abookId}_cd_delete"])) {
-                self::deleteAddressbook($abookId);
-            } else {
-                $newset = self::getAddressbookSettingsFromPOST($abookId);
-
-                // only set the password if the user entered a new one
-                if (empty($newset['password'])) {
-                    unset($newset['password']);
-                }
-
-                // remove admin only settings
-                foreach ($newset as $pref => $value) {
-                    if (self::noOverrideAllowed($pref, $abookrow, $prefs)) {
-                        unset($newset[$pref]);
-                    }
-                }
-
-                self::updateAddressbook($abookId, $newset);
-
-                if (isset($_POST["${abookId}_cd_resync"])) {
-                    // read-only and required properties don't matter here, this instance is short-lived for sync only
-                    $backend = new Addressbook($abookId, $this, true, []);
-                    $backend->resync();
-                }
-            }
-        }
-
-        // add a new address book?
-        $new = self::getAddressbookSettingsFromPOST('new');
-        if (
-            !($prefs['_GLOBAL']['fixed'] ?? false) // creation of addressbooks allowed by admin
-            && !empty($new['name']) // user entered a name (and hopefully more data) for a new addressbook
-        ) {
-            try {
-                $account = new Account(
-                    $new['url'],
-                    $new['username'],
-                    self::replacePlaceholdersPassword($new['password'])
-                );
-                $discover = new Discovery();
-                $abooks = $discover->discoverAddressbooks($account);
-
-                if (count($abooks) > 0) {
-                    $basename = $new['name'];
-
-                    foreach ($abooks as $abook) {
-                        $new['url'] = $abook->getUri();
-                        $new['name'] = "$basename ({$abook->getName()})";
-
-                        self::$logger->debug("ADDING ABOOK {$new['username']} @ {$new['url']}");
-                        self::insertAddressbook($new);
-                    }
-
-                    // new addressbook added successfully -> clear the data from the form
-                    foreach (self::ABOOK_PROPS as $k) {
-                        unset($_POST["new_cd_$k"]);
-                    }
-                } else {
-                    throw new \Exception($new['name'] . ': ' . $this->gettext('cd_err_noabfound'));
-                }
-            } catch (\Exception $e) {
-                $args['abort'] = true;
-                $args['message'] = $e->getMessage();
-            }
-        }
-
-        return $args;
-    }
-
     private static function deleteAddressbook(string $abookId): void
     {
         // we explicitly delete all data belonging to the addressbook, since
@@ -806,36 +973,6 @@ class carddav extends rcube_plugin
         self::$abooksDb = null;
     }
 
-    public static function updateAddressbook(string $abookId, array $pa): void
-    {
-        // check parameters
-        if (key_exists('refresh_time', $pa)) {
-            $pa['refresh_time'] = self::parseTimeParameter($pa['refresh_time']);
-        }
-
-        // encrypt the password before storing it
-        if (key_exists('password', $pa)) {
-            $pa['password'] = self::encryptPassword($pa['password']);
-        }
-
-        // optional fields
-        $qf = [];
-        $qv = [];
-
-        foreach (self::ABOOK_PROPS as $f) {
-            if (key_exists($f, $pa)) {
-                $qf[] = $f;
-                $qv[] = $pa[$f];
-            }
-        }
-        if (count($qf) <= 0) {
-            return;
-        }
-
-        Database::update($abookId, $qf, $qv, "addressbooks");
-        self::$abooksDb = null;
-    }
-
     // admin settings from config.inc.php
     private static function getAdminSettings(): array
     {
@@ -875,83 +1012,6 @@ class carddav extends rcube_plugin
             $imap_password .= $imap_password;
         }
         return substr($imap_password, 0, 24);
-    }
-
-    public static function encryptPassword(string $clear): string
-    {
-        $scheme = self::$pwstore_scheme;
-
-        if (strcasecmp($scheme, 'plain') === 0) {
-            return $clear;
-        }
-
-        if (strcasecmp($scheme, 'encrypted') === 0) {
-            if (empty($_SESSION['password'])) { // no key for encryption available, downgrade to DES_KEY
-                $scheme = 'des_key';
-            } else {
-                // encrypted with IMAP password
-                $rcmail = rcmail::get_instance();
-
-                $imap_password = self::getDesKey();
-                $deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
-
-                $crypted = $rcmail->encrypt($clear, 'carddav_des_key');
-
-                // there seems to be no way to unset a preference
-                $deskey_backup = $rcmail->config->set('carddav_des_key', '');
-
-                return '{ENCRYPTED}' . $crypted;
-            }
-        }
-
-        if (strcasecmp($scheme, 'des_key') === 0) {
-            // encrypted with global des_key
-            $rcmail = rcmail::get_instance();
-            $crypted = $rcmail->encrypt($clear);
-            return '{DES_KEY}' . $crypted;
-        }
-
-        // default: base64-coded password
-        return '{BASE64}' . base64_encode($clear);
-    }
-
-    public static function decryptPassword(string $crypt): string
-    {
-        if (strpos($crypt, '{ENCRYPTED}') === 0) {
-            // return empty password if decruption key not available
-            if (empty($_SESSION['password'])) {
-                self::$logger->warning("Cannot decrypt password as now session password is available");
-                return "";
-            }
-
-            $crypt = substr($crypt, strlen('{ENCRYPTED}'));
-            $rcmail = rcmail::get_instance();
-
-            $imap_password = self::getDesKey();
-            $deskey_backup = $rcmail->config->set('carddav_des_key', $imap_password);
-
-            $clear = $rcmail->decrypt($crypt, 'carddav_des_key');
-
-            // there seems to be no way to unset a preference
-            $deskey_backup = $rcmail->config->set('carddav_des_key', '');
-
-            return $clear;
-        }
-
-        if (strpos($crypt, '{DES_KEY}') === 0) {
-            $crypt = substr($crypt, strlen('{DES_KEY}'));
-            $rcmail = rcmail::get_instance();
-
-            return $rcmail->decrypt($crypt);
-        }
-
-        if (strpos($crypt, '{BASE64}') === 0) {
-            $crypt = substr($crypt, strlen('{BASE64}'));
-            return base64_decode($crypt);
-        }
-
-        // unknown scheme, assume cleartext
-        return $crypt;
     }
 
     /**
