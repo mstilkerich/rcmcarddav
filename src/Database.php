@@ -94,7 +94,6 @@ abstract class Database
                 case "sqlite":
                     $ret = $dbh->query("BEGIN");
                     break;
-                case "pgsql":
                 case "postgres":
                     $ret = $dbh->query("START TRANSACTION ISOLATION LEVEL $level");
                     break;
@@ -182,7 +181,6 @@ abstract class Database
             case "sqlite":
                 $db_backend = "sqlite3";
                 break;
-            case "pgsql":
             case "postgres":
                 $db_backend = "postgres";
                 break;
@@ -651,7 +649,10 @@ abstract class Database
      * Creates a condition query on a database column to be used in an SQL WHERE clause.
      *
      * @param rcube_db $dbh The roundcube database handle.
-     * @param string $field Name of the database column. Prefix with ! to invert the condition.
+     * @param string $field Name of the database column.
+     *                      Prefix with ! to invert the condition.
+     *                      Prefix with % to indicate that the value is a pattern to be matched with ILIKE.
+     *                      Prefixes can be combined but must be given in the order listed here.
      * @param ?string|string[] $value The value to check field for. Can be one of the following:
      *          - null: Assert that the field is NULL (or not NULL if inverted)
      *          - string: Assert that the field value matches $value (or does not match value, if inverted)
@@ -660,9 +661,15 @@ abstract class Database
     private static function getConditionQuery(rcube_db $dbh, string $field, $value): string
     {
         $invertCondition = false;
+        $ilike = false;
+
         if ($field[0] === "!") {
             $field = substr($field, 1);
             $invertCondition = true;
+        }
+        if ($field[0] === "%") {
+            $field = substr($field, 1);
+            $ilike = true;
         }
 
         $sql = $dbh->quote_identifier($field);
@@ -670,6 +677,9 @@ abstract class Database
             $sql .= $invertCondition ? ' IS NOT NULL' : ' IS NULL';
         } elseif (is_array($value)) {
             if (count($value) > 0) {
+                if ($ilike) {
+                    throw new \Exception("getConditionQuery $field - ILIKE match only supported for single pattern");
+                }
                 $quoted_values = array_map([ $dbh, 'quote' ], $value);
                 $sql .= $invertCondition ? " NOT IN" : " IN";
                 $sql .= " (" . implode(",", $quoted_values) . ")";
@@ -677,7 +687,12 @@ abstract class Database
                 throw new \Exception("getConditionQuery $field - empty values array provided");
             }
         } else {
-            $sql .= $invertCondition ? ' <> ' : ' = ';
+            if ($ilike) {
+                $ilikecmd = ($dbh->db_provider === "postgres") ? "ILIKE" : "LIKE";
+                $sql .= $invertCondition ? " NOT $ilikecmd " : " $ilikecmd ";
+            } else {
+                $sql .= $invertCondition ? " <> " : " = ";
+            }
             $sql .= $dbh->quote($value);
         }
 

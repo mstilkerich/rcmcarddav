@@ -697,33 +697,30 @@ class Addressbook extends rcube_addressbook
     {
         try {
             carddav::$logger->debug("list_groups(" . ($search ?? 'null') . ", $mode)");
-            $dbh = Database::getDbHandle();
 
-            $searchextra = "";
+            $xconditions = [];
             if ($search !== null) {
                 if ($mode & rcube_addressbook::SEARCH_STRICT) {
-                    $searchextra = $dbh->ilike('name', $search);
+                    $xconditions['%name'] = $search;
                 } elseif ($mode & rcube_addressbook::SEARCH_PREFIX) {
-                    $searchextra = $dbh->ilike('name', "$search%");
+                    $xconditions['%name'] = "$search%";
                 } else {
-                    $searchextra = $dbh->ilike('name', "%$search%");
+                    $xconditions['%name'] = "%$search%";
                 }
-                $searchextra = ' AND ' . $searchextra;
             }
 
-            $sql_result = $dbh->query(
-                'SELECT id,name from ' .
-                $dbh->table_name('carddav_groups') .
-                ' WHERE abook_id=?' . $searchextra .
-                ' ORDER BY name ASC',
-                $this->id
+            $groups = Database::get($this->id, "id,name", "groups", false, "abook_id", $xconditions);
+
+            foreach ($groups as &$group) {
+                $group['ID'] = $group['id']; // roundcube uses the ID uppercase for groups
+            }
+
+            usort(
+                $groups,
+                function (array $g1, array $g2): int {
+                    return strcasecmp($g1["name"], $g2["name"]);
+                }
             );
-
-            $groups = [];
-            while ($row = $dbh->fetch_assoc($sql_result)) {
-                $row['ID'] = $row['id'];
-                $groups[] = $row;
-            }
 
             return $groups;
         } catch (\Exception $e) {
