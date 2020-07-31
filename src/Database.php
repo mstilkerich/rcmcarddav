@@ -26,6 +26,12 @@ abstract class Database
     /** @var ?rcube_db $dbHandle */
     private static $dbHandle;
 
+    /** @var int $transactionDepth Nesting counter for transactions */
+    private static $transactionDepth;
+
+    /** @var bool $transactionType Isolation level of the initial transaction (t=REPEATABLE READ, f=SERIALIZABLE) */
+    private static $transactionType;
+
     /**
      * Initializes the Database class.
      *
@@ -36,6 +42,9 @@ abstract class Database
     public static function init(RoundcubeLogger $logger): void
     {
         self::$logger = $logger;
+
+        self::$transactionDepth = 0;
+        self::$transactionType = false;
     }
 
     public static function getDbHandle(): rcube_db
@@ -51,6 +60,103 @@ abstract class Database
         }
 
         return self::$dbHandle;
+    }
+
+    /**
+     * Starts a transaction on the internal DB connection.
+     *
+     * Note that all queries in the transaction must be done using the functions provided by this class, or the database
+     * handle acquired by the getDbHandle() function of this class, to make sure they use the same database connection.
+     *
+     * @see self::getDbHandle()
+     */
+    public static function startTransaction(bool $readonly = true): void
+    {
+        $dbh = self::getDbHandle();
+
+        if (self::$transactionDepth > 0) {
+            if ($readonly || !self::$transactionType) {
+                ++self::$transactionDepth;
+            } else {
+                throw new \Exception("Cannot start read-write transaction nested in ongoing read-only transaction");
+            }
+        } else {
+            // SQLite3 always has Serializable isolation of transactions, and does not support
+            // the SET TRANSACTION command.
+            $level = $readonly ? 'REPEATABLE READ' : 'SERIALIZABLE';
+            switch ($dbh->db_provider) {
+                case "mysql":
+                    $ret = $dbh->query("SET SESSION TRANSACTION ISOLATION LEVEL $level");
+                    if ($ret !== false) {
+                        $ret = $dbh->query("START TRANSACTION");
+                    }
+                    break;
+                case "sqlite":
+                    $ret = $dbh->query("BEGIN");
+                    break;
+                case "pgsql":
+                case "postgres":
+                    $ret = $dbh->query("START TRANSACTION ISOLATION LEVEL $level");
+                    break;
+                default:
+                    self::$logger->critical("Unsupported database backend: " . $dbh->db_provider);
+                    return;
+            }
+
+            if ($ret === false) {
+                self::$logger->error(__METHOD__ . " ERROR: " . $dbh->is_error());
+                throw new \Exception($dbh->is_error());
+            }
+
+            self::$transactionDepth = 1;
+            self::$transactionType = $readonly;
+        }
+    }
+
+    /**
+     * Commits the transaction on the internal DB connection.
+     */
+    public static function endTransaction(): void
+    {
+        $dbh = self::getDbHandle();
+
+        if (self::$transactionDepth == 0) {
+            throw new \Exception("Attempt to commit a transaction while not within a transaction");
+        } else {
+            if (self::$transactionDepth == 1) {
+                self::$transactionDepth = 0;
+                if ($dbh->query("COMMIT") === false) {
+                    self::$logger->error("Database::endTransaction ERROR: " . $dbh->is_error());
+                    throw new \Exception($dbh->is_error());
+                }
+            } else {
+                --self::$transactionDepth;
+            }
+        }
+    }
+
+    /**
+     * Rolls back the transaction on the internal DB connection.
+     */
+    public static function rollbackTransaction(): void
+    {
+        $dbh = self::getDbHandle();
+
+        if (self::$transactionDepth == 0) {
+            throw new \Exception("Attempt to rollback a transaction while not within a transaction");
+        } else {
+            if ($dbh->query("ROLLBACK") === false) {
+                self::$transactionDepth = 0;
+                self::$logger->error("Database::rollbackTransaction ERROR: " . $dbh->is_error());
+                throw new \Exception($dbh->is_error());
+            }
+            if (self::$transactionDepth > 1) {
+                self::$transactionDepth = 0;
+                self::$logger->notice("Database::rollbackTransaction nested TA rolled back");
+                throw new \Exception("Nested transaction rolled back");
+            }
+            self::$transactionDepth = 0;
+        }
     }
 
     /**

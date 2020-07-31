@@ -477,7 +477,7 @@ class carddav extends rcube_plugin
      *                                 PUBLIC FUNCTIONS
      **************************************************************************************/
 
-    public static function updateAddressbook(string $abookId, array $pa): void
+    private static function updateAddressbook(string $abookId, array $pa): void
     {
         // check parameters
         if (key_exists('refresh_time', $pa)) {
@@ -917,23 +917,32 @@ class carddav extends rcube_plugin
 
     private static function deleteAddressbook(string $abookId): void
     {
-        // we explicitly delete all data belonging to the addressbook, since
-        // cascaded deleted are not supported by all database backends
-        // ...custom subtypes
-        Database::delete($abookId, 'xsubtypes', 'abook_id');
+        try {
+            Database::startTransaction(false);
 
-        // ...groups and memberships
-        $delgroups = array_column(Database::get($abookId, 'id', 'groups', false, 'abook_id'), "id");
-        if (!empty($delgroups)) {
-            Database::delete($delgroups, 'group_user', 'group_id');
+            // we explicitly delete all data belonging to the addressbook, since
+            // cascaded deleted are not supported by all database backends
+            // ...custom subtypes
+            Database::delete($abookId, 'xsubtypes', 'abook_id');
+
+            // ...groups and memberships
+            $delgroups = array_column(Database::get($abookId, 'id', 'groups', false, 'abook_id'), "id");
+            if (!empty($delgroups)) {
+                Database::delete($delgroups, 'group_user', 'group_id');
+            }
+
+            Database::delete($abookId, 'groups', 'abook_id');
+
+            // ...contacts
+            Database::delete($abookId, 'contacts', 'abook_id');
+
+            Database::delete($abookId, 'addressbooks');
+
+            Database::endTransaction();
+        } catch (\Exception $e) {
+            self::$logger->error("Could not delete addressbook: " . $e->getMessage());
+            Database::rollbackTransaction();
         }
-
-        Database::delete($abookId, 'groups', 'abook_id');
-
-        // ...contacts
-        Database::delete($abookId, 'contacts', 'abook_id');
-
-        Database::delete($abookId, 'addressbooks');
         self::$abooksDb = null;
     }
 
