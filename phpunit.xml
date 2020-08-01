@@ -1,9 +1,9 @@
 <phpunit colors="true" testdox="true" bootstrap="tests/autoload.php" verbose="true">
-	<testsuites>
-		<testsuite name="dbinteroperability">
+    <testsuites>
+        <testsuite name="dbinteroperability">
             <directory>tests/dbinterop</directory>
-		</testsuite>
-	</testsuites>
+        </testsuite>
+    </testsuites>
 
     <filter>
         <whitelist processUncoveredFilesFromWhitelist="true">
