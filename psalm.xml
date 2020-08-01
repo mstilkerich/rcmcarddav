@@ -6,17 +6,17 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xmlns="https://getpsalm.org/schema/config"
     xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
->
+    >
     <projectFiles>
-		<directory name="src/" />
-		<directory name="dbmigrations/" />
+        <directory name="src/" />
+        <directory name="dbmigrations/" />
         <directory name="tests/" />
-		<file name ="carddav.php" />
+        <file name ="carddav.php" />
     </projectFiles>
 
-	<extraFiles>
-		<directory name="../roundcubemail/program/" />
-	</extraFiles>
+    <extraFiles>
+        <directory name="../roundcubemail/program/" />
+    </extraFiles>
 
     <issueHandlers>
         <RedundantConditionGivenDocblockType>
@@ -31,3 +31,5 @@
         </PropertyNotSetInConstructor>
     </issueHandlers>
 </psalm>
+
+<!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->
