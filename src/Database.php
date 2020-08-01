@@ -6,6 +6,7 @@ namespace MStilkerich\CardDavAddressbook4Roundcube;
 
 use rcmail;
 use rcube_db;
+use Psr\Log\LoggerInterface;
 
 /**
  * Access module for the roundcube database.
@@ -20,7 +21,7 @@ use rcube_db;
  */
 abstract class Database
 {
-    /** @var RoundcubeLogger $logger */
+    /** @var LoggerInterface $logger */
     private static $logger;
 
     /** @var ?rcube_db $dbHandle */
@@ -37,29 +38,29 @@ abstract class Database
      *
      * Must be called before using any methods in this class.
      *
-     * @param RoundcubeLogger $logger A logger object that log messages can be sent to.
+     * @param LoggerInterface $logger A logger object that log messages can be sent to.
      */
-    public static function init(RoundcubeLogger $logger): void
+    public static function init(LoggerInterface $logger, rcube_db $dbh = null): void
     {
         self::$logger = $logger;
 
         self::$transactionDepth = 0;
         self::$transactionType = false;
+
+        if (isset($dbh)) {
+            self::setDbHandle($dbh);
+        }
     }
 
     public static function getDbHandle(): rcube_db
     {
-        if (!isset(self::$dbHandle)) {
+        $dbh = self::$dbHandle;
+        if (!isset($dbh)) {
             $dbh = rcmail::get_instance()->db;
-            self::$dbHandle = $dbh;
-
-            // attempt to enable foreign key constraints on SQLite. May fail if not supported
-            if ($dbh->db_provider == "sqlite") {
-                $dbh->query('PRAGMA FOREIGN_KEYS=ON;');
-            }
+            self::setDbHandle($dbh);
         }
 
-        return self::$dbHandle;
+        return $dbh;
     }
 
     /**
@@ -709,6 +710,16 @@ abstract class Database
         }
 
         return $sql;
+    }
+
+    private static function setDbHandle(rcube_db $dbh): void
+    {
+        self::$dbHandle = $dbh;
+
+        // attempt to enable foreign key constraints on SQLite. May fail if not supported
+        if ($dbh->db_provider == "sqlite") {
+            $dbh->query('PRAGMA FOREIGN_KEYS=ON;');
+        }
     }
 }
 
