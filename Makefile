@@ -1,25 +1,27 @@
-.PHONY: all stylecheck phpcompatcheck staticanalyses psalmanalysis doc
+.PHONY: all stylecheck phpcompatcheck staticanalyses psalmanalysis tests verification
 
-all: staticanalyses doc
+all: staticanalyses
 
-staticanalyses: phpcompatcheck stylecheck psalmanalysis
+verification: staticanalyses tests
+
+staticanalyses: stylecheck phpcompatcheck psalmanalysis
 
 stylecheck:
-	vendor/bin/phpcs --colors --standard=PSR12 *.php src/ dbmigrations/
+	vendor/bin/phpcs --colors --standard=PSR12 *.php src/ dbmigrations/ tests/
 
 phpcompatcheck:
-	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/
+	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/ tests/
 
 psalmanalysis:
 	vendor/bin/psalm
-
-doc:
-	rm -r ~/www/carddavclient/*
-	#phpDocumentor.phar -d src/ -t ~/www/carddavclient --title="CardDAV Client Library" 
-	../phpdocumentor/bin/phpdoc -d src/ -t ~/www/carddavclient --title="CardDAV Client Library" 
 
 tarball:
 	VERS=$$(git tag --points-at HEAD); \
 		if [ -z "$$VERS" ]; then echo "Error: HEAD has no version tag"; exit 1; else \
 			git archive --format tgz --prefix carddav/ -o carddav-$$VERS.tgz --worktree-attributes HEAD; \
 		fi
+
+tests:
+	@[ -f tests/dbinterop/DatabaseAccounts.php ] || (echo "Create tests/dbinterop/DatabaseAccounts.php from template tests/dbinterop/DatabaseAccounts.php.dist to execute tests"; exit 1)
+	vendor/bin/phpunit
+

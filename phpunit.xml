@@ -1,0 +1,21 @@
+<phpunit colors="true" testdox="true" bootstrap="tests/autoload.php" verbose="true">
+	<testsuites>
+		<testsuite name="dbinteroperability">
+            <directory>tests/dbinterop</directory>
+		</testsuite>
+	</testsuites>
+
+    <filter>
+        <whitelist processUncoveredFilesFromWhitelist="true">
+            <directory suffix=".php">src</directory>
+        </whitelist>
+    </filter>
+
+    <logging>
+        <log type="coverage-html" target="testreports/coverage" lowUpperBound="35" highLowerBound="70"/>
+        <!-- <log type="coverage-text" target="php://stdout" showUncoveredFiles="false"/> -->
+        <log type="testdox-html" target="testreports/testdox.html"/>
+    </logging>
+</phpunit>
+
+<!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->

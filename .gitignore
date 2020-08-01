@@ -1,4 +1,7 @@
+.phpunit.result.cache
 config.inc.php
 /vendor
 composer.*
 *.tgz
+/testreports
+/tests/dbinterop/DatabaseAccounts.php

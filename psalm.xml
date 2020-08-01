@@ -10,10 +10,24 @@
     <projectFiles>
 		<directory name="src/" />
 		<directory name="dbmigrations/" />
+        <directory name="tests/" />
 		<file name ="carddav.php" />
     </projectFiles>
 
 	<extraFiles>
 		<directory name="../roundcubemail/program/" />
 	</extraFiles>
+
+    <issueHandlers>
+        <RedundantConditionGivenDocblockType>
+            <errorLevel type="suppress">
+                <directory name="tests" /> <!-- all RedundantConditionGivenDocblockType issues in this directory are suppressed -->
+            </errorLevel>
+        </RedundantConditionGivenDocblockType>
+        <PropertyNotSetInConstructor>
+            <errorLevel type="suppress">
+                <directory name="tests" /> <!-- all PropertyNotSetInConstructor issues in this directory are suppressed -->
+            </errorLevel>
+        </PropertyNotSetInConstructor>
+    </issueHandlers>
 </psalm>
