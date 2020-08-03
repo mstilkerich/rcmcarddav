@@ -423,7 +423,7 @@ class carddav extends rcube_plugin
                     if (isset($_POST["${abookId}_cd_resync"])) {
                         // read-only and required properties don't matter here, this instance is short-lived for sync
                         $backend = new Addressbook($abookId, $this, true, []);
-                        $backend->resync();
+                        $backend->resync(true);
                     }
                 }
             }
