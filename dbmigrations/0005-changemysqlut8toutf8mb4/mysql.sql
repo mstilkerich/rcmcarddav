@@ -42,14 +42,6 @@ ALTER TABLE TABLE_PREFIXcarddav_xsubtypes CONVERT TO CHARACTER SET utf8mb4 COLLA
 ALTER TABLE TABLE_PREFIXcarddav_xsubtypes CHANGE `typename` `typename` VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE TABLE_PREFIXcarddav_xsubtypes CHANGE `subtype` `subtype` VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-
-REPAIR TABLE TABLE_PREFIXcarddav_addressbooks;
-REPAIR TABLE TABLE_PREFIXcarddav_contacts;
-REPAIR TABLE TABLE_PREFIXcarddav_groups;
-REPAIR TABLE TABLE_PREFIXcarddav_group_user;
-REPAIR TABLE TABLE_PREFIXcarddav_migrations;
-REPAIR TABLE TABLE_PREFIXcarddav_xsubtypes;
-
 OPTIMIZE TABLE TABLE_PREFIXcarddav_addressbooks;
 OPTIMIZE TABLE TABLE_PREFIXcarddav_contacts;
 OPTIMIZE TABLE TABLE_PREFIXcarddav_groups;
