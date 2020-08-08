@@ -668,17 +668,20 @@ class Addressbook extends rcube_addressbook
         try {
             carddav::$logger->debug("set_group($gid)");
 
-            // check the database - this throws an exception if the group cannot be found
-            $group = Database::get($gid, "id", "groups", true, "id", ["abook_id" => $this->id]);
-            $this->group_id = $group["id"];
-
             if ($gid) {
+                // check for valid ID with the database - this throws an exception if the group cannot be found
+                Database::get($gid, "id", "groups", true, "id", ["abook_id" => $this->id]);
+
                 $dbh = Database::getDbHandle();
-                $this->set_search_set("EXISTS(SELECT * FROM " . $dbh->table_name("carddav_group_user") . "
-                    WHERE group_id = '{$gid}' AND contact_id = " . $dbh->table_name("carddav_contacts") . ".id)");
+                $this->set_search_set(
+                    "EXISTS(SELECT * FROM " . $dbh->table_name("carddav_group_user")
+                    . " WHERE group_id='$gid' AND contact_id=" . $dbh->table_name("carddav_contacts") . ".id)"
+                );
             } else {
                 $this->reset();
             }
+
+            $this->group_id = $gid;
         } catch (\Exception $e) {
             carddav::$logger->error("set_group($gid): " . $e->getMessage());
         }
