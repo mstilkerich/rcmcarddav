@@ -27,11 +27,8 @@ abstract class Database
     /** @var ?rcube_db $dbHandle */
     private static $dbHandle;
 
-    /** @var int $transactionDepth Nesting counter for transactions */
-    private static $transactionDepth;
-
-    /** @var bool $transactionType Isolation level of the initial transaction (t=REPEATABLE READ, f=SERIALIZABLE) */
-    private static $transactionType;
+    /** @var bool $inTransaction Indicates whether we are currently inside a transaction */
+    private static $inTransaction;
 
     /**
      * Initializes the Database class.
@@ -44,8 +41,7 @@ abstract class Database
     {
         self::$logger = $logger;
 
-        self::$transactionDepth = 0;
-        self::$transactionType = false;
+        self::$inTransaction = false;
 
         if (isset($dbh)) {
             self::setDbHandle($dbh);
@@ -75,28 +71,25 @@ abstract class Database
     {
         $dbh = self::getDbHandle();
 
-        if (self::$transactionDepth > 0) {
-            if ($readonly || !self::$transactionType) {
-                ++self::$transactionDepth;
-            } else {
-                throw new \Exception("Cannot start read-write transaction nested in ongoing read-only transaction");
-            }
+        if (self::$inTransaction) {
+            throw new \Exception("Cannot start nested transaction");
         } else {
             // SQLite3 always has Serializable isolation of transactions, and does not support
             // the SET TRANSACTION command.
             $level = $readonly ? 'REPEATABLE READ' : 'SERIALIZABLE';
+            $accessmode  = $readonly ? "READ ONLY" : "READ WRITE";
             switch ($dbh->db_provider) {
                 case "mysql":
                     $ret = $dbh->query("SET SESSION TRANSACTION ISOLATION LEVEL $level");
                     if ($ret !== false) {
-                        $ret = $dbh->query("START TRANSACTION");
+                        $ret = $dbh->query("START TRANSACTION $accessmode");
                     }
                     break;
                 case "sqlite":
                     $ret = $dbh->query("BEGIN");
                     break;
                 case "postgres":
-                    $ret = $dbh->query("START TRANSACTION ISOLATION LEVEL $level");
+                    $ret = $dbh->query("START TRANSACTION ISOLATION LEVEL $level, $accessmode");
                     break;
                 default:
                     self::$logger->critical("Unsupported database backend: " . $dbh->db_provider);
@@ -105,11 +98,10 @@ abstract class Database
 
             if ($ret === false) {
                 self::$logger->error(__METHOD__ . " ERROR: " . $dbh->is_error());
-                throw new \Exception($dbh->is_error());
+                throw new DatabaseException($dbh->is_error());
             }
 
-            self::$transactionDepth = 1;
-            self::$transactionType = $readonly;
+            self::$inTransaction = true;
         }
     }
 
@@ -120,18 +112,15 @@ abstract class Database
     {
         $dbh = self::getDbHandle();
 
-        if (self::$transactionDepth == 0) {
-            throw new \Exception("Attempt to commit a transaction while not within a transaction");
-        } else {
-            if (self::$transactionDepth == 1) {
-                self::$transactionDepth = 0;
-                if ($dbh->query("COMMIT") === false) {
-                    self::$logger->error("Database::endTransaction ERROR: " . $dbh->is_error());
-                    throw new \Exception($dbh->is_error());
-                }
-            } else {
-                --self::$transactionDepth;
+        if (self::$inTransaction) {
+            self::$inTransaction = false;
+
+            if ($dbh->query("COMMIT") === false) {
+                self::$logger->error("Database::endTransaction ERROR: " . $dbh->is_error());
+                throw new DatabaseException($dbh->is_error());
             }
+        } else {
+            throw new \Exception("Attempt to commit a transaction while not within a transaction");
         }
     }
 
@@ -142,20 +131,15 @@ abstract class Database
     {
         $dbh = self::getDbHandle();
 
-        if (self::$transactionDepth == 0) {
-            throw new \Exception("Attempt to rollback a transaction while not within a transaction");
-        } else {
+        if (self::$inTransaction) {
+            self::$inTransaction = false;
+
             if ($dbh->query("ROLLBACK") === false) {
-                self::$transactionDepth = 0;
                 self::$logger->error("Database::rollbackTransaction ERROR: " . $dbh->is_error());
                 throw new \Exception($dbh->is_error());
             }
-            if (self::$transactionDepth > 1) {
-                self::$transactionDepth = 0;
-                self::$logger->notice("Database::rollbackTransaction nested TA rolled back");
-                throw new \Exception("Nested transaction rolled back");
-            }
-            self::$transactionDepth = 0;
+        } else {
+            throw new \Exception("Attempt to rollback a transaction while not within a transaction");
         }
     }
 
@@ -438,6 +422,7 @@ abstract class Database
 
         $dbid = $dbh->insert_id("carddav_$table");
         $dbid = is_bool($dbid) ? "" /* error thrown below */ : (string) $dbid;
+        self::$logger->debug("INSERT $table ($sql) -> $dbid");
 
         if ($dbh->is_error()) {
             self::$logger->error("Database::insert ($sql) ERROR: " . $dbh->is_error());
@@ -484,7 +469,7 @@ abstract class Database
 
         if ($dbh->is_error()) {
             self::$logger->error("Database::update ($sql) ERROR: " . $dbh->is_error());
-            throw new \Exception($dbh->is_error());
+            throw new DatabaseException($dbh->is_error());
         }
 
         return $dbh->affected_rows($sql_result);
@@ -532,7 +517,7 @@ abstract class Database
 
         if ($dbh->is_error()) {
             self::$logger->error("Database::get ($sql) ERROR: " . $dbh->is_error());
-            throw new \Exception($dbh->is_error());
+            throw new DatabaseException($dbh->is_error());
         }
 
         // single result row expected?
@@ -587,7 +572,7 @@ abstract class Database
 
         if ($dbh->is_error()) {
             self::$logger->error("Database::delete ($sql) ERROR: " . $dbh->is_error());
-            throw new \Exception($dbh->is_error());
+            throw new DatabaseException($dbh->is_error());
         }
 
         return $dbh->affected_rows($sql_result);
