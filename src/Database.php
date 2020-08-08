@@ -135,13 +135,15 @@ abstract class Database
 
         if (self::$inTransaction) {
             self::$inTransaction = false;
-
             if ($dbh->rollbackTransaction() === false) {
                 self::$logger->error("Database::rollbackTransaction ERROR: " . $dbh->is_error());
                 throw new \Exception($dbh->is_error());
             }
         } else {
-            throw new \Exception("Attempt to rollback a transaction while not within a transaction");
+            // not throwing an error here facilitates usage of the interface at caller side. The caller
+            // can issue rollback without having to keep track whether an error occurred before/after a
+            // transaction was started/ended.
+            self::$logger->notice("Ignored request to rollback a transaction while not within a transaction");
         }
     }
 
