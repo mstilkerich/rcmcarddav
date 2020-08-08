@@ -55,7 +55,8 @@ final class DatabaseSyncTest extends TestCase
 
                 // perform a SELECT so that DBMS has to assume the following update was computed based on this query
                 // before we run our update, the parent will update, thus there is a serialization conflict
-                [ "id" => $id, "filename" => $fn ] = Database::get("UNITTEST-SYNC%", "id,filename", "migrations", true, "%filename");
+                [ "id" => $id, "filename" => $fn ] =
+                    Database::get("UNITTEST-SYNC%", "id,filename", "migrations", true, "%filename");
                 $this->barrierReached("C_TA_START");
                 sleep(1);
                 Database::update($id, ["filename"], ["$fn-CLD"], "migrations");
@@ -79,7 +80,8 @@ final class DatabaseSyncTest extends TestCase
                 $this->barrierReached("P_TA_START");
                 $this->barrierWait("C_TA_START");
 
-                [ "id" => $id, "filename" => $fn ] = Database::get("UNITTEST-SYNC%", "id,filename", "migrations", true, "%filename");
+                [ "id" => $id, "filename" => $fn ] =
+                    Database::get("UNITTEST-SYNC%", "id,filename", "migrations", true, "%filename");
                 Database::update($recordId, ["filename"], ["$fn-PAR"], "migrations");
                 sleep(1);
 
@@ -94,12 +96,9 @@ final class DatabaseSyncTest extends TestCase
 
             $cldWins = ($this->collectChild() === 0);
             [ "filename" => $fn ] = Database::get($recordId, "*", "migrations");
-            if ($parWins && $cldWins) {
-                echo "FILENAME IS $fn\n";
-
-            }
+            // it would also be ok if both failed with no changes to the DB or both succeeded with a result matching
+            // serial execution of the two transactions, but these are not expected by any of the three DBs
             $this->assertTrue($parWins xor $cldWins, "Exactly one transaction must succeed ($parWins/$cldWins)");
-
             $this->assertEquals("UNITTEST-SYNC-" . ($parWins ? "PAR" : "CLD"), $fn, "Winner's update not visible");
         }
     }
