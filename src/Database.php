@@ -77,23 +77,25 @@ abstract class Database
             // SQLite3 always has Serializable isolation of transactions, and does not support
             // the SET TRANSACTION command.
             $level = $readonly ? 'REPEATABLE READ' : 'SERIALIZABLE';
-            $accessmode  = $readonly ? "READ ONLY" : "READ WRITE";
+            $mode  = $readonly ? "READ ONLY" : "READ WRITE";
+
             switch ($dbh->db_provider) {
                 case "mysql":
-                    $ret = $dbh->query("SET SESSION TRANSACTION ISOLATION LEVEL $level");
-                    if ($ret !== false) {
-                        $ret = $dbh->query("START TRANSACTION $accessmode");
-                    }
+                    $ret = $dbh->query("SET TRANSACTION ISOLATION LEVEL $level, $mode");
                     break;
                 case "sqlite":
-                    $ret = $dbh->query("BEGIN");
+                    $ret = true;
                     break;
                 case "postgres":
-                    $ret = $dbh->query("START TRANSACTION ISOLATION LEVEL $level, $accessmode");
+                    $ret = $dbh->query("SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL $level, $mode");
                     break;
                 default:
                     self::$logger->critical("Unsupported database backend: " . $dbh->db_provider);
                     return;
+            }
+
+            if ($ret !== false) {
+                $ret = $dbh->startTransaction();
             }
 
             if ($ret === false) {
@@ -115,7 +117,7 @@ abstract class Database
         if (self::$inTransaction) {
             self::$inTransaction = false;
 
-            if ($dbh->query("COMMIT") === false) {
+            if ($dbh->endTransaction() === false) {
                 self::$logger->error("Database::endTransaction ERROR: " . $dbh->is_error());
                 throw new DatabaseException($dbh->is_error());
             }
@@ -134,7 +136,7 @@ abstract class Database
         if (self::$inTransaction) {
             self::$inTransaction = false;
 
-            if ($dbh->query("ROLLBACK") === false) {
+            if ($dbh->rollbackTransaction() === false) {
                 self::$logger->error("Database::rollbackTransaction ERROR: " . $dbh->is_error());
                 throw new \Exception($dbh->is_error());
             }
