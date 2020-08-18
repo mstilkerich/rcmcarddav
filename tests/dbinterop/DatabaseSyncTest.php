@@ -41,8 +41,6 @@ final class DatabaseSyncTest extends TestCase
     /** @dataProvider dbProvider */
     public function testOverlappingWriteAborts(string $db_dsnw): void
     {
-        $inTransaction = false;
-
         if ($this->split() === 0) {
             $this->initDatabase($db_dsnw);
 
@@ -50,8 +48,6 @@ final class DatabaseSyncTest extends TestCase
                 $this->barrierWait("P_TA_START");
 
                 Database::startTransaction(false);
-                $inTransaction = true;
-
 
                 // perform a SELECT so that DBMS has to assume the following update was computed based on this query
                 // before we run our update, the parent will update, thus there is a serialization conflict
@@ -63,9 +59,7 @@ final class DatabaseSyncTest extends TestCase
 
                 Database::endTransaction();
             } catch (\Exception $e) {
-                if ($inTransaction) {
-                    Database::rollbackTransaction();
-                }
+                Database::rollbackTransaction();
                 exit(1);
             }
             exit(0);
@@ -75,7 +69,6 @@ final class DatabaseSyncTest extends TestCase
 
             try {
                 Database::startTransaction(false);
-                $inTransaction = true;
 
                 $this->barrierReached("P_TA_START");
                 $this->barrierWait("C_TA_START");
@@ -88,9 +81,7 @@ final class DatabaseSyncTest extends TestCase
                 Database::endTransaction();
                 $parWins = true;
             } catch (\Exception $e) {
-                if ($inTransaction) {
-                    Database::rollbackTransaction();
-                }
+                Database::rollbackTransaction();
                 $parWins = false;
             }
 
