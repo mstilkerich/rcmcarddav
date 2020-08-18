@@ -165,14 +165,19 @@ class Addressbook extends rcube_addressbook
         ];
 
         try {
-            $this->config   = Database::getAbookCfg($dbid);
+            $this->config = Database::get($dbid, '*', 'addressbooks');
             $this->addextrasubtypes();
             $this->ready = true;
 
             // refresh the address book if the update interval expired
             // this requires a completely initialized Addressbook object, so it
             // needs to be at the end of this constructor
-            if ($this->config["needs_update"]) {
+            $ts_syncdue = $this->checkResyncDue();
+            if ($ts_syncdue <= 0) {
+                // To avoid unneccessary work followed by roll back with other time-triggered refreshes, we
+                // temporarily set the last_updates time such that the next due time will be five minutes from now
+                $ts_delay = time() + 300 - Database::sqlDateTimeToSeconds($this->config["refresh_time"], 0);
+                Database::update($this->id, ["last_updated"], [Database::sqlDateTime($ts_delay)], "addressbooks");
                 $this->resync(true);
             }
         } catch (\Exception $e) {
@@ -1207,16 +1212,10 @@ class Addressbook extends rcube_addressbook
             $synchandler = new SyncHandlerRoundcube($this);
             $syncmgr = new Sync();
 
-            Database::startTransaction(false);
-
             $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token'] ?? "");
-            // set last_updated timestamp and sync token
-            Database::update($this->id, ["last_updated", "sync_token"], [Database::now(), $sync_token], "addressbooks");
-
-            Database::endTransaction();
-
             $this->config['sync_token'] = $sync_token;
-            $this->config['needs_update'] = 0;
+            $this->config["last_updated"] = Database::sqlDateTime(time());
+            Database::update($this->id, ["last_updated"], [$this->config["last_updated"]], "addressbooks");
 
             $duration = time() - $start_refresh;
             carddav::$logger->debug("server refresh took $duration seconds");
@@ -1244,7 +1243,6 @@ class Addressbook extends rcube_addressbook
             Database::rollbackTransaction();
         }
     }
-
 
     /**
      * Does some common preprocessing with save data created by roundcube.
@@ -2083,6 +2081,20 @@ class Addressbook extends rcube_addressbook
                 $davAbook->updateCard($contact['uri'], $vcard, $contact['etag']);
             }
         }
+    }
+
+    /**
+     * Determines the due time for the next resync of this addressbook relative to the current time.
+     *
+     * @return int Seconds until next resync is due (negative if resync due time is in the past)
+     */
+    private function checkResyncDue(): int
+    {
+        $ts_now = time();
+        $ts_lastupd = Database::sqlDateTimeToSeconds($this->config["last_updated"], $ts_now);
+        $ts_nextupd = Database::sqlDateTimeToSeconds($this->config["refresh_time"], $ts_lastupd);
+        $ts_diff = ($ts_nextupd - $ts_now);
+        return $ts_diff;
     }
 }
 

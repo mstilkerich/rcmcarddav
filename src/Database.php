@@ -582,57 +582,40 @@ abstract class Database
         return $dbh->affected_rows($sql_result);
     }
 
-    public static function getAbookCfg(string $abookid): array
+    /**
+     * Converts an SQL time string to seconds since the epoch.
+     *
+     * The given time can be either a date/time string in the format "YYYY-mm-dd HH:MM:SS" or a relative
+     * time string given as "HH:MM:SS". In the latter case, the time stamp will be interpreted relative to the given
+     * basetime.
+     *
+     * @param string $dateTimeStr Either a full date/time string, or a relative time string.
+     * @param int $basetime Timestamp (seconds since epoch) that is used as reference when a relative time is given.
+     * @return int The computed timestamp (seconds since epoch)
+     */
+    public static function sqlDateTimeToSeconds(string $dateTimeStr, int $basetime): int
     {
-        try {
-            $dbh = self::getDbHandle();
-
-            // cludge, agreed, but the MDB abstraction seems to have no way of
-            // doing time calculations...
-            $timequery = '(' . $dbh->now() . ' > ';
-            if ($dbh->db_provider === 'sqlite') {
-                $timequery .= ' datetime(last_updated,refresh_time))';
-            } elseif ($dbh->db_provider === 'mysql') {
-                $timequery .= ' date_add(last_updated, INTERVAL refresh_time HOUR_SECOND))';
-            } else {
-                $timequery .= ' last_updated+refresh_time)';
-            }
-
-            $abookrow = self::get(
-                $abookid,
-                'id,name,username,password,url,presetname,sync_token,use_categories,'
-                . $timequery . ' as needs_update',
-                'addressbooks'
-            );
-
-            if ($dbh->db_provider === 'postgres') {
-                // postgres will return 't'/'f' here for true/false, normalize it to 1/0
-                $nu = $abookrow['needs_update'];
-                $nu = ($nu == 1 || $nu == 't') ? 1 : 0;
-                $abookrow['needs_update'] = $nu;
-            }
-        } catch (\Exception $e) {
-            self::$logger->error("Error in processing configuration $abookid: " . $e->getMessage());
-            throw $e;
+        if (preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $dateTimeStr, $match)) {
+            $rel_seconds =
+                intval($match[1]) * 3600 +
+                (count($match) > 3 ? intval($match[3]) : 0) * 60 +
+                (count($match) > 5 ? intval($match[5]) : 0);
+            return $rel_seconds + $basetime;
+        } else {
+            return strtotime($dateTimeStr, $basetime);
         }
-
-        return $abookrow;
     }
 
     /**
-     * Return SQL function for current time and date
+     * Return SQL timestamp/datetime for a timestamp value (seconds since epoch).
      *
-     * @param int $interval Optional interval (in seconds) to add/subtract
-     *
-     * @return string SQL function to use in query
+     * @param int $sec Timestamp to convert (current time if not given)
+     * @return string SQL value
      */
-    public static function now(int $interval = 0): string
+    public static function sqlDateTime(int $sec): string
     {
-        $timestamp = time() + $interval;
-
-        // this format is a valid constant for MySQL/Postgres TIMESTAMP as well as SQLite DATETIME values
-        $timestr = date("Y-m-d H:i:s", $timestamp);
-        return $timestr;
+        // Example: 2020-07-24 20:37:08
+        return date("Y-m-d H:i:s", $sec);
     }
 
     /**
