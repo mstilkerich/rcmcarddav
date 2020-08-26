@@ -11,8 +11,8 @@ server only:
 
 Nevertheless, there are several potentially racing operations that modify the database:
   - Synchronization of an addressbook with the server
-  - Creation of a CATEGORY-type group in roundcube (see [GROUPS.md](GROUPS.md)).
-  - Rename / delete of an _empty_ CATEGORY-type group in roundcube (see [GROUPS.md](GROUPS.md)).
+  - Creation of a CATEGORIES-type group in roundcube (see [GROUPS.md](GROUPS.md)).
+  - Rename / delete of an _empty_ CATEGORIES-type group in roundcube (see [GROUPS.md](GROUPS.md)).
   - Database schema migrations
   - Insert/change of an addressbook in roundcube
   - Deletion of an addressbook in roundcube

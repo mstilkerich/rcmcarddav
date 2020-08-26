@@ -503,7 +503,7 @@ class Addressbook extends rcube_addressbook
     public function insert($save_data, $check = false)
     {
         try {
-            carddav::$logger->debug("insert(" . $save_data["name"] . ", $check)");
+            carddav::$logger->info("insert(" . $save_data["name"] . ", $check)");
             $this->preprocessRcubeData($save_data);
             $davAbook = $this->getCardDavObj();
 
@@ -568,7 +568,7 @@ class Addressbook extends rcube_addressbook
     {
         $abook_id = $this->id;
         $deleted = 0;
-        carddav::$logger->debug("delete([" . implode(",", $ids) . "])");
+        carddav::$logger->info("delete([" . implode(",", $ids) . "])");
 
         try {
             $davAbook = $this->getCardDavObj();
@@ -620,7 +620,7 @@ class Addressbook extends rcube_addressbook
     public function delete_all($with_groups = false): void
     {
         try {
-            carddav::$logger->debug("delete_all($with_groups)");
+            carddav::$logger->info("delete_all($with_groups)");
             $davAbook = $this->getCardDavObj();
             $abook_id = $this->id;
 
@@ -775,7 +775,7 @@ class Addressbook extends rcube_addressbook
     public function create_group($name)
     {
         try {
-            carddav::$logger->debug("create_group($name)");
+            carddav::$logger->info("create_group($name)");
             $save_data = [ 'name' => $name, 'kind' => 'group' ];
 
             if ($this->config['use_categories']) {
@@ -809,7 +809,7 @@ class Addressbook extends rcube_addressbook
     public function delete_group($group_id): bool
     {
         try {
-            carddav::$logger->debug("delete_group($group_id)");
+            carddav::$logger->info("delete_group($group_id)");
             $davAbook = $this->getCardDavObj();
 
             Database::startTransaction(false);
@@ -861,7 +861,7 @@ class Addressbook extends rcube_addressbook
     public function rename_group($group_id, $newname, &$newid)
     {
         try {
-            carddav::$logger->debug("rename_group($group_id, $newname)");
+            carddav::$logger->info("rename_group($group_id, $newname)");
             $davAbook = $this->getCardDavObj();
             $group = Database::get($group_id, 'uri,name,etag,vcard', 'groups', true, "id", ["abook_id" => $this->id]);
 
@@ -992,7 +992,7 @@ class Addressbook extends rcube_addressbook
             if (!is_array($ids)) {
                 $ids = explode(self::SEPARATOR, $ids);
             }
-            carddav::$logger->debug("remove_from_group($group_id, [" . implode(",", $ids) . "])");
+            carddav::$logger->info("remove_from_group($group_id, [" . implode(",", $ids) . "])");
 
             Database::startTransaction();
 
@@ -1218,7 +1218,7 @@ class Addressbook extends rcube_addressbook
             Database::update($this->id, ["last_updated"], [$this->config["last_updated"]], "addressbooks");
 
             $duration = time() - $start_refresh;
-            carddav::$logger->debug("server refresh took $duration seconds");
+            carddav::$logger->info("sync of addressbook {$this->id} ({$this->get_name()}) took $duration seconds");
 
             if ($showUIMsg) {
                 $rcmail = rcmail::get_instance();
@@ -1693,10 +1693,8 @@ class Addressbook extends rcube_addressbook
             && strlen($save_data['photo']) > 0
             && base64_decode($save_data['photo'], true) !== false
         ) {
-            carddav::$logger->debug("photo is base64 encoded. Decoding...");
             $i = 0;
             while (base64_decode($save_data['photo'], true) !== false && $i++ < 10) {
-                carddav::$logger->debug("Decoding $i...");
                 $save_data['photo'] = base64_decode($save_data['photo'], true);
             }
             if ($i >= 10) {

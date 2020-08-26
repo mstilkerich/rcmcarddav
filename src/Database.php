@@ -256,7 +256,7 @@ abstract class Database
         }
 
         $queryCount = preg_match_all('/.+?;/s', $queries_raw, $queries);
-        self::$logger->debug("Found $queryCount queries in $migrationScript");
+        self::$logger->info("Found $queryCount queries in $migrationScript");
         if ($queryCount > 0) {
             foreach ($queries[0] as $query) {
                 $query = str_replace("TABLE_PREFIX", $dbPrefix, $query);

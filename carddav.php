@@ -191,7 +191,7 @@ class carddav extends rcube_plugin
                         $url = self::replacePlaceholdersUrl($preset['url']);
                         $password = self::replacePlaceholdersPassword($preset['password']);
 
-                        self::$logger->debug("Adding preset for $username at URL $url");
+                        self::$logger->info("Adding preset for $username at URL $url");
                         $account = new Account($url, $username, $password);
                         $discover = new Discovery();
                         $abooks = $discover->discoverAddressbooks($account);
@@ -214,7 +214,7 @@ class carddav extends rcube_plugin
 
             // delete existing preset addressbooks that were removed by admin
             foreach ($existing_presets as $ep) {
-                self::$logger->debug("Deleting preset addressbooks for " . $_SESSION['user_id']);
+                self::$logger->info("Deleting preset addressbooks for " . $_SESSION['user_id']);
                 foreach ($ep as $abookrow) {
                     self::deleteAddressbook($abookrow['id']);
                 }
@@ -450,7 +450,7 @@ class carddav extends rcube_plugin
                             $new['url'] = $abook->getUri();
                             $new['name'] = "$basename ({$abook->getName()})";
 
-                            self::$logger->debug("ADDING ABOOK {$new['username']} @ {$new['url']}");
+                            self::$logger->info("Adding addressbook {$new['username']} @ {$new['url']}");
                             self::insertAddressbook($new);
                         }
 
