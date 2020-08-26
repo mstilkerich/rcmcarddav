@@ -21,6 +21,9 @@ use Psr\Log\LoggerInterface;
  */
 abstract class Database
 {
+    /** @var string[] DBTABLES_WITHOUT_ID List of table names that have no single ID column. */
+    private const DBTABLES_WITHOUT_ID = ['group_user'];
+
     /** @var LoggerInterface $logger */
     private static $logger;
 
@@ -412,7 +415,7 @@ abstract class Database
      * @param string $table The database table to store the entity to.
      * @param string[] $cols Database column names of attributes to insert.
      * @param string[] $vals The values to insert into the column specified by $cols at the corresponding index.
-     * @return string The database id of the created database record.
+     * @return string The database id of the created database record. Empty string if the table has no ID column.
      */
     public static function insert(string $table, array $cols, array $vals): string
     {
@@ -424,8 +427,12 @@ abstract class Database
 
         $sql_result = $dbh->query($sql, $vals);
 
-        $dbid = $dbh->insert_id("carddav_$table");
-        $dbid = is_bool($dbid) ? "" /* error thrown below */ : (string) $dbid;
+        if (in_array($table, self::DBTABLES_WITHOUT_ID)) {
+            $dbid = "";
+        } else {
+            $dbid = $dbh->insert_id("carddav_$table");
+            $dbid = is_bool($dbid) ? "" /* error thrown below */ : (string) $dbid;
+        }
         self::$logger->debug("INSERT $table ($sql) -> $dbid");
 
         if ($dbh->is_error()) {
