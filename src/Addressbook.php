@@ -1215,7 +1215,12 @@ class Addressbook extends rcube_addressbook
             $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token'] ?? "");
             $this->config['sync_token'] = $sync_token;
             $this->config["last_updated"] = Database::sqlDateTime(time());
-            Database::update($this->id, ["last_updated"], [$this->config["last_updated"]], "addressbooks");
+            Database::update(
+                $this->id,
+                ["last_updated", "sync_token"],
+                [$this->config["last_updated"], $sync_token],
+                "addressbooks"
+            );
 
             $duration = time() - $start_refresh;
             carddav::$logger->info("sync of addressbook {$this->id} ({$this->get_name()}) took $duration seconds");
