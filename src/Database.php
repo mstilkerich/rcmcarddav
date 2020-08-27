@@ -6,6 +6,7 @@ namespace MStilkerich\CardDavAddressbook4Roundcube;
 
 use rcmail;
 use rcube_db;
+use Psr\Log\LoggerInterface;
 
 /**
  * Access module for the roundcube database.
@@ -20,37 +21,133 @@ use rcube_db;
  */
 abstract class Database
 {
-    /** @var RoundcubeLogger $logger */
+    /** @var string[] DBTABLES_WITHOUT_ID List of table names that have no single ID column. */
+    private const DBTABLES_WITHOUT_ID = ['group_user'];
+
+    /** @var LoggerInterface $logger */
     private static $logger;
 
     /** @var ?rcube_db $dbHandle */
     private static $dbHandle;
+
+    /** @var bool $inTransaction Indicates whether we are currently inside a transaction */
+    private static $inTransaction;
 
     /**
      * Initializes the Database class.
      *
      * Must be called before using any methods in this class.
      *
-     * @param RoundcubeLogger $logger A logger object that log messages can be sent to.
+     * @param LoggerInterface $logger A logger object that log messages can be sent to.
      */
-    public static function init(RoundcubeLogger $logger): void
+    public static function init(LoggerInterface $logger, rcube_db $dbh = null): void
     {
         self::$logger = $logger;
+
+        self::$inTransaction = false;
+
+        if (isset($dbh)) {
+            self::setDbHandle($dbh);
+        }
     }
 
     public static function getDbHandle(): rcube_db
     {
-        if (!isset(self::$dbHandle)) {
+        $dbh = self::$dbHandle;
+        if (!isset($dbh)) {
             $dbh = rcmail::get_instance()->db;
-            self::$dbHandle = $dbh;
-
-            // attempt to enable foreign key constraints on SQLite. May fail if not supported
-            if ($dbh->db_provider == "sqlite") {
-                $dbh->query('PRAGMA FOREIGN_KEYS=ON;');
-            }
+            self::setDbHandle($dbh);
         }
 
-        return self::$dbHandle;
+        return $dbh;
+    }
+
+    /**
+     * Starts a transaction on the internal DB connection.
+     *
+     * Note that all queries in the transaction must be done using the functions provided by this class, or the database
+     * handle acquired by the getDbHandle() function of this class, to make sure they use the same database connection.
+     *
+     * @see self::getDbHandle()
+     */
+    public static function startTransaction(bool $readonly = true): void
+    {
+        $dbh = self::getDbHandle();
+
+        if (self::$inTransaction) {
+            throw new \Exception("Cannot start nested transaction");
+        } else {
+            // SQLite3 always has Serializable isolation of transactions, and does not support
+            // the SET TRANSACTION command.
+            $level = $readonly ? 'REPEATABLE READ' : 'SERIALIZABLE';
+            $mode  = $readonly ? "READ ONLY" : "READ WRITE";
+
+            switch ($dbh->db_provider) {
+                case "mysql":
+                    $ret = $dbh->query("SET TRANSACTION ISOLATION LEVEL $level, $mode");
+                    break;
+                case "sqlite":
+                    $ret = true;
+                    break;
+                case "postgres":
+                    $ret = $dbh->query("SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL $level, $mode");
+                    break;
+                default:
+                    self::$logger->critical("Unsupported database backend: " . $dbh->db_provider);
+                    return;
+            }
+
+            if ($ret !== false) {
+                $ret = $dbh->startTransaction();
+            }
+
+            if ($ret === false) {
+                self::$logger->error(__METHOD__ . " ERROR: " . $dbh->is_error());
+                throw new DatabaseException($dbh->is_error());
+            }
+
+            self::$inTransaction = true;
+        }
+    }
+
+    /**
+     * Commits the transaction on the internal DB connection.
+     */
+    public static function endTransaction(): void
+    {
+        $dbh = self::getDbHandle();
+
+        if (self::$inTransaction) {
+            self::$inTransaction = false;
+
+            if ($dbh->endTransaction() === false) {
+                self::$logger->error("Database::endTransaction ERROR: " . $dbh->is_error());
+                throw new DatabaseException($dbh->is_error());
+            }
+        } else {
+            throw new \Exception("Attempt to commit a transaction while not within a transaction");
+        }
+    }
+
+    /**
+     * Rolls back the transaction on the internal DB connection.
+     */
+    public static function rollbackTransaction(): void
+    {
+        $dbh = self::getDbHandle();
+
+        if (self::$inTransaction) {
+            self::$inTransaction = false;
+            if ($dbh->rollbackTransaction() === false) {
+                self::$logger->error("Database::rollbackTransaction ERROR: " . $dbh->is_error());
+                throw new \Exception($dbh->is_error());
+            }
+        } else {
+            // not throwing an error here facilitates usage of the interface at caller side. The caller
+            // can issue rollback without having to keep track whether an error occurred before/after a
+            // transaction was started/ended.
+            self::$logger->notice("Ignored request to rollback a transaction while not within a transaction");
+        }
     }
 
     /**
@@ -76,7 +173,6 @@ abstract class Database
             case "sqlite":
                 $db_backend = "sqlite3";
                 break;
-            case "pgsql":
             case "postgres":
                 $db_backend = "postgres";
                 break;
@@ -160,7 +256,7 @@ abstract class Database
         }
 
         $queryCount = preg_match_all('/.+?;/s', $queries_raw, $queries);
-        self::$logger->debug("Found $queryCount queries in $migrationScript");
+        self::$logger->info("Found $queryCount queries in $migrationScript");
         if ($queryCount > 0) {
             foreach ($queries[0] as $query) {
                 $query = str_replace("TABLE_PREFIX", $dbPrefix, $query);
@@ -319,7 +415,7 @@ abstract class Database
      * @param string $table The database table to store the entity to.
      * @param string[] $cols Database column names of attributes to insert.
      * @param string[] $vals The values to insert into the column specified by $cols at the corresponding index.
-     * @return string The database id of the created database record.
+     * @return string The database id of the created database record. Empty string if the table has no ID column.
      */
     public static function insert(string $table, array $cols, array $vals): string
     {
@@ -331,8 +427,13 @@ abstract class Database
 
         $sql_result = $dbh->query($sql, $vals);
 
-        $dbid = $dbh->insert_id("carddav_$table");
-        $dbid = is_bool($dbid) ? "" /* error thrown below */ : (string) $dbid;
+        if (in_array($table, self::DBTABLES_WITHOUT_ID)) {
+            $dbid = "";
+        } else {
+            $dbid = $dbh->insert_id("carddav_$table");
+            $dbid = is_bool($dbid) ? "" /* error thrown below */ : (string) $dbid;
+        }
+        self::$logger->debug("INSERT $table ($sql) -> $dbid");
 
         if ($dbh->is_error()) {
             self::$logger->error("Database::insert ($sql) ERROR: " . $dbh->is_error());
@@ -379,7 +480,7 @@ abstract class Database
 
         if ($dbh->is_error()) {
             self::$logger->error("Database::update ($sql) ERROR: " . $dbh->is_error());
-            throw new \Exception($dbh->is_error());
+            throw new DatabaseException($dbh->is_error());
         }
 
         return $dbh->affected_rows($sql_result);
@@ -427,7 +528,7 @@ abstract class Database
 
         if ($dbh->is_error()) {
             self::$logger->error("Database::get ($sql) ERROR: " . $dbh->is_error());
-            throw new \Exception($dbh->is_error());
+            throw new DatabaseException($dbh->is_error());
         }
 
         // single result row expected?
@@ -482,70 +583,56 @@ abstract class Database
 
         if ($dbh->is_error()) {
             self::$logger->error("Database::delete ($sql) ERROR: " . $dbh->is_error());
-            throw new \Exception($dbh->is_error());
+            throw new DatabaseException($dbh->is_error());
         }
 
         return $dbh->affected_rows($sql_result);
     }
 
-    public static function getAbookCfg(string $abookid): array
+    /**
+     * Converts an SQL time string to seconds since the epoch.
+     *
+     * The given time can be either a date/time string in the format "YYYY-mm-dd HH:MM:SS" or a relative
+     * time string given as "HH:MM:SS". In the latter case, the time stamp will be interpreted relative to the given
+     * basetime.
+     *
+     * @param string $dateTimeStr Either a full date/time string, or a relative time string.
+     * @param int $basetime Timestamp (seconds since epoch) that is used as reference when a relative time is given.
+     * @return int The computed timestamp (seconds since epoch)
+     */
+    public static function sqlDateTimeToSeconds(string $dateTimeStr, int $basetime): int
     {
-        try {
-            $dbh = self::getDbHandle();
-
-            // cludge, agreed, but the MDB abstraction seems to have no way of
-            // doing time calculations...
-            $timequery = '(' . $dbh->now() . ' > ';
-            if ($dbh->db_provider === 'sqlite') {
-                $timequery .= ' datetime(last_updated,refresh_time))';
-            } elseif ($dbh->db_provider === 'mysql') {
-                $timequery .= ' date_add(last_updated, INTERVAL refresh_time HOUR_SECOND))';
-            } else {
-                $timequery .= ' last_updated+refresh_time)';
-            }
-
-            $abookrow = self::get(
-                $abookid,
-                'id,name,username,password,url,presetname,sync_token,use_categories,'
-                . $timequery . ' as needs_update',
-                'addressbooks'
-            );
-
-            if ($dbh->db_provider === 'postgres') {
-                // postgres will return 't'/'f' here for true/false, normalize it to 1/0
-                $nu = $abookrow['needs_update'];
-                $nu = ($nu == 1 || $nu == 't') ? 1 : 0;
-                $abookrow['needs_update'] = $nu;
-            }
-        } catch (\Exception $e) {
-            self::$logger->error("Error in processing configuration $abookid: " . $e->getMessage());
-            throw $e;
+        if (preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $dateTimeStr, $match)) {
+            $rel_seconds =
+                intval($match[1]) * 3600 +
+                (count($match) > 3 ? intval($match[3]) : 0) * 60 +
+                (count($match) > 5 ? intval($match[5]) : 0);
+            return $rel_seconds + $basetime;
+        } else {
+            return strtotime($dateTimeStr, $basetime);
         }
-
-        return $abookrow;
     }
 
     /**
-     * Return SQL function for current time and date
+     * Return SQL timestamp/datetime for a timestamp value (seconds since epoch).
      *
-     * @param int $interval Optional interval (in seconds) to add/subtract
-     *
-     * @return string SQL function to use in query
+     * @param int $sec Timestamp to convert (current time if not given)
+     * @return string SQL value
      */
-    public static function now(int $interval = 0): string
+    public static function sqlDateTime(int $sec): string
     {
-        $timestamp = time() + $interval;
-
-        // this format is a valid constant for MySQL/Postgres TIMESTAMP as well as SQLite DATETIME values
-        $timestr = date("Y-m-d H:i:s", $timestamp);
-        return $timestr;
+        // Example: 2020-07-24 20:37:08
+        return date("Y-m-d H:i:s", $sec);
     }
 
     /**
      * Creates a condition query on a database column to be used in an SQL WHERE clause.
      *
      * @param rcube_db $dbh The roundcube database handle.
-     * @param string $field Name of the database column. Prefix with ! to invert the condition.
+     * @param string $field Name of the database column.
+     *                      Prefix with ! to invert the condition.
+     *                      Prefix with % to indicate that the value is a pattern to be matched with ILIKE.
+     *                      Prefixes can be combined but must be given in the order listed here.
      * @param ?string|string[] $value The value to check field for. Can be one of the following:
      *          - null: Assert that the field is NULL (or not NULL if inverted)
      *          - string: Assert that the field value matches $value (or does not match value, if inverted)
@@ -554,9 +641,15 @@ abstract class Database
     private static function getConditionQuery(rcube_db $dbh, string $field, $value): string
     {
         $invertCondition = false;
+        $ilike = false;
+
         if ($field[0] === "!") {
             $field = substr($field, 1);
             $invertCondition = true;
+        }
+        if ($field[0] === "%") {
+            $field = substr($field, 1);
+            $ilike = true;
         }
 
         $sql = $dbh->quote_identifier($field);
@@ -564,6 +657,9 @@ abstract class Database
             $sql .= $invertCondition ? ' IS NOT NULL' : ' IS NULL';
         } elseif (is_array($value)) {
             if (count($value) > 0) {
+                if ($ilike) {
+                    throw new \Exception("getConditionQuery $field - ILIKE match only supported for single pattern");
+                }
                 $quoted_values = array_map([ $dbh, 'quote' ], $value);
                 $sql .= $invertCondition ? " NOT IN" : " IN";
                 $sql .= " (" . implode(",", $quoted_values) . ")";
@@ -571,7 +667,12 @@ abstract class Database
                 throw new \Exception("getConditionQuery $field - empty values array provided");
             }
         } else {
-            $sql .= $invertCondition ? ' <> ' : ' = ';
+            if ($ilike) {
+                $ilikecmd = ($dbh->db_provider === "postgres") ? "ILIKE" : "LIKE";
+                $sql .= $invertCondition ? " NOT $ilikecmd " : " $ilikecmd ";
+            } else {
+                $sql .= $invertCondition ? " <> " : " = ";
+            }
             $sql .= $dbh->quote($value);
         }
 
@@ -588,6 +689,16 @@ abstract class Database
         }
 
         return $sql;
+    }
+
+    private static function setDbHandle(rcube_db $dbh): void
+    {
+        self::$dbHandle = $dbh;
+
+        // attempt to enable foreign key constraints on SQLite. May fail if not supported
+        if ($dbh->db_provider == "sqlite") {
+            $dbh->query('PRAGMA FOREIGN_KEYS=ON;');
+        }
     }
 }
 

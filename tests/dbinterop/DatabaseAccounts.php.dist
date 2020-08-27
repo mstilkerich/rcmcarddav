@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
+
+final class DatabaseAccounts
+{
+    /** 
+     * @var array Definitions of test database accounts.
+     *            Each entry maps a DB type (arbitrary name) to a dsnw string as required by roundcube
+     */
+    public const ACCOUNTS = [
+        "SQLite3" => [ "sqlite:///" . __DIR__ . "/../../testreports/test.db?mode=0640" ],
+        "Postgres" => [ "pgsql://rcmcarddav:pwd@localhost/rcmcarddav" ],
+        "MySQL" => [ "mysql://rcmcarddav:pwd@localhost/rcmcarddav" ],
+    ];
+}
+
+// vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120:ft=php

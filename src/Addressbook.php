@@ -165,14 +165,19 @@ class Addressbook extends rcube_addressbook
         ];
 
         try {
-            $this->config   = Database::getAbookCfg($dbid);
+            $this->config = Database::get($dbid, '*', 'addressbooks');
             $this->addextrasubtypes();
             $this->ready = true;
 
             // refresh the address book if the update interval expired
             // this requires a completely initialized Addressbook object, so it
             // needs to be at the end of this constructor
-            if ($this->config["needs_update"]) {
+            $ts_syncdue = $this->checkResyncDue();
+            if ($ts_syncdue <= 0) {
+                // To avoid unneccessary work followed by roll back with other time-triggered refreshes, we
+                // temporarily set the last_updates time such that the next due time will be five minutes from now
+                $ts_delay = time() + 300 - Database::sqlDateTimeToSeconds($this->config["refresh_time"], 0);
+                Database::update($this->id, ["last_updated"], [Database::sqlDateTime($ts_delay)], "addressbooks");
                 $this->resync(true);
             }
         } catch (\Exception $e) {
@@ -498,7 +503,7 @@ class Addressbook extends rcube_addressbook
     public function insert($save_data, $check = false)
     {
         try {
-            carddav::$logger->debug("insert(" . $save_data["name"] . ", $check)");
+            carddav::$logger->info("insert(" . $save_data["name"] . ", $check)");
             $this->preprocessRcubeData($save_data);
             $davAbook = $this->getCardDavObj();
 
@@ -563,11 +568,12 @@ class Addressbook extends rcube_addressbook
     {
         $abook_id = $this->id;
         $deleted = 0;
-        carddav::$logger->debug("delete([" . implode(",", $ids) . "])");
+        carddav::$logger->info("delete([" . implode(",", $ids) . "])");
 
         try {
             $davAbook = $this->getCardDavObj();
 
+            Database::startTransaction();
             $contacts = Database::get($ids, 'id,cuid,uri', 'contacts', false, "id", ["abook_id" => $this->id]);
 
             // make sure we only have contacts in $ids that belong to this addressbook
@@ -586,6 +592,7 @@ class Addressbook extends rcube_addressbook
                     }
                 }
             }
+            Database::endTransaction();
 
             // delete the contact cards from the server
             foreach ($contacts as $contact) {
@@ -598,6 +605,7 @@ class Addressbook extends rcube_addressbook
         } catch (\Exception $e) {
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
             carddav::$logger->error("Failed to delete contacts [" . implode(",", $ids) . "]:" . $e->getMessage());
+            Database::rollbackTransaction();
         }
 
         return $deleted;
@@ -612,22 +620,28 @@ class Addressbook extends rcube_addressbook
     public function delete_all($with_groups = false): void
     {
         try {
-            carddav::$logger->debug("delete_all($with_groups)");
+            carddav::$logger->info("delete_all($with_groups)");
             $davAbook = $this->getCardDavObj();
             $abook_id = $this->id;
 
             // first remove / clear KIND=group vcard-based groups
-            $vcard_groups = Database::get($abook_id, "id,uri,vcard,etag", "groups", false, "abook_id");
+            $vcard_groups = Database::get(
+                $abook_id,
+                "uri,vcard,etag",
+                "groups",
+                false,
+                "abook_id",
+                [ "!vcard" => null ]
+            );
+
             foreach ($vcard_groups as $vcard_group) {
-                if (isset($vcard_group["vcard"])) { // skip CATEGORIES-type groups
-                    if ($with_groups) {
-                        $davAbook->deleteCard($vcard_group["uri"]);
-                    } else {
-                        // create vcard from current DB data to be updated with the new data
-                        $vcard = $this->parseVCard($vcard_group['vcard']);
-                        $vcard->remove('X-ADDRESSBOOKSERVER-MEMBER');
-                        $davAbook->updateCard($vcard_group['uri'], $vcard, $vcard_group['etag']);
-                    }
+                if ($with_groups) {
+                    $davAbook->deleteCard($vcard_group["uri"]);
+                } else {
+                    // create vcard from current DB data to be updated with the new data
+                    $vcard = $this->parseVCard($vcard_group['vcard']);
+                    $vcard->remove('X-ADDRESSBOOKSERVER-MEMBER');
+                    $davAbook->updateCard($vcard_group['uri'], $vcard, $vcard_group['etag']);
                 }
             }
 
@@ -691,33 +705,30 @@ class Addressbook extends rcube_addressbook
     {
         try {
             carddav::$logger->debug("list_groups(" . ($search ?? 'null') . ", $mode)");
-            $dbh = Database::getDbHandle();
 
-            $searchextra = "";
+            $xconditions = [];
             if ($search !== null) {
                 if ($mode & rcube_addressbook::SEARCH_STRICT) {
-                    $searchextra = $dbh->ilike('name', $search);
+                    $xconditions['name'] = $search;
                 } elseif ($mode & rcube_addressbook::SEARCH_PREFIX) {
-                    $searchextra = $dbh->ilike('name', "$search%");
+                    $xconditions['%name'] = "$search%";
                 } else {
-                    $searchextra = $dbh->ilike('name', "%$search%");
+                    $xconditions['%name'] = "%$search%";
                 }
-                $searchextra = ' AND ' . $searchextra;
             }
 
-            $sql_result = $dbh->query(
-                'SELECT id,name from ' .
-                $dbh->table_name('carddav_groups') .
-                ' WHERE abook_id=?' . $searchextra .
-                ' ORDER BY name ASC',
-                $this->id
+            $groups = Database::get($this->id, "id,name", "groups", false, "abook_id", $xconditions);
+
+            foreach ($groups as &$group) {
+                $group['ID'] = $group['id']; // roundcube uses the ID uppercase for groups
+            }
+
+            usort(
+                $groups,
+                function (array $g1, array $g2): int {
+                    return strcasecmp($g1["name"], $g2["name"]);
+                }
             );
-
-            $groups = [];
-            while ($row = $dbh->fetch_assoc($sql_result)) {
-                $row['ID'] = $row['id'];
-                $groups[] = $row;
-            }
 
             return $groups;
         } catch (\Exception $e) {
@@ -764,7 +775,7 @@ class Addressbook extends rcube_addressbook
     public function create_group($name)
     {
         try {
-            carddav::$logger->debug("create_group($name)");
+            carddav::$logger->info("create_group($name)");
             $save_data = [ 'name' => $name, 'kind' => 'group' ];
 
             if ($this->config['use_categories']) {
@@ -777,11 +788,7 @@ class Addressbook extends rcube_addressbook
 
                 $this->resync();
 
-                $group = Database::get((string) $vcard->UID, 'id,name', 'groups', true, 'cuid');
-
-                if (isset($group["id"])) {
-                    return $group;
-                }
+                return Database::get((string) $vcard->UID, 'id,name', 'groups', true, 'cuid');
             }
         } catch (\Exception $e) {
             carddav::$logger->error("create_group($name): " . $e->getMessage());
@@ -802,14 +809,14 @@ class Addressbook extends rcube_addressbook
     public function delete_group($group_id): bool
     {
         try {
-            carddav::$logger->debug("delete_group($group_id)");
+            carddav::$logger->info("delete_group($group_id)");
             $davAbook = $this->getCardDavObj();
 
+            Database::startTransaction(false);
             $group = Database::get($group_id, 'name,uri', 'groups', true, "id", ["abook_id" => $this->id]);
 
             if (isset($group["uri"])) { // KIND=group VCard-based group
                 $davAbook->deleteCard($group["uri"]);
-                $this->resync();
             } else { // CATEGORIES-type group
                 $groupname = $group["name"];
                 $contact_ids = $this->getContactIdsForGroup($group_id);
@@ -824,13 +831,18 @@ class Addressbook extends rcube_addressbook
                             return self::stringsAddRemove($groups, [], [$groupname]);
                         }
                     );
-                    $this->resync();
                 }
             }
+
+            Database::endTransaction();
+            $this->resync();
+
             return true;
         } catch (\Exception $e) {
             carddav::$logger->error("delete_group($group_id): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
+
+            Database::rollbackTransaction();
         }
 
         return false;
@@ -849,9 +861,8 @@ class Addressbook extends rcube_addressbook
     public function rename_group($group_id, $newname, &$newid)
     {
         try {
-            carddav::$logger->debug("rename_group($group_id, $newname)");
+            carddav::$logger->info("rename_group($group_id, $newname)");
             $davAbook = $this->getCardDavObj();
-
             $group = Database::get($group_id, 'uri,name,etag,vcard', 'groups', true, "id", ["abook_id" => $this->id]);
 
             if (isset($group["uri"])) { // KIND=group VCard-based group
@@ -860,7 +871,6 @@ class Addressbook extends rcube_addressbook
                 $vcard->N  = [$newname,"","","",""];
 
                 $davAbook->updateCard($group["uri"], $vcard, $group["etag"]);
-                $this->resync();
             } else { // CATEGORIES-type group
                 $oldname = $group["name"];
                 $contact_ids = $this->getContactIdsForGroup($group_id);
@@ -875,10 +885,11 @@ class Addressbook extends rcube_addressbook
                             return self::stringsAddRemove($groups, [ $newname ], [ $oldname ]);
                         }
                     );
-
-                    $this->resync(); // will insert the contact assignments as a new group
+                    // resync will insert the contact assignments as a new group
                 }
             }
+
+            $this->resync();
             return $newname;
         } catch (\Exception $e) {
             carddav::$logger->error("rename_group($group_id, $newname): " . $e->getMessage());
@@ -908,15 +919,19 @@ class Addressbook extends rcube_addressbook
                 $ids = explode(self::SEPARATOR, $ids);
             }
 
+            Database::startTransaction();
+
             // get current DB data
             $group = Database::get($group_id, 'name,uri,etag,vcard', 'groups', true, "id", ["abook_id" => $this->id]);
 
             // if vcard is set, this group is based on a KIND=group VCard
             if (isset($group['vcard'])) {
+                $contacts = Database::get($ids, "id, cuid", "contacts", false, "id", ["abook_id" => $this->id]);
+                Database::endTransaction();
+
                 // create vcard from current DB data to be updated with the new data
                 $vcard = $this->parseVCard($group['vcard']);
 
-                $contacts = Database::get($ids, "id, cuid", "contacts", false, "id", ["abook_id" => $this->id]);
                 foreach ($contacts as $contact) {
                     try {
                         $vcard->add('X-ADDRESSBOOKSERVER-MEMBER', "urn:uuid:" . $contact['cuid']);
@@ -930,6 +945,7 @@ class Addressbook extends rcube_addressbook
 
             // if vcard is not set, this group comes from the CATEGORIES property of the contacts it comprises
             } else {
+                Database::endTransaction();
                 $groupname = $group["name"];
 
                 $this->adjustContactCategories(
@@ -951,6 +967,8 @@ class Addressbook extends rcube_addressbook
         } catch (\Exception $e) {
             carddav::$logger->error("add_to_group: " . $e->getMessage());
             $this->set_error(self::ERROR_SAVING, $e->getMessage());
+
+            Database::rollbackTransaction();
         }
 
         return $added;
@@ -974,7 +992,9 @@ class Addressbook extends rcube_addressbook
             if (!is_array($ids)) {
                 $ids = explode(self::SEPARATOR, $ids);
             }
-            carddav::$logger->debug("remove_from_group($group_id, [" . implode(",", $ids) . "])");
+            carddav::$logger->info("remove_from_group($group_id, [" . implode(",", $ids) . "])");
+
+            Database::startTransaction();
 
             // get current DB data
             $group = Database::get($group_id, 'name,uri,etag,vcard', 'groups', true, "id", ["abook_id" => $this->id]);
@@ -982,10 +1002,12 @@ class Addressbook extends rcube_addressbook
             // if vcard is set, this group is based on a KIND=group VCard
             if (isset($group['vcard'])) {
                 $contacts = Database::get($ids, "id, cuid", "contacts", false, "id", ["abook_id" => $this->id]);
+                Database::endTransaction();
                 $deleted = $this->removeContactsFromVCardBasedGroup(array_column($contacts, "cuid"), $group);
 
             // if vcard is not set, this group comes from the CATEGORIES property of the contacts it comprises
             } else {
+                Database::endTransaction();
                 $groupname = $group["name"];
 
                 $this->adjustContactCategories(
@@ -1007,6 +1029,8 @@ class Addressbook extends rcube_addressbook
         } catch (\Exception $e) {
             carddav::$logger->error("remove_from_group: " . $e->getMessage());
             $this->set_error(self::ERROR_SAVING, $e->getMessage());
+
+            Database::rollbackTransaction();
         }
 
         return $deleted;
@@ -1184,30 +1208,28 @@ class Addressbook extends rcube_addressbook
     {
         try {
             $start_refresh = time();
-
             $davAbook = $this->getCardDavObj();
-
             $synchandler = new SyncHandlerRoundcube($this);
             $syncmgr = new Sync();
+
             $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token'] ?? "");
-            carddav::updateAddressbook($this->config['id'], array('sync_token' => $sync_token));
             $this->config['sync_token'] = $sync_token;
-            $this->config['needs_update'] = 0;
+            $this->config["last_updated"] = Database::sqlDateTime(time());
+            Database::update($this->id, ["last_updated"], [$this->config["last_updated"]], "addressbooks");
 
             $duration = time() - $start_refresh;
-            carddav::$logger->debug("server refresh took $duration seconds");
-
-            // set last_updated timestamp
-            Database::update($this->id, ["last_updated"], [Database::now()], "addressbooks");
+            carddav::$logger->info("sync of addressbook {$this->id} ({$this->get_name()}) took $duration seconds");
 
             if ($showUIMsg) {
                 $rcmail = rcmail::get_instance();
                 $rcmail->output->show_message(
-                    $this->frontend->gettext(array('name' => 'cd_msg_synchronized', 'vars' => array(
-                        'name' => $this->get_name(),
-                        'duration' => $duration,
-                    )
-                    ))
+                    $this->frontend->gettext([
+                        'name' => 'cd_msg_synchronized',
+                        'vars' => [
+                            'name' => $this->get_name(),
+                            'duration' => $duration,
+                        ]
+                    ])
                 );
 
                 if ($synchandler->hadErrors) {
@@ -1217,9 +1239,10 @@ class Addressbook extends rcube_addressbook
         } catch (\Exception $e) {
             carddav::$logger->error("Errors occurred during the refresh of addressbook " . $this->id . ": $e");
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
+
+            Database::rollbackTransaction();
         }
     }
-
 
     /**
      * Does some common preprocessing with save data created by roundcube.
@@ -1670,10 +1693,8 @@ class Addressbook extends rcube_addressbook
             && strlen($save_data['photo']) > 0
             && base64_decode($save_data['photo'], true) !== false
         ) {
-            carddav::$logger->debug("photo is base64 encoded. Decoding...");
             $i = 0;
             while (base64_decode($save_data['photo'], true) !== false && $i++ < 10) {
-                carddav::$logger->debug("Decoding $i...");
                 $save_data['photo'] = base64_decode($save_data['photo'], true);
             }
             if ($i >= 10) {
@@ -2058,6 +2079,20 @@ class Addressbook extends rcube_addressbook
                 $davAbook->updateCard($contact['uri'], $vcard, $contact['etag']);
             }
         }
+    }
+
+    /**
+     * Determines the due time for the next resync of this addressbook relative to the current time.
+     *
+     * @return int Seconds until next resync is due (negative if resync due time is in the past)
+     */
+    private function checkResyncDue(): int
+    {
+        $ts_now = time();
+        $ts_lastupd = Database::sqlDateTimeToSeconds($this->config["last_updated"], $ts_now);
+        $ts_nextupd = Database::sqlDateTimeToSeconds($this->config["refresh_time"], $ts_lastupd);
+        $ts_diff = ($ts_nextupd - $ts_now);
+        return $ts_diff;
     }
 }
 
