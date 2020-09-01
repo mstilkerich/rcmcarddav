@@ -33,14 +33,16 @@ final class DatabaseSyncTest extends TestCase
         Database::delete("UNITTEST-SYNC%", "migrations", "%filename");
     }
 
-    public function dbProvider(): array
+    public function dbSettings(): array
     {
-        return DatabaseAccounts::ACCOUNTS;
+        return DatabaseAccounts::ACCOUNTS[$GLOBALS["TEST_DBTYPE"]];
     }
 
-    /** @dataProvider dbProvider */
-    public function testOverlappingWriteAborts(string $db_dsnw): void
+    public function testOverlappingWriteAborts(): void
     {
+        $dbsettings = $this->dbSettings();
+        $db_dsnw = $dbsettings[0];
+
         if ($this->split() === 0) {
             $this->initDatabase($db_dsnw);
 

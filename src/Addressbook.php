@@ -25,14 +25,12 @@ namespace MStilkerich\CardDavAddressbook4Roundcube;
 
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
+use rcmail;
 use rcube_addressbook;
 use rcube_result_set;
 use rcube_utils;
 use MStilkerich\CardDavClient\{Account, AddressbookCollection};
 use MStilkerich\CardDavClient\Services\{Discovery, Sync};
-use MStilkerich\CardDavAddressbook4Roundcube\SyncHandlerRoundcube;
-use rcmail;
-use rcube_db;
 use carddav;
 
 class Addressbook extends rcube_addressbook

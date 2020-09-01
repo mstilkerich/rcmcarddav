@@ -1,4 +1,7 @@
 <phpunit colors="true" testdox="true" bootstrap="autoload.php" verbose="true">
+    <php>
+        <var name="TEST_DBTYPE" value="%TEST_DBTYPE%"/>
+    </php>
     <testsuites>
         <testsuite name="dbinteroperability">
             <directory>.</directory>
@@ -12,9 +15,9 @@
     </filter>
 
     <logging>
-        <log type="coverage-html" target="../../testreports/coverage-dbinterop" lowUpperBound="35" highLowerBound="70"/>
+        <log type="coverage-html" target="../../testreports/coverage-dbinterop-%TEST_DBTYPE%" lowUpperBound="35" highLowerBound="70"/>
         <!-- <log type="coverage-text" target="php://stdout" showUncoveredFiles="false"/> -->
-        <log type="testdox-html" target="../../testreports/testdox-dbinteropt.html"/>
+        <log type="testdox-html" target="../../testreports/testdox-dbinterop-%TEST_DBTYPE%.html"/>
     </logging>
 </phpunit>
 
