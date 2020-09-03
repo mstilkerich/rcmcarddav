@@ -16,7 +16,7 @@ final class TestData
      *             first value names the target table, the second value the index in the initialization data of that
      *             table of the record that should be referenced.
      */
-    private static $data = [
+    public static $data = [
         "users" => [
             ["testuser@example.com", "mail.example.com"],
         ],
