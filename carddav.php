@@ -22,6 +22,7 @@
 
 use MStilkerich\CardDavClient\{Account, Config};
 use MStilkerich\CardDavClient\Services\Discovery;
+use Psr\Log\LoggerInterface;
 use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Database, RoundcubeLogger};
 
 // phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
@@ -40,7 +41,7 @@ class carddav extends rcube_plugin
     /** @var array $admin_settings admin settings from config.inc.php */
     private static $admin_settings;
 
-    /** @var RoundcubeLogger $logger */
+    /** @var LoggerInterface $logger */
     public static $logger;
 
     // the dummy task is used by the calendar plugin, which requires
@@ -72,16 +73,16 @@ class carddav extends rcube_plugin
         $this->allowed_prefs = [];
     }
 
-    public function init(): void
+    public function init(array $options = []): void
     {
         try {
             $prefs = self::getAdminSettings();
 
-            self::$logger = new RoundcubeLogger(
+            self::$logger = $options["logger"] ?? new RoundcubeLogger(
                 "carddav",
                 $prefs['_GLOBAL']['loglevel'] ?? \Psr\Log\LogLevel::ERROR
             );
-            $http_logger = new RoundcubeLogger(
+            $http_logger = $options["logger_http"] ?? new RoundcubeLogger(
                 "carddav_http",
                 $prefs['_GLOBAL']['loglevel_http'] ?? \Psr\Log\LogLevel::ERROR
             );
