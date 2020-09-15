@@ -608,6 +608,10 @@ abstract class Database
                 (count($match) > 3 ? intval($match[3]) : 0) * 60 +
                 (count($match) > 5 ? intval($match[5]) : 0);
             return $rel_seconds + $basetime;
+        } elseif ($dateTimeStr == "-infinity") {
+            return 0;
+        } elseif ($dateTimeStr == "infinity") {
+            return PHP_INT_MAX;
         } else {
             return strtotime($dateTimeStr, $basetime);
         }
