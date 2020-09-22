@@ -1,5 +1,26 @@
 # Changelog for RCMCardDAV
 
+## Version 4.0.0 (to 3.0.3)
+
+This release contains changes to DB schema. The database will be migrated automatically upon login to roundcube.
+
+- All changes from 4.0.0-alpha1
+- Fix: Deletion of empty CATEGORIES-type groups
+- Fix: Delete CATEGORIES-type groups from DB that become empty during a sync
+- Fix: Renaming of empty CATEGORIES-type groups
+- Fix: During deletion, do not rely on the DB's ON CASCADE DELETE because this is disabled by default for SQLite
+- Fix: It was not possible to discover multiple addressbooks for an admin preset because of a wrong UNIQUE constraint in
+  MySQL
+- Fix: Catch exceptions thrown inside the plugin (avoid "white page" on error)
+- Increase the maximum lengths of password, email and url fields
+- Use transactions to synchronize concurrent operations on the same addressbook
+  (data consistency issues may still occur with MySQL because of roundcube DB
+  layer bug). For details, see [DBSYNC.md](doc/DBSYNC.md).
+- Unified database indexes across the different database backends: Create indexes for foreign key columns (PostgreSQL,
+  SQLite)
+- Fixed issues in the migration scripts and added SQL scripts showing the current DB schema
+- Update hungarian translation (thanks to @tsabi)
+
 ## Version 4.0.0-alpha1 (to 3.0.3)
 
 Note: The Changelog for this version is not complete
