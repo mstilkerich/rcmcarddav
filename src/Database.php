@@ -672,6 +672,9 @@ abstract class Database
             }
         } else {
             if ($ilike) {
+                if ($dbh->db_provider === "mysql") {
+                    $sql .= " COLLATE utf8mb4_unicode_ci ";
+                }
                 $ilikecmd = ($dbh->db_provider === "postgres") ? "ILIKE" : "LIKE";
                 $sql .= $invertCondition ? " NOT $ilikecmd " : " $ilikecmd ";
             } else {
