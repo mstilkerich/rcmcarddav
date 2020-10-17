@@ -7,7 +7,6 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavAddressbook4Roundcube\{Database};
-use Psr\Log\NullLogger;
 
 final class CarddavTest extends TestCase
 {
@@ -18,11 +17,9 @@ final class CarddavTest extends TestCase
     {
         TestInfrastructure::init();
 
-        $_SESSION["user_id"] = "1";
-
-        $dbsettings = self::dbSettings();
+        $dbsettings = TestInfrastructureDB::dbSettings();
         $db_dsnw = $dbsettings[0];
-        self::initDatabase($db_dsnw);
+        TestInfrastructureDB::initDatabase($db_dsnw);
 
         $dbh = Database::getDbHandle();
         TestData::initDatabase();
@@ -57,21 +54,6 @@ final class CarddavTest extends TestCase
             $this->assertTrue($res["sources"][$id]["autocomplete"]);
             $this->assertTrue($res["sources"][$id]["groups"]);
         }
-    }
-
-    private static function dbSettings(): array
-    {
-        return DatabaseAccounts::ACCOUNTS[$GLOBALS["TEST_DBTYPE"]];
-    }
-
-    private static function initDatabase(string $db_dsnw, string $db_prefix = ""): void
-    {
-        $rcconfig = \rcube::get_instance()->config;
-        $rcconfig->set("db_prefix", $db_prefix, false);
-        $dbh = \rcube_db::factory($db_dsnw);
-        /** @var \Psr\Log\LoggerInterface */
-        $logger = TestInfrastructure::$logger;
-        Database::init($logger, $dbh);
     }
 }
 

@@ -33,18 +33,13 @@ final class DatabaseSyncTest extends TestCase
         Database::delete("UNITTEST-SYNC%", "migrations", "%filename");
     }
 
-    public function dbSettings(): array
-    {
-        return DatabaseAccounts::ACCOUNTS[$GLOBALS["TEST_DBTYPE"]];
-    }
-
     public function testOverlappingWriteAborts(): void
     {
-        $dbsettings = $this->dbSettings();
+        $dbsettings = TestInfrastructureDB::dbSettings();
         $db_dsnw = $dbsettings[0];
 
         if ($this->split() === 0) {
-            $this->initDatabase($db_dsnw);
+            TestInfrastructureDB::initDatabase($db_dsnw);
 
             try {
                 $this->barrierWait("P_TA_START");
@@ -66,7 +61,7 @@ final class DatabaseSyncTest extends TestCase
             }
             exit(0);
         } else {
-            $this->initDatabase($db_dsnw);
+            TestInfrastructureDB::initDatabase($db_dsnw);
             $recordId = Database::insert("migrations", ["filename"], ["UNITTEST-SYNC"]);
 
             try {
@@ -131,16 +126,6 @@ final class DatabaseSyncTest extends TestCase
         if ($recv !== "$id\n") {
             throw new \Exception("Barrier did not return ($recv) with expected ID ($id)");
         }
-    }
-
-    private function initDatabase(string $db_dsnw, string $db_prefix = ""): void
-    {
-        $rcconfig = \rcube::get_instance()->config;
-        $rcconfig->set("db_prefix", $db_prefix, false);
-        $dbh = \rcube_db::factory($db_dsnw);
-        /** @var \Psr\Log\LoggerInterface */
-        $logger = TestInfrastructure::$logger;
-        Database::init($logger, $dbh);
     }
 }
 
