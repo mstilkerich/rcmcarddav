@@ -7,8 +7,8 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
 	url VARCHAR(4095) NOT NULL,
 	active TINYINT UNSIGNED NOT NULL DEFAULT 1,
 	user_id INT(10) UNSIGNED NOT NULL,
-	last_updated TIMESTAMP NOT NULL DEFAULT '1970-01-02 00:00:00', -- time stamp of the last update of the local database (this is in the local timezone, we cannot specify UTC -> therefore, we add one day to the epoch)
-	refresh_time TIME NOT NULL DEFAULT '01:00:00', -- time span after that the local database will be refreshed, default 1h
+	last_updated BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the last update of the local database
+	refresh_time INT NOT NULL DEFAULT 3600, -- time span (seconds) after that the local database will be refreshed, default 1h
 	sync_token TEXT, -- sync-token the server sent us for the last sync
 
 	presetname   VARCHAR(255), -- presetname

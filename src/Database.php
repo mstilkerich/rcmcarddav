@@ -590,43 +590,6 @@ abstract class Database
     }
 
     /**
-     * Converts an SQL time string to seconds since the epoch.
-     *
-     * The given time can be either a date/time string in the format "YYYY-mm-dd HH:MM:SS" or a relative
-     * time string given as "HH:MM:SS". In the latter case, the time stamp will be interpreted relative to the given
-     * basetime.
-     *
-     * @param string $dateTimeStr Either a full date/time string, or a relative time string.
-     * @param int $basetime Timestamp (seconds since epoch) that is used as reference when a relative time is given.
-     * @return int The computed timestamp (seconds since epoch)
-     */
-    public static function sqlDateTimeToSeconds(string $dateTimeStr, int $basetime): int
-    {
-        // relative format: HH:MM:SS
-        if (preg_match('/^(\d\d):([0-5]\d):([0-5]?\d)$/', $dateTimeStr, $match)) {
-            $rel_seconds = intval($match[1]) * 3600 + intval($match[2]) * 60 + intval($match[3]);
-            return $rel_seconds + $basetime;
-        // full date and time string format: "YYYY-mm-dd HH:MM:SS"
-        } elseif (preg_match('/^\d\d\d\d-\d\d-\d\d \d\d:[0-5]\d:[0-5]\d$/', $dateTimeStr)) {
-            return strtotime($dateTimeStr, $basetime);
-        } else {
-            throw new \Exception("sqlDateTimeToSeconds: Unsupported dateTimeStr format: $dateTimeStr");
-        }
-    }
-
-    /**
-     * Return SQL timestamp/datetime for a timestamp value (seconds since epoch).
-     *
-     * @param int $sec Timestamp to convert (current time if not given)
-     * @return string SQL value
-     */
-    public static function sqlDateTime(int $sec): string
-    {
-        // Example: 2020-07-24 20:37:08
-        return date("Y-m-d H:i:s", $sec);
-    }
-
-    /**
      * Creates a condition query on a database column to be used in an SQL WHERE clause.
      *
      * @param rcube_db $dbh The roundcube database handle.
