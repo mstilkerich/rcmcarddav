@@ -14,7 +14,7 @@ CREATE TABLE TABLE_PREFIXcarddav_addressbooks (
 	url TEXT NOT NULL,
 	active SMALLINT NOT NULL DEFAULT 1,
 	user_id integer NOT NULL REFERENCES TABLE_PREFIXusers (user_id) ON DELETE CASCADE ON UPDATE CASCADE,
-	last_updated TIMESTAMP NOT NULL DEFAULT '-infinity', -- time stamp of the last update of the local database
+	last_updated TIMESTAMP NOT NULL DEFAULT TIMESTAMP WITH TIME ZONE '1970-01-01 00:00:00+00', -- time stamp of the last update of the local database
 	refresh_time INTERVAL NOT NULL DEFAULT '01:00:00', -- time span after that the local database will be refreshed, default 1h
 	sync_token TEXT NOT NULL DEFAULT '', -- sync-token the server sent us for the last sync
 

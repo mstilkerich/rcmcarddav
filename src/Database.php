@@ -602,18 +602,15 @@ abstract class Database
      */
     public static function sqlDateTimeToSeconds(string $dateTimeStr, int $basetime): int
     {
-        if (preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $dateTimeStr, $match)) {
-            $rel_seconds =
-                intval($match[1]) * 3600 +
-                (count($match) > 3 ? intval($match[3]) : 0) * 60 +
-                (count($match) > 5 ? intval($match[5]) : 0);
+        // relative format: HH:MM:SS
+        if (preg_match('/^(\d\d):([0-5]\d):([0-5]?\d)$/', $dateTimeStr, $match)) {
+            $rel_seconds = intval($match[1]) * 3600 + intval($match[2]) * 60 + intval($match[3]);
             return $rel_seconds + $basetime;
-        } elseif ($dateTimeStr == "-infinity") {
-            return 0;
-        } elseif ($dateTimeStr == "infinity") {
-            return PHP_INT_MAX;
-        } else {
+        // full date and time string format: "YYYY-mm-dd HH:MM:SS"
+        } elseif (preg_match('/^\d\d\d\d-\d\d-\d\d \d\d:[0-5]\d:[0-5]\d$/', $dateTimeStr)) {
             return strtotime($dateTimeStr, $basetime);
+        } else {
+            throw new \Exception("sqlDateTimeToSeconds: Unsupported dateTimeStr format: $dateTimeStr");
         }
     }
 
