@@ -35,12 +35,6 @@ use carddav;
 
 class Addressbook extends rcube_addressbook
 {
-    /**
-     * @var int MAX_PHOTO_SIZE Maximum size of a photo dimension in pixels.
-     *   Used when a photo is cropped for the X-ABCROP-RECTANGLE extension.
-     */
-    private const MAX_PHOTO_SIZE = 256;
-
     /** @var string SEPARATOR Separator character used by roundcube to encode multiple values in a single string. */
     private const SEPARATOR = ',';
 
@@ -56,8 +50,8 @@ class Addressbook extends rcube_addressbook
     /** @var array $coltypes */
     public $coltypes;
 
-    /** @var array $fallbacktypes */
-    private $fallbacktypes = array( 'email' => array('internet') );
+    /** @var DataConversion $dataConverter to convert between VCard and roundcube's representation of contacts. */
+    private $dataConverter;
 
     /** @var string $id database ID of the addressbook */
     private $id;
@@ -76,9 +70,6 @@ class Addressbook extends rcube_addressbook
     /** @var array $config configuration of the addressbook */
     private $config;
 
-    /** @var array $xlabels custom labels defined in the addressbook */
-    private $xlabels = [];
-
     /** @var int total number of contacts in address book. Negative if not computed yet. */
     private $total_cards = -1;
 
@@ -88,36 +79,6 @@ class Addressbook extends rcube_addressbook
      */
     private $table_cols = ['id', 'name', 'email', 'firstname', 'surname'];
 
-    /** @var array $vcf2rc maps VCard property names to roundcube keys */
-    private $vcf2rc = array(
-        'simple' => array(
-            'BDAY' => 'birthday',
-            'FN' => 'name',
-            'NICKNAME' => 'nickname',
-            'NOTE' => 'notes',
-            'PHOTO' => 'photo',
-            'TITLE' => 'jobtitle',
-            'UID' => 'cuid',
-            'X-ABShowAs' => 'showas',
-            'X-ANNIVERSARY' => 'anniversary',
-            'X-ASSISTANT' => 'assistant',
-            'X-GENDER' => 'gender',
-            'X-MANAGER' => 'manager',
-            'X-SPOUSE' => 'spouse',
-            // the two kind attributes should not occur both in the same vcard
-            //'KIND' => 'kind',   // VCard v4
-            'X-ADDRESSBOOKSERVER-KIND' => 'kind', // Apple Addressbook extension
-        ),
-        'multi' => array(
-            'EMAIL' => 'email',
-            'TEL' => 'phone',
-            'URL' => 'website',
-        ),
-    );
-
-    /** @var array $datefields list of potential date fields for formatting */
-    private $datefields = array('birthday', 'anniversary');
-
     public function __construct(string $dbid, carddav $frontend, bool $readonly, array $requiredProps)
     {
         $this->frontend = $frontend;
@@ -125,48 +86,14 @@ class Addressbook extends rcube_addressbook
         $this->readonly = $readonly;
         $this->requiredProps = $requiredProps;
         $this->id       = $dbid;
-        // XXX roundcube has further default types: maidenname, im
-        $this->coltypes = [
-            'name' => [],
-            'firstname' => [],
-            'surname' => [],
-            'email' => [
-                'subtypes' => ['home','work','other','internet'],
-            ],
-            'middlename' => [],
-            'prefix' => [],
-            'suffix' => [],
-            'nickname' => [],
-            'jobtitle' => [],
-            'organization' => [],
-            'department' => [],
-            'gender' => [],
-            'phone' => [
-                'subtypes' => [
-                    'home','home2','work','work2','mobile','main','homefax','workfax','car','pager','video',
-                    'assistant','other'
-                ],
-            ],
-            'address' => [
-                'subtypes' => ['home','work','other'],
-            ],
-            'birthday' => [],
-            'anniversary' => [],
-            'website' => [
-                'subtypes' => ['homepage','work','blog','profile','other'],
-            ],
-            'notes' => [],
-            'photo' => [],
-            'assistant' => [],
-            'manager' => [],
-            'spouse' => [],
-        ];
+
+        $this->dataConverter = new DataConversion($dbid);
+        $this->coltypes = $this->dataConverter->getColtypes();
+
+        $this->config = Database::get($dbid, '*', 'addressbooks');
+        $this->ready = true;
 
         try {
-            $this->config = Database::get($dbid, '*', 'addressbooks');
-            $this->addextrasubtypes();
-            $this->ready = true;
-
             // refresh the address book if the update interval expired
             // this requires a completely initialized Addressbook object, so it
             // needs to be at the end of this constructor
@@ -179,9 +106,7 @@ class Addressbook extends rcube_addressbook
                 $this->resync(true);
             }
         } catch (\Exception $e) {
-            carddav::$logger->error("Failed to construct addressbook: " . $e->getMessage());
-            $this->ready = false;
-            $this->config = [];
+            carddav::$logger->error("Failed to sync addressbook: " . $e->getMessage());
         }
     }
 
@@ -304,7 +229,7 @@ class Addressbook extends rcube_addressbook
         $dbh = Database::getDbHandle();
 
         if (!is_array($fields)) {
-            $fields = array($fields);
+            $fields = [$fields];
         }
         if (!is_array($required)) {
             $required = empty($required) ? [] : [$required];
@@ -348,7 +273,7 @@ class Addressbook extends rcube_addressbook
         // Post-searching in vCard data fields
         // we will search in all records and then build a where clause for their IDs
         if (!empty($post_search)) {
-            $ids = array(0);
+            $ids = [0];
             // build key name regexp
             $regexp = '/^(' . implode('|', array_keys($post_search)) . ')(?:.*)$/';
             // use initial WHERE clause, to limit records number if possible
@@ -472,9 +397,10 @@ class Addressbook extends rcube_addressbook
         try {
             carddav::$logger->debug("get_record($id, $assoc)");
 
+            $davAbook = $this->getCardDavObj();
             $contact = Database::get($id, 'vcard', 'contacts', true, 'id', ["abook_id" => $this->id]);
             $vcard = $this->parseVCard($contact['vcard']);
-            [ 'save_data' => $save_data ] = $this->convVCard2Rcube($vcard);
+            [ 'save_data' => $save_data ] = $this->dataConverter->toRoundcube($vcard, $davAbook);
             $save_data['ID'] = $id;
 
             $this->result = new rcube_result_set(1);
@@ -502,11 +428,12 @@ class Addressbook extends rcube_addressbook
     {
         try {
             carddav::$logger->info("insert(" . $save_data["name"] . ", $check)");
-            $this->preprocessRcubeData($save_data);
-            $davAbook = $this->getCardDavObj();
 
-            $vcard = $this->convRcube2VCard($save_data);
+            $vcard = $this->dataConverter->fromRoundcube($save_data);
+
+            $davAbook = $this->getCardDavObj();
             $davAbook->createCard($vcard);
+
             $this->resync();
             $contact = Database::get((string) $vcard->UID, 'id', 'contacts', true, 'cuid', ["abook_id" => $this->id]);
 
@@ -523,27 +450,26 @@ class Addressbook extends rcube_addressbook
      * Update a specific contact record
      *
      * @param mixed $id        Record identifier
-     * @param array $save_data Associative array with save data
+     * @param array $save_cols Associative array with save data
      *  Keys:   Field name with optional section in the form FIELD:SECTION
      *  Values: Field value. Can be either a string or an array of strings for multiple values
      *
      * @return mixed On success if ID has been changed returns ID, otherwise True, False on error
      */
-    public function update($id, $save_data)
+    public function update($id, $save_cols)
     {
         try {
-            // complete save_data
-            $this->preprocessRcubeData($save_data);
-            $davAbook = $this->getCardDavObj();
-
             // get current DB data
             $contact = Database::get($id, "uri,etag,vcard,showas", "contacts", true, "id", ["abook_id" => $this->id]);
-            $save_data['showas'] = $contact['showas'];
+            $save_cols['showas'] = $contact['showas'];
 
             // create vcard from current DB data to be updated with the new data
             $vcard = $this->parseVCard($contact['vcard']);
-            $vcard = $this->convRcube2VCard($save_data, $vcard);
+            $vcard = $this->dataConverter->fromRoundcube($save_cols, $vcard);
+
+            $davAbook = $this->getCardDavObj();
             $davAbook->updateCard($contact['uri'], $vcard, $contact['etag']);
+
             $this->resync();
 
             return true;
@@ -781,7 +707,7 @@ class Addressbook extends rcube_addressbook
                 return [ 'id' => $groupid, 'name' => $name ];
             } else {
                 $davAbook = $this->getCardDavObj();
-                $vcard = $this->convRcube2VCard($save_data);
+                $vcard = $this->dataConverter->fromRoundcube($save_data, null, true);
                 $davAbook->createCard($vcard);
 
                 $this->resync();
@@ -1078,126 +1004,6 @@ class Addressbook extends rcube_addressbook
 
 
     /**
-     * Creates the roundcube representation of a contact from a VCard.
-     *
-     * If the card contains a URI referencing an external photo, this
-     * function will download the photo and inline it into the VCard.
-     * The returned array contains a boolean that indicates that the
-     * VCard was modified and should be stored to avoid repeated
-     * redownloads of the photo in the future. The returned VCard
-     * object contains the modified representation and can be used
-     * for storage.
-     *
-     * @param  VCard $vcard Sabre VCard object
-     *
-     * @return array associative array with keys:
-     *           - save_data:    Roundcube representation of the VCard
-     *           - vcf:          VCard object created from the given VCard
-     *           - needs_update: boolean that indicates whether the card was modified
-     */
-    public function convVCard2Rcube(VCard $vcard): array
-    {
-        $needs_update = false;
-        $save_data = array(
-            // DEFAULTS
-            'kind'   => 'individual',
-        );
-
-        foreach ($this->vcf2rc['simple'] as $vkey => $rckey) {
-            $property = $vcard->{$vkey};
-            if ($property !== null) {
-                $p = $property->getParts();
-                $save_data[$rckey] = $p[0];
-            }
-        }
-
-        // inline photo if external reference
-        // note: isset($vcard->PHOTO) is true if $save_data['photo'] exists, the check
-        // is for the static analyzer
-        if (key_exists('photo', $save_data) && isset($vcard->PHOTO)) {
-            $kind = $vcard->PHOTO['VALUE'];
-            if (($kind instanceof VObject\Parameter) && strcasecmp('uri', (string) $kind) == 0) {
-                if ($this->downloadPhoto($save_data)) {
-                    $props = [];
-                    foreach ($vcard->PHOTO->parameters() as $property => $value) {
-                        if (strcasecmp($property, 'VALUE') != 0) {
-                            $props[$property] = $value;
-                        }
-                    }
-                    $props['ENCODING'] = 'b';
-                    unset($vcard->PHOTO);
-                    $vcard->add('PHOTO', $save_data['photo'], $props);
-                    $needs_update = true;
-                }
-            }
-            self::xabcropphoto($vcard, $save_data);
-        }
-
-        $property = $vcard->N;
-        if (isset($property)) {
-            $N = $property->getParts();
-            switch (count($N)) {
-                case 5:
-                    $save_data['suffix']     = $N[4]; // fall through
-                case 4:
-                    $save_data['prefix']     = $N[3]; // fall through
-                case 3:
-                    $save_data['middlename'] = $N[2]; // fall through
-                case 2:
-                    $save_data['firstname']  = $N[1]; // fall through
-                case 1:
-                    $save_data['surname']    = $N[0];
-            }
-        }
-
-        $property = $vcard->ORG;
-        if ($property) {
-            $ORG = $property->getParts();
-            $save_data['organization'] = $ORG[0];
-            for ($i = 1; $i <= count($ORG); $i++) {
-                $save_data['department'][] = $ORG[$i];
-            }
-        }
-
-        foreach ($this->vcf2rc['multi'] as $key => $value) {
-            $property = $vcard->{$key};
-            if ($property !== null) {
-                foreach ($property as $property_instance) {
-                    $p = $property_instance->getParts();
-                    $label = $this->getAttrLabel($vcard, $property_instance, $value);
-                    $save_data[$value . ':' . $label][] = $p[0];
-                }
-            }
-        }
-
-        $property = ($vcard->ADR) ?: [];
-        foreach ($property as $property_instance) {
-            $p = $property_instance->getParts();
-            $label = $this->getAttrLabel($vcard, $property_instance, 'address');
-            $adr = array(
-                'pobox'    => $p[0], // post office box
-                'extended' => $p[1], // extended address
-                'street'   => $p[2], // street address
-                'locality' => $p[3], // locality (e.g., city)
-                'region'   => $p[4], // region (e.g., state or province)
-                'zipcode'  => $p[5], // postal code
-                'country'  => $p[6], // country name
-            );
-            $save_data['address:' . $label][] = $adr;
-        }
-
-        // set displayname according to settings
-        self::setDisplayname($save_data);
-
-        return array(
-            'save_data'    => $save_data,
-            'vcf'          => $vcard,
-            'needs_update' => $needs_update,
-        );
-    }
-
-
-    /**
      * Synchronizes the local card store with the CardDAV server.
      *
      * @param bool $showUIMsg Whether or not to issue a sync completion notification to the Roundcube UI.
@@ -1207,7 +1013,7 @@ class Addressbook extends rcube_addressbook
         try {
             $start_refresh = time();
             $davAbook = $this->getCardDavObj();
-            $synchandler = new SyncHandlerRoundcube($this);
+            $synchandler = new SyncHandlerRoundcube($this, $this->dataConverter, $davAbook);
             $syncmgr = new Sync();
 
             $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token'] ?? "");
@@ -1247,32 +1053,6 @@ class Addressbook extends rcube_addressbook
         }
     }
 
-    /**
-     * Does some common preprocessing with save data created by roundcube.
-     */
-    public function preprocessRcubeData(array &$save_data): void
-    {
-        // heuristic to determine X-ABShowAs setting
-        // organization set but neither first nor surname => showas company
-        if (
-            !$save_data['surname'] && !$save_data['firstname']
-            && $save_data['organization'] && !key_exists('showas', $save_data)
-        ) {
-            $save_data['showas'] = 'COMPANY';
-        }
-        if (!key_exists('showas', $save_data)) {
-            $save_data['showas'] = 'INDIVIDUAL';
-        }
-        // organization not set but showas==company => show as regular
-        if (!$save_data['organization'] && $save_data['showas'] === 'COMPANY') {
-            $save_data['showas'] = 'INDIVIDUAL';
-        }
-
-        // generate display name according to display order setting
-        self::setDisplayname($save_data);
-    }
-
-
     public static function stringsAddRemove(array &$in, array $add = [], array $rm = []): bool
     {
         $changes = false;
@@ -1304,94 +1084,6 @@ class Addressbook extends rcube_addressbook
     /************************************************************************
      *                            PRIVATE FUNCTIONS
      ***********************************************************************/
-
-    /**
-     * Stores a custom label in the database (X-ABLabel extension).
-     *
-     * @param string Name of the type/category (phone,address,email)
-     * @param string Name of the custom label to store for the type
-     */
-    private function storeextrasubtype(string $typename, string $subtype): void
-    {
-        Database::insert("xsubtypes", ["typename", "subtype", "abook_id"], [$typename, $subtype, $this->id]);
-    }
-
-    /**
-     * Adds known custom labels to the roundcube subtype list (X-ABLabel extension).
-     *
-     * Reads the previously seen custom labels from the database and adds them to the
-     * roundcube subtype list in #coltypes and additionally stores them in the #xlabels
-     * list.
-     */
-    private function addextrasubtypes(): void
-    {
-        $this->xlabels = [];
-
-        foreach ($this->coltypes as $k => $v) {
-            if (key_exists('subtypes', $v)) {
-                $this->xlabels[$k] = [];
-            }
-        }
-
-        // read extra subtypes
-        $xtypes = Database::get($this->id, 'typename,subtype', 'xsubtypes', false, 'abook_id');
-
-        foreach ($xtypes as $row) {
-            $this->coltypes[$row['typename']]['subtypes'][] = $row['subtype'];
-            $this->xlabels[$row['typename']][] = $row['subtype'];
-        }
-    }
-
-
-    /**
-     * Determines the name to be displayed for a contact. The routine
-     * distinguishes contact cards for individuals from organizations.
-     */
-    private static function setDisplayname(array &$save_data): void
-    {
-        if (strcasecmp($save_data['showas'], 'COMPANY') == 0 && strlen($save_data['organization']) > 0) {
-            $save_data['name']     = $save_data['organization'];
-        }
-
-        // we need a displayname; if we do not have one, try to make one up
-        if (strlen($save_data['name']) == 0) {
-            $dname = [];
-            if (strlen($save_data['firstname']) > 0) {
-                $dname[] = $save_data['firstname'];
-            }
-            if (strlen($save_data['surname']) > 0) {
-                $dname[] = $save_data['surname'];
-            }
-
-            if (count($dname) > 0) {
-                $save_data['name'] = implode(' ', $dname);
-            } else { // no name? try email and phone
-                $ep_keys = array_keys($save_data);
-                $ep_keys = preg_grep(";^(email|phone):;", $ep_keys);
-                sort($ep_keys, SORT_STRING);
-                foreach ($ep_keys as $ep_key) {
-                    $ep_vals = $save_data[$ep_key];
-                    if (!is_array($ep_vals)) {
-                        $ep_vals = array($ep_vals);
-                    }
-
-                    foreach ($ep_vals as $ep_val) {
-                        if (strlen($ep_val) > 0) {
-                            $save_data['name'] = $ep_val;
-                            break 2;
-                        }
-                    }
-                }
-            }
-
-            // still no name? set to unknown and hope the user will fix it
-            if (strlen($save_data['name']) == 0) {
-                $save_data['name'] = 'Unset Displayname';
-            }
-        }
-    }
-
-
     private function listRecordsReadDB(?array $cols, int $subset, rcube_result_set $result): int
     {
         $dbh = Database::getDbHandle();
@@ -1446,7 +1138,8 @@ class Addressbook extends rcube_addressbook
             if ($read_vcard) {
                 try {
                     $vcf = $this->parseVCard($contact['vcard']);
-                    $save_data = $this->convVCard2Rcube($vcf);
+                    $davAbook = $this->getCardDavObj();
+                    $save_data = $this->dataConverter->toRoundcube($vcf, $davAbook);
                 } catch (\Exception $e) {
                     $save_data = false;
                 }
@@ -1473,7 +1166,7 @@ class Addressbook extends rcube_addressbook
                     }
                 }
             }
-            $addresses[] = array('ID' => $contact['id'], 'name' => $contact['name'], 'save_data' => $save_data);
+            $addresses[] = ['ID' => $contact['id'], 'name' => $contact['name'], 'save_data' => $save_data];
         }
 
         // create results for roundcube
@@ -1611,357 +1304,6 @@ class Addressbook extends rcube_addressbook
         return $vcard;
     }
 
-    private function guid(): string
-    {
-        return sprintf(
-            '%04X%04X-%04X-%04X-%04X-%04X%04X%04X',
-            mt_rand(0, 65535),
-            mt_rand(0, 65535),
-            mt_rand(0, 65535),
-            mt_rand(16384, 20479),
-            mt_rand(32768, 49151),
-            mt_rand(0, 65535),
-            mt_rand(0, 65535),
-            mt_rand(0, 65535)
-        );
-    }
-
-    /**
-     * Creates a new or updates an existing vcard from save data.
-     */
-    private function convRcube2VCard(array $save_data, VCard $vcard = null): VCard
-    {
-        unset($save_data['vcard']);
-        if (isset($vcard)) {
-            // update revision
-            $vcard->REV = gmdate("Y-m-d\TH:i:s\Z");
-        } else {
-            // create fresh minimal vcard
-            $vcard = new VObject\Component\VCard([
-                'REV' => gmdate("Y-m-d\TH:i:s\Z"),
-                'VERSION' => '3.0'
-            ]);
-        }
-
-        // N is mandatory
-        if (key_exists('kind', $save_data) && $save_data['kind'] === 'group') {
-            $vcard->N = [$save_data['name'],"","","",""];
-        } else {
-            $vcard->N = [
-                $save_data['surname'],
-                $save_data['firstname'],
-                $save_data['middlename'],
-                $save_data['prefix'],
-                $save_data['suffix'],
-            ];
-        }
-
-        $new_org_value = [];
-        if (
-            key_exists("organization", $save_data)
-            && strlen($save_data['organization']) > 0
-        ) {
-            $new_org_value[] = $save_data['organization'];
-        }
-
-        if (key_exists("department", $save_data)) {
-            if (is_array($save_data['department'])) {
-                foreach ($save_data['department'] as $key => $value) {
-                    $new_org_value[] = $value;
-                }
-            } elseif (strlen($save_data['department']) > 0) {
-                $new_org_value[] = $save_data['department'];
-            }
-        }
-
-        if (count($new_org_value) > 0) {
-            $vcard->ORG = $new_org_value;
-        } else {
-            unset($vcard->ORG);
-        }
-
-        // normalize date fields to RFC2425 YYYY-MM-DD date values
-        foreach ($this->datefields as $key) {
-            if (key_exists($key, $save_data)) {
-                $data = (is_array($save_data[$key])) ?  $save_data[$key][0] : $save_data[$key];
-                if (strlen($data) > 0) {
-                    $val = rcube_utils::strtotime($data);
-                    $save_data[$key] = date('Y-m-d', $val);
-                }
-            }
-        }
-
-        if (
-            key_exists('photo', $save_data)
-            && strlen($save_data['photo']) > 0
-            && base64_decode($save_data['photo'], true) !== false
-        ) {
-            $i = 0;
-            while (base64_decode($save_data['photo'], true) !== false && $i++ < 10) {
-                $save_data['photo'] = base64_decode($save_data['photo'], true);
-            }
-            if ($i >= 10) {
-                carddav::$logger->warning("PHOTO of " . $save_data['uid'] . " does not decode after 10 attempts...");
-            }
-        }
-
-        // process all simple attributes
-        foreach ($this->vcf2rc['simple'] as $vkey => $rckey) {
-            if (key_exists($rckey, $save_data)) {
-                $data = (is_array($save_data[$rckey])) ? $save_data[$rckey][0] : $save_data[$rckey];
-                if (strlen($data) > 0) {
-                    $vcard->{$vkey} = $data;
-                } else { // delete the field
-                    unset($vcard->{$vkey});
-                }
-            }
-        }
-
-        // Special handling for PHOTO
-        if ($property = $vcard->PHOTO) {
-            $property['ENCODING'] = 'B';
-            $property['VALUE'] = 'BINARY';
-        }
-
-        // process all multi-value attributes
-        foreach ($this->vcf2rc['multi'] as $vkey => $rckey) {
-            // delete and fully recreate all entries
-            // there is no easy way of mapping an address in the existing card
-            // to an address in the save data, as subtypes may have changed
-            unset($vcard->{$vkey});
-
-            $stmap = array( $rckey => 'other' );
-            foreach ($this->coltypes[$rckey]['subtypes'] as $subtype) {
-                $stmap[ $rckey . ':' . $subtype ] = $subtype;
-            }
-
-            foreach ($stmap as $rcqkey => $subtype) {
-                if (key_exists($rcqkey, $save_data)) {
-                    $avalues = is_array($save_data[$rcqkey]) ? $save_data[$rcqkey] : array($save_data[$rcqkey]);
-                    foreach ($avalues as $evalue) {
-                        if (strlen($evalue) > 0) {
-                            $prop = $vcard->add($vkey, $evalue);
-                            if (!($prop instanceof VObject\Property)) {
-                                throw new \Exception("Sabre did not return a propertyafter adding $vkey property");
-                            }
-                            $this->setAttrLabel($vcard, $prop, $rckey, $subtype); // set label
-                        }
-                    }
-                }
-            }
-        }
-
-        // process address entries
-        unset($vcard->ADR);
-        foreach ($this->coltypes['address']['subtypes'] as $subtype) {
-            $rcqkey = 'address:' . $subtype;
-
-            if (is_array($save_data[$rcqkey])) {
-                foreach ($save_data[$rcqkey] as $avalue) {
-                    if (
-                        strlen($avalue['street'])
-                        || strlen($avalue['locality'])
-                        || strlen($avalue['region'])
-                        || strlen($avalue['zipcode'])
-                        || strlen($avalue['country'])
-                    ) {
-                        $prop = $vcard->add('ADR', [
-                            '',
-                            '',
-                            $avalue['street'],
-                            $avalue['locality'],
-                            $avalue['region'],
-                            $avalue['zipcode'],
-                            $avalue['country'],
-                        ]);
-
-                        if (!($prop instanceof VObject\Property)) {
-                            throw new \Exception("Sabre did not provide a property object when adding ADR");
-                        }
-                        $this->setAttrLabel($vcard, $prop, 'address', $subtype); // set label
-                    }
-                }
-            }
-        }
-
-        return $vcard;
-    }
-
-    private function setAttrLabel(
-        VCard $vcard,
-        VObject\Property $pvalue,
-        string $attrname,
-        string $newlabel
-    ): bool {
-        $group = $pvalue->group;
-
-        // X-ABLabel?
-        if (in_array($newlabel, $this->xlabels[$attrname])) {
-            if (!$group) {
-                do {
-                    $group = $this->guid();
-                } while (null !== $vcard->{$group . '.X-ABLabel'});
-
-                $pvalue->group = $group;
-
-                // delete standard label if we had one
-                $oldlabel = $pvalue['TYPE'];
-                if (
-                    ($oldlabel instanceof VObject\Parameter)
-                    && (strlen((string) $oldlabel) > 0)
-                    && in_array($oldlabel, $this->coltypes[$attrname]['subtypes'])
-                ) {
-                    unset($pvalue['TYPE']);
-                }
-            }
-
-            $vcard->{$group . '.X-ABLabel'} = $newlabel;
-            return true;
-        }
-
-        // Standard Label
-        $had_xlabel = false;
-        if ($group) { // delete group label property if present
-            $had_xlabel = isset($vcard->{$group . '.X-ABLabel'});
-            unset($vcard->{$group . '.X-ABLabel'});
-        }
-
-        // add or replace?
-        $oldlabel = $pvalue['TYPE'];
-        if (
-            ($oldlabel instanceof VObject\Parameter)
-            && (strlen((string) $oldlabel) > 0)
-            && in_array((string) $oldlabel, $this->coltypes[$attrname]['subtypes'])
-        ) {
-            $had_xlabel = false; // replace
-        }
-
-        if ($had_xlabel && is_array($pvalue['TYPE'])) {
-            $new_type = $pvalue['TYPE'];
-            array_unshift($new_type, $newlabel);
-        } else {
-            $new_type = $newlabel;
-        }
-        $pvalue['TYPE'] = $new_type;
-
-        return false;
-    }
-
-    private function getAttrLabel(VCard $vcard, VObject\Property $pvalue, string $attrname): string
-    {
-        // prefer a known standard label if available
-        $xlabel = '';
-        $fallback = null;
-
-        if (isset($pvalue['TYPE'])) {
-            foreach ($pvalue['TYPE'] as $type) {
-                $type = strtolower($type);
-                if (
-                    is_array($this->coltypes[$attrname]['subtypes'])
-                    && in_array($type, $this->coltypes[$attrname]['subtypes'])
-                ) {
-                    $fallback = $type;
-                    if (
-                        !(is_array($this->fallbacktypes[$attrname])
-                        && in_array($type, $this->fallbacktypes[$attrname]))
-                    ) {
-                        return $type;
-                    }
-                }
-            }
-        }
-
-        if ($fallback) {
-            return $fallback;
-        }
-
-        // check for a custom label using Apple's X-ABLabel extension
-        $group = $pvalue->group;
-        if ($group) {
-            $xlabel = $vcard->{$group . '.X-ABLabel'};
-            if ($xlabel) {
-                $xlabel = $xlabel->getParts();
-                if ($xlabel) {
-                    $xlabel = $xlabel[0];
-                }
-            }
-
-            // strange Apple label that I don't know to interpret
-            if (strlen($xlabel) <= 0) {
-                return 'other';
-            }
-
-            if (preg_match(';_\$!<(.*)>!\$_;', $xlabel, $matches)) {
-                $match = strtolower($matches[1]);
-                if (in_array($match, $this->coltypes[$attrname]['subtypes'])) {
-                    return $match;
-                }
-                return 'other';
-            }
-
-            // add to known types if new
-            if (!in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
-                $this->storeextrasubtype($attrname, $xlabel);
-                $this->coltypes[$attrname]['subtypes'][] = $xlabel;
-            }
-            return $xlabel;
-        }
-
-        return 'other';
-    }
-
-    private function downloadPhoto(array &$save_data): bool
-    {
-        $uri = $save_data['photo'];
-        try {
-            $davAbook = $this->getCardDavObj();
-            carddav::$logger->warning("downloadPhoto: Attempt to download photo from $uri");
-            $response = $davAbook->downloadResource($uri);
-            $save_data['photo'] = $response['body'];
-        } catch (\Exception $e) {
-            carddav::$logger->warning("downloadPhoto: Attempt to download photo from $uri failed: $e");
-            return false;
-        }
-
-        return true;
-    }
-
-    private static function xabcropphoto(VCard $vcard, array &$save_data): VCard
-    {
-        if (!function_exists('gd_info') || $vcard == null) {
-            return $vcard;
-        }
-        $photo = $vcard->PHOTO;
-        if ($photo == null) {
-            return $vcard;
-        }
-        $abcrop = $photo['X-ABCROP-RECTANGLE'];
-        if (!($abcrop instanceof VObject\Parameter)) {
-            return $vcard;
-        }
-
-        $parts = explode('&', (string) $abcrop);
-        $x = intval($parts[1]);
-        $y = intval($parts[2]);
-        $w = intval($parts[3]);
-        $h = intval($parts[4]);
-        $dw = min($w, self::MAX_PHOTO_SIZE);
-        $dh = min($h, self::MAX_PHOTO_SIZE);
-
-        $src = imagecreatefromstring((string) $photo);
-        $dst = imagecreatetruecolor($dw, $dh);
-        imagecopyresampled($dst, $src, 0, 0, $x, imagesy($src) - $y - $h, $dw, $dh, $w, $h);
-
-        ob_start();
-        imagepng($dst);
-        $data = ob_get_contents();
-        ob_end_clean();
-        $save_data['photo'] = $data;
-
-        return $vcard;
-    }
-
-
     /**
      * Removes a list of contacts from a KIND=group VCard-based group and updates the group on the server.
      *
@@ -2006,10 +1348,6 @@ class Addressbook extends rcube_addressbook
 
     /**
      * Creates the AddressbookCollection object of the CardDavClient library.
-     *
-     * This should only be called when interaction with the server is needed, as creation
-     * of the object already involves communication with the server to query the properties
-     * of the addressbook collection.
      */
     private function getCardDavObj(): AddressbookCollection
     {

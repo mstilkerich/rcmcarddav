@@ -40,9 +40,18 @@ class SyncHandlerRoundcube implements SyncHandler
     /** @var string[] a list of group IDs that may be cleared from the DB if empty and CATEGORIES-type */
     private $clearGroupCandidates = [];
 
-    public function __construct(Addressbook $rcAbook)
+    /** @var DataConversion $dataConverter to convert between VCard and roundcube's representation of contacts. */
+    private $dataConverter;
+
+    /** @var AddressbookCollection $davAbook */
+    private $davAbook;
+
+    public function __construct(Addressbook $rcAbook, DataConversion $dataConverter, AddressbookCollection $davAbook)
     {
         $this->rcAbook = $rcAbook;
+        $this->dataConverter = $dataConverter;
+        $this->davAbook = $davAbook;
+
         $abookId = $this->rcAbook->getId();
 
         // determine existing local contact URIs and ETAGs
@@ -277,7 +286,7 @@ class SyncHandlerRoundcube implements SyncHandler
         $dbh = Database::getDbHandle();
 
         // card may be changed during conversion, in particular inlining of the PHOTO
-        [ 'save_data' => $save_data, 'vcf' => $card ] = $this->rcAbook->convVCard2Rcube($card);
+        [ 'save_data' => $save_data, 'vcf' => $card ] = $this->dataConverter->toRoundcube($card, $this->davAbook);
         carddav::$logger->info("Changed Individual $uri " . $save_data['name']);
 
         $dbid = $this->localCards[$uri]["id"] ?? null;
@@ -345,7 +354,7 @@ class SyncHandlerRoundcube implements SyncHandler
         $abookId = $this->rcAbook->getId();
 
         // card may be changed during conversion, in particular inlining of the PHOTO
-        [ 'save_data' => $save_data, 'vcf' => $card ] = $this->rcAbook->convVCard2Rcube($card);
+        [ 'save_data' => $save_data, 'vcf' => $card ] = $this->dataConverter->toRoundcube($card, $this->davAbook);
 
         $dbid = $this->localGrpCards[$uri]["id"] ?? null;
         if (isset($dbid)) {

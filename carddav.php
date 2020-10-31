@@ -720,13 +720,11 @@ class carddav extends rcube_plugin
     private static function parseTimeParameter(string $refresht, int $default): int
     {
         if (preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $refresht, $match)) {
-            $ret = intval($match[1]) * 3600;
-            if (count($match) > 3) {
-                $ret += intval($match[3]) * 60;
-            }
-            if (count($match) > 5) {
-                $ret += intval($match[5]);
-            }
+            $ret = 0;
+
+            $ret += intval($match[1] ?? 0) * 3600;
+            $ret += intval($match[3] ?? 0) * 60;
+            $ret += intval($match[5] ?? 0);
         } else {
             $ret = $default;
         }
