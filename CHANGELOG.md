@@ -2,6 +2,7 @@
 
 ## Version 4.0.1 (to 4.0.0)
 
+- Fix: Plugin version was not shown in about window for tarball installations
 - Fix: Collation behavior was case-insensitive for MySQL (only). Now unified across the different supported DBMS.
 - Fix #306: With MySQL, sync failure could occur when several custom labels where used that only differed in case
   (effect of previous issue).

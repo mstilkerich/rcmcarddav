@@ -28,6 +28,24 @@ use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Database, RoundcubeLo
 // phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
 class carddav extends rcube_plugin
 {
+    /**
+     * The version of this plugin.
+     *
+     * During development, it is set to the last release and added the suffix +dev.
+     */
+    private const PLUGIN_VERSION = '4.0.0+dev';
+
+    /**
+     * Information about this plugin that is queried by roundcube.
+     */
+    private const PLUGIN_INFO = [
+        'name' => 'carddav',
+        'vendor' => 'Michael Stilkerich, Benjamin Schieder',
+        'version' => self::PLUGIN_VERSION,
+        'license' => 'GPL-2.0',
+        'uri' => 'https://github.com/blind-coder/rcmcarddav/'
+    ];
+
     /** @var string[] ABOOK_PROPS A list of addressbook property keys. These are both found in the settings form as well
      *                            as in the database as columns.
      */
@@ -52,6 +70,26 @@ class carddav extends rcube_plugin
      *                           Associative array mapping addressbook IDs to DB rows.
      */
     private static $abooksDb = null;
+
+
+
+    /**
+     * Provide information about this plugin.
+     *
+     * @return array Meta information about a plugin or false if not implemented.
+     * As hash array with the following keys:
+     *      name: The plugin name
+     *    vendor: Name of the plugin developer
+     *   version: Plugin version name
+     *   license: License name (short form according to http://spdx.org/licenses/)
+     *       uri: The URL to the plugin homepage or source repository
+     *   src_uri: Direct download URL to the source code of this plugin
+     *   require: List of plugins required for this one (as array of plugin names)
+     */
+    public static function info()
+    {
+        return self::PLUGIN_INFO;
+    }
 
     /**
      * Default constructor.
