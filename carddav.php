@@ -482,7 +482,7 @@ class carddav extends rcube_plugin
     {
         // check parameters
         if (key_exists('refresh_time', $pa)) {
-            $pa['refresh_time'] = self::parseTimeParameter($pa['refresh_time']);
+            $pa['refresh_time'] = self::parseTimeParameter($pa['refresh_time'], 3600);
         }
 
         // encrypt the password before storing it
@@ -670,19 +670,30 @@ class carddav extends rcube_plugin
         }
     }
 
-    private static function parseTimeParameter(string $refresht): string
+    /**
+     * Parses a time string to seconds.
+     *
+     * The time string must have the format HH[:MM[:SS]]. If the format does not match, the given default is returned.
+     *
+     * @param string $refresht The time string to parse
+     * @param int    $default  The default time returned when the time string could not be passed
+     * @return int The time in seconds
+     */
+    private static function parseTimeParameter(string $refresht, int $default): int
     {
         if (preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $refresht, $match)) {
-            $refresht = sprintf(
-                "%02d:%02d:%02d",
-                $match[1],
-                count($match) > 3 ? $match[3] : 0,
-                count($match) > 5 ? $match[5] : 0
-            );
+            $ret = intval($match[1]) * 3600;
+            if (count($match) > 3) {
+                $ret += intval($match[3]) * 60;
+            }
+            if (count($match) > 5) {
+                $ret += intval($match[5]);
+            }
         } else {
-            $refresht = '01:00:00';
+            $ret = $default;
         }
-        return $refresht;
+
+        return $ret;
     }
 
     private static function noOverrideAllowed(string $pref, array $abook, array $prefs): bool
@@ -775,21 +786,28 @@ class carddav extends rcube_plugin
         }
 
         // input box for refresh time
+        $refresh_time_str = sprintf(
+            "%02d:%02d:%02d",
+            floor($abook['refresh_time'] / 3600),
+            ($abook['refresh_time'] / 60) % 60,
+            $abook['refresh_time'] % 60
+        );
         if (self::noOverrideAllowed('refresh_time', $abook, $prefs)) {
-            $content_refresh_time =  $abook['refresh_time'] . ", ";
+            $content_refresh_time =  $refresh_time_str . ", ";
         } else {
             $input = new html_inputfield([
                 'name' => $abookId . '_cd_refresh_time',
                 'type' => 'text',
                 'autocomplete' => 'off',
-                'value' => $abook['refresh_time'],
+                'value' => $refresh_time_str,
                 'size' => 10
             ]);
             $content_refresh_time = $input->show();
         }
 
         if (isset($abook['last_updated'])) {
-            $content_refresh_time .=  rcube::Q($this->gettext('cd_lastupdate_time')) . ': ' . $abook['last_updated'];
+            $content_refresh_time .=  rcube::Q($this->gettext('cd_lastupdate_time')) . ": ";
+            $content_refresh_time .=  date("Y-m-d H:i:s", intval($abook['last_updated']));
         }
 
         if (self::noOverrideAllowed('name', $abook, $prefs)) {
@@ -951,7 +969,7 @@ class carddav extends rcube_plugin
     {
         // check parameters
         if (key_exists('refresh_time', $pa)) {
-            $pa['refresh_time'] = self::parseTimeParameter($pa['refresh_time']);
+            $pa['refresh_time'] = self::parseTimeParameter($pa['refresh_time'], 3600);
         }
 
         if (key_exists('password', $pa)) {

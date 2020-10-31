@@ -174,8 +174,8 @@ class Addressbook extends rcube_addressbook
             if ($ts_syncdue <= 0) {
                 // To avoid unneccessary work followed by roll back with other time-triggered refreshes, we
                 // temporarily set the last_updates time such that the next due time will be five minutes from now
-                $ts_delay = time() + 300 - Database::sqlDateTimeToSeconds($this->config["refresh_time"], 0);
-                Database::update($this->id, ["last_updated"], [Database::sqlDateTime($ts_delay)], "addressbooks");
+                $ts_delay = time() + 300 - $this->config["refresh_time"];
+                Database::update($this->id, ["last_updated"], [$ts_delay], "addressbooks");
                 $this->resync(true);
             }
         } catch (\Exception $e) {
@@ -1212,7 +1212,7 @@ class Addressbook extends rcube_addressbook
 
             $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token'] ?? "");
             $this->config['sync_token'] = $sync_token;
-            $this->config["last_updated"] = Database::sqlDateTime(time());
+            $this->config["last_updated"] = (string) time();
             Database::update(
                 $this->id,
                 ["last_updated", "sync_token"],
@@ -2092,8 +2092,7 @@ class Addressbook extends rcube_addressbook
     private function checkResyncDue(): int
     {
         $ts_now = time();
-        $ts_lastupd = Database::sqlDateTimeToSeconds($this->config["last_updated"], $ts_now);
-        $ts_nextupd = Database::sqlDateTimeToSeconds($this->config["refresh_time"], $ts_lastupd);
+        $ts_nextupd = $this->config["last_updated"] + $this->config["refresh_time"];
         $ts_diff = ($ts_nextupd - $ts_now);
         return $ts_diff;
     }

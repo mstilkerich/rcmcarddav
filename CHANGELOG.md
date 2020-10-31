@@ -5,6 +5,7 @@
 - Fix: Collation behavior was case-insensitive for MySQL (only). Now unified across the different supported DBMS.
 - Fix #306: With MySQL, sync failure could occur when several custom labels where used that only differed in case
   (effect of previous issue).
+- Fix #308: With SQLite, the initial sync after adding a new addressbook was not automatically triggered.
 
 ## Version 4.0.0 (to 3.0.3)
 
