@@ -518,11 +518,6 @@ class carddav extends rcube_plugin
 
     private static function updateAddressbook(string $abookId, array $pa): void
     {
-        // check parameters
-        if (key_exists('refresh_time', $pa)) {
-            $pa['refresh_time'] = self::parseTimeParameter($pa['refresh_time'], 3600);
-        }
-
         // encrypt the password before storing it
         if (key_exists('password', $pa)) {
             $pa['password'] = self::encryptPassword($pa['password']);
@@ -711,24 +706,21 @@ class carddav extends rcube_plugin
     /**
      * Parses a time string to seconds.
      *
-     * The time string must have the format HH[:MM[:SS]]. If the format does not match, the given default is returned.
+     * The time string must have the format HH[:MM[:SS]]. If the format does not match, an exception is thrown.
      *
      * @param string $refresht The time string to parse
-     * @param int    $default  The default time returned when the time string could not be passed
      * @return int The time in seconds
      */
-    private static function parseTimeParameter(string $refresht, int $default): int
+    private static function parseTimeParameter(string $refresht): int
     {
         if (preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $refresht, $match)) {
-            $ret = intval($match[1]) * 3600;
-            if (count($match) > 3) {
-                $ret += intval($match[3]) * 60;
-            }
-            if (count($match) > 5) {
-                $ret += intval($match[5]);
-            }
+            $ret = 0;
+
+            $ret += intval($match[1] ?? 0) * 3600;
+            $ret += intval($match[3] ?? 0) * 60;
+            $ret += intval($match[5] ?? 0);
         } else {
-            $ret = $default;
+            throw new \Exception("Time string $refresht could not be parsed");
         }
 
         return $ret;
@@ -824,12 +816,12 @@ class carddav extends rcube_plugin
         }
 
         // input box for refresh time
-        $refresh_time_str = sprintf(
-            "%02d:%02d:%02d",
-            floor($abook['refresh_time'] / 3600),
-            ($abook['refresh_time'] / 60) % 60,
-            $abook['refresh_time'] % 60
-        );
+        if (isset($abook["refresh_time"])) {
+            $rt = $abook['refresh_time'];
+            $refresh_time_str = sprintf("%02d:%02d:%02d", floor($rt / 3600), ($rt / 60) % 60, $rt % 60);
+        } else {
+            $refresh_time_str = "";
+        }
         if (self::noOverrideAllowed('refresh_time', $abook, $prefs)) {
             $content_refresh_time =  $refresh_time_str . ", ";
         } else {
@@ -906,7 +898,6 @@ class carddav extends rcube_plugin
         /** @var string[] $boolOptions These options have checkbox elements and are NULL in post if deselected */
         $boolOptions = [ 'active', 'use_categories' ];
         $nonEmptyDefaults = [
-            "refresh_time" => "01:00:00",
             "active" => "1",
             "use_categories" => "1",
         ];
@@ -922,10 +913,18 @@ class carddav extends rcube_plugin
             'username' => rcube_utils::get_input_value("${abookId}_cd_username", rcube_utils::INPUT_POST, true),
             'password' => rcube_utils::get_input_value("${abookId}_cd_password", rcube_utils::INPUT_POST, true),
             'url' => rcube_utils::get_input_value("${abookId}_cd_url", rcube_utils::INPUT_POST),
-            'refresh_time' => rcube_utils::get_input_value("${abookId}_cd_refresh_time", rcube_utils::INPUT_POST),
             'active' => $active,
             'use_categories' => $use_categories,
         ];
+
+        try {
+            $refresh_timestr = rcube_utils::get_input_value("${abookId}_cd_refresh_time", rcube_utils::INPUT_POST);
+            if (isset($refresh_timestr)) {
+                $result["refresh_time"] = (string) self::parseTimeParameter($refresh_timestr);
+            }
+        } catch (\Exception $e) {
+            // will use the DB default for new addressbooks, or leave the value unchanged for existing ones
+        }
 
         if ($abookId == 'new') {
             // detect if the POST request contains user-provided info for this addressbook or not
@@ -1006,10 +1005,6 @@ class carddav extends rcube_plugin
     private static function insertAddressbook(array $pa): void
     {
         // check parameters
-        if (key_exists('refresh_time', $pa)) {
-            $pa['refresh_time'] = self::parseTimeParameter($pa['refresh_time'], 3600);
-        }
-
         if (key_exists('password', $pa)) {
             $pa['password'] = self::encryptPassword($pa['password']);
         }
