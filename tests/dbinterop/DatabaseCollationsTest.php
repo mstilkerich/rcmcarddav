@@ -10,16 +10,17 @@ use MStilkerich\CardDavAddressbook4Roundcube\{Database};
 
 final class DatabaseCollationsTest extends TestCase
 {
+    /** @var Database */
+    private static $db;
+
     public static function setUpBeforeClass(): void
     {
         TestInfrastructure::init();
 
         $dbsettings = TestInfrastructureDB::dbSettings();
         $db_dsnw = $dbsettings[0];
-        TestInfrastructureDB::initDatabase($db_dsnw);
-
-        $dbh = Database::getDbHandle();
-        TestData::initDatabase();
+        self::$db = TestInfrastructureDB::initDatabase($db_dsnw);
+        TestData::initDatabase(self::$db);
     }
 
     public function setUp(): void
@@ -28,7 +29,6 @@ final class DatabaseCollationsTest extends TestCase
 
     public function tearDown(): void
     {
-        //Database::delete("UNITTEST-SYNC%", "migrations", "%filename");
     }
 
 
@@ -126,12 +126,13 @@ final class DatabaseCollationsTest extends TestCase
      */
     public function testUniqueConstraintCaseSensitive(string $tbl, array $cols, array $datarows): void
     {
+        $db = self::$db;
         foreach ($datarows as $row) {
             $tblshort = preg_replace('/^carddav_/', '', $tbl);
             $this->assertNotNull($tblshort);
 
-            TestData::insertRow($tbl, $cols, $row);
-            $row2 = Database::get($row[0], join(",", $cols), $tblshort, true, $cols[0], array_combine($cols, $row));
+            TestData::insertRow($db, $tbl, $cols, $row);
+            $row2 = $db->get($row[0], join(",", $cols), $tblshort, true, $cols[0], array_combine($cols, $row));
             $this->assertEquals(array_combine($cols, $row), $row2, "Inserted row not same as in DB");
         }
     }
@@ -167,21 +168,23 @@ final class DatabaseCollationsTest extends TestCase
      */
     public function testEqualsOperatorIsCaseSensitive(string $tbl, array $cols, array $row, array $uccols): void
     {
+        $db = self::$db;
+
         $tblshort = preg_replace('/^carddav_/', '', $tbl);
         $this->assertNotNull($tblshort);
 
-        TestData::insertRow($tbl, $cols, $row);
+        TestData::insertRow($db, $tbl, $cols, $row);
 
         // insert row with specified columns uppercased
         $rowuc = $row;
         foreach ($uccols as $idx) {
             $rowuc[$idx] = strtoupper($rowuc[$idx]);
         }
-        $rowucId = TestData::insertRow($tbl, $cols, $rowuc);
+        $rowucId = TestData::insertRow($db, $tbl, $cols, $rowuc);
 
         // check that select with equals on any uppercase column returns only the new uppercased record
         foreach ($uccols as $idx) {
-            $rowuc2 = Database::get($rowuc[$idx], "id", $tblshort, true, $cols[$idx]);
+            $rowuc2 = $db->get($rowuc[$idx], "id", $tblshort, true, $cols[$idx]);
             $this->assertEquals($rowucId, $rowuc2["id"], "Queried row not the uppercased one for $tbl $cols[$idx]");
         }
     }
@@ -219,10 +222,12 @@ final class DatabaseCollationsTest extends TestCase
      */
     public function testIlikeSelectorIsCaseInsensitive(string $tbl, array $cols, array $row, array $uccols): void
     {
+        $db = self::$db;
+
         $tblshort = preg_replace('/^carddav_/', '', $tbl);
         $this->assertNotNull($tblshort);
 
-        $rowId = TestData::insertRow($tbl, $cols, $row);
+        $rowId = TestData::insertRow($db, $tbl, $cols, $row);
 
         // insert row with specified columns uppercased
         $rowuc = $row;
@@ -234,7 +239,7 @@ final class DatabaseCollationsTest extends TestCase
                 $rowuc[$idx] = $rowuc[$idx] . "-" . bin2hex(random_bytes(5));
             }
         }
-        $rowucId = TestData::insertRow($tbl, $cols, $rowuc);
+        $rowucId = TestData::insertRow($db, $tbl, $cols, $rowuc);
 
         // check that select with equals on any uppercase column returns only the new uppercased record
         $expectedIds = [$rowId, $rowucId];
@@ -242,7 +247,7 @@ final class DatabaseCollationsTest extends TestCase
 
         foreach ($uccols as $idx => $pattern) {
             if (isset($pattern)) {
-                $rows = Database::get($pattern, "id", $tblshort, false, "%" . $cols[$idx]);
+                $rows = $db->get($pattern, "id", $tblshort, false, "%" . $cols[$idx]);
                 $this->assertCount(2, $rows, "Number of returned $tbl rows not as expected ($cols[$idx])");
 
                 $gotIds = array_column($rows, "id");

@@ -2,6 +2,7 @@
 
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
+use Psr\Log\LoggerInterface;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use MStilkerich\CardDavClient\AddressbookCollection;
@@ -92,9 +93,32 @@ class DataConversion
     /** @var string $abookId Database ID of the Addressbook this converter is associated with */
     private $abookId;
 
-    public function __construct(string $abookId)
+    /** @var LoggerInterface $logger */
+    private $logger;
+
+    /** @var Database The database object to use for DB access */
+    private $db;
+
+    /**
+     * Constructs a data conversion instance.
+     *
+     * The instance is bound to an Addressbook because some properties of the conversion such as specific labels are
+     * specific for an addressbook.
+     *
+     * The data converter may need access to the database and the carddav server for specific operations such as storing
+     * the custom labels or downloading resources from the server that are referenced by an URI within a VCard. These
+     * dependencies are injected with the constructor to allow for testing of this class using stub versions.
+     *
+     * @param string $abookId The database ID of the addressbook the data conversion object is bound to.
+     * @param Database $db The database object.
+     * @param LoggerInterface $logger The logger object.
+     */
+    public function __construct(string $abookId, Database $db, LoggerInterface $logger)
     {
         $this->abookId = $abookId;
+        $this->db = $db;
+        $this->logger = $logger;
+
         $this->addextrasubtypes();
     }
 
@@ -302,7 +326,7 @@ class DataConversion
                 $save_data['photo'] = base64_decode($save_data['photo'], true);
             }
             if ($i >= 10) {
-                carddav::$logger->warning("PHOTO of " . $save_data['uid'] . " does not decode after 10 attempts...");
+                $this->logger->warning("PHOTO of " . $save_data['uid'] . " does not decode after 10 attempts...");
             }
         }
 
@@ -535,7 +559,7 @@ class DataConversion
      */
     private function storeextrasubtype(string $typename, string $subtype): void
     {
-        Database::insert("xsubtypes", ["typename", "subtype", "abook_id"], [$typename, $subtype, $this->abookId]);
+        $this->db->insert("xsubtypes", ["typename", "subtype", "abook_id"], [$typename, $subtype, $this->abookId]);
         $this->coltypes[$typename]['subtypes'][] = $subtype;
         $this->xlabels[$typename][] = $subtype;
     }
@@ -558,7 +582,7 @@ class DataConversion
         }
 
         // read extra subtypes
-        $xtypes = Database::get($this->abookId, 'typename,subtype', 'xsubtypes', false, 'abook_id');
+        $xtypes = $this->db->get($this->abookId, 'typename,subtype', 'xsubtypes', false, 'abook_id');
 
         foreach ($xtypes as $row) {
             [ "typename" => $attr, "subtype" => $subtype ] = $row;
@@ -571,11 +595,11 @@ class DataConversion
     {
         $uri = $save_data['photo'];
         try {
-            carddav::$logger->info("downloadPhoto: Attempt to download photo from $uri");
+            $this->logger->info("downloadPhoto: Attempt to download photo from $uri");
             $response = $davAbook->downloadResource($uri);
             $save_data['photo'] = $response['body'];
         } catch (\Exception $e) {
-            carddav::$logger->warning("downloadPhoto: Attempt to download photo from $uri failed: $e");
+            $this->logger->warning("downloadPhoto: Attempt to download photo from $uri failed: $e");
             return false;
         }
 

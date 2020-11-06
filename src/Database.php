@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
-use rcmail;
 use rcube_db;
 use Psr\Log\LoggerInterface;
 
@@ -19,62 +18,57 @@ use Psr\Log\LoggerInterface;
  * @todo At the moment, this class is just a container for the already existing methods and only partially fulfills its
  *   purpose stated above.
  */
-abstract class Database
+class Database
 {
     /** @var string[] DBTABLES_WITHOUT_ID List of table names that have no single ID column. */
     private const DBTABLES_WITHOUT_ID = ['group_user'];
 
     /** @var LoggerInterface $logger */
-    private static $logger;
+    private $logger;
 
-    /** @var ?rcube_db $dbHandle */
-    private static $dbHandle;
+    /** @var rcube_db $dbHandle The roundcube database handle */
+    private $dbHandle;
 
     /** @var bool $inTransaction Indicates whether we are currently inside a transaction */
-    private static $inTransaction;
+    private $inTransaction = false;
 
     /**
-     * Initializes the Database class.
+     * Initializes a Database instance.
      *
      * Must be called before using any methods in this class.
      *
-     * @param LoggerInterface $logger A logger object that log messages can be sent to.
+     * @param rcube_db $dbh The roundcube database handle
      */
-    public static function init(LoggerInterface $logger, rcube_db $dbh = null): void
+    public function __construct(LoggerInterface $logger, rcube_db $dbh)
     {
-        self::$logger = $logger;
-
-        self::$inTransaction = false;
-
-        if (isset($dbh)) {
-            self::setDbHandle($dbh);
-        }
+        $this->logger   = $logger;
+        $this->dbHandle = $dbh;
     }
 
-    public static function getDbHandle(): rcube_db
+    /**
+     * Provides the lower level roundcube database handle.
+     *
+     * This is meant to support legacy parts of the plugin and should not be used for new code.
+     */
+    public function getDbHandle(): rcube_db
     {
-        $dbh = self::$dbHandle;
-        if (!isset($dbh)) {
-            $dbh = rcmail::get_instance()->db;
-            self::setDbHandle($dbh);
-        }
-
-        return $dbh;
+        return $this->dbHandle;
     }
 
     /**
      * Starts a transaction on the internal DB connection.
      *
-     * Note that all queries in the transaction must be done using the functions provided by this class, or the database
-     * handle acquired by the getDbHandle() function of this class, to make sure they use the same database connection.
+     * Note that all queries in the transaction must be done using the same Database object, to make sure they use the
+     * same database connection.
      *
-     * @see self::getDbHandle()
+     * @param bool $readonly True if the started transaction only queries, but does not modify data.
      */
-    public static function startTransaction(bool $readonly = true): void
+    public function startTransaction(bool $readonly = true): void
     {
-        $dbh = self::getDbHandle();
+        $dbh = $this->dbHandle;
+        $logger = $this->logger;
 
-        if (self::$inTransaction) {
+        if ($this->inTransaction) {
             throw new \Exception("Cannot start nested transaction");
         } else {
             // SQLite3 always has Serializable isolation of transactions, and does not support
@@ -93,7 +87,7 @@ abstract class Database
                     $ret = $dbh->query("SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL $level, $mode");
                     break;
                 default:
-                    self::$logger->critical("Unsupported database backend: " . $dbh->db_provider);
+                    $logger->critical("Unsupported database backend: " . $dbh->db_provider);
                     return;
             }
 
@@ -102,26 +96,27 @@ abstract class Database
             }
 
             if ($ret === false) {
-                self::$logger->error(__METHOD__ . " ERROR: " . $dbh->is_error());
+                $logger->error(__METHOD__ . " ERROR: " . $dbh->is_error());
                 throw new DatabaseException($dbh->is_error());
             }
 
-            self::$inTransaction = true;
+            $this->inTransaction = true;
         }
     }
 
     /**
      * Commits the transaction on the internal DB connection.
      */
-    public static function endTransaction(): void
+    public function endTransaction(): void
     {
-        $dbh = self::getDbHandle();
+        $dbh = $this->dbHandle;
+        $logger = $this->logger;
 
-        if (self::$inTransaction) {
-            self::$inTransaction = false;
+        if ($this->inTransaction) {
+            $this->inTransaction = false;
 
             if ($dbh->endTransaction() === false) {
-                self::$logger->error("Database::endTransaction ERROR: " . $dbh->is_error());
+                $logger->error("Database::endTransaction ERROR: " . $dbh->is_error());
                 throw new DatabaseException($dbh->is_error());
             }
         } else {
@@ -132,21 +127,22 @@ abstract class Database
     /**
      * Rolls back the transaction on the internal DB connection.
      */
-    public static function rollbackTransaction(): void
+    public function rollbackTransaction(): void
     {
-        $dbh = self::getDbHandle();
+        $dbh = $this->dbHandle;
+        $logger = $this->logger;
 
-        if (self::$inTransaction) {
-            self::$inTransaction = false;
+        if ($this->inTransaction) {
+            $this->inTransaction = false;
             if ($dbh->rollbackTransaction() === false) {
-                self::$logger->error("Database::rollbackTransaction ERROR: " . $dbh->is_error());
+                $logger->error("Database::rollbackTransaction ERROR: " . $dbh->is_error());
                 throw new \Exception($dbh->is_error());
             }
         } else {
-            // not throwing an error here facilitates usage of the interface at caller side. The caller
+            // not throwing an exception here facilitates usage of the interface at caller side. The caller
             // can issue rollback without having to keep track whether an error occurred before/after a
             // transaction was started/ended.
-            self::$logger->notice("Ignored request to rollback a transaction while not within a transaction");
+            $logger->notice("Ignored request to rollback a transaction while not within a transaction");
         }
     }
 
@@ -161,9 +157,10 @@ abstract class Database
      * @param string $dbPrefix The optional prefix to all database table names as configured in Roundcube.
      * @param string $scriptDir Path of the parent directory containing all the migration scripts, each in a subdir.
      */
-    public static function checkMigrations(string $dbPrefix, string $scriptDir): void
+    public function checkMigrations(string $dbPrefix, string $scriptDir): void
     {
-        $dbh = self::getDbHandle();
+        $dbh = $this->dbHandle;
+        $logger = $this->logger;
 
         // We only support the non-commercial database types supported by roundcube, so quit with an error
         switch ($dbh->db_provider) {
@@ -177,7 +174,7 @@ abstract class Database
                 $db_backend = "postgres";
                 break;
             default:
-                self::$logger->critical("Unsupported database backend: " . $dbh->db_provider);
+                $logger->critical("Unsupported database backend: " . $dbh->db_provider);
                 return;
         }
 
@@ -206,7 +203,7 @@ abstract class Database
                 continue;
             }
 
-            self::$logger->notice("In migration: $migration");
+            $logger->notice("In migration: $migration");
 
             $phpMigrationScript = "$scriptDir/$migration/migrate.php";
             $sqlMigrationScript = "$scriptDir/$migration/$db_backend.sql";
@@ -221,15 +218,15 @@ abstract class Database
                  * @var DBMigrationInterface $migrationObj
                  */
                 $migrationObj = new $migrationClass();
-                if ($migrationObj->migrate($dbh, self::$logger) === false) {
+                if ($migrationObj->migrate($dbh, $logger) === false) {
                     return; // error already logged
                 }
             } elseif (file_exists($sqlMigrationScript)) {
-                if (self::performSqlMigration($sqlMigrationScript, $dbPrefix, $dbh) === false) {
+                if ($this->performSqlMigration($sqlMigrationScript, $dbPrefix) === false) {
                     return; // error already logged
                 }
             } else {
-                self::$logger->warning("No migration script found for: $migration");
+                $logger->warning("No migration script found for: $migration");
                 // do not continue with other scripts that may depend on this one
                 return;
             }
@@ -240,30 +237,38 @@ abstract class Database
             );
 
             if ($dbh->is_error()) {
-                self::$logger->error("Recording exec of migration $migration failed: " . $dbh->is_error());
+                $logger->error("Recording exec of migration $migration failed: " . $dbh->is_error());
                 return;
             }
         }
     }
 
-    private static function performSqlMigration(string $migrationScript, string $dbPrefix, rcube_db $dbh): bool
+    /**
+     * Executes an SQL migration script.
+     *
+     * @param string $migrationScript The path to the migration script.
+     * @param string $dbPrefix The optional prefix to all database table names as configured in Roundcube.
+     */
+    private function performSqlMigration(string $migrationScript, string $dbPrefix): bool
     {
+        $dbh = $this->dbHandle;
+        $logger = $this->logger;
         $queries_raw = file_get_contents($migrationScript);
 
         if ($queries_raw === false) {
-            self::$logger->error("Failed to read migration script: $migrationScript - aborting");
+            $logger->error("Failed to read migration script: $migrationScript - aborting");
             return false;
         }
 
         $queryCount = preg_match_all('/.+?;/s', $queries_raw, $queries);
-        self::$logger->info("Found $queryCount queries in $migrationScript");
+        $logger->info("Found $queryCount queries in $migrationScript");
         if ($queryCount > 0) {
             foreach ($queries[0] as $query) {
                 $query = str_replace("TABLE_PREFIX", $dbPrefix, $query);
                 $dbh->query($query);
 
                 if ($dbh->is_error()) {
-                    self::$logger->error("Migration query ($query) failed: " . $dbh->is_error());
+                    $logger->error("Migration query ($query) failed: " . $dbh->is_error());
                     return false;
                 }
             }
@@ -275,15 +280,16 @@ abstract class Database
     /**
      * Stores a contact to the local database.
      *
-     * @param string etag of the VCard in the given version on the CardDAV server
-     * @param string path to the VCard on the CardDAV server
-     * @param string string representation of the VCard
-     * @param array  associative array containing the roundcube save data for the contact
-     * @param ?string optionally, database id of the contact if the store operation is an update
+     * @param string $abookid Database of the addressbook the contact shall be inserted to
+     * @param string $etag of the VCard in the given version on the CardDAV server
+     * @param string $uri path to the VCard on the CardDAV server
+     * @param string $vcfstr string representation of the VCard
+     * @param array  $save_data associative array containing the roundcube save data for the contact
+     * @param ?string $dbid optionally, database id of the contact if the store operation is an update
      *
      * @return string The database id of the created or updated card.
      */
-    public static function storeContact(
+    public function storeContact(
         string $abookid,
         string $etag,
         string $uri,
@@ -310,7 +316,7 @@ abstract class Database
             }
         }
 
-        return self::storeAddressObject('contacts', $abookid, $etag, $uri, $vcfstr, $save_data, $dbid, $xcol, $xval);
+        return $this->storeAddressObject('contacts', $abookid, $etag, $uri, $vcfstr, $save_data, $dbid, $xcol, $xval);
     }
 
     /**
@@ -320,15 +326,16 @@ abstract class Database
      * the group is derived from a CATEGORIES property of a contact VCard, the ETag, URI and VCard must be set to NULL
      * to indicate this.
      *
-     * @param array   associative array containing at least name and cuid (card UID)
-     * @param ?string optionally, database id of the group if the store operation is an update
-     * @param ?string etag of the VCard in the given version on the CardDAV server
-     * @param ?string path to the VCard on the CardDAV server
-     * @param ?string string representation of the VCard
+     * @param string $abookid Database of the addressbook the contact shall be inserted to
+     * @param array  $save_data  associative array containing at least name and cuid (card UID)
+     * @param ?string $dbid optionally, database id of the group if the store operation is an update
+     * @param ?string $etag of the VCard in the given version on the CardDAV server
+     * @param ?string $uri path to the VCard on the CardDAV server
+     * @param ?string $vcfstr string representation of the VCard
      *
      * @return string The database id of the created or updated card.
      */
-    public static function storeGroup(
+    public function storeGroup(
         string $abookid,
         array $save_data,
         ?string $dbid = null,
@@ -336,7 +343,7 @@ abstract class Database
         ?string $uri = null,
         ?string $vcfstr = null
     ) {
-        return self::storeAddressObject('groups', $abookid, $etag, $uri, $vcfstr, $save_data, $dbid);
+        return $this->storeAddressObject('groups', $abookid, $etag, $uri, $vcfstr, $save_data, $dbid);
     }
 
     /**
@@ -356,7 +363,7 @@ abstract class Database
      * @param string[] $xval The values to insert into the column specified by $xcol at the corresponding index.
      * @return string The database id of the created or updated card.
      */
-    private static function storeAddressObject(
+    private function storeAddressObject(
         string $table,
         string $abookid,
         ?string $etag,
@@ -367,7 +374,8 @@ abstract class Database
         array $xcol = [],
         array $xval = []
     ): string {
-        $dbh = self::getDbHandle();
+        $dbh = $this->dbHandle;
+        $logger = $this->logger;
 
         $carddesc = $uri ?? "(entry not backed by card)";
         $xcol[] = 'name';
@@ -384,11 +392,11 @@ abstract class Database
         }
 
         if (isset($dbid)) {
-            self::$logger->debug("UPDATE card $dbid/$carddesc in $table");
+            $logger->debug("UPDATE card $dbid/$carddesc in $table");
 
-            self::update($dbid, $xcol, $xval, $table, 'id');
+            $this->update($dbid, $xcol, $xval, $table, 'id');
         } else {
-            self::$logger->debug("INSERT card $carddesc to $table");
+            $logger->debug("INSERT card $carddesc to $table");
 
             $xcol[] = 'abook_id';
             $xval[] = $abookid;
@@ -402,9 +410,8 @@ abstract class Database
                 $xval[] = $save_data['cuid'];
             }
 
-            $dbid = self::insert($table, $xcol, $xval);
+            $dbid = $this->insert($table, $xcol, $xval);
         }
-
 
         return $dbid;
     }
@@ -417,9 +424,10 @@ abstract class Database
      * @param string[] $vals The values to insert into the column specified by $cols at the corresponding index.
      * @return string The database id of the created database record. Empty string if the table has no ID column.
      */
-    public static function insert(string $table, array $cols, array $vals): string
+    public function insert(string $table, array $cols, array $vals): string
     {
-        $dbh = self::getDbHandle();
+        $dbh = $this->dbHandle;
+        $logger = $this->logger;
 
         $sql = 'INSERT INTO ' . $dbh->table_name("carddav_$table") .
             '(' . implode(",", $cols)  . ') ' .
@@ -433,11 +441,11 @@ abstract class Database
             $dbid = $dbh->insert_id("carddav_$table");
             $dbid = is_bool($dbid) ? "" /* error thrown below */ : (string) $dbid;
         }
-        self::$logger->debug("INSERT $table ($sql) -> $dbid");
+        $logger->debug("INSERT $table ($sql) -> $dbid");
 
         if ($dbh->is_error()) {
-            self::$logger->error("Database::insert ($sql) ERROR: " . $dbh->is_error());
-            throw new \Exception($dbh->is_error());
+            $logger->error("Database::insert ($sql) ERROR: " . $dbh->is_error());
+            throw new DatabaseException($dbh->is_error());
         }
 
         return $dbid;
@@ -456,9 +464,9 @@ abstract class Database
      * @param array  $other_conditions An associative array with database column names as keys and their match criterion
      *                                 as value.
      * @return int                The number of rows updated.
-     * @see self::getConditionQuery()
+     * @see getConditionQuery()
      */
-    public static function update(
+    public function update(
         $id,
         array $cols,
         array $vals,
@@ -466,20 +474,22 @@ abstract class Database
         string $idfield = 'id',
         array $other_conditions = []
     ): int {
-        $dbh = self::getDbHandle();
+        $dbh = $this->dbHandle;
+        $logger = $this->logger;
+
         $sql = 'UPDATE ' . $dbh->table_name("carddav_$table") . ' SET ' . implode("=?,", $cols) . '=? WHERE ';
 
         // Main selection condition
-        $sql .= self::getConditionQuery($dbh, $idfield, $id);
+        $sql .= $this->getConditionQuery($idfield, $id);
 
         // Append additional conditions
-        $sql .= self::getOtherConditionsQuery($dbh, $other_conditions);
+        $sql .= $this->getOtherConditionsQuery($other_conditions);
 
-        self::$logger->debug("UPDATE $table ($sql)");
+        $logger->debug("UPDATE $table ($sql)");
         $sql_result = $dbh->query($sql, $vals);
 
         if ($dbh->is_error()) {
-            self::$logger->error("Database::update ($sql) ERROR: " . $dbh->is_error());
+            $logger->error("Database::update ($sql) ERROR: " . $dbh->is_error());
             throw new DatabaseException($dbh->is_error());
         }
 
@@ -504,9 +514,9 @@ abstract class Database
      *                            matching row, where keys are fieldnames and their value is the corresponding database
      *                            value of the field in the result row. If $retsingle is false, a possibly empty array
      *                            of such row-arrays is returned.
-     * @see self::getConditionQuery()
+     * @see getConditionQuery()
      */
-    public static function get(
+    public function get(
         $id,
         string $cols = '*',
         string $table = 'contacts',
@@ -514,20 +524,21 @@ abstract class Database
         string $idfield = 'id',
         array $other_conditions = []
     ): array {
-        $dbh = self::getDbHandle();
+        $dbh = $this->dbHandle;
+        $logger = $this->logger;
 
         $sql = "SELECT $cols FROM " . $dbh->table_name("carddav_$table") . ' WHERE ';
 
         // Main selection condition
-        $sql .= self::getConditionQuery($dbh, $idfield, $id);
+        $sql .= $this->getConditionQuery($idfield, $id);
 
         // Append additional conditions
-        $sql .= self::getOtherConditionsQuery($dbh, $other_conditions);
+        $sql .= $this->getOtherConditionsQuery($other_conditions);
 
         $sql_result = $dbh->query($sql);
 
         if ($dbh->is_error()) {
-            self::$logger->error("Database::get ($sql) ERROR: " . $dbh->is_error());
+            $logger->error("Database::get ($sql) ERROR: " . $dbh->is_error());
             throw new DatabaseException($dbh->is_error());
         }
 
@@ -559,30 +570,31 @@ abstract class Database
      * @param array  $other_conditions An associative array with database column names as keys and their match criterion
      *                                 as value.
      * @return int                The number of rows deleted.
-     * @see self::getConditionQuery()
+     * @see getConditionQuery()
      */
-    public static function delete(
+    public function delete(
         $id,
         string $table = 'contacts',
         string $idfield = 'id',
         array $other_conditions = []
     ): int {
-        $dbh = self::getDbHandle();
+        $dbh = $this->dbHandle;
+        $logger = $this->logger;
 
         $sql = "DELETE FROM " . $dbh->table_name("carddav_$table") . " WHERE ";
 
         // Main selection condition
-        $sql .= self::getConditionQuery($dbh, $idfield, $id);
+        $sql .= $this->getConditionQuery($idfield, $id);
 
         // Append additional conditions
-        $sql .= self::getOtherConditionsQuery($dbh, $other_conditions);
+        $sql .= $this->getOtherConditionsQuery($other_conditions);
 
-        self::$logger->debug("Database::delete $sql");
+        $logger->debug("Database::delete $sql");
 
         $sql_result = $dbh->query($sql);
 
         if ($dbh->is_error()) {
-            self::$logger->error("Database::delete ($sql) ERROR: " . $dbh->is_error());
+            $logger->error("Database::delete ($sql) ERROR: " . $dbh->is_error());
             throw new DatabaseException($dbh->is_error());
         }
 
@@ -592,7 +604,6 @@ abstract class Database
     /**
      * Creates a condition query on a database column to be used in an SQL WHERE clause.
      *
-     * @param rcube_db $dbh The roundcube database handle.
      * @param string $field Name of the database column.
      *                      Prefix with ! to invert the condition.
      *                      Prefix with % to indicate that the value is a pattern to be matched with ILIKE.
@@ -602,8 +613,9 @@ abstract class Database
      *          - string: Assert that the field value matches $value (or does not match value, if inverted)
      *          - string[]: Assert that the field matches one of the strings in values (or none, if inverted)
      */
-    private static function getConditionQuery(rcube_db $dbh, string $field, $value): string
+    private function getConditionQuery(string $field, $value): string
     {
+        $dbh = $this->dbHandle;
         $invertCondition = false;
         $ilike = false;
 
@@ -646,26 +658,16 @@ abstract class Database
         return $sql;
     }
 
-    private static function getOtherConditionsQuery(rcube_db $dbh, array $other_conditions): string
+    private function getOtherConditionsQuery(array $other_conditions): string
     {
         $sql = "";
 
         foreach ($other_conditions as $field => $value) {
             $sql .= ' AND ';
-            $sql .= self::getConditionQuery($dbh, $field, $value);
+            $sql .= $this->getConditionQuery($field, $value);
         }
 
         return $sql;
-    }
-
-    private static function setDbHandle(rcube_db $dbh): void
-    {
-        self::$dbHandle = $dbh;
-
-        // attempt to enable foreign key constraints on SQLite. May fail if not supported
-        if ($dbh->db_provider == "sqlite") {
-            $dbh->query('PRAGMA FOREIGN_KEYS=ON;');
-        }
     }
 }
 
