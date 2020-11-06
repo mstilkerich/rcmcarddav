@@ -1063,6 +1063,19 @@ class Addressbook extends rcube_addressbook
         return $duration;
     }
 
+    /**
+     * Determines the due time for the next resync of this addressbook relative to the current time.
+     *
+     * @return int Seconds until next resync is due (negative if resync due time is in the past)
+     */
+    public function checkResyncDue(): int
+    {
+        $ts_now = time();
+        $ts_nextupd = $this->config["last_updated"] + $this->config["refresh_time"];
+        $ts_diff = ($ts_nextupd - $ts_now);
+        return $ts_diff;
+    }
+
     public static function stringsAddRemove(array &$in, array $add = [], array $rm = []): bool
     {
         $changes = false;
@@ -1094,6 +1107,7 @@ class Addressbook extends rcube_addressbook
     /************************************************************************
      *                            PRIVATE FUNCTIONS
      ***********************************************************************/
+
     private function listRecordsReadDB(?array $cols, int $subset, rcube_result_set $result): int
     {
         $dbh = $this->db->getDbHandle();
@@ -1432,19 +1446,6 @@ class Addressbook extends rcube_addressbook
                 $davAbook->updateCard($contact['uri'], $vcard, $contact['etag']);
             }
         }
-    }
-
-    /**
-     * Determines the due time for the next resync of this addressbook relative to the current time.
-     *
-     * @return int Seconds until next resync is due (negative if resync due time is in the past)
-     */
-    public function checkResyncDue(): int
-    {
-        $ts_now = time();
-        $ts_nextupd = $this->config["last_updated"] + $this->config["refresh_time"];
-        $ts_diff = ($ts_nextupd - $ts_now);
-        return $ts_diff;
     }
 }
 

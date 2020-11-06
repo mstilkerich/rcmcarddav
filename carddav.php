@@ -553,34 +553,10 @@ class carddav extends rcube_plugin
         return $args;
     }
 
+
     /***************************************************************************************
-     *                                 PUBLIC FUNCTIONS
+     *                              PRIVATE FUNCTIONS
      **************************************************************************************/
-
-    private function updateAddressbook(string $abookId, array $pa): void
-    {
-        // encrypt the password before storing it
-        if (key_exists('password', $pa)) {
-            $pa['password'] = $this->encryptPassword($pa['password']);
-        }
-
-        // optional fields
-        $qf = [];
-        $qv = [];
-
-        foreach (self::ABOOK_PROPS as $f) {
-            if (key_exists($f, $pa)) {
-                $qf[] = $f;
-                $qv[] = $pa[$f];
-            }
-        }
-        if (count($qf) <= 0) {
-            return;
-        }
-
-        $this->db->update($abookId, $qf, $qv, "addressbooks");
-        $this->abooksDb = null;
-    }
 
     private static function replacePlaceholdersUsername(string $username): string
     {
@@ -610,6 +586,54 @@ class carddav extends rcube_plugin
         }
 
         return $password;
+    }
+
+    /**
+     * Parses a time string to seconds.
+     *
+     * The time string must have the format HH[:MM[:SS]]. If the format does not match, an exception is thrown.
+     *
+     * @param string $refresht The time string to parse
+     * @return int The time in seconds
+     */
+    private static function parseTimeParameter(string $refresht): int
+    {
+        if (preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $refresht, $match)) {
+            $ret = 0;
+
+            $ret += intval($match[1] ?? 0) * 3600;
+            $ret += intval($match[3] ?? 0) * 60;
+            $ret += intval($match[5] ?? 0);
+        } else {
+            throw new \Exception("Time string $refresht could not be parsed");
+        }
+
+        return $ret;
+    }
+
+    private function updateAddressbook(string $abookId, array $pa): void
+    {
+        // encrypt the password before storing it
+        if (key_exists('password', $pa)) {
+            $pa['password'] = $this->encryptPassword($pa['password']);
+        }
+
+        // optional fields
+        $qf = [];
+        $qv = [];
+
+        foreach (self::ABOOK_PROPS as $f) {
+            if (key_exists($f, $pa)) {
+                $qf[] = $f;
+                $qv[] = $pa[$f];
+            }
+        }
+        if (count($qf) <= 0) {
+            return;
+        }
+
+        $this->db->update($abookId, $qf, $qv, "addressbooks");
+        $this->abooksDb = null;
     }
 
     private function encryptPassword(string $clear): string
@@ -691,10 +715,6 @@ class carddav extends rcube_plugin
         return $crypt;
     }
 
-    /***************************************************************************************
-     *                              PRIVATE FUNCTIONS
-     **************************************************************************************/
-
     /**
      * Updates the fixed fields of addressbooks derived from presets against the current admin settings.
      */
@@ -744,29 +764,6 @@ class carddav extends rcube_plugin
                 $this->updateAddressbook($abookrow['id'], $pa);
             }
         }
-    }
-
-    /**
-     * Parses a time string to seconds.
-     *
-     * The time string must have the format HH[:MM[:SS]]. If the format does not match, an exception is thrown.
-     *
-     * @param string $refresht The time string to parse
-     * @return int The time in seconds
-     */
-    private static function parseTimeParameter(string $refresht): int
-    {
-        if (preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $refresht, $match)) {
-            $ret = 0;
-
-            $ret += intval($match[1] ?? 0) * 3600;
-            $ret += intval($match[3] ?? 0) * 60;
-            $ret += intval($match[5] ?? 0);
-        } else {
-            throw new \Exception("Time string $refresht could not be parsed");
-        }
-
-        return $ret;
     }
 
     private function noOverrideAllowed(string $pref, array $abook, array $prefs): bool
