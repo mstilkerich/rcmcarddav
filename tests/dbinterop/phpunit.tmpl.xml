@@ -1,6 +1,7 @@
 <phpunit colors="true" testdox="true" bootstrap="autoload.php" verbose="true">
     <php>
         <var name="TEST_DBTYPE" value="%TEST_DBTYPE%"/>
+        <var name="TEST_TESTRUN" value="dbinterop-%TEST_DBTYPE%"/>
     </php>
     <testsuites>
         <testsuite name="dbinteroperability">
