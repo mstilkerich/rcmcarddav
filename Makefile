@@ -98,7 +98,7 @@ endef
 
 $(foreach dbtype,$(DBTYPES),$(eval $(call EXEC_DBTESTS,$(dbtype))))
 
-tests: $(foreach dbtype,$(DBTYPES),tests-$(dbtype))
+tests: $(foreach dbtype,$(DBTYPES),tests-$(dbtype)) unittests
 
 # Checks that the schema after playing all migrations matches the one in INIT
 schematest: $(foreach dbtype,$(DBTYPES),schematest-$(dbtype))
