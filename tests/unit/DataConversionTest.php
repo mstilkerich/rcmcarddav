@@ -66,6 +66,16 @@ final class DataConversionTest extends TestCase
         [ $logger, $db, $abook ] = $this->initStubs();
 
         $db->expects($this->once())
+            ->method("get")
+            ->with(
+                $this->equalTo("42"),
+                $this->equalTo('typename,subtype'),
+                $this->equalTo('xsubtypes'),
+                $this->equalTo(false),
+                $this->equalTo('abook_id')
+            )
+            ->will($this->returnValue([ ["typename" => "email", "subtype" => "Speciallabel"] ]));
+        $db->expects($this->once())
             ->method("insert")
             ->with(
                 $this->equalTo("xsubtypes"),
