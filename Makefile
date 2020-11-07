@@ -98,7 +98,8 @@ endef
 
 $(foreach dbtype,$(DBTYPES),$(eval $(call EXEC_DBTESTS,$(dbtype))))
 
-tests: $(foreach dbtype,$(DBTYPES),tests-$(dbtype))
+tests: $(foreach dbtype,$(DBTYPES),tests-$(dbtype)) unittests
+	vendor/bin/phpcov merge --html testreports/coverage testreports
 
 # Checks that the schema after playing all migrations matches the one in INIT
 schematest: $(foreach dbtype,$(DBTYPES),schematest-$(dbtype))

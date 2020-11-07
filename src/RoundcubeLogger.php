@@ -68,7 +68,7 @@ class RoundcubeLogger extends AbstractLogger
             if ($this->redact) {
                 $message = $this->redactMessage($message);
             }
-            \rcmail::write_log($this->logfile, $message);
+            \rcube::write_log($this->logfile, $message);
         }
     }
 

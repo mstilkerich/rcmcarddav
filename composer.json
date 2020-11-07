@@ -28,6 +28,7 @@
         "vimeo/psalm": "^3.11",
         "phpcompatibility/php-compatibility": "*",
         "phpunit/phpunit": "^8.1",
+        "phpunit/phpcov": "~6",
         "wa72/simplelogger": "^1.1",
         "dealerdirect/phpcodesniffer-composer-installer": "^0.6.0"
     },

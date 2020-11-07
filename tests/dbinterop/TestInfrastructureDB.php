@@ -10,16 +10,18 @@ use MStilkerich\CardDavAddressbook4Roundcube\{Database};
 
 final class TestInfrastructureDB
 {
-    public static function initDatabase(string $db_dsnw, string $db_prefix = ""): void
+    public static function initDatabase(string $db_dsnw, string $db_prefix = ""): Database
     {
+        $_SESSION["user_id"] = "1";
+
         $rcconfig = \rcube::get_instance()->config;
         $rcconfig->set("db_prefix", $db_prefix, false);
+        $rcconfig->set("db_dsnw", $db_dsnw, false);
         $dbh = \rcube_db::factory($db_dsnw);
         /** @var \Psr\Log\LoggerInterface */
         $logger = TestInfrastructure::$logger;
-        Database::init($logger, $dbh);
-
-        $_SESSION["user_id"] = "1";
+        $db = new Database($logger, $dbh);
+        return $db;
     }
 
     public static function dbSettings(): array

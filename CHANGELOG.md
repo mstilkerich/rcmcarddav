@@ -1,5 +1,9 @@
 # Changelog for RCMCardDAV
 
+## Version 4.1.0 (to 4.0.1)
+
+- Fix: Prefer labels from X-ABLabel extension if available over standard labels
+
 ## Version 4.0.1 (to 4.0.0)
 
 - Fix: Plugin version was not shown in about window for tarball installations
