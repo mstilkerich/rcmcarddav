@@ -185,18 +185,12 @@ class DataConversion
 
         $property = $vcard->N;
         if (isset($property)) {
+            $attrs = [ "surname", "firstname", "middlename", "prefix", "suffix" ];
             $N = $property->getParts();
-            switch (count($N)) {
-                case 5:
-                    $save_data['suffix']     = $N[4]; // fall through
-                case 4:
-                    $save_data['prefix']     = $N[3]; // fall through
-                case 3:
-                    $save_data['middlename'] = $N[2]; // fall through
-                case 2:
-                    $save_data['firstname']  = $N[1]; // fall through
-                case 1:
-                    $save_data['surname']    = $N[0];
+            for ($i = 0; $i <= count($N); $i++) {
+                if (!empty($N[$i])) {
+                    $save_data[$attrs[$i]] = $N[$i];
+                }
             }
         }
 
