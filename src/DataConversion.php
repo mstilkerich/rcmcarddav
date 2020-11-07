@@ -198,7 +198,7 @@ class DataConversion
         if ($property) {
             $ORG = $property->getParts();
             $save_data['organization'] = $ORG[0];
-            for ($i = 1; $i <= count($ORG); $i++) {
+            for ($i = 1; $i < count($ORG); $i++) {
                 $save_data['department'][] = $ORG[$i];
             }
         }
@@ -216,18 +216,25 @@ class DataConversion
 
         $property = ($vcard->ADR) ?: [];
         foreach ($property as $property_instance) {
-            $p = $property_instance->getParts();
             $label = $this->getAttrLabel($vcard, $property_instance, 'address');
-            $adr = [
-                'pobox'    => $p[0], // post office box
-                'extended' => $p[1], // extended address
-                'street'   => $p[2], // street address
-                'locality' => $p[3], // locality (e.g., city)
-                'region'   => $p[4], // region (e.g., state or province)
-                'zipcode'  => $p[5], // postal code
-                'country'  => $p[6], // country name
+
+            $attrs = [ 
+                'pobox',    // post office box
+                'extended', // extended address
+                'street',   // street address
+                'locality', // locality (e.g., city)
+                'region',   // region (e.g., state or province)
+                'zipcode',  // postal code
+                'country'   // country name
             ];
-            $save_data['address:' . $label][] = $adr;
+            $p = $property_instance->getParts();
+            $addr = [];
+            for ($i = 0; $i < count($p); $i++) {
+                if (!empty($p[$i])) {
+                    $addr[$attrs[$i]] = $p[$i];
+                }
+            }
+            $save_data['address:' . $label][] = $addr;
         }
 
         // set displayname according to settings
