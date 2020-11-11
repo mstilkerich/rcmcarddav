@@ -27,9 +27,9 @@ final class DataConversionTest extends TestCase
     {
     }
 
-    public function vcardSamplesProvider(): array
+    private function vcardSamplesProvider(string $basedir): array
     {
-        $vcfFiles = glob('tests/unit/data/*.vcf');
+        $vcfFiles = glob("$basedir/*.vcf");
 
         $result = [];
         foreach ($vcfFiles as $vcfFile) {
@@ -41,10 +41,15 @@ final class DataConversionTest extends TestCase
         return $result;
     }
 
+    public function vcardImportSamplesProvider(): array
+    {
+        return $this->vcardSamplesProvider('tests/unit/data/vcardImport');
+    }
+
     /**
      * Tests that our UNIQUE constraints in the database use case-insensitive semantics on the included key components.
      *
-     * @dataProvider vcardSamplesProvider
+     * @dataProvider vcardImportSamplesProvider
      */
     public function testCorrectConversionOfVcardToRoundcube(string $vcfFile, string $jsonFile): void
     {
@@ -85,7 +90,7 @@ final class DataConversionTest extends TestCase
             ->will($this->returnValue("49"));
 
         $dc = new DataConversion("42", $db, $logger);
-        $vcard = $this->readVCard("tests/unit/data/XAbLabel.vcf");
+        $vcard = $this->readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
         $result = $dc->toRoundcube($vcard, $abook);
     }
 
@@ -133,8 +138,39 @@ final class DataConversionTest extends TestCase
             ->method("insert");
 
         $dc = new DataConversion("42", $db, $logger);
-        $vcard = $this->readVCard("tests/unit/data/XAbLabel.vcf");
+        $vcard = $this->readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
         $result = $dc->toRoundcube($vcard, $abook);
+    }
+
+    public function vcardCreateSamplesProvider(): array
+    {
+        return $this->vcardSamplesProvider('tests/unit/data/vcardCreate');
+    }
+
+    /**
+     * Tests that a new VCard is created from Roundcube data properly.
+     *
+     * @dataProvider vcardCreateSamplesProvider
+     */
+    public function testCorrectCreationOfVcardFromRoundcube(string $vcfFile, string $jsonFile): void
+    {
+        [ $logger, $db, $abook ] = $this->initStubs();
+
+        $dc = new DataConversion("42", $db, $logger);
+        $vcardExpected = $this->readVCard($vcfFile);
+        $saveData = $this->readJsonArray($jsonFile);
+        $result = $dc->fromRoundcube($saveData);
+
+        $serializedResult = $result->serialize();
+        $result = VObject\Reader::read($serializedResult);
+
+        $noCompare = [ 'REV', 'UID', 'PRODID', 'X-ABSHOWAS', 'X-ADDRESSBOOKSERVER-KIND' ];
+        foreach ($noCompare as $property) {
+            unset($vcardExpected->{$property});
+            unset($result->{$property});
+        }
+
+        $this->assertEquals($vcardExpected, $result, "Created VCard does not match roundcube data");
     }
 
     private function initStubs(): array
