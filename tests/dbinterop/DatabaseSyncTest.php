@@ -79,8 +79,7 @@ final class DatabaseSyncTest extends TestCase
                 $this->barrierReached("P_TA_START");
                 $this->barrierWait("C_TA_START");
 
-                [ "id" => $id, "filename" => $fn ] =
-                    $db->get("UNITTEST-SYNC%", "id,filename", "migrations", true, "%filename");
+                [ "filename" => $fn ] = $db->get("UNITTEST-SYNC%", "id,filename", "migrations", true, "%filename");
                 $db->update($recordId, ["filename"], ["$fn-PAR"], "migrations");
                 sleep(1);
 

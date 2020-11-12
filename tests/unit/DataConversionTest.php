@@ -91,7 +91,7 @@ final class DataConversionTest extends TestCase
 
         $dc = new DataConversion("42", $db, $logger);
         $vcard = $this->readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
-        $result = $dc->toRoundcube($vcard, $abook);
+        $dc->toRoundcube($vcard, $abook);
     }
 
     /**
@@ -99,7 +99,7 @@ final class DataConversionTest extends TestCase
      */
     public function testKnownCustomLabelPresentedToRoundcube(): void
     {
-        [ $logger, $db, $abook ] = $this->initStubs();
+        [ $logger, $db ] = $this->initStubs();
 
         $db->expects($this->once())
             ->method("get")
@@ -139,7 +139,7 @@ final class DataConversionTest extends TestCase
 
         $dc = new DataConversion("42", $db, $logger);
         $vcard = $this->readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
-        $result = $dc->toRoundcube($vcard, $abook);
+        $dc->toRoundcube($vcard, $abook);
     }
 
     public function vcardCreateSamplesProvider(): array
@@ -154,7 +154,7 @@ final class DataConversionTest extends TestCase
      */
     public function testCorrectCreationOfVcardFromRoundcube(string $vcfFile, string $jsonFile): void
     {
-        [ $logger, $db, $abook ] = $this->initStubs();
+        [ $logger, $db ] = $this->initStubs();
 
         $dc = new DataConversion("42", $db, $logger);
         $vcardExpected = $this->readVCard($vcfFile);
