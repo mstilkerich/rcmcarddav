@@ -18,7 +18,7 @@ phpcompatcheck:
 	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/ tests/
 
 psalmanalysis:
-	vendor/bin/psalm
+	vendor/bin/psalm --no-cache
 
 .PHONY: tarball
 tarball:
