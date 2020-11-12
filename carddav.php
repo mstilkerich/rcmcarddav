@@ -491,7 +491,7 @@ class carddav extends rcube_plugin
                     }
 
                     // remove admin only settings
-                    foreach ($newset as $pref => $value) {
+                    foreach (array_keys($newset) as $pref) {
                         if ($this->noOverrideAllowed($pref, $abookrow, $prefs)) {
                             unset($newset[$pref]);
                         }
@@ -636,6 +636,12 @@ class carddav extends rcube_plugin
         $this->abooksDb = null;
     }
 
+    /**
+     * Converts a password to storage format according to the password storage scheme setting.
+     *
+     * @param string $clear The password in clear text.
+     * @return string The password in storage format (e.g. encrypted with user password as key)
+     */
     private function encryptPassword(string $clear): string
     {
         $scheme = $this->pwstore_scheme;
@@ -652,12 +658,12 @@ class carddav extends rcube_plugin
                 $rcube = rcube::get_instance();
 
                 $imap_password = $this->getDesKey();
-                $deskey_backup = $rcube->config->set('carddav_des_key', $imap_password);
+                $rcube->config->set('carddav_des_key', $imap_password);
 
                 $crypted = $rcube->encrypt($clear, 'carddav_des_key');
 
                 // there seems to be no way to unset a preference
-                $deskey_backup = $rcube->config->set('carddav_des_key', '');
+                $rcube->config->set('carddav_des_key', '');
 
                 return '{ENCRYPTED}' . $crypted;
             }
@@ -689,12 +695,12 @@ class carddav extends rcube_plugin
             $rcube = rcube::get_instance();
 
             $imap_password = $this->getDesKey();
-            $deskey_backup = $rcube->config->set('carddav_des_key', $imap_password);
+            $rcube->config->set('carddav_des_key', $imap_password);
 
             $clear = $rcube->decrypt($crypt, 'carddav_des_key');
 
             // there seems to be no way to unset a preference
-            $deskey_backup = $rcube->config->set('carddav_des_key', '');
+            $rcube->config->set('carddav_des_key', '');
 
             return $clear;
         }
