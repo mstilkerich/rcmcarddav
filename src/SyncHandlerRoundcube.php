@@ -203,7 +203,6 @@ class SyncHandlerRoundcube implements SyncHandler
     public function finalizeSync(): void
     {
         $db = $this->db;
-        $dbh = $db->getDbHandle();
         $abookId = $this->rcAbook->getId();
 
         // Now process all KIND=group type VCards that the server reported as changed
@@ -300,7 +299,6 @@ class SyncHandlerRoundcube implements SyncHandler
     {
         $abookId = $this->rcAbook->getId();
         $db = $this->db;
-        $dbh = $db->getDbHandle();
 
         // card may be changed during conversion, in particular inlining of the PHOTO
         [ 'save_data' => $save_data, 'vcf' => $card ] = $this->dataConverter->toRoundcube($card, $this->davAbook);

@@ -249,8 +249,15 @@ class DataConversion
 
     /**
      * Creates a new or updates an existing vcard from save data.
+     *
+     * @param array $save_data The roundcube representation of the contact / group
+     * @param ?VCard $vcard The original VCard from that the address data was originally passed to roundcube. If a new
+     *                      VCard should be created, this parameter must be null.
+     * @param bool $isGroup Set to true if this VCard is for a VCard-style group, otherwise to false for contact card.
+     * @return VCard Returns the created / updated VCard. If a VCard was passed in the $vcard parameter, it is updated
+     *               in place.
      */
-    public function fromRoundcube(array $save_data, VCard $vcard = null, bool $isGroup = false): VCard
+    public function fromRoundcube(array $save_data, ?VCard $vcard = null, bool $isGroup = false): VCard
     {
         unset($save_data['vcard']);
 
@@ -292,7 +299,7 @@ class DataConversion
 
         if (key_exists("department", $save_data)) {
             if (is_array($save_data['department'])) {
-                foreach ($save_data['department'] as $key => $value) {
+                foreach ($save_data['department'] as $value) {
                     $new_org_value[] = $value;
                 }
             } elseif (strlen($save_data['department']) > 0) {
@@ -368,7 +375,7 @@ class DataConversion
                         if (strlen($evalue) > 0) {
                             $prop = $vcard->add($vkey, $evalue);
                             if (!($prop instanceof VObject\Property)) {
-                                throw new \Exception("Sabre did not return a propertyafter adding $vkey property");
+                                throw new \Exception("Sabre did not return a property after adding $vkey property");
                             }
                             $this->setAttrLabel($vcard, $prop, $rckey, $subtype); // set label
                         }

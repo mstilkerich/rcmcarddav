@@ -489,7 +489,6 @@ class Addressbook extends rcube_addressbook
      */
     public function delete($ids, $force = true): int
     {
-        $abook_id = $this->id;
         $deleted = 0;
         $this->logger->info("delete([" . implode(",", $ids) . "])");
         $db = $this->db;
@@ -757,7 +756,7 @@ class Addressbook extends rcube_addressbook
                 } else {
                     $this->adjustContactCategories(
                         $contact_ids,
-                        function (array &$groups, string $contact_id) use ($groupname): bool {
+                        function (array &$groups, string $_contact_id) use ($groupname): bool {
                             return self::stringsAddRemove($groups, [], [$groupname]);
                         }
                     );
@@ -812,7 +811,7 @@ class Addressbook extends rcube_addressbook
                 } else {
                     $this->adjustContactCategories(
                         $contact_ids,
-                        function (array &$groups, string $contact_id) use ($oldname, $newname): bool {
+                        function (array &$groups, string $_contact_id) use ($oldname, $newname): bool {
                             return self::stringsAddRemove($groups, [ $newname ], [ $oldname ]);
                         }
                     );
@@ -917,7 +916,6 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function remove_from_group($group_id, $ids): int
     {
-        $abook_id = $this->id;
         $deleted = 0;
         $db = $this->db;
 
@@ -1149,7 +1147,7 @@ class Addressbook extends rcube_addressbook
             "SELECT id,name,$dbattr FROM " .
             $dbh->table_name('carddav_contacts') . $xfrom .
             ' WHERE abook_id=? ' . $xwhere .
-            ($this->filter ? " AND (" . $this->filter . ")" : "") .
+            ($filter ? " AND (" . $filter . ")" : "") .
             " ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $sort_column . " END) "
             . $sort_order,
             $limit_index,

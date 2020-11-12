@@ -374,7 +374,6 @@ class Database
         array $xcol = [],
         array $xval = []
     ): string {
-        $dbh = $this->dbHandle;
         $logger = $this->logger;
 
         $carddesc = $uri ?? "(entry not backed by card)";
@@ -433,7 +432,7 @@ class Database
             '(' . implode(",", $cols)  . ') ' .
             'VALUES (?' . str_repeat(',?', count($cols) - 1) . ')';
 
-        $sql_result = $dbh->query($sql, $vals);
+        $dbh->query($sql, $vals);
 
         if (in_array($table, self::DBTABLES_WITHOUT_ID)) {
             $dbid = "";
