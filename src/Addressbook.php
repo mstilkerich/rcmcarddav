@@ -1163,10 +1163,6 @@ class Addressbook extends rcube_addressbook
                     $davAbook = $this->getCardDavObj();
                     $save_data = $this->dataConverter->toRoundcube($vcf, $davAbook);
                 } catch (\Exception $e) {
-                    $save_data = false;
-                }
-
-                if (!$save_data) {
                     $this->logger->warning("Couldn't parse vcard " . $contact['vcard']);
                     continue;
                 }
