@@ -210,10 +210,6 @@ final class DataConversionTest extends TestCase
         // structures need to be identical
         $vcardRoundcube = VObject\Reader::read($vcardRoundcube->serialize());
 
-        foreach ($vcardRoundcube->children() as $prop) {
-            echo "PROP {$prop->name} {$prop->group}: $prop\n";
-        }
-
         // These attributes are dynamically created / updated and therefore must not be compared with the static
         // expected card
         $noCompare = [ 'REV', 'UID', 'PRODID', 'X-ABSHOWAS', 'X-ADDRESSBOOKSERVER-KIND' ];
