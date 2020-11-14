@@ -25,7 +25,7 @@ tarball:
 	VERS=$$(git tag --points-at HEAD); \
 		if [ -z "$$VERS" ]; then echo "Error: HEAD has no version tag"; exit 1; else \
 			grep  -q "const PLUGIN_VERSION = '$$VERS'" carddav.php || (echo "carddav::PLUGIN_VERSION does not match release" ; exit 1) ; \
-			git archive --format tgz --prefix carddav/ -o carddav-$$VERS.tgz --worktree-attributes HEAD; \
+			git archive --format tgz --prefix carddav/ -o carddav-$$VERS.tgz HEAD; \
 		fi
 
 define EXECDBSCRIPT_postgres

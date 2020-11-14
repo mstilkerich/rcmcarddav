@@ -2,4 +2,4 @@
 *.xml    export-ignore
 Makefile export-ignore
 doc      export-ignore
-*.tgz    export-ignore
+/tests   export-ignore
