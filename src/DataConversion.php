@@ -512,12 +512,12 @@ class DataConversion
      * Note: vcard groups are case-insensitive per RFC6350.
      *
      * @param VCard $vcard The VCard that the property belongs to
-     * @param VObject\Property $pvalue The property to set the subtype for. A pristine property is assumed that has no
+     * @param VObject\Property $vprop The property to set the subtype for. A pristine property is assumed that has no
      *                                 TYPE parameter set and belong to no property group.
      * @param string $attrname The key used by roundcube for the attribute (e.g. address, email)
      * @param string $newlabel The label to assign to the given property.
      */
-    private function setAttrLabel(VCard $vcard, VObject\Property $pvalue, string $attrname, string $newlabel): void
+    private function setAttrLabel(VCard $vcard, VObject\Property $vprop, string $attrname, string $newlabel): void
     {
         // X-ABLabel?
         if (in_array($newlabel, $this->xlabels[$attrname])) {
@@ -528,13 +528,13 @@ class DataConversion
                 ++$item;
                 $group = "ITEM$item";
             } while (in_array(strtoupper($group), $usedGroups));
-            $pvalue->group = $group;
+            $vprop->group = $group;
 
             $labelProp = $vcard->createProperty("$group.X-ABLabel", $newlabel);
             $vcard->add($labelProp);
         } else {
             // Standard Label
-            $pvalue['TYPE'] = $newlabel;
+            $vprop['TYPE'] = $newlabel;
         }
     }
 
@@ -553,38 +553,29 @@ class DataConversion
      *  3. If no known TYPE parameter value is specified, "other" is used, which is a valid subtype for all currently
      *     supported multi-value properties.
      */
-    private function getAttrLabel(VCard $vcard, VObject\Property $pvalue, string $attrname): string
+    private function getAttrLabel(VCard $vcard, VObject\Property $vprop, string $attrname): string
     {
         // 1. check for a custom label using Apple's X-ABLabel extension
-        $group = $pvalue->group;
+        $group = $vprop->group;
         if ($group) {
-            $xlabel = $vcard->{$group . '.X-ABLabel'};
-            if ($xlabel) {
-                $xlabel = $xlabel->getParts();
-                if ($xlabel) {
-                    $xlabel = $xlabel[0];
-                }
+            $xlabel = $vcard->{"$group.X-ABLabel"};
+            if (!empty($xlabel)) {
+                // special labels from Apple namespace are stored in the form "_$!<Label>!$_" - extract label
+                $xlabel = preg_replace(';_\$!<(.*)>!\$_;', '$1', $xlabel);
 
-                if (strlen($xlabel) > 0) {
-                    // special labels from Apple namespace are stored in the form "_$!<Label>!$_" - extract label
-                    if (preg_match(';_\$!<(.*)>!\$_;', $xlabel, $matches) && !empty($matches[1])) {
-                        $xlabel = $matches[1];
-                    }
-
-                    // add to known types if new
-                    if (!in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
-                        $this->storeextrasubtype($attrname, $xlabel);
-                    }
-                    return $xlabel;
+                // add to known types if new
+                if (!in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
+                    $this->storeextrasubtype($attrname, $xlabel);
                 }
+                return $xlabel;
             }
         }
 
         // 2. select a known standard label if available
-        if (isset($pvalue['TYPE']) && is_array($this->coltypes[$attrname]['subtypes'])) {
+        if (isset($vprop['TYPE']) && is_array($this->coltypes[$attrname]['subtypes'])) {
             $selection = null;
 
-            foreach ($pvalue['TYPE'] as $type) {
+            foreach ($vprop['TYPE'] as $type) {
                 $type = strtolower($type);
                 $pref = array_search($type, $this->coltypes[$attrname]['subtypes'], true);
 
