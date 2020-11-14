@@ -432,26 +432,33 @@ class DataConversion
         return gmdate("Y-m-d\TH:i:s\Z");
     }
 
-    private function guid(): string
-    {
-        return sprintf(
-            '%04X%04X-%04X-%04X-%04X-%04X%04X%04X',
-            mt_rand(0, 65535),
-            mt_rand(0, 65535),
-            mt_rand(0, 65535),
-            mt_rand(16384, 20479),
-            mt_rand(32768, 49151),
-            mt_rand(0, 65535),
-            mt_rand(0, 65535),
-            mt_rand(0, 65535)
-        );
-    }
-
     /******************************************************************************************************************
      ************                                   +         +         +                                  ************
      ************                                    X-ABLabel Extension                                   ************
      ************                                   +         +         +                                  ************
      *****************************************************************************************************************/
+
+    /**
+     * Returns all the property groups used in a VCard.
+     *
+     * For example, [ "ITEM1", "ITEM2" ] would be returned if the vcard contained the following:
+     * ITEM1.X-ABLABEL: FOO
+     * ITEM2.X-ABLABEL: BAR
+     *
+     * @return string[] The list of used groups.
+     */
+    private function getAllPropertyGroups(VCard $vcard): array
+    {
+        $groups = [];
+
+        foreach ($vcard->children() as $p) {
+            if (isset($p->group)) {
+                $groups[$p->group] = true;
+            }
+        }
+
+        return array_keys($groups);
+    }
 
     private function setAttrLabel(VCard $vcard, VObject\Property $pvalue, string $attrname, string $newlabel): bool
     {
@@ -460,9 +467,13 @@ class DataConversion
         // X-ABLabel?
         if (in_array($newlabel, $this->xlabels[$attrname])) {
             if (!$group) {
+                $usedGroups = $this->getAllPropertyGroups($vcard);
+                $item = 0;
+
                 do {
-                    $group = $this->guid();
-                } while (null !== $vcard->{$group . '.X-ABLabel'});
+                    ++$item;
+                    $group = "ITEM$item";
+                } while (in_array($group, $usedGroups));
 
                 $pvalue->group = $group;
 
