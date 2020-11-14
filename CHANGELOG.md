@@ -1,8 +1,12 @@
 # Changelog for RCMCardDAV
 
-## Version 4.1.0 (to 4.0.1)
+## Version 4.1.0 (to 4.0.2)
 
 - Fix: Prefer labels from X-ABLabel extension if available over standard labels
+
+## Version 4.0.2 (to 4.0.1)
+
+- Fix #316: Incompatibility with Sabre/VObject version 4 preventing saving contacts using custom labels
 
 ## Version 4.0.1 (to 4.0.0)
 
