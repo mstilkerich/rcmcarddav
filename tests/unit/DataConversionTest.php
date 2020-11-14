@@ -174,6 +174,43 @@ final class DataConversionTest extends TestCase
         $this->compareVCards($vcardExpected, $result);
     }
 
+    public function vcardUpdateSamplesProvider(): array
+    {
+        return $this->vcardSamplesProvider('tests/unit/data/vcardUpdate');
+    }
+
+    /**
+     * Tests that an existing VCard is updated from Roundcube data properly.
+     *
+     * @dataProvider vcardUpdateSamplesProvider
+     */
+    public function testCorrectUpdateOfVcardFromRoundcube(string $vcfFile, string $jsonFile): void
+    {
+        [ $logger, $db ] = $this->initStubs();
+
+        $db->expects($this->once())
+            ->method("get")
+            ->with(
+                $this->equalTo("42"),
+                $this->equalTo('typename,subtype'),
+                $this->equalTo('xsubtypes'),
+                $this->equalTo(false),
+                $this->equalTo('abook_id')
+            )
+            ->will($this->returnValue([
+                ["typename" => "email", "subtype" => "SpecialLabel"],
+                ["typename" => "email", "subtype" => "SpecialLabel2"]
+            ]));
+
+        $dc = new DataConversion("42", $db, $logger);
+        $vcardOriginal = $this->readVCard($vcfFile);
+        $vcardExpected = $this->readVCard("$vcfFile.new");
+        $saveData = $this->readJsonArray($jsonFile);
+
+        $result = $dc->fromRoundcube($saveData, $vcardOriginal);
+        $this->compareVCards($vcardExpected, $result);
+    }
+
     private function initStubs(): array
     {
         $logger = TestInfrastructure::$logger;
