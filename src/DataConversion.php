@@ -179,7 +179,7 @@ class DataConversion
                     $needs_update = true;
                 }
             }
-            $save_data = self::xabcropphoto($vcard->PHOTO, $save_data);
+            $save_data["photo"] = self::xabcropphoto($vcard->PHOTO) ?? $save_data["photo"];
         }
 
         $property = $vcard->N;
@@ -720,15 +720,31 @@ class DataConversion
      ************                                   +         +         +                                  ************
      *****************************************************************************************************************/
 
-    private static function xabcropphoto(VObject\Property $photo, array $save_data): array
+    /**
+     * Crops the given PHOTO property if it contains an X-ABCROP-RECTANGLE parameter.
+     *
+     * The parameter looks like this:
+     * X-ABCROP-RECTANGLE=ABClipRect_1&60&179&181&181&qZ54yqewvBZj2mycxrnqsA==
+     *
+     *  - The 1st number is the horizontal offset (X) from the left
+     *  - The 2nd number is the vertical offset (Y) from the bottom
+     *  - The 3rd number is the crop width
+     *  - The 4th number is the crop height
+     *
+     * The meaning of the base64 encoded last part of the parameter is unknown and ignored.
+     *
+     * The resulting cropped photo is returned as binary string. In case the given photo lacks the X-ABCROP-RECTANGLE
+     * parameter or the GD library is not available, null is returned instead.
+     */
+    private static function xabcropphoto(VObject\Property $photo): ?string
     {
         if (!function_exists('gd_info')) {
-            return $save_data;
+            return null;
         }
 
         $abcrop = $photo['X-ABCROP-RECTANGLE'];
         if (!($abcrop instanceof VObject\Parameter)) {
-            return $save_data;
+            return null;
         }
 
         $parts = explode('&', (string) $abcrop);
@@ -747,9 +763,8 @@ class DataConversion
         imagepng($dst);
         $data = ob_get_contents();
         ob_end_clean();
-        $save_data['photo'] = $data;
 
-        return $save_data;
+        return $data;
     }
 }
 
