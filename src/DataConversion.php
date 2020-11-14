@@ -179,7 +179,7 @@ class DataConversion
                     $needs_update = true;
                 }
             }
-            self::xabcropphoto($vcard, $save_data);
+            $save_data = self::xabcropphoto($vcard->PHOTO, $save_data);
         }
 
         $property = $vcard->N;
@@ -320,20 +320,6 @@ class DataConversion
             }
         }
 
-        if (
-            key_exists('photo', $save_data)
-            && strlen($save_data['photo']) > 0
-            && base64_decode($save_data['photo'], true) !== false
-        ) {
-            $i = 0;
-            while (base64_decode($save_data['photo'], true) !== false && $i++ < 10) {
-                $save_data['photo'] = base64_decode($save_data['photo'], true);
-            }
-            if ($i >= 10) {
-                $this->logger->warning("PHOTO of " . $save_data['uid'] . " does not decode after 10 attempts...");
-            }
-        }
-
         // process all simple attributes
         foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
             if (key_exists($rckey, $save_data)) {
@@ -348,8 +334,8 @@ class DataConversion
 
         // Special handling for PHOTO
         if ($property = $vcard->PHOTO) {
-            $property['ENCODING'] = 'B';
-            $property['VALUE'] = 'BINARY';
+            $property['ENCODING'] = 'b';
+            $property['VALUE'] = 'binary';
         }
 
         // process all multi-value attributes
@@ -734,18 +720,15 @@ class DataConversion
      ************                                   +         +         +                                  ************
      *****************************************************************************************************************/
 
-    private static function xabcropphoto(VCard $vcard, array &$save_data): VCard
+    private static function xabcropphoto(VObject\Property $photo, array $save_data): array
     {
         if (!function_exists('gd_info')) {
-            return $vcard;
+            return $save_data;
         }
-        $photo = $vcard->PHOTO;
-        if ($photo == null) {
-            return $vcard;
-        }
+
         $abcrop = $photo['X-ABCROP-RECTANGLE'];
         if (!($abcrop instanceof VObject\Parameter)) {
-            return $vcard;
+            return $save_data;
         }
 
         $parts = explode('&', (string) $abcrop);
@@ -766,7 +749,7 @@ class DataConversion
         ob_end_clean();
         $save_data['photo'] = $data;
 
-        return $vcard;
+        return $save_data;
     }
 }
 
