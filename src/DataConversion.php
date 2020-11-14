@@ -238,7 +238,7 @@ class DataConversion
         }
 
         // set displayname according to settings
-        self::setDisplayname($save_data);
+        $save_data = self::setDisplayname($save_data);
 
         return [
             'save_data'    => $save_data,
@@ -262,19 +262,17 @@ class DataConversion
         unset($save_data['vcard']);
 
         if (!$isGroup) {
-            $this->setShowAs($save_data);
+            // for contacts, determine whether to display as company or individual
+            $save_data = $this->setShowAs($save_data);
         }
 
-        if (isset($vcard)) {
-            // update revision
-            $vcard->REV = gmdate("Y-m-d\TH:i:s\Z");
-        } else {
+        if (!isset($vcard)) {
             // create fresh minimal vcard
-            $vcard = new VObject\Component\VCard([
-                'REV' => gmdate("Y-m-d\TH:i:s\Z"),
-                'VERSION' => '3.0'
-            ]);
+            $vcard = new VObject\Component\VCard(['VERSION' => '3.0']);
         }
+
+        // update revision
+        $vcard->REV = $this->dateTimeString();
 
         // N is mandatory
         if (key_exists('kind', $save_data) && $save_data['kind'] === 'group') {
@@ -418,6 +416,20 @@ class DataConversion
         }
 
         return $vcard;
+    }
+
+    /**
+     * Returns an RFC2425 date-time string for the current time in UTC.
+     *
+     * Example: 2020-11-12T16:18:41Z
+     *
+     * T is used as a delimiter to separate date and time.
+     * Z is the zone designator for the zero UTC offset.
+     * See also ISO 8601.
+     */
+    private function dateTimeString(): string
+    {
+        return gmdate("Y-m-d\TH:i:s\Z");
     }
 
     private function guid(): string
@@ -621,7 +633,7 @@ class DataConversion
      *****************************************************************************************************************/
 
     /**
-     * Sets the showas setting by heuristic from the entered data.
+     * Sets the showas setting (individual vs. company) by heuristic from the entered data.
      *
      * The showas setting allows addressbooks to display a contact as an organization rather than an individual.
      *
@@ -632,7 +644,7 @@ class DataConversion
      * If an existing ShowAs=COMPANY setting is given, but the organization field is empty, the setting will be reset to
      * INDIVIDUAL.
      */
-    private function setShowAs(array &$save_data): void
+    private function setShowAs(array $save_data): array
     {
         if (empty($save_data['showas'])) {
             if (empty($save_data['surname']) && empty($save_data['firstname']) && !empty($save_data['organization'])) {
@@ -648,14 +660,16 @@ class DataConversion
         }
 
         // generate display name according to display order setting
-        self::setDisplayname($save_data);
+        $save_data = self::setDisplayname($save_data);
+
+        return $save_data;
     }
 
     /**
      * Determines the name to be displayed for a contact. The routine
      * distinguishes contact cards for individuals from organizations.
      */
-    private static function setDisplayname(array &$save_data): void
+    private static function setDisplayname(array $save_data): array
     {
         if (strcasecmp($save_data['showas'], 'COMPANY') == 0 && strlen($save_data['organization']) > 0) {
             $save_data['name']     = $save_data['organization'];
@@ -697,6 +711,8 @@ class DataConversion
                 $save_data['name'] = 'Unset Displayname';
             }
         }
+
+        return $save_data;
     }
 
     /******************************************************************************************************************
