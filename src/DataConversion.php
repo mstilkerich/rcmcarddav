@@ -155,9 +155,8 @@ class DataConversion
 
         foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
             $property = $vcard->{$vkey};
-            if ($property !== null) {
-                $p = $property->getParts();
-                $save_data[$rckey] = $p[0];
+            if (!empty($property)) {
+                $save_data[$rckey] = (string) $property;
             }
         }
 
@@ -205,18 +204,17 @@ class DataConversion
 
         foreach (self::VCF2RC['multi'] as $key => $value) {
             $property = $vcard->{$key};
-            if ($property !== null) {
-                foreach ($property as $property_instance) {
-                    $p = $property_instance->getParts();
-                    $label = $this->getAttrLabel($vcard, $property_instance, $value);
-                    $save_data[$value . ':' . $label][] = $p[0];
+            if (isset($property)) {
+                foreach ($property as $propertyInstance) {
+                    $label = $this->getAttrLabel($vcard, $propertyInstance, $value);
+                    $save_data[$value . ':' . $label][] = (string) $propertyInstance;
                 }
             }
         }
 
         $property = ($vcard->ADR) ?: [];
-        foreach ($property as $property_instance) {
-            $label = $this->getAttrLabel($vcard, $property_instance, 'address');
+        foreach ($property as $propertyInstance) {
+            $label = $this->getAttrLabel($vcard, $propertyInstance, 'address');
 
             $attrs = [
                 'pobox',    // post office box
@@ -227,7 +225,7 @@ class DataConversion
                 'zipcode',  // postal code
                 'country'   // country name
             ];
-            $p = $property_instance->getParts();
+            $p = $propertyInstance->getParts();
             $addr = [];
             for ($i = 0; $i < count($p); $i++) {
                 if (!empty($p[$i])) {
