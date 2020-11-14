@@ -1815,15 +1815,20 @@ class Addressbook extends rcube_addressbook
                 }
             }
 
-            $vcard->{$group . '.X-ABLabel'} = $newlabel;
+            $labelProp = $vcard->createProperty("$group.X-ABLabel", $newlabel);
+            $vcard->add($labelProp);
+
             return true;
         }
 
         // Standard Label
         $had_xlabel = false;
         if ($group) { // delete group label property if present
-            $had_xlabel = isset($vcard->{$group . '.X-ABLabel'});
-            unset($vcard->{$group . '.X-ABLabel'});
+            $oldLabelProp = $vcard->{"$group.X-ABLabel"};
+            if (isset($oldLabelProp)) {
+                $had_xlabel = true;
+                $vcard->remove($oldLabelProp);
+            }
         }
 
         // add or replace?
