@@ -156,21 +156,22 @@ final class DataConversionTest extends TestCase
     {
         [ $logger, $db ] = $this->initStubs();
 
+        $db->expects($this->once())
+            ->method("get")
+            ->with(
+                $this->equalTo("42"),
+                $this->equalTo('typename,subtype'),
+                $this->equalTo('xsubtypes'),
+                $this->equalTo(false),
+                $this->equalTo('abook_id')
+            )
+            ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
         $dc = new DataConversion("42", $db, $logger);
         $vcardExpected = $this->readVCard($vcfFile);
         $saveData = $this->readJsonArray($jsonFile);
         $result = $dc->fromRoundcube($saveData);
 
-        $serializedResult = $result->serialize();
-        $result = VObject\Reader::read($serializedResult);
-
-        $noCompare = [ 'REV', 'UID', 'PRODID', 'X-ABSHOWAS', 'X-ADDRESSBOOKSERVER-KIND' ];
-        foreach ($noCompare as $property) {
-            unset($vcardExpected->{$property});
-            unset($result->{$property});
-        }
-
-        $this->assertEquals($vcardExpected, $result, "Created VCard does not match roundcube data");
+        $this->compareVCards($vcardExpected, $result);
     }
 
     private function initStubs(): array
@@ -199,6 +200,29 @@ final class DataConversionTest extends TestCase
         $phpArray = json_decode($json, true);
         $this->assertTrue(is_array($phpArray));
         return $phpArray;
+    }
+
+    private function compareVCards(VCard $vcardExpected, VCard $vcardRoundcube): void
+    {
+        // this is needed to get a VCard object that is identical in structure to the one parsed
+        // from file. There is differences with respect to the parent attributes and concerning whether single value
+        // properties have an array setting or a plain value. We want to use phpunits equal assertion, so the data
+        // structures need to be identical
+        $vcardRoundcube = VObject\Reader::read($vcardRoundcube->serialize());
+
+        foreach ($vcardRoundcube->children() as $prop) {
+            echo "PROP {$prop->name} {$prop->group}: $prop\n";
+        }
+
+        // These attributes are dynamically created / updated and therefore must not be compared with the static
+        // expected card
+        $noCompare = [ 'REV', 'UID', 'PRODID', 'X-ABSHOWAS', 'X-ADDRESSBOOKSERVER-KIND' ];
+        foreach ($noCompare as $property) {
+            unset($vcardExpected->{$property});
+            unset($vcardRoundcube->{$property});
+        }
+
+        $this->assertEquals($vcardExpected, $vcardRoundcube, "Created VCard does not match roundcube data");
     }
 }
 
