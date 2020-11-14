@@ -355,12 +355,19 @@ class DataConversion
         }
 
         // process all multi-value attributes
-        foreach (self::VCF2RC['multi'] as $vkey => $rckey) {
-            // delete and fully recreate all entries
-            // there is no easy way of mapping an address in the existing card
-            // to an address in the save data, as subtypes may have changed
-            unset($vcard->{$vkey});
 
+        // delete and fully recreate all entries; there is no easy way of mapping an address in the existing card to an
+        // address in the save data, as subtypes may have changed
+        foreach (array_keys(self::VCF2RC['multi']) as $vkey) {
+            unset($vcard->{$vkey});
+        }
+        unset($vcard->ADR);
+
+        // now clear out all orphan X-ABLabel properties
+        $this->clearOrphanAttrLabels($vcard);
+
+        // and finally recreate the attributes
+        foreach (self::VCF2RC['multi'] as $vkey => $rckey) {
             $stmap = [ $rckey => 'other' ];
             foreach ($this->coltypes[$rckey]['subtypes'] as $subtype) {
                 $stmap[ $rckey . ':' . $subtype ] = $subtype;
@@ -383,7 +390,6 @@ class DataConversion
         }
 
         // process address entries
-        unset($vcard->ADR);
         foreach ($this->coltypes['address']['subtypes'] as $subtype) {
             $rcqkey = 'address:' . $subtype;
 
@@ -445,7 +451,7 @@ class DataConversion
      * ITEM1.X-ABLABEL: FOO
      * ITEM2.X-ABLABEL: BAR
      *
-     * @return string[] The list of used groups.
+     * @return string[] The list of used groups, in upper case.
      */
     private function getAllPropertyGroups(VCard $vcard): array
     {
@@ -453,76 +459,83 @@ class DataConversion
 
         foreach ($vcard->children() as $p) {
             if (isset($p->group)) {
-                $groups[$p->group] = true;
+                $groups[strtoupper($p->group)] = true;
             }
         }
 
         return array_keys($groups);
     }
 
-    private function setAttrLabel(VCard $vcard, VObject\Property $pvalue, string $attrname, string $newlabel): bool
+    /**
+     * This function clears all orphan X-ABLabel properties from a VCard.
+     *
+     * An X-ABLabel is considered orphan if its property group is not used by any other properties.
+     *
+     * The special case that X-ABLabel property exists that is not part of any group is not considered an orphan, and it
+     * should not occur because X-ABLabel only makes sense when assigned to another property via the shared group.
+     */
+    private function clearOrphanAttrLabels(VCard $vcard): void
     {
-        $group = $pvalue->group;
+        // groups used by Properties OTHER than X-ABLabel
+        $usedGroups = [];
+        $labelProps = [];
 
-        // X-ABLabel?
-        if (in_array($newlabel, $this->xlabels[$attrname])) {
-            if (!$group) {
-                $usedGroups = $this->getAllPropertyGroups($vcard);
-                $item = 0;
-
-                do {
-                    ++$item;
-                    $group = "ITEM$item";
-                } while (in_array($group, $usedGroups));
-
-                $pvalue->group = $group;
-
-                // delete standard label if we had one
-                $oldlabel = $pvalue['TYPE'];
-                if (
-                    ($oldlabel instanceof VObject\Parameter)
-                    && (strlen((string) $oldlabel) > 0)
-                    && in_array($oldlabel, $this->coltypes[$attrname]['subtypes'])
-                ) {
-                    unset($pvalue['TYPE']);
+        foreach ($vcard->children() as $p) {
+            if (isset($p->group)) {
+                if (strcasecmp($p->name, "X-ABLabel") === 0) {
+                    $labelProps[] = $p;
+                } else {
+                    $usedGroups[strtoupper($p->group)] = true;
                 }
             }
+        }
+
+        foreach ($labelProps as $p) {
+            if (!isset($usedGroups[strtoupper($p->group)])) {
+                $vcard->remove($p);
+            }
+        }
+    }
+
+    /**
+     * This function assigned a label (subtype) to a VCard multi-value property.
+     *
+     * Typical multi-value properties are EMAIL, TEL and ADR.
+     *
+     * Note that roundcube/rcmcarddav only supports a single subtype per property, whereas VCard allows to have more
+     * than one. As an effect, when a card is updated only the subtype selected in roundcube will be preserved, possible
+     * extra subtypes will be lost.
+     *
+     * If the given label is one of the known standard labels, it will be assigned as a TYPE parameter of the property,
+     * otherwise it will be assigned using the X-ABLabel extension.
+     *
+     * Note: vcard groups are case-insensitive per RFC6350.
+     *
+     * @param VCard $vcard The VCard that the property belongs to
+     * @param VObject\Property $pvalue The property to set the subtype for. A pristine property is assumed that has no
+     *                                 TYPE parameter set and belong to no property group.
+     * @param string $attrname The key used by roundcube for the attribute (e.g. address, email)
+     * @param string $newlabel The label to assign to the given property.
+     */
+    private function setAttrLabel(VCard $vcard, VObject\Property $pvalue, string $attrname, string $newlabel): void
+    {
+        // X-ABLabel?
+        if (in_array($newlabel, $this->xlabels[$attrname])) {
+            $usedGroups = $this->getAllPropertyGroups($vcard);
+            $item = 0;
+
+            do {
+                ++$item;
+                $group = "ITEM$item";
+            } while (in_array(strtoupper($group), $usedGroups));
+            $pvalue->group = $group;
 
             $labelProp = $vcard->createProperty("$group.X-ABLabel", $newlabel);
             $vcard->add($labelProp);
-
-            return true;
-        }
-
-        // Standard Label
-        $had_xlabel = false;
-        if ($group) { // delete group label property if present
-            $oldLabelProp = $vcard->{"$group.X-ABLabel"};
-            if (isset($oldLabelProp)) {
-                $had_xlabel = true;
-                $vcard->remove($oldLabelProp);
-            }
-        }
-
-        // add or replace?
-        $oldlabel = $pvalue['TYPE'];
-        if (
-            ($oldlabel instanceof VObject\Parameter)
-            && (strlen((string) $oldlabel) > 0)
-            && in_array((string) $oldlabel, $this->coltypes[$attrname]['subtypes'])
-        ) {
-            $had_xlabel = false; // replace
-        }
-
-        if ($had_xlabel && is_array($pvalue['TYPE'])) {
-            $new_type = $pvalue['TYPE'];
-            array_unshift($new_type, $newlabel);
         } else {
-            $new_type = $newlabel;
+            // Standard Label
+            $pvalue['TYPE'] = $newlabel;
         }
-        $pvalue['TYPE'] = $new_type;
-
-        return false;
     }
 
     /**
