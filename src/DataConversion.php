@@ -378,10 +378,8 @@ class DataConversion
                     $avalues = is_array($save_data[$rcqkey]) ? $save_data[$rcqkey] : [$save_data[$rcqkey]];
                     foreach ($avalues as $evalue) {
                         if (strlen($evalue) > 0) {
-                            $prop = $vcard->add($vkey, $evalue);
-                            if (!($prop instanceof VObject\Property)) {
-                                throw new \Exception("Sabre did not return a property after adding $vkey property");
-                            }
+                            $prop = $vcard->createProperty($vkey, $evalue);
+                            $vcard->add($prop);
                             $this->setAttrLabel($vcard, $prop, $rckey, $subtype); // set label
                         }
                     }
@@ -402,7 +400,7 @@ class DataConversion
                         || strlen($avalue['zipcode'])
                         || strlen($avalue['country'])
                     ) {
-                        $prop = $vcard->add('ADR', [
+                        $prop = $vcard->createProperty('ADR', [
                             '',
                             '',
                             $avalue['street'],
@@ -411,10 +409,7 @@ class DataConversion
                             $avalue['zipcode'],
                             $avalue['country'],
                         ]);
-
-                        if (!($prop instanceof VObject\Property)) {
-                            throw new \Exception("Sabre did not provide a property object when adding ADR");
-                        }
+                        $vcard->add($prop);
                         $this->setAttrLabel($vcard, $prop, 'address', $subtype); // set label
                     }
                 }
