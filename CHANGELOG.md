@@ -7,6 +7,7 @@
 ## Version 4.0.2 (to 4.0.1)
 
 - Fix #316: Incompatibility with Sabre/VObject version 4 preventing saving contacts using custom labels
+- Fix: Default refresh time set to 1 sec in settings
 
 ## Version 4.0.1 (to 4.0.0)
 
