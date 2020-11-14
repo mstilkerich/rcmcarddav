@@ -216,6 +216,14 @@ final class DataConversionTest extends TestCase
         $logger = TestInfrastructure::$logger;
         $this->assertInstanceOf(LoggerInterface::class, $logger);
         $abook = $this->createStub(AddressbookCollection::class);
+        $abook->method('downloadResource')->will($this->returnCallback(function (string $uri): array {
+            if (preg_match(',^http://localhost/(.+),', $uri, $matches) && isset($matches[1])) {
+                $filename = "tests/unit/data/srv/$matches[1]";
+                $this->assertFileIsReadable($filename);
+                return [ 'body' => file_get_contents($filename) ];
+            }
+            throw new \Exception("URI $uri not known to stub");
+        }));
         $db = $this->createMock(Database::class);
 
         return [ $logger, $db, $abook ];
@@ -236,6 +244,18 @@ final class DataConversionTest extends TestCase
         $this->assertNotFalse($json);
         $phpArray = json_decode($json, true);
         $this->assertTrue(is_array($phpArray));
+
+        // special handling for photo as we cannot encode binary data in json
+        if (isset($phpArray['photo'])) {
+            $photoFile = $phpArray['photo'];
+            if ($photoFile[0] == '@') {
+                $photoFile = substr($photoFile, 1);
+                $comp = pathinfo($jsonFile);
+                $photoFile = "{$comp["dirname"]}/$photoFile";
+                $this->assertFileIsReadable($photoFile);
+                $phpArray['photo'] = file_get_contents($photoFile);
+            }
+        }
         return $phpArray;
     }
 
