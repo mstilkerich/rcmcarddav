@@ -194,12 +194,10 @@ class DataConversion
         }
 
         $property = $vcard->ORG;
-        if ($property) {
+        if (isset($property)) {
             $ORG = $property->getParts();
-            $save_data['organization'] = $ORG[0];
-            for ($i = 1; $i < count($ORG); $i++) {
-                $save_data['department'][] = $ORG[$i];
-            }
+            $save_data['organization'] = array_shift($ORG) ?? "";
+            $save_data['department'] = implode("; ", $ORG);
         }
 
         foreach (self::VCF2RC['multi'] as $key => $value) {
@@ -294,28 +292,25 @@ class DataConversion
             ];
         }
 
-        $new_org_value = [];
-        if (
-            key_exists("organization", $save_data)
-            && strlen($save_data['organization']) > 0
-        ) {
-            $new_org_value[] = $save_data['organization'];
+        $orgParts = [];
+        if (!empty($save_data['organization'])) {
+            $orgParts[] = $save_data['organization'];
         }
 
-        if (key_exists("department", $save_data)) {
-            if (is_array($save_data['department'])) {
-                foreach ($save_data['department'] as $value) {
-                    $new_org_value[] = $value;
-                }
-            } elseif (strlen($save_data['department']) > 0) {
-                $new_org_value[] = $save_data['department'];
+        if (!empty($save_data['department'])) {
+            // the first element of ORG corresponds to organization, if that field is not filled but organization is
+            // we need to store an empty value explicitly (otherwise, department would become organization when reading
+            // back the VCard).
+            if (empty($orgParts)) {
+                $orgParts[] = "";
             }
+            $orgParts = array_merge($orgParts, preg_split('/\s*;\s*/', $save_data['department']));
         }
 
-        if (count($new_org_value) > 0) {
-            $vcard->ORG = $new_org_value;
-        } else {
+        if (empty($orgParts)) {
             unset($vcard->ORG);
+        } else {
+            $vcard->ORG = $orgParts;
         }
 
         // normalize date fields to RFC2425 YYYY-MM-DD date values
