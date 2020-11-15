@@ -244,13 +244,9 @@ class DataConversion
      * Creates a new or updates an existing vcard from save data.
      *
      * About the contents of save_data:
-     *   - Empty / deleted fields in roundcube either are missing from save_data or contain an empty string as value.
-     *     It is not really clear under what circumstances a field is present empty and when it's missing entirely.
-     *   - Special case photo: It is only set if it was edited. If it is deleted, it is set to an empty string. If it
-     *                         was not changed, no photo key is present in save_data.
      *   - Multi-value fields (email, address, phone, website) have a key that includes the subtype setting delimited by
-     *     a colon (e.g. "email:home"). The value of each setting is an array. These arrays may again include empty
-     *     members if the field was part of the edit mask but not filled.
+     *     a colon (e.g. "email:home"). The value of each setting is an array. These arrays may include empty members if
+     *     the field was part of the edit mask but not filled.
      *
      * @param array $save_data The roundcube representation of the contact / group
      * @param ?VCard $vcard The original VCard from that the address data was originally passed to roundcube. If a new
@@ -291,26 +287,7 @@ class DataConversion
         }
 
         $this->setOrgProperty($save_data, $vcard);
-
-        // process all simple attributes
-        foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
-            if (key_exists($rckey, $save_data)) {
-                $data = (is_array($save_data[$rckey])) ? $save_data[$rckey][0] : $save_data[$rckey];
-                if (empty($data)) {
-                    unset($vcard->{$vkey});
-                } else { // delete the field
-                    $vcard->{$vkey} = $data;
-                }
-            }
-        }
-
-        // Special handling for PHOTO
-        // If PHOTO was set from roundcube data, set the parameters properly
-        // Note: if it was unchanged (save_data["photo"] is not set), leave the property alone!
-        if (!empty($save_data["photo"]) && isset($vcard->PHOTO)) {
-            $vcard->PHOTO['ENCODING'] = 'b';
-            $vcard->PHOTO['VALUE'] = 'binary';
-        }
+        $this->setSingleValueProperties($save_data, $vcard);
 
         // process all multi-value attributes
 
@@ -424,6 +401,39 @@ class DataConversion
             unset($vcard->ORG);
         } else {
             $vcard->ORG = $orgParts;
+        }
+    }
+
+    /**
+     * Sets properties with a single value in a VCard from roundcube contact data.
+     *
+     * About the contents of save_data:
+     *   - Empty / deleted fields in roundcube either are missing from save_data or contain an empty string as value.
+     *     It is not really clear under what circumstances a field is present empty and when it's missing entirely.
+     *   - Special case photo: It is only set if it was edited. If it is deleted, it is set to an empty string. If it
+     *                         was not changed, no photo key is present in save_data.
+     *
+     * @param array $save_data The roundcube representation of the contact
+     * @param VCard $vcard The VCard to set the ORG property for.
+     */
+    private function setSingleValueProperties(array $save_data, VCard $vcard): void
+    {
+        foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
+            if (empty($save_data[$rckey])) {
+                // not set or empty value -> delete EXCEPT PHOTO, which is only deleted if value is set to empty string
+                if ($rckey !== "photo" || isset($save_data["photo"])) {
+                    unset($vcard->{$vkey});
+                } // else keep a possibly existing old property
+            } else {
+                $vcard->{$vkey} = $save_data[$rckey];
+
+                // Special handling for PHOTO
+                // If PHOTO is set from roundcube data, set the parameters properly
+                if ($rckey === "photo" && isset($vcard->PHOTO)) {
+                    $vcard->PHOTO['ENCODING'] = 'b';
+                    $vcard->PHOTO['VALUE'] = 'binary';
+                }
+            }
         }
     }
 
