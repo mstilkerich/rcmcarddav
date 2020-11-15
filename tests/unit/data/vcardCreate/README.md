@@ -20,3 +20,5 @@ There are a few specifics to be tested during the creation:
 - InlinePhoto: Includes a photo set to binary data
 - XAbLabelOnly: Contains two email addresses assigned a special label. These should be assigned using `X-ABLABEL` in the
   created VCard.
+- DepartmentOnly: Contains a department setting with multiple levels, but no organization. Department must end up in the
+  parts 1+ of the `ORG` property, the empty organization in this case must result in an empty part 0 of `ORG`.
