@@ -44,9 +44,6 @@ class DataConversion
         ],
     ];
 
-    /** @var string[] DATEFIELDS list of potential date fields for formatting */
-    private const DATEFIELDS = ['birthday', 'anniversary'];
-
     /** @var array $coltypes Descriptions on the different attributes of address objects for roundcube
      *
      *  TODO roundcube has further default types: maidenname, im
@@ -294,17 +291,6 @@ class DataConversion
         }
 
         $this->setOrgProperty($save_data, $vcard);
-
-        // normalize date fields to RFC2425 YYYY-MM-DD date values
-        foreach (self::DATEFIELDS as $key) {
-            if (isset($save_data[$key])) {
-                $data = is_array($save_data[$key]) ? $save_data[$key][0] : $save_data[$key];
-                if (strlen($data) > 0) {
-                    $val = rcube_utils::strtotime($data);
-                    $save_data[$key] = date('Y-m-d', $val);
-                }
-            }
-        }
 
         // process all simple attributes
         foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
