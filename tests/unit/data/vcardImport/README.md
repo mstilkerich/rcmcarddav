@@ -1,0 +1,39 @@
+# Tests for data conversion of VCards to Roundcube internal data
+
+This folder contains the test data sets for testing the data conversion process from a VCard as received from the
+CardDAV server into roundcube's internal representation.
+
+There are a few specifics to be tested during the import:
+
+- In roundcube we can only display one label/subtype for a property (e.g. home email address). In VCard, however,
+  multiple such subtypes can be specified. Therefore it is necessary for RCMCardDAV to select one if several are given.
+  - `X-ABLabel` custom labels have the highest priority
+  - Standard labels assigned via the type parameter have a builtin precedence (e.g. _home_ is preferred over _internet_)
+  - If no label can be determined, it defaults to _other_
+- A photo can be specified either inline or referenced as external URI
+- For photos, cropping via `X-ABCROP-RECTANGLE` extension is supported
+- Special consideration should be given to `ADR`, `ORG` and `N` attributes as they are composed of multiple parts that
+  map to individual roundcube attributes.
+- The `X-ABSHOWAS` extension is supported to display contacts as company. If a contact is marked as company, the
+  displayname (`FN`) attribute will be overridden by the company name from the `ORG` property if present. __TODO__
+- If no `FN` attribute is contained or it is empty, RCMCardDAV composes a displayname from the `N` property, falling
+  back to `EMAIL` if no name is available. __TODO__
+
+## Short description of each data set
+
+- AllAttr: This is a simple VCard that contains all supported attributes
+- EmptyFN: Contains an empty display name (`FN`) property. RCMCardDav should compose a displayname from the `N`
+  property.
+- LabelPreference: Uses several standard labels in different order on an `EMAIL` property. RCMCardDAV should select the
+  label with the highest preference.
+- InlinePhoto: Contains a `PHOTO` property stored as base64 encoded data inside the VCard.
+- UriPhoto: Contains a `PHOTO` property where the picture file is referenced by URI and stored externally. RCMCardDAV
+  should retrieve the picture from the given URL and provide it to roundcube.
+- UriPhotoCrop: Like UriPhoto, but additionally contains an `X-ABCROP-RECTANGLE` parameter that requests that only a
+  crop of the entire image should be displayed to the user.
+- XAbLabel: Contains a custom label assigned via `X-ABLABEL` property to an EMAIL property. Furthermore, it also
+  contains a second `EMAIL` property that is also part of a group, but that group has no `X-ABLABEL` property. A
+  standard or default label must be selected instead.
+- XAbLabelAppleBuiltin: Uses the special Apple syntax in an `X-ABLABEL` that Apple uses for their builtin extra labels.
+- XAbLabelOnly: Contains an `EMAIL` property that only has a subtype assigned via `X-ABLABEL`, no `TYPE` param is
+  attached.

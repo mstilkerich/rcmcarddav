@@ -17,17 +17,38 @@
 	"nickname": "Practical Al",
 	"notes": "It should be noted that Wesker seems to only have loyalty to himself and William Birkin and seems to be playing all sides to his own advantage.",
 	"jobtitle": "CEO",
-	"email:home": [ "albert@wesker.example.com" ],
+	"email:home": [ "albert@wesker.example.com", "" ],
 	"email:work": [ "wesker@umbrella.example.com" ],
-	"phone:home": [ "12345" ],
+	"email:other": [ "" ],
+	"phone:home": [ "12345", "" ],
 	"phone:work": [ "54321" ],
-	"website:homepage": [ "https://wesker.example.com" ],
-	"address:home": [{
+	"phone:other": [ "" ],
+	"website:homepage": [ "https://wesker.example.com", "" ],
+	"website:other": [ "" ],
+	"address:home": [
+	{
 		"street": "239 Umbrella Ave",
 		"locality": "Tokyo",
 		"region": "Kanto",
 		"zipcode": "99887",
 		"country": "Japan"
-	}],
+	},
+	{
+		"street": "",
+		"locality": "",
+		"region": "",
+		"zipcode": "",
+		"country": ""
+	}
+	],
+	"address:work": [
+	{
+		"street": "",
+		"locality": "",
+		"region": "",
+		"zipcode": "",
+		"country": ""
+	}
+	],
 	"showas": "INDIVIDUAL"
 }
