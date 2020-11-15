@@ -5,6 +5,7 @@
 - Fix: Prefer labels from X-ABLabel extension if available over standard labels
 - Fix #317: Support specification of department with empty organization
 - Support several levels of departments separated by semicolon that end up as structured value in the VCard
+- Fix #318: Some attributes (e.g. gender) could not be deleted when updating a contact
 
 ## Version 4.0.2 (to 4.0.1)
 
