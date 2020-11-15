@@ -5,7 +5,7 @@
 	"prefix": "Dr.",
 	"suffix": "MSc",
 	"organization": "Umbrella Corp",
-	"department": [ "Executive Board" ],
+	"department": "Executive Board",
 	"cuid": "sabre-vobject-005e805f-0bc1-4333-8be2-97889fb45b7a",
 	"kind": "individual",
 	"birthday": "1960-07-17",
