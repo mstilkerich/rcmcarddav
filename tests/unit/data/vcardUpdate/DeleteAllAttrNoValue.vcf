@@ -1,0 +1,25 @@
+BEGIN:VCARD
+VERSION:3.0
+PRODID:-//Sabre//Sabre VObject 4.3.1//EN
+UID:sabre-vobject-005e805f-0bc1-4333-8be2-97889fb45b7a
+REV:2020-08-27T20:38:49Z
+N:Wesker;Albert;;Dr.;MSc
+ORG:Umbrella Corp;Executive Board
+BDAY:1960-07-17
+FN:Chairman Wesker
+NICKNAME:Practical Al
+NOTE:It should be noted that Wesker seems to only have loyalty to himself and William Birkin and seems to be playing all sides to his own advantage.
+TITLE:CEO
+X-ABSHOWAS:INDIVIDUAL
+X-ANNIVERSARY:2009-07-03
+X-ASSISTANT:Dr. Alexander Isaacs
+X-GENDER:male
+X-MANAGER:No one
+X-SPOUSE:Alice Wesker
+EMAIL;TYPE=home:albert@wesker.example.com
+EMAIL;TYPE=work:wesker@umbrella.example.com
+TEL;TYPE=home:12345
+TEL;TYPE=work:54321
+URL;TYPE=homepage;VALUE=URI:https://wesker.example.com
+ADR;TYPE=home:;;239 Umbrella Ave;Tokyo;Kanto;99887;Japan
+END:VCARD
