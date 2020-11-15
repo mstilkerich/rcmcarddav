@@ -328,18 +328,20 @@ class DataConversion
         foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
             if (key_exists($rckey, $save_data)) {
                 $data = (is_array($save_data[$rckey])) ? $save_data[$rckey][0] : $save_data[$rckey];
-                if (strlen($data) > 0) {
-                    $vcard->{$vkey} = $data;
-                } else { // delete the field
+                if (empty($data)) {
                     unset($vcard->{$vkey});
+                } else { // delete the field
+                    $vcard->{$vkey} = $data;
                 }
             }
         }
 
         // Special handling for PHOTO
-        if ($property = $vcard->PHOTO) {
-            $property['ENCODING'] = 'b';
-            $property['VALUE'] = 'binary';
+        // If PHOTO was set from roundcube data, set the parameters properly
+        // Note: if it was unchanged (save_data["photo"] is not set), leave the property alone!
+        if (!empty($save_data["photo"]) && isset($vcard->PHOTO)) {
+            $vcard->PHOTO['ENCODING'] = 'b';
+            $vcard->PHOTO['VALUE'] = 'binary';
         }
 
         // process all multi-value attributes
