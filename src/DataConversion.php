@@ -41,6 +41,7 @@ class DataConversion
             'EMAIL' => 'email',
             'TEL' => 'phone',
             'URL' => 'website',
+            'ADR' => 'address',
         ],
     ];
 
@@ -197,37 +198,20 @@ class DataConversion
             $save_data['department'] = implode("; ", $ORG);
         }
 
-        foreach (self::VCF2RC['multi'] as $key => $value) {
-            $property = $vcard->{$key};
-            if (isset($property)) {
-                foreach ($property as $propertyInstance) {
-                    $label = $this->getAttrLabel($vcard, $propertyInstance, $value);
-                    $save_data[$value . ':' . $label][] = (string) $propertyInstance;
+        foreach (self::VCF2RC['multi'] as $vkey => $rckey) {
+            $properties = $vcard->{$vkey};
+            if (isset($properties)) {
+                foreach ($properties as $prop) {
+                    $label = $this->getAttrLabel($vcard, $prop, $rckey);
+
+                    if (method_exists($this, "toRoundcube$vkey")) {
+                        // special handler for structured property
+                        $save_data["$rckey:$label"][] = call_user_func([$this, "toRoundcube$vkey"], $prop);
+                    } else {
+                        $save_data["$rckey:$label"][] = (string) $prop;
+                    }
                 }
             }
-        }
-
-        $property = ($vcard->ADR) ?: [];
-        foreach ($property as $propertyInstance) {
-            $label = $this->getAttrLabel($vcard, $propertyInstance, 'address');
-
-            $attrs = [
-                'pobox',    // post office box
-                'extended', // extended address
-                'street',   // street address
-                'locality', // locality (e.g., city)
-                'region',   // region (e.g., state or province)
-                'zipcode',  // postal code
-                'country'   // country name
-            ];
-            $p = $propertyInstance->getParts();
-            $addr = [];
-            for ($i = 0; $i < count($p); $i++) {
-                if (!empty($p[$i])) {
-                    $addr[$attrs[$i]] = $p[$i];
-                }
-            }
-            $save_data['address:' . $label][] = $addr;
         }
 
         // set displayname according to settings
@@ -240,13 +224,36 @@ class DataConversion
         ];
     }
 
+
+    /**
+     * Creates roundcube address data from an ADR VCard property.
+     *
+     * @param VObject\Property The ADR property to use as input.
+     * @return string[] The roundcube address data created from the property.
+     */
+    private function toRoundcubeADR(VObject\Property $prop): array
+    {
+        $attrs = [
+            'pobox',    // post office box
+            'extended', // extended address
+            'street',   // street address
+            'locality', // locality (e.g., city)
+            'region',   // region (e.g., state or province)
+            'zipcode',  // postal code
+            'country'   // country name
+        ];
+        $p = $prop->getParts();
+        $addr = [];
+        for ($i = 0; $i < count($p); $i++) {
+            if (!empty($p[$i])) {
+                $addr[$attrs[$i]] = $p[$i];
+            }
+        }
+        return $addr;
+    }
+
     /**
      * Creates a new or updates an existing vcard from save data.
-     *
-     * About the contents of save_data:
-     *   - Multi-value fields (email, address, phone, website) have a key that includes the subtype setting delimited by
-     *     a colon (e.g. "email:home"). The value of each setting is an array. These arrays may include empty members if
-     *     the field was part of the edit mask but not filled.
      *
      * @param array $save_data The roundcube representation of the contact / group
      * @param ?VCard $vcard The original VCard from that the address data was originally passed to roundcube. If a new
@@ -288,68 +295,7 @@ class DataConversion
 
         $this->setOrgProperty($save_data, $vcard);
         $this->setSingleValueProperties($save_data, $vcard);
-
-        // process all multi-value attributes
-
-        // delete and fully recreate all entries; there is no easy way of mapping an address in the existing card to an
-        // address in the save data, as subtypes may have changed
-        foreach (array_keys(self::VCF2RC['multi']) as $vkey) {
-            unset($vcard->{$vkey});
-        }
-        unset($vcard->ADR);
-
-        // now clear out all orphan X-ABLabel properties
-        $this->clearOrphanAttrLabels($vcard);
-
-        // and finally recreate the attributes
-        foreach (self::VCF2RC['multi'] as $vkey => $rckey) {
-            $stmap = [ $rckey => 'other' ];
-            foreach ($this->coltypes[$rckey]['subtypes'] as $subtype) {
-                $stmap[ $rckey . ':' . $subtype ] = $subtype;
-            }
-
-            foreach ($stmap as $rcqkey => $subtype) {
-                if (key_exists($rcqkey, $save_data)) {
-                    $avalues = is_array($save_data[$rcqkey]) ? $save_data[$rcqkey] : [$save_data[$rcqkey]];
-                    foreach ($avalues as $evalue) {
-                        if (strlen($evalue) > 0) {
-                            $prop = $vcard->createProperty($vkey, $evalue);
-                            $vcard->add($prop);
-                            $this->setAttrLabel($vcard, $prop, $rckey, $subtype); // set label
-                        }
-                    }
-                }
-            }
-        }
-
-        // process address entries
-        foreach ($this->coltypes['address']['subtypes'] as $subtype) {
-            $rcqkey = 'address:' . $subtype;
-
-            if (is_array($save_data[$rcqkey])) {
-                foreach ($save_data[$rcqkey] as $avalue) {
-                    if (
-                        strlen($avalue['street'])
-                        || strlen($avalue['locality'])
-                        || strlen($avalue['region'])
-                        || strlen($avalue['zipcode'])
-                        || strlen($avalue['country'])
-                    ) {
-                        $prop = $vcard->createProperty('ADR', [
-                            '',
-                            '',
-                            $avalue['street'],
-                            $avalue['locality'],
-                            $avalue['region'],
-                            $avalue['zipcode'],
-                            $avalue['country'],
-                        ]);
-                        $vcard->add($prop);
-                        $this->setAttrLabel($vcard, $prop, 'address', $subtype); // set label
-                    }
-                }
-            }
-        }
+        $this->setMultiValueProperties($save_data, $vcard);
 
         return $vcard;
     }
@@ -435,6 +381,94 @@ class DataConversion
                 }
             }
         }
+    }
+
+    /**
+     * Sets properties with possibly multiple values in a VCard from roundcube contact data.
+     *
+     * The current approach is to completely erase existing properties from the VCard and to create from roundcube data
+     * from scratch. The implication of this is that only subtype (the one selected in roundcube) can be preserved, if a
+     * property had multiple subtypes, the other ones will be lost.
+     *
+     * About the contents of save_data:
+     *   - Multi-value fields (email, address, phone, website) have a key that includes the subtype setting delimited by
+     *     a colon (e.g. "email:home"). The value of each setting is an array. These arrays may include empty members if
+     *     the field was part of the edit mask but not filled.
+     *
+     * @param array $save_data The roundcube representation of the contact
+     * @param VCard $vcard The VCard to set the ORG property for.
+     */
+    private function setMultiValueProperties(array $save_data, VCard $vcard): void
+    {
+        // delete and fully recreate all entries; there is no easy way of mapping an address in the existing card to an
+        // address in the save data, as subtypes may have changed
+        foreach (array_keys(self::VCF2RC['multi']) as $vkey) {
+            unset($vcard->{$vkey});
+        }
+
+        // now clear out all orphan X-ABLabel properties
+        $this->clearOrphanAttrLabels($vcard);
+
+        // and finally recreate the attributes
+        foreach (self::VCF2RC['multi'] as $vkey => $rckey) {
+            /** @var array preg_filter always returns an array given an array subject to filter */
+            $subtypes = preg_filter("/^$rckey:/", '', array_keys($save_data), 1);
+            foreach ($subtypes as $subtype) {
+                foreach ($save_data["$rckey:$subtype"] as $value) {
+                    $prop = null;
+
+                    if (method_exists($this, "fromRoundcube$vkey")) {
+                        // special handler for structured property
+                        $prop = call_user_func([$this, "fromRoundcube$vkey"], $value, $vcard);
+                    } else {
+                        if (!empty($value)) {
+                            $prop = $vcard->createProperty($vkey, $value);
+                            $vcard->add($prop);
+                        }
+                    }
+
+                    if (isset($prop)) {
+                        $this->setAttrLabel($vcard, $prop, $rckey, $subtype);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Creates an ADR property from roundcube address data and adds it to a VCard.
+     *
+     * This function is passed an address array as provided by roundcube and from it creates a property if at least one
+     * of the address fields is set to a non empty value. Otherwise, null is returned.
+     *
+     * @param array $address The address array as provided by roundcube
+     * @param VCard $vcard The VCard to add the property to.
+     * @return ?VObject\Property The created property, null if no property was created.
+     */
+    private function fromRoundcubeADR(array $address, VCard $vcard): ?VObject\Property
+    {
+        $prop = null;
+
+        if (
+            !empty($address['street'])
+            || !empty($address['locality'])
+            || !empty($address['region'])
+            || !empty($address['zipcode'])
+            || !empty($address['country'])
+        ) {
+            $prop = $vcard->createProperty('ADR', [
+                '', // post office box
+                '', // extended address
+                $address['street'] ?? "",
+                $address['locality'] ?? "",
+                $address['region'] ?? "",
+                $address['zipcode'] ?? "",
+                $address['country'] ?? "",
+            ]);
+            $vcard->add($prop);
+        }
+
+        return $prop;
     }
 
     /******************************************************************************************************************
