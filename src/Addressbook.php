@@ -711,7 +711,7 @@ class Addressbook extends rcube_addressbook
                 return [ 'id' => $groupid, 'name' => $name ];
             } else {
                 $davAbook = $this->getCardDavObj();
-                $vcard = $this->dataConverter->fromRoundcube($save_data, null, true);
+                $vcard = $this->dataConverter->fromRoundcube($save_data, null);
                 $davAbook->createCard($vcard);
 
                 $this->resync();

@@ -258,13 +258,14 @@ class DataConversion
      * @param array $save_data The roundcube representation of the contact / group
      * @param ?VCard $vcard The original VCard from that the address data was originally passed to roundcube. If a new
      *                      VCard should be created, this parameter must be null.
-     * @param bool $isGroup Set to true if this VCard is for a VCard-style group, otherwise to false for contact card.
      * @return VCard Returns the created / updated VCard. If a VCard was passed in the $vcard parameter, it is updated
      *               in place.
      */
-    public function fromRoundcube(array $save_data, ?VCard $vcard = null, bool $isGroup = false): VCard
+    public function fromRoundcube(array $save_data, ?VCard $vcard = null): VCard
     {
         unset($save_data['vcard']);
+
+        $isGroup = (($save_data['kind'] ?? "") === "group");
 
         if (!$isGroup) {
             // for contacts, determine whether to display as company or individual
@@ -280,7 +281,7 @@ class DataConversion
         $vcard->REV = $this->dateTimeString();
 
         // N is mandatory
-        if (key_exists('kind', $save_data) && $save_data['kind'] === 'group') {
+        if ($isGroup) {
             $vcard->N = [$save_data['name'],"","","",""];
         } else {
             $vcard->N = [
