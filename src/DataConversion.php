@@ -285,34 +285,15 @@ class DataConversion
             $vcard->N = [$save_data['name'],"","","",""];
         } else {
             $vcard->N = [
-                $save_data['surname'],
-                $save_data['firstname'],
-                $save_data['middlename'],
-                $save_data['prefix'],
-                $save_data['suffix'],
+                $save_data['surname'] ?? "",
+                $save_data['firstname'] ?? "",
+                $save_data['middlename'] ?? "",
+                $save_data['prefix'] ?? "",
+                $save_data['suffix'] ?? ""
             ];
         }
 
-        $orgParts = [];
-        if (!empty($save_data['organization'])) {
-            $orgParts[] = $save_data['organization'];
-        }
-
-        if (!empty($save_data['department'])) {
-            // the first element of ORG corresponds to organization, if that field is not filled but organization is
-            // we need to store an empty value explicitly (otherwise, department would become organization when reading
-            // back the VCard).
-            if (empty($orgParts)) {
-                $orgParts[] = "";
-            }
-            $orgParts = array_merge($orgParts, preg_split('/\s*;\s*/', $save_data['department']));
-        }
-
-        if (empty($orgParts)) {
-            unset($vcard->ORG);
-        } else {
-            $vcard->ORG = $orgParts;
-        }
+        $this->setOrgProperty($save_data, $vcard);
 
         // normalize date fields to RFC2425 YYYY-MM-DD date values
         foreach (self::DATEFIELDS as $key) {
@@ -422,6 +403,42 @@ class DataConversion
     private function dateTimeString(): string
     {
         return gmdate("Y-m-d\TH:i:s\Z");
+    }
+
+    /**
+     * Sets the ORG property in a VCard from roundcube contact data.
+     *
+     * The ORG property is populated from the organization and department attributes of roundcube's data.
+     * The department is split into several components separated by semicolon and stored as different parts of the ORG
+     * property.
+     *
+     * If neither organization nor department are given (or empty), the ORG property is deleted from the VCard.
+     *
+     * @param array $save_data The roundcube representation of the contact
+     * @param VCard $vcard The VCard to set the ORG property for.
+     */
+    private function setOrgProperty(array $save_data, VCard $vcard): void
+    {
+        $orgParts = [];
+        if (!empty($save_data['organization'])) {
+            $orgParts[] = $save_data['organization'];
+        }
+
+        if (!empty($save_data['department'])) {
+            // the first element of ORG corresponds to organization, if that field is not filled but organization is
+            // we need to store an empty value explicitly (otherwise, department would become organization when reading
+            // back the VCard).
+            if (empty($orgParts)) {
+                $orgParts[] = "";
+            }
+            $orgParts = array_merge($orgParts, preg_split('/\s*;\s*/', $save_data['department']));
+        }
+
+        if (empty($orgParts)) {
+            unset($vcard->ORG);
+        } else {
+            $vcard->ORG = $orgParts;
+        }
     }
 
     /******************************************************************************************************************
