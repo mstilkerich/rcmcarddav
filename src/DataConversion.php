@@ -248,6 +248,15 @@ class DataConversion
     /**
      * Creates a new or updates an existing vcard from save data.
      *
+     * About the contents of save_data:
+     *   - Empty / deleted fields in roundcube either are missing from save_data or contain an empty string as value.
+     *     It is not really clear under what circumstances a field is present empty and when it's missing entirely.
+     *   - Special case photo: It is only set if it was edited. If it is deleted, it is set to an empty string. If it
+     *                         was not changed, no photo key is present in save_data.
+     *   - Multi-value fields (email, address, phone, website) have a key that includes the subtype setting delimited by
+     *     a colon (e.g. "email:home"). The value of each setting is an array. These arrays may again include empty
+     *     members if the field was part of the edit mask but not filled.
+     *
      * @param array $save_data The roundcube representation of the contact / group
      * @param ?VCard $vcard The original VCard from that the address data was originally passed to roundcube. If a new
      *                      VCard should be created, this parameter must be null.
