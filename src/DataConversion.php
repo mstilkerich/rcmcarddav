@@ -194,8 +194,14 @@ class DataConversion
         $property = $vcard->ORG;
         if (isset($property)) {
             $ORG = $property->getParts();
-            $save_data['organization'] = array_shift($ORG) ?? "";
-            $save_data['department'] = implode("; ", $ORG);
+            $organization = $ORG[0];
+            if (!empty($organization)) {
+                $save_data['organization'] = $organization;
+            }
+            $department = implode("; ", array_slice($ORG, 1));
+            if (!empty($department)) {
+                $save_data['department'] = $department;
+            }
         }
 
         foreach (self::VCF2RC['multi'] as $vkey => $rckey) {
@@ -214,8 +220,10 @@ class DataConversion
             }
         }
 
-        // set displayname according to settings
-        $save_data = self::setDisplayname($save_data);
+        // set displayname if not set from VCard
+        if (empty($save_data["name"])) {
+            $save_data["name"] = self::composeDisplayname($save_data);
+        }
 
         return [
             'save_data'    => $save_data,
@@ -267,9 +275,11 @@ class DataConversion
 
         $isGroup = (($save_data['kind'] ?? "") === "group");
 
-        if (!$isGroup) {
-            // for contacts, determine whether to display as company or individual
-            $save_data = $this->setShowAs($save_data);
+        if (empty($save_data["name"])) {
+            if (!$isGroup) {
+                $save_data["showas"] = $this->determineShowAs($save_data);
+            }
+            $save_data["name"] = $this->composeDisplayname($save_data);
         }
 
         if (!isset($vcard)) {
@@ -686,7 +696,7 @@ class DataConversion
      *****************************************************************************************************************/
 
     /**
-     * Sets the showas setting (individual vs. company) by heuristic from the entered data.
+     * Determines the showas setting (individual vs. company) by heuristic from the entered data.
      *
      * The showas setting allows addressbooks to display a contact as an organization rather than an individual.
      *
@@ -696,76 +706,79 @@ class DataConversion
      *
      * If an existing ShowAs=COMPANY setting is given, but the organization field is empty, the setting will be reset to
      * INDIVIDUAL.
+     *
+     * @param array $save_data The address data as roundcube's internal format, as entered by the user. For update of an
+     *                         existing contact, the showas key must be populated with the previous value.
+     * @return string INDIVIDUAL or COMPANY
      */
-    private function setShowAs(array $save_data): array
+    private function determineShowAs(array $save_data): string
     {
-        if (empty($save_data['showas'])) {
+        $showAs = $save_data['showas'];
+
+        if (empty($showAs)) { // new contact
             if (empty($save_data['surname']) && empty($save_data['firstname']) && !empty($save_data['organization'])) {
-                $save_data['showas'] = 'COMPANY';
+                $showAs = 'COMPANY';
             } else {
-                $save_data['showas'] = 'INDIVIDUAL';
+                $showAs = 'INDIVIDUAL';
             }
-        } else {
+        } else { // update of contact
             // organization not set but showas==COMPANY => show as INDIVIDUAL
-            if (empty($save_data['organization']) && $save_data['showas'] === 'COMPANY') {
-                $save_data['showas'] = 'INDIVIDUAL';
+            if (empty($save_data['organization'])) {
+                $showAs = 'INDIVIDUAL';
             }
         }
 
-        // generate display name according to display order setting
-        $save_data = self::setDisplayname($save_data);
-
-        return $save_data;
+        return $showAs;
     }
 
     /**
      * Determines the name to be displayed for a contact. The routine
      * distinguishes contact cards for individuals from organizations.
+     *
+     * From roundcube: Roundcube sets the name attribute either to an explicitly set "Display Name" field by the user,
+     * or computes a name from first name and last name attributes. If roundcube cannot compose a name from the entered
+     * data, the display name is empty. We set the displayname in this case only, because whenever a name attribute is
+     * provided by roundcube, it is possible that it was an explicitly entered value by the user which we must not
+     * overturn.
+     *
+     * From a VCard, the FN is mandatory. However, we may be served non-compliant VCards, or VCards with an empty FN
+     * value. In those cases, we will set the display name, otherwise we will take the value provided in the VCard.
+     *
+     * @param array $save_data The address data as roundcube's internal format. It may either have been provided by
+     *                         roundcube or be the result of a conversion of a VCard to roundcube's representation.
+     * @return string The composed displayname
      */
-    private static function setDisplayname(array $save_data): array
+    private static function composeDisplayname(array $save_data): string
     {
-        if (strcasecmp($save_data['showas'], 'COMPANY') == 0 && strlen($save_data['organization']) > 0) {
-            $save_data['name']     = $save_data['organization'];
+        if (strcasecmp($save_data['showas'], 'COMPANY') == 0 && !empty($save_data['organization'])) {
+            return $save_data['organization'];
         }
 
-        // we need a displayname; if we do not have one, try to make one up
-        if (strlen($save_data['name']) == 0) {
-            $dname = [];
-            if (strlen($save_data['firstname']) > 0) {
-                $dname[] = $save_data['firstname'];
+        // try from name
+        $dname = [];
+        foreach (["firstname", "surname"] as $attr) {
+            if (!empty($save_data[$attr])) {
+                $dname[] = $save_data[$attr];
             }
-            if (strlen($save_data['surname']) > 0) {
-                $dname[] = $save_data['surname'];
-            }
+        }
 
-            if (count($dname) > 0) {
-                $save_data['name'] = implode(' ', $dname);
-            } else { // no name? try email and phone
-                $ep_keys = array_keys($save_data);
-                $ep_keys = preg_grep(";^(email|phone):;", $ep_keys);
-                sort($ep_keys, SORT_STRING);
-                foreach ($ep_keys as $ep_key) {
-                    $ep_vals = $save_data[$ep_key];
-                    if (!is_array($ep_vals)) {
-                        $ep_vals = [$ep_vals];
-                    }
+        if (!empty($dname)) {
+            return implode(' ', $dname);
+        }
 
-                    foreach ($ep_vals as $ep_val) {
-                        if (strlen($ep_val) > 0) {
-                            $save_data['name'] = $ep_val;
-                            break 2;
-                        }
-                    }
+        // no name? try email and phone
+        $epKeys = preg_grep(";^(email|phone):;", array_keys($save_data));
+        sort($epKeys, SORT_STRING);
+        foreach ($epKeys as $epKey) {
+            foreach ($save_data[$epKey] as $epVal) {
+                if (!empty($epVal)) {
+                    return $epVal;
                 }
             }
-
-            // still no name? set to unknown and hope the user will fix it
-            if (strlen($save_data['name']) == 0) {
-                $save_data['name'] = 'Unset Displayname';
-            }
         }
 
-        return $save_data;
+        // still no name? set to unknown and hope the user will fix it
+        return 'Unset Displayname';
     }
 
     /******************************************************************************************************************
