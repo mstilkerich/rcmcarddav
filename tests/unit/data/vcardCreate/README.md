@@ -22,3 +22,13 @@ There are a few specifics to be tested during the creation:
   created VCard.
 - DepartmentOnly: Contains a department setting with multiple levels, but no organization. Department must end up in the
   parts 1+ of the `ORG` property, the empty organization in this case must result in an empty part 0 of `ORG`.
+- DifferentDisplayname: Has a displayname setting different from the firstname / lastname composition. Must be retained.
+- DifferentDisplaynameCompany: Has a displayname setting different from organization and is marked to show as company.
+  Displayname must be retained.
+- EmptyDisplayname: No displayname setting, must be composed from name attributes.
+- EmptyDisplaynameCompany: Like EmptyDisplayname, but set to show as organization.
+- EmptyDisplaynameCompanyOnly: Like EmptyDisplayname, but not name attributes available, only organization. Must be set
+  to show as company and use organization as displayname.
+- EmptyDisplaynameResetShowAs: Like EmptyDisplayname, but set to show as company when no organization attribute is
+  available. Must reset showas to individual and compose displayname from name attributes.
+

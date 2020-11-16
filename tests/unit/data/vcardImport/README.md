@@ -14,16 +14,22 @@ There are a few specifics to be tested during the import:
 - For photos, cropping via `X-ABCROP-RECTANGLE` extension is supported
 - Special consideration should be given to `ADR`, `ORG` and `N` attributes as they are composed of multiple parts that
   map to individual roundcube attributes.
-- The `X-ABSHOWAS` extension is supported to display contacts as company. If a contact is marked as company, the
-  displayname (`FN`) attribute will be overridden by the company name from the `ORG` property if present. __TODO__
-- If no `FN` attribute is contained or it is empty, RCMCardDAV composes a displayname from the `N` property, falling
-  back to `EMAIL` if no name is available. __TODO__
+- If no `FN` attribute is contained or it is empty, RCMCardDAV composes a displayname from the `ORG` or `N` property,
+  depending on a setting of X-ABShowAs,  falling back to `EMAIL` and `TEL` if no name is available.
 
 ## Short description of each data set
 
 - AllAttr: This is a simple VCard that contains all supported attributes
 - EmptyFN: Contains an empty display name (`FN`) property. RCMCardDav should compose a displayname from the `N`
   property.
+- EmptyFNCompany: Like EmptyFN, but with empty `N` property and a set `ORG` property.
+- EmptyFNEmail: Like EmptyFN, but with empty `N` and `ORG` properties, but available `EMAIL` and `TEL`. Displayname must
+  be composed from the mail address.
+- EmptyFNPhone: Like EmptyFN, but with empty `N` and `ORG` properties, but available `TEL`. Displayname must be set from
+  the phone number.
+- EmptyFNBlank Like EmptyFN, but with no properties usable for a name at all.
+- CompanySetFN: A card with an `X-ABSHOWAS` property set to COMPANY and a `ORG` value that differs from the `FN` value.
+  The `FN` must be kept.
 - LabelPreference: Uses several standard labels in different order on an `EMAIL` property. RCMCardDAV should select the
   label with the highest preference.
 - InlinePhoto: Contains a `PHOTO` property stored as base64 encoded data inside the VCard.
@@ -37,3 +43,4 @@ There are a few specifics to be tested during the import:
 - XAbLabelAppleBuiltin: Uses the special Apple syntax in an `X-ABLABEL` that Apple uses for their builtin extra labels.
 - XAbLabelOnly: Contains an `EMAIL` property that only has a subtype assigned via `X-ABLABEL`, no `TYPE` param is
   attached.
+
