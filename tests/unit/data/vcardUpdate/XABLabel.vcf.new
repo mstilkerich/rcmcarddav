@@ -5,8 +5,9 @@ N:Doe;John;;;
 FN:John Doe
 item1.EMAIL:johnspecial@doe.name
 item1.X-ABLABEL:SpecialLabel
-item2.EMAIL:alsospecial@doe.name
-item2.X-ABLABEL:SpecialLabel2
+item2.X-FOOBAR:Has a group as well
+item3.EMAIL:alsospecial@doe.name
+item3.X-ABLABEL:SpecialLabel2
 PRODID:-//Apple Inc.//iCloud Web Address Book 2018B71//EN
 REV:2020-10-04T09:32:17Z
 END:VCARD
