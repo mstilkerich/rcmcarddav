@@ -6,6 +6,7 @@
 - Fix #317: Support specification of department with empty organization
 - Support several levels of departments separated by semicolon that end up as structured value in the VCard
 - Fix #318: Some attributes (e.g. gender) could not be deleted when updating a contact
+- Fix #53: Only create displayname when not present in VCard / not provided by roundcube
 
 ## Version 4.0.2 (to 4.0.1)
 
