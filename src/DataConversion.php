@@ -11,12 +11,6 @@ use rcube_utils;
 
 class DataConversion
 {
-    /**
-     * @var int MAX_PHOTO_SIZE Maximum size of a photo dimension in pixels.
-     *   Used when a photo is cropped for the X-ABCROP-RECTANGLE extension.
-     */
-    private const MAX_PHOTO_SIZE = 256;
-
     /** @var array VCF2RC maps VCard property names to roundcube keys */
     private const VCF2RC = [
         'simple' => [
@@ -158,26 +152,9 @@ class DataConversion
             }
         }
 
-        // inline photo if external reference
-        // note: isset($vcard->PHOTO) is true if $save_data['photo'] exists, the check
-        // is for the static analyzer
+        // Set a proxy for photo computation / retrieval on demand
         if (key_exists('photo', $save_data) && isset($vcard->PHOTO)) {
-            $kind = $vcard->PHOTO['VALUE'];
-            if (($kind instanceof VObject\Parameter) && strcasecmp('uri', (string) $kind) == 0) {
-                if ($this->downloadPhoto($save_data, $davAbook)) {
-                    $props = [];
-                    foreach ($vcard->PHOTO->parameters() as $property => $value) {
-                        if (strcasecmp($property, 'VALUE') != 0) {
-                            $props[$property] = $value;
-                        }
-                    }
-                    $props['ENCODING'] = 'b';
-                    unset($vcard->PHOTO);
-                    $vcard->add('PHOTO', $save_data['photo'], $props);
-                    $needs_update = true;
-                }
-            }
-            $save_data["photo"] = self::xabcropphoto($vcard->PHOTO) ?? $save_data["photo"];
+            $save_data["photo"] = new DelayedPhotoLoader($vcard, $davAbook, $this->logger);
         }
 
         $property = $vcard->N;
@@ -674,21 +651,6 @@ class DataConversion
         }
     }
 
-    private function downloadPhoto(array &$save_data, AddressbookCollection $davAbook): bool
-    {
-        $uri = $save_data['photo'];
-        try {
-            $this->logger->info("downloadPhoto: Attempt to download photo from $uri");
-            $response = $davAbook->downloadResource($uri);
-            $save_data['photo'] = $response['body'];
-        } catch (\Exception $e) {
-            $this->logger->warning("downloadPhoto: Attempt to download photo from $uri failed: $e");
-            return false;
-        }
-
-        return true;
-    }
-
     /******************************************************************************************************************
      ************                                   +         +         +                                  ************
      ************                                   X-ABShowAs Extension                                   ************
@@ -779,59 +741,6 @@ class DataConversion
 
         // still no name? set to unknown and hope the user will fix it
         return 'Unset Displayname';
-    }
-
-    /******************************************************************************************************************
-     ************                                   +         +         +                                  ************
-     ************                               X-ABCROP-RECTANGLE Extension                               ************
-     ************                                   +         +         +                                  ************
-     *****************************************************************************************************************/
-
-    /**
-     * Crops the given PHOTO property if it contains an X-ABCROP-RECTANGLE parameter.
-     *
-     * The parameter looks like this:
-     * X-ABCROP-RECTANGLE=ABClipRect_1&60&179&181&181&qZ54yqewvBZj2mycxrnqsA==
-     *
-     *  - The 1st number is the horizontal offset (X) from the left
-     *  - The 2nd number is the vertical offset (Y) from the bottom
-     *  - The 3rd number is the crop width
-     *  - The 4th number is the crop height
-     *
-     * The meaning of the base64 encoded last part of the parameter is unknown and ignored.
-     *
-     * The resulting cropped photo is returned as binary string. In case the given photo lacks the X-ABCROP-RECTANGLE
-     * parameter or the GD library is not available, null is returned instead.
-     */
-    private static function xabcropphoto(VObject\Property $photo): ?string
-    {
-        if (!function_exists('gd_info')) {
-            return null;
-        }
-
-        $abcrop = $photo['X-ABCROP-RECTANGLE'];
-        if (!($abcrop instanceof VObject\Parameter)) {
-            return null;
-        }
-
-        $parts = explode('&', (string) $abcrop);
-        $x = intval($parts[1]);
-        $y = intval($parts[2]);
-        $w = intval($parts[3]);
-        $h = intval($parts[4]);
-        $dw = min($w, self::MAX_PHOTO_SIZE);
-        $dh = min($h, self::MAX_PHOTO_SIZE);
-
-        $src = imagecreatefromstring((string) $photo);
-        $dst = imagecreatetruecolor($dw, $dh);
-        imagecopyresampled($dst, $src, 0, 0, $x, imagesy($src) - $y - $h, $dw, $dh, $w, $h);
-
-        ob_start();
-        imagepng($dst);
-        $data = ob_get_contents();
-        ob_end_clean();
-
-        return $data;
     }
 }
 
