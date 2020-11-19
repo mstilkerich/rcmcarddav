@@ -396,7 +396,7 @@ class Addressbook extends rcube_addressbook
             $davAbook = $this->getCardDavObj();
             $contact = $db->get($id, 'vcard', 'contacts', true, 'id', ["abook_id" => $this->id]);
             $vcard = $this->parseVCard($contact['vcard']);
-            [ 'save_data' => $save_data ] = $this->dataConverter->toRoundcube($vcard, $davAbook);
+            $save_data = $this->dataConverter->toRoundcube($vcard, $davAbook);
             $save_data['ID'] = $id;
 
             $this->result = new rcube_result_set(1);

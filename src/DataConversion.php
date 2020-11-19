@@ -132,14 +132,10 @@ class DataConversion
      *
      * @param  VCard $vcard Sabre VCard object
      *
-     * @return array associative array with keys:
-     *           - save_data:    Roundcube representation of the VCard
-     *           - vcf:          VCard object created from the given VCard
-     *           - needs_update: boolean that indicates whether the card was modified
+     * @return array Roundcube representation of the VCard
      */
     public function toRoundcube(VCard $vcard, AddressbookCollection $davAbook): array
     {
-        $needs_update = false;
         $save_data = [
             // DEFAULTS
             'kind'   => 'individual',
@@ -202,11 +198,7 @@ class DataConversion
             $save_data["name"] = self::composeDisplayname($save_data);
         }
 
-        return [
-            'save_data'    => $save_data,
-            'vcf'          => $vcard,
-            'needs_update' => $needs_update,
-        ];
+        return $save_data;
     }
 
 

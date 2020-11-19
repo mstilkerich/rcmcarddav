@@ -58,8 +58,7 @@ final class DataConversionTest extends TestCase
         $dc = new DataConversion("42", $db, $logger);
         $vcard = $this->readVCard($vcfFile);
         $saveDataExpected = $this->readJsonArray($jsonFile);
-        $result = $dc->toRoundcube($vcard, $abook);
-        $saveData = $result["save_data"];
+        $saveData = $dc->toRoundcube($vcard, $abook);
         $this->assertEquals($saveDataExpected, $saveData, "Converted VCard does not result in expected roundcube data");
     }
 
