@@ -20,23 +20,30 @@ class DelayedPhotoLoader
      */
     private const MAX_PHOTO_SIZE = 256;
 
-    /** @var ?string $photoData The cached photo after having determined the first time. */
-    private $photoData;
-
     /** @var VCard $vcard The VCard the photo belongs to */
     private $vcard;
 
     /** @var AddressbookCollection $davAbook Access to the CardDAV addressbook */
     private $davAbook;
 
+    /** @var \rcube_cache $cache */
+    private $cache;
+
     /** @var LoggerInterface $logger */
     private $logger;
 
-    public function __construct(VCard $vcard, AddressbookCollection $davAbook, LoggerInterface $logger)
-    {
+    public function __construct(
+        VCard $vcard,
+        AddressbookCollection $davAbook,
+        \rcube_cache $cache,
+        LoggerInterface $logger
+    ) {
         $this->vcard = $vcard;
         $this->davAbook = $davAbook;
+        $this->cache = $cache;
         $this->logger = $logger;
+
+        $logger->debug("Wrapping photo");
     }
 
     /**
@@ -47,8 +54,8 @@ class DelayedPhotoLoader
      */
     public function __toString(): string
     {
-        $this->logger->info("Unwrapping photo");
-        return $this->photoData ?? $this->fetchFromRoundcubeCache() ?? $this->computePhotoFromProperty() ?? "";
+        $this->logger->debug("Unwrapping photo");
+        return $this->fetchFromRoundcubeCache() ?? $this->computePhotoFromProperty() ?? "";
     }
 
     /**
@@ -56,28 +63,41 @@ class DelayedPhotoLoader
      */
     private function computePhotoFromProperty(): ?string
     {
-        $this->logger->info("Creating photo data from PHOTO property");
+        // true if the photo must be processed (downloaded/cropped) and the result should be cached
+        // Photo that are stored inline in the VCard and provided as is will not be put in the cache
+        $cachePhoto = false;
+
         $vcard = $this->vcard;
         $photo = $vcard->PHOTO;
         if (!isset($photo)) {
             return null;
         }
 
+        $this->logger->debug("Creating photo data from PHOTO property");
+
         // check if photo needs to be downloaded
         $kind = $photo['VALUE'];
         if (($kind instanceof VObject\Parameter) && strcasecmp('uri', (string) $kind) == 0) {
+            $cachePhoto = true;
             $photoData = $this->downloadPhoto((string) $photo);
         } else {
             $photoData = (string) $photo;
         }
 
         if (isset($photoData)) {
-            $photoData = $this->xabcropphoto($photoData);
+            $photoDataCrop = $this->xabcropphoto($photoData);
+            if (isset($photoDataCrop)) {
+                $cachePhoto = true;
+                $photoData = $photoDataCrop;
+            }
         }
 
         if (isset($photoData)) {
-            $this->photoData = $photoData;
-            $this->storeToRoundcubeCache();
+            if ($cachePhoto) {
+                $this->storeToRoundcubeCache($photoData, $photo);
+            } else {
+                $this->logger->debug("Skip cache - PHOTO is stored in VCard");
+            }
         }
 
         return $photoData;
@@ -86,7 +106,7 @@ class DelayedPhotoLoader
     private function downloadPhoto(string $uri): ?string
     {
         try {
-            $this->logger->info("downloadPhoto: Attempt to download photo from $uri");
+            $this->logger->debug("downloadPhoto: Attempt to download photo from $uri");
             $response = $this->davAbook->downloadResource($uri);
             return $response['body'];
         } catch (\Exception $e) {
@@ -106,9 +126,27 @@ class DelayedPhotoLoader
      */
     private function fetchFromRoundcubeCache(): ?string
     {
-        // TODO
-        //$this->photoData = ...;
-        return null;
+        $photo = $this->vcard->PHOTO;
+        if (!isset($photo)) {
+            return null;
+        }
+
+        $key = $this->determineCacheKey();
+        $cacheObject = $this->cache->get($key);
+
+        if (!isset($cacheObject)) {
+            $this->logger->debug("Roundcube cache miss $key");
+            return null;
+        }
+
+        if (md5($photo->serialize()) !== $cacheObject["photoPropMd5"]) {
+            $this->logger->debug("Roundcube cached photo outdated - removing $key");
+            $this->cache->remove($key);
+            return null;
+        }
+
+        $this->logger->debug("Roundcube cache hit $key");
+        return $cacheObject["photo"];
     }
 
     /**
@@ -117,18 +155,37 @@ class DelayedPhotoLoader
      * The cache object includes a checksum that allows to check whether the stored object matches a possibly changed
      * PHOTO property on future retrieval.
      */
-    private function storeToRoundcubeCache(): void
+    private function storeToRoundcubeCache(string $photoData, VObject\Property $photoProp): void
     {
-        // TODO
+        $photoPropMd5 = md5($photoProp->serialize());
+        $cacheObject = [
+            'photoPropMd5' => $photoPropMd5,
+            'photo' => $photoData
+        ];
+
+        $key = $this->determineCacheKey();
+        $this->logger->debug("Storing to roundcube cache $key");
+        $this->cache->set($key, $cacheObject);
     }
 
     /**
      * Compute the key for this photo property in the roundcube cache.
+     *
+     * The key is composed of the following components separated by _:
+     *   - a prefix "photo" (namespace to separate from other uses by the plugin)
+     *   - a component including the user id of the roundcube user (only keys of logged in user can be retrieved);
+     *     probably not needed as the cache itself is user-specific, but just in case.
+     *   - a component containing the MD5 of the card UID (to find a photo cached for a VCard)
      */
     private function determineCacheKey(): string
     {
-        // TODO
-        return "carddav_" . $_SESSION['user_id'] . "_" ;
+        $uid = (string) $this->vcard->UID;
+
+        $key  = "photo_";
+        $key .= $_SESSION['user_id'] . "_" ;
+        $key .= md5($uid);
+
+        return $key;
     }
 
     /******************************************************************************************************************
@@ -150,23 +207,23 @@ class DelayedPhotoLoader
      *
      * The meaning of the base64 encoded last part of the parameter is unknown and ignored.
      *
-     * The resulting cropped photo is returned as binary string. In case the given photo lacks the X-ABCROP-RECTANGLE
-     * parameter or the GD library is not available, the original data is returned unmodified.
+     * @return ?string The resulting cropped photo as binary string. Null in case the given photo was not modified,
+     *                 e.g. for lack of the X-ABCROP-RECTANGLE parameter or GD is not available.
      */
-    private function xabcropphoto(string $photoData): string
+    private function xabcropphoto(string $photoData): ?string
     {
         if (!function_exists('gd_info')) {
-            return $photoData;
+            return null;
         }
 
         $photo = $this->vcard->PHOTO;
         if (!isset($photo)) {
-            return $photoData;
+            return null;
         }
 
         $abcrop = $photo['X-ABCROP-RECTANGLE'];
         if (!($abcrop instanceof VObject\Parameter)) {
-            return $photoData;
+            return null;
         }
 
         $parts = explode('&', (string) $abcrop);

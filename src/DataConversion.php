@@ -91,6 +91,9 @@ class DataConversion
     /** @var Database The database object to use for DB access */
     private $db;
 
+    /** @var \rcube_cache $cache */
+    private $cache;
+
     /**
      * Constructs a data conversion instance.
      *
@@ -103,12 +106,14 @@ class DataConversion
      *
      * @param string $abookId The database ID of the addressbook the data conversion object is bound to.
      * @param Database $db The database object.
+     * @param \rcube_cache $cache The roundcube cache object.
      * @param LoggerInterface $logger The logger object.
      */
-    public function __construct(string $abookId, Database $db, LoggerInterface $logger)
+    public function __construct(string $abookId, Database $db, \rcube_cache $cache, LoggerInterface $logger)
     {
         $this->abookId = $abookId;
         $this->db = $db;
+        $this->cache = $cache;
         $this->logger = $logger;
 
         $this->addextrasubtypes();
@@ -150,7 +155,7 @@ class DataConversion
 
         // Set a proxy for photo computation / retrieval on demand
         if (key_exists('photo', $save_data) && isset($vcard->PHOTO)) {
-            $save_data["photo"] = new DelayedPhotoLoader($vcard, $davAbook, $this->logger);
+            $save_data["photo"] = new DelayedPhotoLoader($vcard, $davAbook, $this->cache, $this->logger);
         }
 
         $property = $vcard->N;

@@ -53,9 +53,9 @@ final class DataConversionTest extends TestCase
      */
     public function testCorrectConversionOfVcardToRoundcube(string $vcfFile, string $jsonFile): void
     {
-        [ $logger, $db, $abook ] = $this->initStubs();
+        [ $logger, $db, $cache, $abook ] = $this->initStubs();
 
-        $dc = new DataConversion("42", $db, $logger);
+        $dc = new DataConversion("42", $db, $cache, $logger);
         $vcard = $this->readVCard($vcfFile);
         $saveDataExpected = $this->readJsonArray($jsonFile);
         $saveData = $dc->toRoundcube($vcard, $abook);
@@ -67,7 +67,7 @@ final class DataConversionTest extends TestCase
      */
     public function testNewCustomLabelIsInsertedToDatabase(): void
     {
-        [ $logger, $db, $abook ] = $this->initStubs();
+        [ $logger, $db, $cache, $abook ] = $this->initStubs();
 
         $db->expects($this->once())
             ->method("get")
@@ -88,7 +88,7 @@ final class DataConversionTest extends TestCase
             )
             ->will($this->returnValue("49"));
 
-        $dc = new DataConversion("42", $db, $logger);
+        $dc = new DataConversion("42", $db, $cache, $logger);
         $vcard = $this->readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
         $dc->toRoundcube($vcard, $abook);
     }
@@ -98,7 +98,7 @@ final class DataConversionTest extends TestCase
      */
     public function testKnownCustomLabelPresentedToRoundcube(): void
     {
-        [ $logger, $db ] = $this->initStubs();
+        [ $logger, $db, $cache ] = $this->initStubs();
 
         $db->expects($this->once())
             ->method("get")
@@ -111,7 +111,7 @@ final class DataConversionTest extends TestCase
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
 
-        $dc = new DataConversion("42", $db, $logger);
+        $dc = new DataConversion("42", $db, $cache, $logger);
         $coltypes = $dc->getColtypes();
         $this->assertContains("SpecialLabel", $coltypes["email"]["subtypes"], "SpecialLabel not contained in coltypes");
     }
@@ -121,7 +121,7 @@ final class DataConversionTest extends TestCase
      */
     public function testKnownCustomLabelIsNotInsertedToDatabase(): void
     {
-        [ $logger, $db, $abook ] = $this->initStubs();
+        [ $logger, $db, $cache, $abook ] = $this->initStubs();
 
         $db->expects($this->once())
             ->method("get")
@@ -136,7 +136,7 @@ final class DataConversionTest extends TestCase
         $db->expects($this->never())
             ->method("insert");
 
-        $dc = new DataConversion("42", $db, $logger);
+        $dc = new DataConversion("42", $db, $cache, $logger);
         $vcard = $this->readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
         $dc->toRoundcube($vcard, $abook);
     }
@@ -153,7 +153,7 @@ final class DataConversionTest extends TestCase
      */
     public function testCorrectCreationOfVcardFromRoundcube(string $vcfFile, string $jsonFile): void
     {
-        [ $logger, $db ] = $this->initStubs();
+        [ $logger, $db, $cache ] = $this->initStubs();
 
         $db->expects($this->once())
             ->method("get")
@@ -165,7 +165,7 @@ final class DataConversionTest extends TestCase
                 $this->equalTo('abook_id')
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
-        $dc = new DataConversion("42", $db, $logger);
+        $dc = new DataConversion("42", $db, $cache, $logger);
         $vcardExpected = $this->readVCard($vcfFile);
         $saveData = $this->readJsonArray($jsonFile);
         $result = $dc->fromRoundcube($saveData);
@@ -185,7 +185,7 @@ final class DataConversionTest extends TestCase
      */
     public function testCorrectUpdateOfVcardFromRoundcube(string $vcfFile, string $jsonFile): void
     {
-        [ $logger, $db ] = $this->initStubs();
+        [ $logger, $db, $cache ] = $this->initStubs();
 
         $db->expects($this->once())
             ->method("get")
@@ -201,7 +201,7 @@ final class DataConversionTest extends TestCase
                 ["typename" => "email", "subtype" => "SpecialLabel2"]
             ]));
 
-        $dc = new DataConversion("42", $db, $logger);
+        $dc = new DataConversion("42", $db, $cache, $logger);
         $vcardOriginal = $this->readVCard($vcfFile);
         $vcardExpected = $this->readVCard("$vcfFile.new");
         $saveData = $this->readJsonArray($jsonFile);
@@ -224,8 +224,9 @@ final class DataConversionTest extends TestCase
             throw new \Exception("URI $uri not known to stub");
         }));
         $db = $this->createMock(Database::class);
+        $cache = $this->createMock(\rcube_cache::class);
 
-        return [ $logger, $db, $abook ];
+        return [ $logger, $db, $cache, $abook ];
     }
 
     private function readVCard(string $vcfFile): VCard

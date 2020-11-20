@@ -41,6 +41,9 @@ class Addressbook extends rcube_addressbook
     /** @var Database $db Database access object */
     private $db;
 
+    /** @var \rcube_cache $cache */
+    private $cache;
+
     /** @var LoggerInterface $logger Log object */
     private $logger;
 
@@ -85,6 +88,7 @@ class Addressbook extends rcube_addressbook
     public function __construct(
         string $dbid,
         Database $db,
+        \rcube_cache $cache,
         LoggerInterface $logger,
         array $config,
         bool $readonly,
@@ -93,13 +97,14 @@ class Addressbook extends rcube_addressbook
         $this->logger = $logger;
         $this->config = $config;
         $this->db = $db;
+        $this->cache = $cache;
 
         $this->groups   = true;
         $this->readonly = $readonly;
         $this->requiredProps = $requiredProps;
         $this->id       = $dbid;
 
-        $this->dataConverter = new DataConversion($dbid, $db, $logger);
+        $this->dataConverter = new DataConversion($dbid, $db, $cache, $logger);
         $this->coltypes = $this->dataConverter->getColtypes();
 
         $this->ready = true;
