@@ -1,5 +1,10 @@
 # Changelog for RCMCardDAV
 
+## Version 4.0.3 (to 4.0.2)
+
+- Allow release 1.0 of carddavclient in composer dependencies
+- No changes to the plugin itself
+
 ## Version 4.0.2 (to 4.0.1)
 
 - Fix #316: Incompatibility with Sabre/VObject version 4 preventing saving contacts using custom labels
