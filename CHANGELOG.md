@@ -1,12 +1,17 @@
 # Changelog for RCMCardDAV
 
-## Version 4.1.0 (to 4.0.2)
+## Version 4.1.0 (to 4.0.3)
 
 - Fix: Prefer labels from X-ABLabel extension if available over standard labels
 - Fix #317: Support specification of department with empty organization
 - Support several levels of departments separated by semicolon that end up as structured value in the VCard
 - Fix #318: Some attributes (e.g. gender) could not be deleted when updating a contact
 - Fix #53: Only create displayname when not present in VCard / not provided by roundcube
+
+## Version 4.0.3 (to 4.0.2)
+
+- Allow release 1.0 of carddavclient in composer dependencies
+- No changes to the plugin itself
 
 ## Version 4.0.2 (to 4.0.1)
 
