@@ -133,8 +133,7 @@ final class TestData
             TestCase::assertArrayHasKey($tbl, self::$data, "No init data for table $tbl");
 
             foreach (self::$data[$tbl] as &$row) {
-                $dbid = self::insertRow($db, $tbl, $cols, $row);
-                $row["id"] = $dbid;
+                $row["id"] = self::insertRow($db, $tbl, $cols, $row);
             }
         }
     }
