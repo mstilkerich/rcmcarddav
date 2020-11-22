@@ -41,6 +41,9 @@ class Addressbook extends rcube_addressbook
     /** @var Database $db Database access object */
     private $db;
 
+    /** @var \rcube_cache $cache */
+    private $cache;
+
     /** @var LoggerInterface $logger Log object */
     private $logger;
 
@@ -85,6 +88,7 @@ class Addressbook extends rcube_addressbook
     public function __construct(
         string $dbid,
         Database $db,
+        \rcube_cache $cache,
         LoggerInterface $logger,
         array $config,
         bool $readonly,
@@ -93,13 +97,14 @@ class Addressbook extends rcube_addressbook
         $this->logger = $logger;
         $this->config = $config;
         $this->db = $db;
+        $this->cache = $cache;
 
         $this->groups   = true;
         $this->readonly = $readonly;
         $this->requiredProps = $requiredProps;
         $this->id       = $dbid;
 
-        $this->dataConverter = new DataConversion($dbid, $db, $logger);
+        $this->dataConverter = new DataConversion($dbid, $db, $cache, $logger);
         $this->coltypes = $this->dataConverter->getColtypes();
 
         $this->ready = true;
@@ -396,7 +401,7 @@ class Addressbook extends rcube_addressbook
             $davAbook = $this->getCardDavObj();
             $contact = $db->get($id, 'vcard', 'contacts', true, 'id', ["abook_id" => $this->id]);
             $vcard = $this->parseVCard($contact['vcard']);
-            [ 'save_data' => $save_data ] = $this->dataConverter->toRoundcube($vcard, $davAbook);
+            $save_data = $this->dataConverter->toRoundcube($vcard, $davAbook);
             $save_data['ID'] = $id;
 
             $this->result = new rcube_result_set(1);
@@ -696,7 +701,7 @@ class Addressbook extends rcube_addressbook
      *
      * @param string $name The group name
      *
-     * @return mixed False on error, array with record props in success
+     * @return array|false False on error, array with record props in success
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function create_group($name)
@@ -784,7 +789,7 @@ class Addressbook extends rcube_addressbook
      * @param string $newname  New name to set for this group
      * @param string &$newid   New group identifier (if changed, otherwise don't set)
      *
-     * @return boolean|string New name on success, false if no data was changed
+     * @return string|false New name on success, false if no data was changed
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function rename_group($group_id, $newname, &$newid)
@@ -1169,10 +1174,8 @@ class Addressbook extends rcube_addressbook
 
                 // needed by the calendar plugin
                 if (is_array($cols) && in_array('vcard', $cols)) {
-                    $save_data['save_data']['vcard'] = $contact['vcard'];
+                    $save_data['vcard'] = $contact['vcard'];
                 }
-
-                $save_data = $save_data['save_data'];
             } else {
                 $save_data = [];
                 $cols = $cols ?? []; // note: $cols is always an array at this point, this is for the static analyzer

@@ -10,13 +10,14 @@ use Sabre\VObject\Component\VCard;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavClient\{Account,AddressbookCollection};
-use MStilkerich\CardDavAddressbook4Roundcube\{Database,DataConversion};
+use MStilkerich\CardDavAddressbook4Roundcube\{Database,DataConversion,DelayedPhotoLoader};
 
 final class DataConversionTest extends TestCase
 {
     public static function setUpBeforeClass(): void
     {
         TestInfrastructure::init();
+        $_SESSION['user_id'] = 105;
     }
 
     public function setUp(): void
@@ -53,13 +54,12 @@ final class DataConversionTest extends TestCase
      */
     public function testCorrectConversionOfVcardToRoundcube(string $vcfFile, string $jsonFile): void
     {
-        [ $logger, $db, $abook ] = $this->initStubs();
+        [ $logger, $db, $cache, $abook ] = $this->initStubs();
 
-        $dc = new DataConversion("42", $db, $logger);
+        $dc = new DataConversion("42", $db, $cache, $logger);
         $vcard = $this->readVCard($vcfFile);
         $saveDataExpected = $this->readJsonArray($jsonFile);
-        $result = $dc->toRoundcube($vcard, $abook);
-        $saveData = $result["save_data"];
+        $saveData = $dc->toRoundcube($vcard, $abook);
         $this->assertEquals($saveDataExpected, $saveData, "Converted VCard does not result in expected roundcube data");
     }
 
@@ -68,7 +68,7 @@ final class DataConversionTest extends TestCase
      */
     public function testNewCustomLabelIsInsertedToDatabase(): void
     {
-        [ $logger, $db, $abook ] = $this->initStubs();
+        [ $logger, $db, $cache, $abook ] = $this->initStubs();
 
         $db->expects($this->once())
             ->method("get")
@@ -89,7 +89,7 @@ final class DataConversionTest extends TestCase
             )
             ->will($this->returnValue("49"));
 
-        $dc = new DataConversion("42", $db, $logger);
+        $dc = new DataConversion("42", $db, $cache, $logger);
         $vcard = $this->readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
         $dc->toRoundcube($vcard, $abook);
     }
@@ -99,7 +99,7 @@ final class DataConversionTest extends TestCase
      */
     public function testKnownCustomLabelPresentedToRoundcube(): void
     {
-        [ $logger, $db ] = $this->initStubs();
+        [ $logger, $db, $cache ] = $this->initStubs();
 
         $db->expects($this->once())
             ->method("get")
@@ -112,7 +112,7 @@ final class DataConversionTest extends TestCase
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
 
-        $dc = new DataConversion("42", $db, $logger);
+        $dc = new DataConversion("42", $db, $cache, $logger);
         $coltypes = $dc->getColtypes();
         $this->assertContains("SpecialLabel", $coltypes["email"]["subtypes"], "SpecialLabel not contained in coltypes");
     }
@@ -122,7 +122,7 @@ final class DataConversionTest extends TestCase
      */
     public function testKnownCustomLabelIsNotInsertedToDatabase(): void
     {
-        [ $logger, $db, $abook ] = $this->initStubs();
+        [ $logger, $db, $cache, $abook ] = $this->initStubs();
 
         $db->expects($this->once())
             ->method("get")
@@ -137,7 +137,7 @@ final class DataConversionTest extends TestCase
         $db->expects($this->never())
             ->method("insert");
 
-        $dc = new DataConversion("42", $db, $logger);
+        $dc = new DataConversion("42", $db, $cache, $logger);
         $vcard = $this->readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
         $dc->toRoundcube($vcard, $abook);
     }
@@ -154,7 +154,7 @@ final class DataConversionTest extends TestCase
      */
     public function testCorrectCreationOfVcardFromRoundcube(string $vcfFile, string $jsonFile): void
     {
-        [ $logger, $db ] = $this->initStubs();
+        [ $logger, $db, $cache ] = $this->initStubs();
 
         $db->expects($this->once())
             ->method("get")
@@ -166,7 +166,7 @@ final class DataConversionTest extends TestCase
                 $this->equalTo('abook_id')
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
-        $dc = new DataConversion("42", $db, $logger);
+        $dc = new DataConversion("42", $db, $cache, $logger);
         $vcardExpected = $this->readVCard($vcfFile);
         $saveData = $this->readJsonArray($jsonFile);
         $result = $dc->fromRoundcube($saveData);
@@ -186,7 +186,7 @@ final class DataConversionTest extends TestCase
      */
     public function testCorrectUpdateOfVcardFromRoundcube(string $vcfFile, string $jsonFile): void
     {
-        [ $logger, $db ] = $this->initStubs();
+        [ $logger, $db, $cache ] = $this->initStubs();
 
         $db->expects($this->once())
             ->method("get")
@@ -202,13 +202,191 @@ final class DataConversionTest extends TestCase
                 ["typename" => "email", "subtype" => "SpecialLabel2"]
             ]));
 
-        $dc = new DataConversion("42", $db, $logger);
+        $dc = new DataConversion("42", $db, $cache, $logger);
         $vcardOriginal = $this->readVCard($vcfFile);
         $vcardExpected = $this->readVCard("$vcfFile.new");
         $saveData = $this->readJsonArray($jsonFile);
 
         $result = $dc->fromRoundcube($saveData, $vcardOriginal);
         $this->compareVCards($vcardExpected, $result);
+    }
+
+    public function cachePhotosSamplesProvider(): array
+    {
+        return [
+            "InlinePhoto.vcf" => ["tests/unit/data/vcardImport/InlinePhoto", false, false],
+            "UriPhotoCrop.vcf" => ["tests/unit/data/vcardImport/UriPhotoCrop", true, true],
+            "InvalidUriPhoto.vcf" => ["tests/unit/data/vcardImport/InvalidUriPhoto", true, false],
+            "UriPhoto.vcf" => ["tests/unit/data/vcardImport/UriPhoto", true, true],
+        ];
+    }
+
+    /**
+     * Tests whether a PHOTO is stored/not stored to the roundcube cache as expected.
+     *
+     * @dataProvider cachePhotosSamplesProvider
+     */
+    public function testNewPhotoIsStoredToCacheIfNeeded(string $basename, bool $getExp, bool $storeExp): void
+    {
+        [ $logger, $db, $cache, $abook ] = $this->initStubs();
+
+        $vcard = $this->readVCard("$basename.vcf");
+        $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
+
+        $key = "photo_105_" . md5((string) $vcard->UID);
+        $saveDataExpected = $this->readJsonArray("$basename.json");
+
+
+        // photo should be stored to cache if not already stored in vcard in the final form
+        if ($getExp) {
+            // simulate cache miss
+            $cache->expects($this->once())
+                  ->method("get")
+                  ->with($this->equalTo($key))
+                  ->will($this->returnValue(null));
+        } else {
+            $cache->expects($this->never())->method("get");
+        }
+
+        if ($storeExp) {
+            $cache->expects($this->once())
+               ->method("set")
+               ->with(
+                   $this->equalTo($key),
+                   $this->equalTo([
+                       'photoPropMd5' => md5($vcard->PHOTO->serialize()),
+                       'photo' => $saveDataExpected["photo"]
+                   ])
+               )
+               ->will($this->returnValue(true));
+        } else {
+            $cache->expects($this->never())->method("set");
+        }
+
+        $dc = new DataConversion("42", $db, $cache, $logger);
+        $saveData = $dc->toRoundcube($vcard, $abook);
+        $this->assertEquals($saveDataExpected["photo"], $saveData["photo"]);
+    }
+
+    /**
+     * Tests that a photo is retrieved from the roundcube cache if available, skipping processing.
+     *
+     * @dataProvider cachePhotosSamplesProvider
+     */
+    public function testPhotoIsUsedFromCacheIfAvailable(string $basename, bool $getExp, bool $storeExp): void
+    {
+        [ $logger, $db, $cache, $abook ] = $this->initStubs();
+
+        // we use this file as some placeholder for cached data that is not used in any of the vcards photos
+        $cachedPhotoData = file_get_contents("tests/unit/data/srv/pixel.jpg");
+        $this->assertNotFalse($cachedPhotoData);
+
+        $vcard = $this->readVCard("$basename.vcf");
+        $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
+
+        $key = "photo_105_" . md5((string) $vcard->UID);
+        $saveDataExpected = $this->readJsonArray("$basename.json");
+
+        if ($getExp) {
+            // simulate cache hit
+            $cache->expects($this->once())
+                  ->method("get")
+                  ->with($this->equalTo($key))
+                  ->will(
+                      $this->returnValue([
+                          'photoPropMd5' => md5($vcard->PHOTO->serialize()),
+                          'photo' => $cachedPhotoData
+                      ])
+                  );
+        } else {
+            $cache->expects($this->never())->method("get");
+        }
+
+        // no cache update expected
+        $cache->expects($this->never())->method("set");
+
+        $dc = new DataConversion("42", $db, $cache, $logger);
+        $saveData = $dc->toRoundcube($vcard, $abook);
+
+        if ($getExp) {
+            $this->assertEquals($cachedPhotoData, $saveData["photo"]);
+        } else {
+            $this->assertEquals($saveDataExpected["photo"], $saveData["photo"]);
+        }
+    }
+
+    /**
+     * Tests that an outdated photo in the cache is replaced by a newly processed one.
+     *
+     * @dataProvider cachePhotosSamplesProvider
+     */
+    public function testOutdatedPhotoIsReplacedInCache(string $basename, bool $getExp, bool $storeExp): void
+    {
+        [ $logger, $db, $cache, $abook ] = $this->initStubs();
+
+        // we use this file as some placeholder for cached data that is not used in any of the vcards photos
+        $cachedPhotoData = file_get_contents("tests/unit/data/srv/pixel.jpg");
+        $this->assertNotFalse($cachedPhotoData);
+
+        $vcard = $this->readVCard("$basename.vcf");
+        $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
+
+        $key = "photo_105_" . md5((string) $vcard->UID);
+        $saveDataExpected = $this->readJsonArray("$basename.json");
+
+        if ($getExp) {
+            // simulate cache hit with non-matching md5sum
+            $cache->expects($this->once())
+                  ->method("get")
+                  ->with($this->equalTo($key))
+                  ->will(
+                      $this->returnValue([
+                          'photoPropMd5' => md5("foo"), // will not match the current md5
+                          'photo' => $cachedPhotoData
+                      ])
+                  );
+
+            // expect that the old record is purged
+            $cache->expects($this->once())
+                  ->method("remove")
+                  ->with($this->equalTo($key));
+        } else {
+            $cache->expects($this->never())->method("get");
+        }
+
+        // a new record should be inserted if photo requires caching
+        if ($storeExp) {
+            $cache->expects($this->once())
+               ->method("set")
+               ->with(
+                   $this->equalTo($key),
+                   $this->equalTo([
+                       'photoPropMd5' => md5($vcard->PHOTO->serialize()),
+                       'photo' => $saveDataExpected["photo"]
+                   ])
+               )
+               ->will($this->returnValue(true));
+        } else {
+            $cache->expects($this->never())->method("set");
+        }
+
+        $dc = new DataConversion("42", $db, $cache, $logger);
+        $saveData = $dc->toRoundcube($vcard, $abook);
+        $this->assertEquals($saveDataExpected["photo"], $saveData["photo"]);
+    }
+
+    /**
+     * Tests that a delayed photo loader handles vcards lacking a PHOTO property.
+     */
+    public function testPhotoloaderHandlesVcardWithoutPhotoProperty(): void
+    {
+        [ $logger, $_db, $cache, $abook ] = $this->initStubs();
+
+        $vcard = $this->readVCard("tests/unit/data/vcardImport/AllAttr.vcf");
+        $this->assertNull($vcard->PHOTO);
+
+        $proxy = new DelayedPhotoLoader($vcard, $abook, $cache, $logger);
+        $this->assertEquals("", $proxy);
     }
 
     private function initStubs(): array
@@ -225,8 +403,9 @@ final class DataConversionTest extends TestCase
             throw new \Exception("URI $uri not known to stub");
         }));
         $db = $this->createMock(Database::class);
+        $cache = $this->createMock(\rcube_cache::class);
 
-        return [ $logger, $db, $abook ];
+        return [ $logger, $db, $cache, $abook ];
     }
 
     private function readVCard(string $vcfFile): VCard

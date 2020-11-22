@@ -35,8 +35,6 @@ class Database
     /**
      * Initializes a Database instance.
      *
-     * Must be called before using any methods in this class.
-     *
      * @param rcube_db $dbh The roundcube database handle
      */
     public function __construct(LoggerInterface $logger, rcube_db $dbh)

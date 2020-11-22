@@ -300,8 +300,7 @@ class SyncHandlerRoundcube implements SyncHandler
         $abookId = $this->rcAbook->getId();
         $db = $this->db;
 
-        // card may be changed during conversion, in particular inlining of the PHOTO
-        [ 'save_data' => $save_data, 'vcf' => $card ] = $this->dataConverter->toRoundcube($card, $this->davAbook);
+        $save_data = $this->dataConverter->toRoundcube($card, $this->davAbook);
         $this->logger->info("Changed Individual $uri " . $save_data['name']);
 
         $dbid = $this->localCards[$uri]["id"] ?? null;
@@ -369,8 +368,7 @@ class SyncHandlerRoundcube implements SyncHandler
         $dbh = $db->getDbHandle();
         $abookId = $this->rcAbook->getId();
 
-        // card may be changed during conversion, in particular inlining of the PHOTO
-        [ 'save_data' => $save_data, 'vcf' => $card ] = $this->dataConverter->toRoundcube($card, $this->davAbook);
+        $save_data = $this->dataConverter->toRoundcube($card, $this->davAbook);
 
         $dbid = $this->localGrpCards[$uri]["id"] ?? null;
         if (isset($dbid)) {

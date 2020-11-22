@@ -68,6 +68,9 @@ class carddav extends rcube_plugin
     /** @var Database $db */
     private $db;
 
+    /** @var ?rcube_cache $cache */
+    private $cache;
+
     // the dummy task is used by the calendar plugin, which requires
     // the addressbook to be initialized
     public $task = 'addressbook|login|mail|settings|dummy';
@@ -117,7 +120,13 @@ class carddav extends rcube_plugin
         $this->logger = $options["logger"] ?? new RoundcubeLogger("carddav", \Psr\Log\LogLevel::ERROR);
         $this->httpLogger = $options["logger_http"] ?? new RoundcubeLogger("carddav_http", \Psr\Log\LogLevel::ERROR);
 
-        $this->db = $options["db"] ?? new Database($this->logger, \rcube::get_instance()->db);
+        $rcube = \rcube::get_instance();
+        $this->db = $options["db"] ?? new Database($this->logger, $rcube->db);
+
+        if (isset($options["cache"])) {
+            $this->cache = $options["cache"];
+            // the roundcube cache object cannot be retrieved at this point
+        }
     }
 
     public function init(): void
@@ -352,7 +361,15 @@ class carddav extends rcube_plugin
                         $this->decryptPassword($config["password"])
                     );
 
-                    $abook = new Addressbook($abookId, $this->db, $logger, $config, $readonly, $requiredProps);
+                    $abook = new Addressbook(
+                        $abookId,
+                        $this->db,
+                        $this->getRoundcubeCache(),
+                        $logger,
+                        $config,
+                        $readonly,
+                        $requiredProps
+                    );
                     $p['instance'] = $abook;
 
                     // refresh the address book if the update interval expired this requires a completely initialized
@@ -1112,6 +1129,26 @@ class carddav extends rcube_plugin
             }
         }
         return $prefs;
+    }
+
+    /**
+     * Returns a handle to the roundcube cache for the user.
+     *
+     * Note: this must be called at a time where the user is already logged on, specifically it must not be called
+     * during the constructor of this plugin.
+     */
+    private function getRoundcubeCache(): rcube_cache
+    {
+        if (!isset($this->cache)) {
+            // TODO make TTL and cache type configurable
+            $this->cache = rcube::get_instance()->get_cache("carddav", "db", "1w");
+        }
+
+        if (!isset($this->cache)) {
+            throw new \Exception("Attempt to request cache where not available yet");
+        }
+
+        return $this->cache;
     }
 
     // password helpers
