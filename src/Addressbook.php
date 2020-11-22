@@ -1174,10 +1174,8 @@ class Addressbook extends rcube_addressbook
 
                 // needed by the calendar plugin
                 if (is_array($cols) && in_array('vcard', $cols)) {
-                    $save_data['save_data']['vcard'] = $contact['vcard'];
+                    $save_data['vcard'] = $contact['vcard'];
                 }
-
-                $save_data = $save_data['save_data'];
             } else {
                 $save_data = [];
                 $cols = $cols ?? []; // note: $cols is always an array at this point, this is for the static analyzer
