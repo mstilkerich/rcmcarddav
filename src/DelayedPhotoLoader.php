@@ -11,6 +11,20 @@ use MStilkerich\CardDavClient\AddressbookCollection;
 
 /**
  * This class is intended to delay the processing of photos until first use, and cache for later use.
+ *
+ * Generally, photos that can be used as stored in the VCard will not be put to the cache. Only photos that are
+ * processed are stored to roundcube cache to avoid reprocessing in the future. Currently, this processing can be:
+ *   - Photo is referenced as external URI from the VCard and must be downloaded
+ *   - Photo is cropped because of a set X-ABCROP-RECTANGLE parameter
+ *
+ * Instead of storing the final photo data in the data set returned to roundcube, an object of this class is stored.
+ * When roundcube actually requires the data, an implicit conversion to string of the proxy object is triggered, which
+ * then causes the photo to be either retrieved from the VCard, from the roundcube cache, or otherwise the processing is
+ * done at this point in time.
+ *
+ * The goal of this mechanism is to perform the potentially expensive operation of photo processing only when the photo
+ * is actually needed, and particularly not during the synchronization operation (for all photos that are part of the
+ * synced vcards).
  */
 class DelayedPhotoLoader
 {
@@ -55,52 +69,66 @@ class DelayedPhotoLoader
     public function __toString(): string
     {
         $this->logger->debug("Unwrapping photo");
-        return $this->fetchFromRoundcubeCache() ?? $this->computePhotoFromProperty() ?? "";
+        return $this->computePhotoFromProperty();
     }
 
     /**
      * Computes the photo data from the PHOTO property.
+     *
+     * Processing and cache retrieval/update are performed as necessary.
+     *
+     * @return string The processed photo data. An empty string in case of error or no photo available.
      */
-    private function computePhotoFromProperty(): ?string
+    private function computePhotoFromProperty(): string
     {
-        // true if the photo must be processed (downloaded/cropped) and the result should be cached
-        // Photo that are stored inline in the VCard and provided as is will not be put in the cache
-        $cachePhoto = false;
 
         $vcard = $this->vcard;
-        $photo = $vcard->PHOTO;
-        if (!isset($photo)) {
-            return null;
+        $photoProp = $vcard->PHOTO;
+        if (!isset($photoProp)) {
+            return "";
         }
 
         $this->logger->debug("Creating photo data from PHOTO property");
 
+        // First we determine whether the photo needs processing (download/crop)
+        $cropProp = $photoProp['X-ABCROP-RECTANGLE'];
+
         // check if photo needs to be downloaded
-        $kind = $photo['VALUE'];
+        $kind = $photoProp['VALUE'];
         if (($kind instanceof VObject\Parameter) && strcasecmp('uri', (string) $kind) == 0) {
-            $cachePhoto = true;
-            $photoData = $this->downloadPhoto((string) $photo);
+            $photoUri = (string) $photoProp;
+        }
+
+        // true if the photo must be processed (downloaded/cropped) and the result should be cached
+        // Photo that are stored inline in the VCard and provided as is will not be put in the cache
+        $cachePhoto = ($cropProp instanceof VObject\Parameter) || isset($photoUri);
+
+        // check roundcube cache
+        if ($cachePhoto) {
+            $photoData = $this->fetchFromRoundcubeCache($photoProp);
+            if (isset($photoData)) {
+                return $photoData;
+            }
+        }
+
+        // retrieve PHOTO data
+        if (isset($photoUri)) {
+            $photoData = $this->downloadPhoto($photoUri);
         } else {
-            $photoData = (string) $photo;
+            $photoData = (string) $photoProp;
         }
 
-        if (isset($photoData)) {
-            $photoDataCrop = $this->xabcropphoto($photoData);
-            if (isset($photoDataCrop)) {
-                $cachePhoto = true;
-                $photoData = $photoDataCrop;
-            }
+        // crop photo if needed
+        if (isset($photoData) && ($cropProp instanceof VObject\Parameter)) {
+            $photoData = $this->xabcropphoto($photoData, $cropProp) ?? $photoData;
         }
 
-        if (isset($photoData)) {
-            if ($cachePhoto) {
-                $this->storeToRoundcubeCache($photoData, $photo);
-            } else {
-                $this->logger->debug("Skip cache - PHOTO is stored in VCard");
-            }
+        // store to cache if requested
+        if (isset($photoData) && $cachePhoto) {
+            $this->storeToRoundcubeCache($photoData, $photoProp);
         }
 
-        return $photoData;
+        return $photoData ?? "";
     }
 
     private function downloadPhoto(string $uri): ?string
@@ -124,13 +152,8 @@ class DelayedPhotoLoader
      *
      * @return ?string Returns the photo data from the roundcube cache, null if not present or outdated.
      */
-    private function fetchFromRoundcubeCache(): ?string
+    private function fetchFromRoundcubeCache(VObject\Property $photoProp): ?string
     {
-        $photo = $this->vcard->PHOTO;
-        if (!isset($photo)) {
-            return null;
-        }
-
         $key = $this->determineCacheKey();
         $cacheObject = $this->cache->get($key);
 
@@ -139,7 +162,7 @@ class DelayedPhotoLoader
             return null;
         }
 
-        if (md5($photo->serialize()) !== $cacheObject["photoPropMd5"]) {
+        if (md5($photoProp->serialize()) !== $cacheObject["photoPropMd5"]) {
             $this->logger->debug("Roundcube cached photo outdated - removing $key");
             $this->cache->remove($key);
             return null;
@@ -210,23 +233,15 @@ class DelayedPhotoLoader
      * @return ?string The resulting cropped photo as binary string. Null in case the given photo was not modified,
      *                 e.g. for lack of the X-ABCROP-RECTANGLE parameter or GD is not available.
      */
-    private function xabcropphoto(string $photoData): ?string
+    private function xabcropphoto(string $photoData, VObject\Parameter $cropProp): ?string
     {
         if (!function_exists('gd_info')) {
+            // @codeCoverageIgnoreStart
             return null;
+            // @codeCoverageIgnoreEnd
         }
 
-        $photo = $this->vcard->PHOTO;
-        if (!isset($photo)) {
-            return null;
-        }
-
-        $abcrop = $photo['X-ABCROP-RECTANGLE'];
-        if (!($abcrop instanceof VObject\Parameter)) {
-            return null;
-        }
-
-        $parts = explode('&', (string) $abcrop);
+        $parts = explode('&', (string) $cropProp);
         $x = intval($parts[1]);
         $y = intval($parts[2]);
         $w = intval($parts[3]);
