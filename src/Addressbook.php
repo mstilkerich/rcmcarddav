@@ -56,6 +56,9 @@ class Addressbook extends rcube_addressbook
     /** @var array $coltypes */
     public $coltypes;
 
+    /** @var string[] Attributes containing dates, affects roundcube sorting */
+    public $date_cols = ['birthday', 'anniversary'];
+
     /** @var DataConversion $dataConverter to convert between VCard and roundcube's representation of contacts. */
     private $dataConverter;
 
