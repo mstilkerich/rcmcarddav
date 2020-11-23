@@ -27,6 +27,7 @@ class DataConversion
             'X-GENDER' => 'gender',
             'X-MANAGER' => 'manager',
             'X-SPOUSE' => 'spouse',
+            'X-MAIDENNAME' => 'maidenname',
             // the two kind attributes should not occur both in the same vcard
             //'KIND' => 'kind',   // VCard v4
             'X-ADDRESSBOOKSERVER-KIND' => 'kind', // Apple Addressbook extension
@@ -47,6 +48,7 @@ class DataConversion
         'name' => [],
         'firstname' => [],
         'surname' => [],
+        'maidenname' => [],
         'email' => [
             'subtypes' => ['home','work','other','internet'],
         ],
