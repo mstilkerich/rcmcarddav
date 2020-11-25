@@ -30,5 +30,14 @@
 		"zipcode": "99887",
 		"country": "Japan"
 	}],
+	"im:aim": [ "ms+aim@example.com" ],
+	"im:gadugadu": [ "ms+gadu@example.com" ],
+	"im:googletalk": [ "ms+gtalk@example.com" ],
+	"im:icq": [ "12345" ],
+	"im:jabber": [ "ms@example.com" ],
+	"im:msn": [ "ms+msn@example.com" ],
+	"im:qq": [ "ms+qq@example.com" ],
+	"im:skype": [ "ms+skype@example.com" ],
+	"im:yahoo": [ "ms+yahoo@example.com" ],
 	"showas": "INDIVIDUAL"
 }
