@@ -37,6 +37,7 @@ class DataConversion
             'TEL' => 'phone',
             'URL' => 'website',
             'ADR' => 'address',
+            'IMPP' => 'im',
         ],
     ];
 
@@ -79,6 +80,9 @@ class DataConversion
         'assistant' => [],
         'manager' => [],
         'spouse' => [],
+        'im' => [
+            'subtypes' => ['icq', 'aim', 'msn', 'yahoo', 'jabber', 'skype', 'gadugadu', 'googletalk', 'qq', 'other'],
+        ],
     ];
 
     /** @var array $xlabels custom labels defined in the addressbook */
@@ -234,6 +238,22 @@ class DataConversion
             }
         }
         return $addr;
+    }
+
+    /**
+     * Creates roundcube instant messaging data
+     *
+     * @param VObject\Property The IMPP property to use as input.
+     * @return string The roundcube data created from the property.
+     */
+    private function toRoundcubeIMPP(VObject\Property $prop): string
+    {
+        // Examples:
+        // From iCloud Web Addressbook: IMPP;X-SERVICE-TYPE=aim;TYPE=HOME;TYPE=pref:aim:jdoe@example.com
+        // From Nextcloud: IMPP;TYPE=SKYPE:jdoe@example.com
+        // Note: the nextcloud example does not have an URI value, thus it's not compliant with RFC 4770
+        $comp = explode(":", (string) $prop, 2);
+        return $comp[3 - count($comp)];
     }
 
     /**
@@ -566,10 +586,12 @@ class DataConversion
      *
      * The following algorithm is used to select the label (first match is used):
      *  1. If the property is part of a group that also contains an X-ABLabel property, the X-ABLabel value is used.
-     *  2. The TYPE parameter that, of all the specified TYPE parameters, is listed first in the
+     *  2. If there is a custom handler to extract a label for a property, it is called to provide a list of additional
+     *     candidates and the parameters to search for a label (used in the next step).
+     *  3. The TYPE parameter that, of all the specified TYPE parameters, is listed first in the
      *     coltypes[<attr>]["subtypes"] array. Note that TYPE parameter values not listed in the subtypes array will be
      *     ignored in the selection.
-     *  3. If no known TYPE parameter value is specified, "other" is used, which is a valid subtype for all currently
+     *  4. If no known TYPE parameter value is specified, "other" is used, which is a valid subtype for all currently
      *     supported multi-value properties.
      */
     private function getAttrLabel(VCard $vcard, VObject\Property $vprop, string $attrname): string
@@ -590,24 +612,64 @@ class DataConversion
             }
         }
 
-        // 2. select a known standard label if available
-        if (isset($vprop['TYPE']) && is_array($this->coltypes[$attrname]['subtypes'])) {
-            $selection = null;
+        // 2. Check if there is a property-specific handler to provide additional label candidates
+        $vkey = strtoupper($vprop->name);
+        if (method_exists($this, "getAttrLabel$vkey")) {
+            // special handler for structured property
+            $candidates = call_user_func([$this, "getAttrLabel$vkey"], $vcard, $vprop);
+        } else {
+            $candidates = [];
+        }
 
-            foreach ($vprop['TYPE'] as $type) {
-                $type = strtolower($type);
-                $pref = array_search($type, $this->coltypes[$attrname]['subtypes'], true);
+        // 3. select a known standard label if available
+        if (isset($vprop["TYPE"]) && is_array($this->coltypes[$attrname]['subtypes'])) {
+            foreach ($vprop["TYPE"] as $type) {
+                $candidates[] = (string) $type;
+            }
+        }
 
-                if ($pref !== false) {
-                    if (!isset($selection) || $pref < $selection[1]) {
-                        $selection = [ $type, $pref ];
-                    }
+
+        $selection = null;
+        foreach ($candidates as $type) {
+            $type = strtolower($type);
+            $pref = array_search($type, $this->coltypes[$attrname]['subtypes'], true);
+
+            if ($pref !== false) {
+                if (!isset($selection) || $pref < $selection[1]) {
+                    $selection = [ $type, $pref ];
                 }
             }
         }
 
-        // 3. return default subtype
+        // 4. return default subtype
         return $selection[0] ?? 'other';
+    }
+
+    /**
+     * Acquires label candidates for the IMPP property.
+     *
+     * Candidates are taken from the URI component and X-SERVICE-TYPE parameters of the property.
+     *
+     * @return string[] The function returns a list of the label candidates, possibly empty.
+     */
+    private function getAttrLabelIMPP(VCard $_vcard, VObject\Property $prop): array
+    {
+        $ret = [ ];
+
+        // check URI scheme
+        $comp = explode(":", (string) $prop, 2);
+        if (count($comp) == 2) {
+            $ret[] = $comp[0];
+        }
+
+        // check X-SERVICE-TYPE parameter (seen in entries created by Apple Addressbook)
+        if (isset($prop["X-SERVICE-TYPE"]) && is_array($this->coltypes["im"]['subtypes'])) {
+            foreach ($prop["X-SERVICE-TYPE"] as $type) {
+                $ret[] = $type;
+            }
+        }
+
+        return $ret;
     }
 
     /**
