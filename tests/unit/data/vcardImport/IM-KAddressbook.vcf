@@ -1,0 +1,14 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:KAddressbook IMKontakt
+IMPP:icq:12345
+IMPP:skype:skype@example.com
+IMPP:aim:aim@example.com
+IMPP:gg:gadugadu@example.com
+IMPP:googletalk:gtalk@example.com
+IMPP:groupwise:groupwise@example.com
+IMPP:msn:msn@example.com
+IMPP:twitter:mtwitterich
+N:IMKontakt;KAddressbook;;;
+UID:5514817a-bd88-46b9-a62b-1ade797c6181
+END:VCARD
