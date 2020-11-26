@@ -119,14 +119,17 @@ class DataConversion
                 'Skype',
                 'Telegram',
                 'Twitter',
-                'XMPP',
                 'WeChat',
                 'Yahoo',
                 'Zoom',
                 'other'
             ],
             'subtypealias' => [
+                'gadu' => 'gadugadu',
                 'gg' => 'gadugadu',
+                'google' => 'googletalk',
+                'xmpp' => 'jabber',
+                'ymsgr' => 'yahoo',
             ]
         ],
     ];
@@ -731,6 +734,7 @@ class DataConversion
         if (isset($prop["TYPE"])) {
             foreach ($prop["TYPE"] as $type) {
                 $ltype = strtolower($type);
+                $ltype = $this->coltypes["im"]["subtypealias"][$ltype] ?? $ltype;
                 $pos = array_search($ltype, $subtypesLower, true);
                 if ($pos !== false) {
                     return $this->coltypes["im"]['subtypes'][$pos];

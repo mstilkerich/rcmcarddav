@@ -4,7 +4,7 @@
 	"kind": "individual",
 	"email:home": [ "kontakt@example.com" ],
 	"im:Skype": [ "skype@example.com" ],
-	"im:XMPP": [ "xmpp@example.com" ],
+	"im:Jabber": [ "xmpp@example.com" ],
 	"im:IRC": [ "irc@example.com" ],
 	"im:Kik": [ "kik@example.com" ],
 	"im:Telegram": [ "telegram@example.com" ],

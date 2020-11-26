@@ -81,7 +81,20 @@ A check of different addressbook applications yielded the following:
   IMPP:twitter:mtwitterich
   ```
 
-- Windows 10 Addressbook
+- Windows 10 People app does not support IM information
+
+- eMClient uses scheme to encode the messaging service type
+  ```
+  IMPP:xmpp:jabber@example.com
+  IMPP:skype:skype@example.com
+  IMPP:icq:12345
+  IMPP:msn:msn@example.com
+  IMPP:aim:aim@example.com
+  IMPP:google:gtalk@example.com
+  IMPP:gadu:gadugadu@example.com
+  IMPP:irc:irc@example.com
+  IMPP:ymsgr:yahoo@example.com
+  ```
 
 ## Import into roundcube
 
