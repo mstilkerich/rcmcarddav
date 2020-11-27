@@ -35,6 +35,14 @@ A check of different addressbook applications yielded the following:
   item8.IMPP;X-SERVICE-TYPE=MikesIM:x-apple:mikeim@example.com
   item8.X-ABLabel:MikesIM
   ```
+- Google Contacts uses only the `IMPP` property. It's usage is like that of Apple, funnily including usage of the
+  `x-apple` URI scheme for some services. The service information can be taken from the `X-SERVICE-TYPE` parameter.
+  ```
+  item1.IMPP;X-SERVICE-TYPE=AIM:aim:aim@example.com
+  item2.IMPP;X-SERVICE-TYPE=ICQ:aim:12345
+  item1.X-ABLabel:Other
+  item2.X-ABLabel:Other
+  ```
 
 - Evolution only uses the non-standard properties:
   ```
