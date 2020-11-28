@@ -17,8 +17,8 @@ item6.IMPP;X-SERVICE-TYPE=Skype;type=pref:skype:skype@example.com
 item6.X-ABLabel:Skype
 item7.IMPP;X-SERVICE-TYPE=WhatsApp;x-teamidentifier=57T9237FN3;x-bundleidentifiers=net.whatsapp.WhatsApp:x-apple:0283839
 item7.X-ABLabel:WhatsApp
-item8.IMPP;X-SERVICE-TYPE=MikesIM:x-apple:mikeim@example.com
-item8.X-ABLabel:MikesIM
+item8.IMPP;X-SERVICE-TYPE="Mike’s very special, custom IM:":x-apple:mikeim@example.com
+item8.X-ABLabel:Mike’s very special\, custom IM:
 item9.IMPP;X-SERVICE-TYPE=ICQ:aim:18383828
 item9.X-ABLabel:ICQ
 item10.IMPP;X-SERVICE-TYPE=AIM:aim:aim@example.com

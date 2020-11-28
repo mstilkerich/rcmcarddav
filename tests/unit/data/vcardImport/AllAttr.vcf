@@ -37,4 +37,5 @@ IMPP;X-SERVICE-TYPE=qq;TYPE=OTHER:x-apple:ms+qq@example.com
 IMPP;X-SERVICE-TYPE=skype;TYPE=OTHER:skype:ms+skype@example.com
 X-YAHOO;TYPE=OTHER;TYPE=pref:ms+yahoo@example.com
 IMPP;X-SERVICE-TYPE=yahoo;TYPE=OTHER:ymsgr:ms+yahoo@example.com
+IMPP:x-apple:unknown-im-service@example.com
 END:VCARD

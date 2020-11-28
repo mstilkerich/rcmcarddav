@@ -6,7 +6,7 @@
 	"firstname": "Test",
 	"im:Skype": [ "skype@example.com", "skype2@example.com" ],
 	"im:WhatsApp": [ "0283839" ],
-	"im:MikesIM": [ "mikeim@example.com" ],
+	"im:Mike’s very special, custom IM:": [ "mikeim@example.com" ],
 	"im:ICQ": [ "18383828" ],
 	"im:AIM": [ "aim@example.com" ],
 	"im:MSN": [ "msn@example.com" ],

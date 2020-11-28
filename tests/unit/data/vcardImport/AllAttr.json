@@ -39,5 +39,6 @@
 	"im:QQ": [ "ms+qq@example.com" ],
 	"im:Skype": [ "ms+skype@example.com" ],
 	"im:Yahoo": [ "ms+yahoo@example.com" ],
+	"im:other": [ "unknown-im-service@example.com" ],
 	"showas": "INDIVIDUAL"
 }
