@@ -53,6 +53,9 @@ class carddav extends rcube_plugin
         "name", "active", "use_categories", "username", "password", "url", "refresh_time", "sync_token"
     ];
 
+    /** @var string[] ABOOK_PROPS_BOOL A list of addressbook property keys of all boolean properties. */
+    private const ABOOK_PROPS_BOOL = [ "active", "use_categories" ];
+
     /** @var string $pwstore_scheme encryption scheme */
     private static $pwstore_scheme = 'encrypted';
 
@@ -386,7 +389,7 @@ class carddav extends rcube_plugin
                     if (!empty($presetname)) {
                         $blockhdr .= str_replace("_PRESETNAME_", $presetname, $fromPresetStringLocalized);
                     }
-                    $args["blocks"]["cd_preferences$abookId"] = $this->buildSettingsBlock($blockhdr, $abookrow, $prefs);
+                    $args["blocks"]["cd_preferences$abookId"] = $this->buildSettingsBlock($blockhdr, $abookrow);
                 }
             }
 
@@ -394,8 +397,7 @@ class carddav extends rcube_plugin
             if (!($prefs['_GLOBAL']['fixed'] ?? false)) {
                 $args['blocks']['cd_preferences_section_new'] = $this->buildSettingsBlock(
                     rcmail::Q($this->gettext('cd_newabboxtitle')),
-                    self::getAddressbookSettingsFromPOST('new'),
-                    $prefs
+                    self::getAddressbookSettingsFromPOST('new')
                 );
             }
         } catch (\Exception $e) {
@@ -687,11 +689,7 @@ class carddav extends rcube_plugin
                         // not exactly match the discovery URI. Resetting it to the discovery URI would
                         // break the addressbook record
                     } elseif ($abookrow[$k] != $preset[$k]) {
-                        if (is_bool($preset[$k])) {
-                            $pa[$k] = $preset[$k] ? '1' : '0';
-                        } else {
-                            $pa[$k] = $preset[$k];
-                        }
+                        $pa[$k] = $preset[$k];
                     }
                 }
             }
@@ -747,8 +745,9 @@ class carddav extends rcube_plugin
     /**
      * Builds a setting block for one address book for the preference page.
      */
-    private function buildSettingsBlock(string $blockheader, array $abook, array $prefs): array
+    private function buildSettingsBlock(string $blockheader, array $abook): array
     {
+        $prefs = self::getAdminSettings();
         $abookId = $abook['id'];
 
         if (self::noOverrideAllowed('active', $abook, $prefs)) {
@@ -895,8 +894,6 @@ class carddav extends rcube_plugin
      */
     private static function getAddressbookSettingsFromPOST(string $abookId): array
     {
-        /** @var string[] $boolOptions These options have checkbox elements and are NULL in post if deselected */
-        $boolOptions = [ 'active', 'use_categories' ];
         $nonEmptyDefaults = [
             "active" => "1",
             "use_categories" => "1",
@@ -931,7 +928,7 @@ class carddav extends rcube_plugin
             // (Problem: unchecked checkboxes don't appear with POSTed values, so we cannot discern not set values from
             // actively unchecked values).
             if (isset($name)) {
-                foreach ($boolOptions as $boolOpt) {
+                foreach (self::ABOOK_PROPS_BOOL as $boolOpt) {
                     if (!isset($result[$boolOpt])) {
                         $result[$boolOpt] = "0";
                     }
@@ -952,7 +949,7 @@ class carddav extends rcube_plugin
                     unset($result[$k]);
                 }
             }
-            foreach ($boolOptions as $boolOpt) {
+            foreach (self::ABOOK_PROPS_BOOL as $boolOpt) {
                 if (!isset($result[$boolOpt])) {
                     $result[$boolOpt] = "0";
                 }
@@ -1034,7 +1031,14 @@ class carddav extends rcube_plugin
         self::$abooksDb = null;
     }
 
-    // admin settings from config.inc.php
+    /**
+     * This function read and caches the admin settings from config.inc.php.
+     *
+     * Upon first call, the config file is read and the result is cached and returned. On subsequent calls, the cached
+     * result is returned without reading the file again.
+     *
+     * @returns The admin settings array defined in config.inc.php.
+     */
     private static function getAdminSettings(): array
     {
         if (isset(self::$admin_settings)) {
@@ -1053,14 +1057,40 @@ class carddav extends rcube_plugin
             unset($prefs[""]);
         }
 
-        self::$admin_settings = $prefs;
-
+        // initialize password store scheme if set
         if (isset($prefs['_GLOBAL']['pwstore_scheme'])) {
             $scheme = $prefs['_GLOBAL']['pwstore_scheme'];
             if (preg_match("/^(plain|base64|encrypted|des_key)$/", $scheme)) {
                 self::$pwstore_scheme = $scheme;
             }
         }
+
+        // convert values to internal format
+        foreach ($prefs as $presetname => &$preset) {
+            // _GLOBAL contains plugin configuration not related to an addressbook preset - skip
+            if ($presetname === '_GLOBAL') {
+                continue;
+            }
+
+            // boolean options are stored as 0 / 1 in the DB, internally we represent DB values as string
+            foreach (self::ABOOK_PROPS_BOOL as $boolOpt) {
+                if (isset($preset[$boolOpt])) {
+                    $preset[$boolOpt] = $preset[$boolOpt] ? '1' : '0';
+                }
+            }
+
+            // refresh_time is stored in seconds
+            try {
+                if (isset($preset["refresh_time"])) {
+                    $preset["refresh_time"] = (string) self::parseTimeParameter($preset["refresh_time"]);
+                }
+            } catch (\Exception $e) {
+                self::$logger->error("Error in preset $presetname: " . $e->getMessage());
+                unset($preset["refresh_time"]);
+            }
+        }
+
+        self::$admin_settings = $prefs;
         return $prefs;
     }
 
