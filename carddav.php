@@ -323,10 +323,7 @@ class carddav extends rcube_plugin
 
                     if (isset($presetname)) {
                         $prefs = self::getAdminSettings();
-                        $readonly = isset($prefs[$presetname]["readonly"])
-                            ? ($prefs[$presetname]["readonly"] ? true : false)
-                            : false;
-
+                        $readonly = !empty($prefs[$presetname]["readonly"]);
                         $requiredProps = $prefs[$presetname]["require_always"] ?? [];
                     }
                     $p['instance'] = new Addressbook($abookId, $this, $readonly, $requiredProps);
