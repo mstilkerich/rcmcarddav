@@ -126,4 +126,42 @@ For the non-standard `X-*` properties:
     to allow interoperability with apple products that add both properties for the same contact information.
   - Obviously, only hard-coded known properties can be supported here.
 
+## Storing to CardDAV
+
+Storing is more difficult than importing, since we should store VCards that are correctly interpreted by other clients
+whose behavior widely differs. In addition, while considering issues of interoperability, we still want to stay
+compliant with RFC 4770.
+
+We adapt the following approach:
+  - Add the IMPP attribute. We add the messenger service to the parameter `X-SERVICE-TYPE` and `TYPE`. Because we
+    cannot have more than one subtype selected in roundcube, no other `TYPE` values are preserved anyway (this
+    limitation is already present concerning the other multi-value properties as well).
+  - In the value of the IMPP property, we store the messenger handle as an URI prefixed with a scheme as required by RFC
+    4770. Since RFC 4770 defines no URI schemes, we choose schemes in the following order (prio decreasing):
+    - As listed at [Wikipedia](https://en.wikipedia.org/wiki/List_of_URI_schemes)
+    - As observed in use by other clients.
+    - Lower case spelling of the service, if it contains no characters that must not be part of an URI scheme
+    - Fallback to x-unknown
+
+In addition, we add the old non-standard properties for those messenger services where such a property is known; this
+is what Apple does and allows clients relying on the legacy properties to display the information.
+
+Results observed / known caveats:
+  - Generally: When a card is edited in a client that does not know a property, it will leave those properties
+    untouched. With IM properties where the information is stored twice (one time in an `XMPP` property, and another
+    time in a non-standard `X-*` property), it is likely that upon edit only one property will be adapted and the other
+    will be retained with the old information.
+  - iCloud addressbook shows all types correctly. When editing the card, however, all service types are emptied and
+    would have to be edited by the user again.
+  - Evolution shows the IM fields properly for that an `X-*` property exists. Services that are only available in an
+    `IMPP` property are not shown.
+  - KAddressbook shows all entries, but services that KAddressbook does not know are displayed without a label.
+    KAddressbook interprets both the `IMPP` as well as the `X-*` headers with the result that the contact data is shown
+    twice where both properties exist.
+  - Google shows the data correctly (no duplicates, all service types shown).
+  - Nextcloud shows all data properly, but as expected includes the URI scheme in the displayed messenger handle.
+  - Owncloud behaves like nextcloud.
+  - eMClient shows all entries properly, but lists services it does not know of as unkown instead of showing the label.
+    GaduGadu, MSN and Google Talk are shown as unknown because eMClient uses different URI schems than rcmcarddav, but I
+    preferred the schemes listed at Wikipedia.
 
