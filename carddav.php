@@ -894,7 +894,7 @@ class carddav extends rcube_plugin
             $content_refresh_time = $input->show();
         }
 
-        if (isset($abook['last_updated'])) {
+        if (!empty($abook['last_updated'])) { // if never synced, last_updated is 0 -> don't show
             $content_refresh_time .=  rcube::Q($this->gettext('cd_lastupdate_time')) . ": ";
             $content_refresh_time .=  date("Y-m-d H:i:s", intval($abook['last_updated']));
         }
