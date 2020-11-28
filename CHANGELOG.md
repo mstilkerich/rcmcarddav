@@ -1,6 +1,6 @@
 # Changelog for RCMCardDAV
 
-## Version 4.1.0 (to 4.0.3)
+## Version 4.1.0 (to 4.0.x)
 
 - Fix: Prefer labels from X-ABLabel extension if available over standard labels
 - Fix #317: Support specification of department with empty organization
@@ -9,6 +9,12 @@
 - Fix #53: Only create displayname when not present in VCard / not provided by roundcube
 - New: Download externally referenced photos on demand, drastically speeding up sync with when photos are stored
   separately from the VCard (e.g. iCloud). For details see #247.
+
+## Version 4.0.x (to 4.0.3)
+
+- Fix #321: Boolean settings in presets caused errors when trying to store the preset's addressbooks to the database
+- Fix #322: The refresh time string from admin presets was not converted to seconds, causing errors or wrong values when
+  storing the preset's addressbooks to the database
 
 ## Version 4.0.3 (to 4.0.2)
 
