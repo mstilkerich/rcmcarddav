@@ -352,10 +352,7 @@ class carddav extends rcube_plugin
 
                     if (isset($presetname)) {
                         $prefs = $this->getAdminSettings();
-                        $readonly = isset($prefs[$presetname]["readonly"])
-                            ? ($prefs[$presetname]["readonly"] ? true : false)
-                            : false;
-
+                        $readonly = !empty($prefs[$presetname]["readonly"]);
                         $requiredProps = $prefs[$presetname]["require_always"] ?? [];
                     }
 
