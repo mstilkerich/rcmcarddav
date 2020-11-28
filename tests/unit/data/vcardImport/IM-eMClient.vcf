@@ -1,0 +1,18 @@
+BEGIN:VCARD
+VERSION:3.0
+PRODID:-//MailClient.VObject/8.0.3385.0
+UID:060539a3-09c9-4eb8-a376-0b980127e658
+REV:2020-11-26T17:48:25Z
+N:Testkontakt;EMClient;;;
+SORT-STRING:Testkontakt\, EMClient
+FN:EMClient Testkontakt
+IMPP:xmpp:jabber@example.com
+IMPP:skype:skype@example.com
+IMPP:icq:12345
+IMPP:msn:msn@example.com
+IMPP:aim:aim@example.com
+IMPP:google:gtalk@example.com
+IMPP:gadu:gadugadu@example.com
+IMPP:irc:irc@example.com
+IMPP:ymsgr:yahoo@example.com
+END:VCARD

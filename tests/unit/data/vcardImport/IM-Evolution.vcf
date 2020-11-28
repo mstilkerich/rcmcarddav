@@ -1,0 +1,22 @@
+BEGIN:VCARD
+VERSION:3.0
+UID:sabre-vobject-7a82c7c6-1ebc-4d5f-93ef-ce4912096d5c
+X-EVOLUTION-FILE-AS:Wurst\, Hans
+PRODID:-//Sabre//Sabre VObject 4.3.0//EN
+REV:2020-07-03T12:21:56Z
+N:Wurst;Hans;;;
+FN:Hans Wurst
+X-ABSHOWAS:INDIVIDUAL
+X-MOZILLA-HTML:FALSE
+EMAIL;TYPE=HOME:hans@wurst.de
+X-AIM;X-EVOLUTION-UI-SLOT=1:hans+aim@example.com
+X-ICQ;X-EVOLUTION-UI-SLOT=2:123455
+X-GROUPWISE;X-EVOLUTION-UI-SLOT=3:hans+groupwise@example.com
+X-JABBER;X-EVOLUTION-UI-SLOT=4:jabber@example.com
+X-YAHOO:yahoo@example.com
+X-GADUGADU:gadugadu@example.com
+X-MSN:msn@example.com
+X-SKYPE:skype@example.com
+X-TWITTER:mtwitterich
+X-GOOGLE-TALK:gtalk@example.com
+END:VCARD

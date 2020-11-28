@@ -1,0 +1,16 @@
+{
+	"name": "EMClient Testkontakt",
+	"cuid": "060539a3-09c9-4eb8-a376-0b980127e658",
+	"kind": "individual",
+	"surname": "Testkontakt",
+	"firstname": "EMClient",
+	"im:Jabber": [ "jabber@example.com" ],
+	"im:Skype": [ "skype@example.com" ],
+	"im:ICQ": [ "12345" ],
+	"im:MSN": [ "msn@example.com" ],
+	"im:AIM": [ "aim@example.com" ],
+	"im:GoogleTalk": [ "gtalk@example.com" ],
+	"im:GaduGadu": [ "gadugadu@example.com" ],
+	"im:IRC": [ "irc@example.com" ],
+	"im:Yahoo": [ "yahoo@example.com" ]
+}

@@ -27,6 +27,7 @@ class DataConversion
             'X-GENDER' => 'gender',
             'X-MANAGER' => 'manager',
             'X-SPOUSE' => 'spouse',
+            'X-MAIDENNAME' => 'maidenname',
             // the two kind attributes should not occur both in the same vcard
             //'KIND' => 'kind',   // VCard v4
             'X-ADDRESSBOOKSERVER-KIND' => 'kind', // Apple Addressbook extension
@@ -36,17 +37,41 @@ class DataConversion
             'TEL' => 'phone',
             'URL' => 'website',
             'ADR' => 'address',
+            'IMPP' => 'im',
+            'X-AIM' => 'im:AIM',
+            'X-GADUGADU' => 'im:GaduGadu',
+            'X-GOOGLE-TALK' => 'im:GoogleTalk',
+            'X-GROUPWISE' => 'im:Groupwise',
+            'X-ICQ' => 'im:ICQ',
+            'X-JABBER' => 'im:Jabber',
+            'X-MSN' => 'im:MSN',
+            'X-SKYPE' => 'im:Skype',
+            'X-TWITTER' => 'im:Twitter',
+            'X-YAHOO' => 'im:Yahoo',
         ],
     ];
 
-    /** @var array $coltypes Descriptions on the different attributes of address objects for roundcube
-     *
-     *  TODO roundcube has further default types: maidenname, im
+    /**
+     * @var string[] IM_URISCHEME Maps IMPP roundcube subtype to the URI scheme to use in IMPP property. If not
+     *                            explicitly listed, use the service name lowercase. For custom one use x-unknown.
+     *                            See also: https://en.wikipedia.org/wiki/List_of_URI_schemes
      */
+    private const IM_URISCHEME = [
+        'GaduGadu' => "gg", // eMClient: gadu, Wikipedia/KAddressbook: gg
+        'GoogleTalk' => "gtalk", // Apple: xmpp, eMClient: google, Wikipedia: gtalk, KAddressbook: googletalk
+        'ICQ' => "icq", // Apple: aim
+        'Jabber' => "xmpp",
+        'MSN' => "msnim", // Apple/Wikipedia: msnim, KAddressbook/eMClient: msn
+        'Yahoo' => "ymsgr",
+        'Zoom' => "zoomus"
+    ];
+
+    /** @var array $coltypes Descriptions on the different attributes of address objects for roundcube */
     private $coltypes = [
         'name' => [],
         'firstname' => [],
         'surname' => [],
+        'maidenname' => [],
         'email' => [
             'subtypes' => ['home','work','other','internet'],
         ],
@@ -77,6 +102,38 @@ class DataConversion
         'assistant' => [],
         'manager' => [],
         'spouse' => [],
+        'im' => [
+            'subtypes' => [
+                'AIM',
+                'GaduGadu',
+                'GoogleTalk',
+                'Groupwise',
+                'ICQ',
+                'IRC',
+                'Jabber',
+                'Kakaotalk',
+                'Kik',
+                'Line',
+                'Matrix',
+                'MSN',
+                'QQ',
+                'SIP',
+                'Skype',
+                'Telegram',
+                'Twitter',
+                'WeChat',
+                'Yahoo',
+                'Zoom',
+                'other'
+            ],
+            'subtypealias' => [
+                'gadu' => 'gadugadu',
+                'gg' => 'gadugadu',
+                'google' => 'googletalk',
+                'xmpp' => 'jabber',
+                'ymsgr' => 'yahoo',
+            ]
+        ],
     ];
 
     /** @var array $xlabels custom labels defined in the addressbook */
@@ -185,14 +242,23 @@ class DataConversion
         foreach (self::VCF2RC['multi'] as $vkey => $rckey) {
             $properties = $vcard->{$vkey};
             if (isset($properties)) {
+                // if the attribute already maps to a specific subtype, it is contained in rckey
+                [ $rckey, $rclabel ] = explode(':', $rckey, 2);
+
                 foreach ($properties as $prop) {
-                    $label = $this->getAttrLabel($vcard, $prop, $rckey);
+                    $label = empty($rclabel) ? $this->getAttrLabel($vcard, $prop, $rckey) : $rclabel;
 
                     if (method_exists($this, "toRoundcube$vkey")) {
                         // special handler for structured property
-                        $save_data["$rckey:$label"][] = call_user_func([$this, "toRoundcube$vkey"], $prop);
+                        $propValue = call_user_func([$this, "toRoundcube$vkey"], $prop);
                     } else {
-                        $save_data["$rckey:$label"][] = (string) $prop;
+                        $propValue = (string) $prop;
+                    }
+
+                    /** @var string[] */
+                    $existingValues = $save_data["$rckey:$label"] ?? [];
+                    if (!empty($propValue) && !in_array($propValue, $existingValues)) {
+                        $save_data["$rckey:$label"][] = $propValue;
                     }
                 }
             }
@@ -232,6 +298,22 @@ class DataConversion
             }
         }
         return $addr;
+    }
+
+    /**
+     * Creates roundcube instant messaging data
+     *
+     * @param VObject\Property The IMPP property to use as input.
+     * @return string The roundcube data created from the property.
+     */
+    private function toRoundcubeIMPP(VObject\Property $prop): string
+    {
+        // Examples:
+        // From iCloud Web Addressbook: IMPP;X-SERVICE-TYPE=aim;TYPE=HOME;TYPE=pref:aim:jdoe@example.com
+        // From Nextcloud: IMPP;TYPE=SKYPE:jdoe@example.com
+        // Note: the nextcloud example does not have an URI value, thus it's not compliant with RFC 4770
+        $comp = explode(":", (string) $prop, 2);
+        return count($comp) == 2 ? $comp[1] : $comp[0];
     }
 
     /**
@@ -395,15 +477,23 @@ class DataConversion
 
         // and finally recreate the attributes
         foreach (self::VCF2RC['multi'] as $vkey => $rckey) {
-            /** @var array preg_filter always returns an array given an array subject to filter */
-            $subtypes = preg_filter("/^$rckey:/", '', array_keys($save_data), 1);
+            // Determine the actually present subtypes in the save data; if the VCard property is mapped to a specific
+            // subtype, restrict the selection to that subtype.
+            [ $rckey, $rclabel ] = explode(':', $rckey, 2);
+            if (isset($rclabel)) {
+                $subtypes = isset($save_data["$rckey:$rclabel"]) ? [ $rclabel ] : [];
+            } else {
+                $subtypes = preg_filter("/^$rckey:/", '', array_keys($save_data), 1);
+            }
+
             foreach ($subtypes as $subtype) {
                 foreach ($save_data["$rckey:$subtype"] as $value) {
                     $prop = null;
 
-                    if (method_exists($this, "fromRoundcube$vkey")) {
+                    $mkey = str_replace("-", "_", strtoupper($vkey));
+                    if (method_exists($this, "fromRoundcube$mkey")) {
                         // special handler for structured property
-                        $prop = call_user_func([$this, "fromRoundcube$vkey"], $value, $vcard);
+                        $prop = call_user_func([$this, "fromRoundcube$mkey"], $value, $vcard, $subtype);
                     } else {
                         if (!empty($value)) {
                             $prop = $vcard->createProperty($vkey, $value);
@@ -427,9 +517,10 @@ class DataConversion
      *
      * @param array $address The address array as provided by roundcube
      * @param VCard $vcard The VCard to add the property to.
+     * @param string $subtype The subtype/label assigned by roundcube
      * @return ?VObject\Property The created property, null if no property was created.
      */
-    private function fromRoundcubeADR(array $address, VCard $vcard): ?VObject\Property
+    private function fromRoundcubeADR(array $address, VCard $vcard, string $_subtype): ?VObject\Property
     {
         $prop = null;
 
@@ -453,6 +544,51 @@ class DataConversion
         }
 
         return $prop;
+    }
+
+    /**
+     * Creates an IMPP property from roundcube address data and adds it to a VCard.
+     *
+     * This function is passed a messenger handle.
+     *
+     * @param string $address The address array as provided by roundcube
+     * @param VCard $vcard The VCard to add the property to.
+     * @param string $subtype The subtype/label assigned by roundcube
+     * @return ?VObject\Property The created property, null if no property was created.
+     */
+    private function fromRoundcubeIMPP(string $address, VCard $vcard, string $subtype): ?VObject\Property
+    {
+        $prop = null;
+
+        if (!empty($address)) {
+            $scheme = $this->determineUriSchemeForIM($subtype);
+
+            $prop = $vcard->createProperty(
+                'IMPP',
+                "$scheme:$address",
+                [
+                    'TYPE' => $subtype,
+                    'X-SERVICE-TYPE' => $subtype,
+                ]
+            );
+
+            $vcard->add($prop);
+        }
+
+        return $prop;
+    }
+
+    private function determineUriSchemeForIM(string $subtype): string
+    {
+        $scheme = 'x-unknown';
+
+        if (isset(self::IM_URISCHEME[$subtype])) {
+            $scheme = self::IM_URISCHEME[$subtype];
+        } elseif (preg_match('/^[A-Za-z][A-Za-z0-9+.-]*$/', $subtype)) {
+            $scheme = strtolower($subtype);
+        }
+
+        return $scheme;
     }
 
     /******************************************************************************************************************
@@ -536,6 +672,12 @@ class DataConversion
      */
     private function setAttrLabel(VCard $vcard, VObject\Property $vprop, string $attrname, string $newlabel): void
     {
+        $vkey = str_replace("-", "_", strtoupper($vprop->name));
+        if (method_exists($this, "setAttrLabel$vkey")) {
+            call_user_func([$this, "setAttrLabel$vkey"], $vcard, $vprop, $attrname, $newlabel);
+            return;
+        }
+
         // X-ABLabel?
         if (in_array($newlabel, $this->xlabels[$attrname])) {
             $usedGroups = $this->getAllPropertyGroups($vcard);
@@ -555,6 +697,48 @@ class DataConversion
         }
     }
 
+    // phpcs:disable PSR1.Methods.CamelCapsMethodName -- method names computed from property names
+    private function setAttrLabelX_AIM(): void
+    {
+    }
+
+    private function setAttrLabelX_GADUGADU(): void
+    {
+    }
+
+    private function setAttrLabelX_GOOGLE_TALK(): void
+    {
+    }
+
+    private function setAttrLabelX_GROUPWISE(): void
+    {
+    }
+
+    private function setAttrLabelX_ICQ(): void
+    {
+    }
+
+    private function setAttrLabelX_JABBER(): void
+    {
+    }
+
+    private function setAttrLabelX_MSN(): void
+    {
+    }
+
+    private function setAttrLabelX_SKYPE(): void
+    {
+    }
+
+    private function setAttrLabelX_TWITTER(): void
+    {
+    }
+
+    private function setAttrLabelX_YAHOO(): void
+    {
+    }
+    // phpcs:enable PSR1.Methods.CamelCapsMethodName
+
     /**
      * Provides the label (subtype) of a multi-value property.
      *
@@ -563,16 +747,23 @@ class DataConversion
      * to select which of the available labels to show.
      *
      * The following algorithm is used to select the label (first match is used):
-     *  1. If the property is part of a group that also contains an X-ABLabel property, the X-ABLabel value is used.
-     *  2. The TYPE parameter that, of all the specified TYPE parameters, is listed first in the
+     *  1. If there is a custom handler to extract a label for a property, it is called to provide the label.
+     *  2. If the property is part of a group that also contains an X-ABLabel property, the X-ABLabel value is used.
+     *  3. The TYPE parameter that, of all the specified TYPE parameters, is listed first in the
      *     coltypes[<attr>]["subtypes"] array. Note that TYPE parameter values not listed in the subtypes array will be
      *     ignored in the selection.
-     *  3. If no known TYPE parameter value is specified, "other" is used, which is a valid subtype for all currently
+     *  4. If no known TYPE parameter value is specified, "other" is used, which is a valid subtype for all currently
      *     supported multi-value properties.
      */
     private function getAttrLabel(VCard $vcard, VObject\Property $vprop, string $attrname): string
     {
-        // 1. check for a custom label using Apple's X-ABLabel extension
+        // 1. Check if there is a property-specific handler to provide label
+        $vkey = str_replace("-", "_", strtoupper($vprop->name));
+        if (method_exists($this, "getAttrLabel$vkey")) {
+            return call_user_func([$this, "getAttrLabel$vkey"], $vcard, $vprop);
+        }
+
+        // 2. check for a custom label using Apple's X-ABLabel extension
         $group = $vprop->group;
         if ($group) {
             $xlabel = $vcard->{"$group.X-ABLabel"};
@@ -588,11 +779,11 @@ class DataConversion
             }
         }
 
-        // 2. select a known standard label if available
-        if (isset($vprop['TYPE']) && is_array($this->coltypes[$attrname]['subtypes'])) {
-            $selection = null;
 
-            foreach ($vprop['TYPE'] as $type) {
+        // 3. select a known standard label if available
+        $selection = null;
+        if (isset($vprop["TYPE"]) && is_array($this->coltypes[$attrname]['subtypes'])) {
+            foreach ($vprop["TYPE"] as $type) {
                 $type = strtolower($type);
                 $pref = array_search($type, $this->coltypes[$attrname]['subtypes'], true);
 
@@ -604,8 +795,61 @@ class DataConversion
             }
         }
 
-        // 3. return default subtype
+        // 4. return default subtype
         return $selection[0] ?? 'other';
+    }
+
+    /**
+     * Acquires label candidates for the IMPP property.
+     *
+     * Candidates are taken from the URI component and X-SERVICE-TYPE parameters of the property.
+     *
+     * @return string The determined label.
+     */
+    private function getAttrLabelIMPP(VCard $_vcard, VObject\Property $prop): string
+    {
+        $subtypesLower = array_map('strtolower', $this->coltypes["im"]['subtypes']);
+
+        // check X-SERVICE-TYPE parameter (seen in entries created by Apple Addressbook)
+        if (isset($prop["X-SERVICE-TYPE"])) {
+            foreach ($prop["X-SERVICE-TYPE"] as $type) {
+                $ltype = strtolower($type);
+                $pos = array_search($ltype, $subtypesLower, true);
+
+                if ($pos === false) {
+                    // custom type
+                    $this->storeextrasubtype('im', $type);
+                    return $type;
+                } else {
+                    return $this->coltypes["im"]['subtypes'][$pos];
+                }
+            }
+        }
+
+        // check URI scheme
+        $comp = explode(":", strtolower((string) $prop), 2);
+        if (count($comp) == 2) {
+            $ltype = $comp[0];
+            $ltype = $this->coltypes["im"]["subtypealias"][$ltype] ?? $ltype;
+            $pos = array_search($ltype, $subtypesLower, true);
+            if ($pos !== false) {
+                return $this->coltypes["im"]['subtypes'][$pos];
+            }
+        }
+
+        // check TYPE parameter
+        if (isset($prop["TYPE"])) {
+            foreach ($prop["TYPE"] as $type) {
+                $ltype = strtolower($type);
+                $ltype = $this->coltypes["im"]["subtypealias"][$ltype] ?? $ltype;
+                $pos = array_search($ltype, $subtypesLower, true);
+                if ($pos !== false) {
+                    return $this->coltypes["im"]['subtypes'][$pos];
+                }
+            }
+        }
+
+        return 'other';
     }
 
     /**

@@ -1,0 +1,19 @@
+{
+	"name": "Hans Wurst",
+	"cuid": "sabre-vobject-7a82c7c6-1ebc-4d5f-93ef-ce4912096d5c",
+	"kind": "individual",
+	"showas": "INDIVIDUAL",
+	"email:home": [ "hans@wurst.de" ],
+	"surname": "Wurst",
+	"firstname": "Hans",
+	"im:AIM": [ "hans+aim@example.com" ],
+	"im:ICQ": [ "123455" ],
+	"im:Groupwise": [ "hans+groupwise@example.com" ],
+	"im:Jabber": [ "jabber@example.com" ],
+	"im:Yahoo": [ "yahoo@example.com" ],
+	"im:GaduGadu": [ "gadugadu@example.com" ],
+	"im:MSN": [ "msn@example.com" ],
+	"im:Skype": [ "skype@example.com" ],
+	"im:GoogleTalk": [ "gtalk@example.com" ],
+	"im:Twitter": [ "mtwitterich" ]
+}

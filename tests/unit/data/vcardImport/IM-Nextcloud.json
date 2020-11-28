@@ -1,0 +1,18 @@
+{
+	"name": "Test Kontakt",
+	"cuid": "96687582-d181-4d29-9b2f-923fba693441",
+	"kind": "individual",
+	"email:home": [ "kontakt@example.com" ],
+	"im:Skype": [ "skype@example.com" ],
+	"im:Jabber": [ "xmpp@example.com" ],
+	"im:IRC": [ "irc@example.com" ],
+	"im:Kik": [ "kik@example.com" ],
+	"im:Telegram": [ "telegram@example.com" ],
+	"im:SIP": [ "sip@example.com" ],
+	"im:QQ": [ "qq@example.com" ],
+	"im:WeChat": [ "wechat@example.com" ],
+	"im:Line": [ "line@example.com" ],
+	"im:Kakaotalk": [ "kakaotalk@example.com" ],
+	"im:Matrix": [ "matrix@example.com" ],
+	"im:Zoom": [ "zoom@example.com" ]
+}

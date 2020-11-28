@@ -4,6 +4,7 @@
 	"surname": "Wesker",
 	"prefix": "Dr.",
 	"suffix": "MSc",
+	"maidenname": "Born Wesker",
 	"organization": "Umbrella Corp",
 	"department": "Executive Board",
 	"cuid": "sabre-vobject-005e805f-0bc1-4333-8be2-97889fb45b7a",
@@ -29,5 +30,15 @@
 		"zipcode": "99887",
 		"country": "Japan"
 	}],
+	"im:AIM": [ "ms+aim@example.com" ],
+	"im:GaduGadu": [ "ms+gadu@example.com" ],
+	"im:GoogleTalk": [ "ms+gtalk@example.com" ],
+	"im:ICQ": [ "12345" ],
+	"im:Jabber": [ "ms@example.com" ],
+	"im:MSN": [ "ms+msn@example.com" ],
+	"im:QQ": [ "ms+qq@example.com" ],
+	"im:Skype": [ "ms+skype@example.com" ],
+	"im:Yahoo": [ "ms+yahoo@example.com" ],
+	"im:other": [ "unknown-im-service@example.com" ],
 	"showas": "INDIVIDUAL"
 }

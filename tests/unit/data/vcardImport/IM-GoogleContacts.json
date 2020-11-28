@@ -1,0 +1,15 @@
+{
+	"name": "Google IMTestKontakt",
+	"cuid": "30ebe760088dd995",
+	"kind": "individual",
+	"surname": "IMTestKontakt",
+	"firstname": "Google",
+	"im:AIM": [ "aim@example.com" ],
+	"im:ICQ": [ "12345" ],
+	"im:GoogleTalk": [ "gtalk@example.com" ],
+	"im:QQ": [ "qq@example.com" ],
+	"im:Skype": [ "skype@example.com" ],
+	"im:Yahoo": [ "yahoo@example.com" ],
+	"im:MSN": [ "msn@example.com" ],
+	"im:Jabber": [ "jabber@example.com" ]
+}

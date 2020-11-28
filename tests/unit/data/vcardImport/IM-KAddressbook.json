@@ -1,0 +1,15 @@
+{
+	"name": "KAddressbook IMKontakt",
+	"cuid": "5514817a-bd88-46b9-a62b-1ade797c6181",
+	"kind": "individual",
+	"surname": "IMKontakt",
+	"firstname": "KAddressbook",
+	"im:ICQ": [ "12345" ],
+	"im:Skype": [ "skype@example.com" ],
+	"im:AIM": [ "aim@example.com" ],
+	"im:GaduGadu": [ "gadugadu@example.com" ],
+	"im:GoogleTalk": [ "gtalk@example.com" ],
+	"im:Groupwise": [ "groupwise@example.com" ],
+	"im:MSN": [ "msn@example.com" ],
+	"im:Twitter": [ "mtwitterich" ]
+}
