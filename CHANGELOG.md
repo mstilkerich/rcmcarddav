@@ -1,5 +1,11 @@
 # Changelog for RCMCardDAV
 
+## Version 4.0.x (to 4.0.3)
+
+- Fix #321: Boolean settings in presets caused errors when trying to store the preset's addressbooks to the database
+- Fix #322: The refresh time string from admin presets was not converted to seconds, causing errors or wrong values when
+  storing the preset's addressbooks to the database
+
 ## Version 4.0.3 (to 4.0.2)
 
 - Allow release 1.0 of carddavclient in composer dependencies
