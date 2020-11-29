@@ -438,7 +438,7 @@ final class DataConversionTest extends TestCase
         return $phpArray;
     }
 
-    private function compareVCards(VCard $vcardExpected, VCard $vcardRoundcube): void
+    private function compareVCardsOld(VCard $vcardExpected, VCard $vcardRoundcube): void
     {
         // this is needed to get a VCard object that is identical in structure to the one parsed
         // from file. There is differences with respect to the parent attributes and concerning whether single value
@@ -455,6 +455,85 @@ final class DataConversionTest extends TestCase
         }
 
         $this->assertEquals($vcardExpected, $vcardRoundcube, "Created VCard does not match roundcube data");
+    }
+
+    private function compareVCards(VCard $vcardExpected, VCard $vcardRoundcube): void
+    {
+        // FIXME for now we call the old comparision function in addition. It is known not to work with sabre/vobject 3,
+        //       but we'll keep it for a while to detect whether the new comparison code misses any relevant property.
+        $this->compareVCardsOld($vcardExpected, $vcardRoundcube);
+
+        // These attributes are dynamically created / updated and therefore must not be compared with the static
+        // expected card
+        $noCompare = [ 'REV', 'UID', 'PRODID' ];
+        foreach ($noCompare as $property) {
+            unset($vcardExpected->{$property});
+            unset($vcardRoundcube->{$property});
+        }
+
+        /** @var VObject\Property[] */
+        $propsExp = $vcardExpected->children();
+        $propsExp = $this->groupNodesByName($propsExp);
+        /** @var VObject\Property[] */
+        $propsRC = $vcardRoundcube->children();
+        $propsRC = $this->groupNodesByName($propsRC);
+
+        // compare
+        foreach ($propsExp as $name => $props) {
+            $this->assertNotNull($propsRC[$name], "Property $name not available in created data");
+            $this->compareNodeList("Property $name", $props, $propsRC[$name]);
+
+            for ($i = 0; $i < count($props); ++$i) {
+                $this->assertSame($props[$i]->group, $propsRC[$name][$i]->group, "Property group name differs");
+                $paramExp = $this->groupNodesByName($props[$i]->parameters());
+                $paramRC = $this->groupNodesByName($propsRC[$name][$i]->parameters());
+                foreach ($paramExp as $pname => $params) {
+                    $this->assertNotNull($paramRC[$pname], "Parameter $name/$pname not available in created data");
+                    $this->compareNodeList("Parameter $name/$pname", $params, $paramRC[$pname]);
+                    unset($paramRC[$pname]);
+                }
+                $this->assertEmpty($paramRC, "Prop $name has extra parameters: " . implode(", ", array_keys($paramRC)));
+            }
+            unset($propsRC[$name]);
+        }
+
+        $this->assertEmpty($propsRC, "VCard has extra properties: " . implode(", ", array_keys($propsRC)));
+    }
+
+    /**
+     * Groups a list of VObject\Node by node name.
+     *
+     * @template T of VObject\Property|VObject\Parameter
+     *
+     * @param T[] $nodes
+     * @return array<string, T[]> Array with node names as keys, and arrays of nodes by that name as values.
+     */
+    private function groupNodesByName(array $nodes): array
+    {
+        $res = [];
+        foreach ($nodes as $n) {
+            $res[$n->name][] = $n;
+        }
+
+        return $res;
+    }
+
+    /**
+     * Compares to lists of VObject nodes with the same name.
+     *
+     * This can be two lists of property instances (e.g. EMAIL, TEL) or two lists of parameters (e.g. TYPE).
+     *
+     * @param string $dbgid Some string to identify property/parameter for error messages
+     * @param VObject\Property[]|VObject\Parameter[] $exp Expected list of nodes
+     * @param VObject\Property[]|VObject\Parameter[] $rc  List of nodes in the VCard produces by rcmcarddav
+     */
+    private function compareNodeList(string $dbgid, array $exp, array $rc): void
+    {
+        $this->assertCount(count($exp), $rc, "Different amount of $dbgid");
+
+        for ($i = 0; $i < count($exp); ++$i) {
+            $this->assertEquals($exp[$i]->getValue(), $rc[$i]->getValue(), "Nodes $dbgid differ");
+        }
     }
 }
 
