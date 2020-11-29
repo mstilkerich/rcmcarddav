@@ -1180,11 +1180,6 @@ class Addressbook extends rcube_addressbook
                     $this->logger->warning("Couldn't parse vcard " . $contact['vcard']);
                     continue;
                 }
-
-                // needed by the calendar plugin
-                if (is_array($cols) && in_array('vcard', $cols)) {
-                    $save_data['vcard'] = $contact['vcard'];
-                }
             } else {
                 $save_data = [];
                 $cols = $cols ?? []; // note: $cols is always an array at this point, this is for the static analyzer

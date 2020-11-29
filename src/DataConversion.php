@@ -327,8 +327,6 @@ class DataConversion
      */
     public function fromRoundcube(array $save_data, ?VCard $vcard = null): VCard
     {
-        unset($save_data['vcard']);
-
         $isGroup = (($save_data['kind'] ?? "") === "group");
 
         if (empty($save_data["name"])) {

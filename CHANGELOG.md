@@ -12,6 +12,8 @@
 - New: Support for instant messaging data fields and maiden name (resolves #46). Interoperability with other
   CardDAV clients suffers some caveats, but I tried my best to achieve maximum possible interoperability. See
   [IMPP.md](doc/devdoc/IMPP.md) for the gory details.
+- Removed a workaround that appears to be needed in the part to provide address data to the calendar plugin. It seems
+  this is no longer the case for current versions of calendar.
 
 ## Version 4.0.x (to 4.0.3)
 
