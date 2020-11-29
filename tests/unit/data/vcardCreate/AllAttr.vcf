@@ -23,4 +23,5 @@ TEL;TYPE=home:12345
 TEL;TYPE=work:54321
 URL;TYPE=homepage;VALUE=URI:https://wesker.example.com
 ADR;TYPE=home:;;239 Umbrella Ave;Tokyo;Kanto;99887;Japan
+X-ADDRESSBOOKSERVER-KIND:individual
 END:VCARD

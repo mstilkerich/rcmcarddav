@@ -41,4 +41,5 @@ IMPP;TYPE=Telegram;X-SERVICE-TYPE=Telegram:telegram:telegram@example.com
 IMPP;TYPE=WeChat;X-SERVICE-TYPE=WeChat:wechat:wechat@example.com
 IMPP;TYPE=Zoom;X-SERVICE-TYPE=Zoom:zoomus:zoom@example.com
 IMPP;TYPE=other;X-SERVICE-TYPE=other:other:other@example.com
+X-ADDRESSBOOKSERVER-KIND:individual
 END:VCARD

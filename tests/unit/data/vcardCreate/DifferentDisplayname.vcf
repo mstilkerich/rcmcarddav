@@ -6,4 +6,5 @@ FN:Hans Wurst
 EMAIL;TYPE=home:home@maxmu.de
 PRODID:-//Apple Inc.//iCloud Web Address Book 2018B71//EN
 REV:2020-10-03T10:30:20Z
+X-ADDRESSBOOKSERVER-KIND:individual
 END:VCARD

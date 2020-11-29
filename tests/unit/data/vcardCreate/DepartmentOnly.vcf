@@ -6,4 +6,5 @@ FN:Max Mustermann
 ORG:;Department;SubDep1;SubDep2;SubDep3
 PRODID:-//Apple Inc.//iCloud Web Address Book 2018B71//EN
 REV:2020-10-03T10:30:20Z
+X-ADDRESSBOOKSERVER-KIND:individual
 END:VCARD

@@ -7,4 +7,5 @@ EMAIL;TYPE=home:home@example.com
 PRODID:-//Apple Inc.//iCloud Web Address Book 2018B71//EN
 REV:2020-10-03T10:30:20Z
 X-ABShowAs:INDIVIDUAL
+X-ADDRESSBOOKSERVER-KIND:individual
 END:VCARD
