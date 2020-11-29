@@ -42,7 +42,6 @@ final class DatabaseSyncTest extends TestCase
 
     public function testOverlappingWriteAborts(): void
     {
-
         if ($this->split() === 0) {
             // Create a new database handle for the child so it uses a separate connection
             $dbsettings = TestInfrastructureDB::dbSettings();
@@ -133,6 +132,29 @@ final class DatabaseSyncTest extends TestCase
         $recv = fgets($this->commSock);
         if ($recv !== "$id\n") {
             throw new \Exception("Barrier did not return ($recv) with expected ID ($id)");
+        }
+    }
+
+    /**
+     * Tests that after a read-only transaction it is possible to do read-write autocommit transactions.
+     */
+    public function testWritePossibleAfterReadOnlyTransaction(): void
+    {
+        $db = self::$db;
+
+        try {
+            $recordId = $db->insert("migrations", ["filename"], ["UNITTEST-SYNC-WPAROT"]);
+            $db->startTransaction(true); // read-only transaction
+            [ 'id' => $recordId2] = $db->get("UNITTEST-SYNC-WPAROT", "id", "migrations", true, "filename");
+            $db->endTransaction();
+
+            $this->assertSame($recordId, $recordId2);
+
+            // now try a read-write operation
+            $numdel = $db->delete($recordId, 'migrations');
+            $this->assertSame(1, $numdel, "Different number of rows deleted than expected");
+        } catch (\Exception $e) {
+            $db->rollbackTransaction();
         }
     }
 }
