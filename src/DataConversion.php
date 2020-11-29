@@ -501,7 +501,8 @@ class DataConversion
                         }
                     }
 
-                    if (isset($prop)) {
+                    // in case $rclabel is set, the property is implicitly assigned a subtype (e.g. X-SKYPE)
+                    if (isset($prop) && empty($rclabel)) {
                         $this->setAttrLabel($vcard, $prop, $rckey, $subtype);
                     }
                 }
@@ -694,12 +695,6 @@ class DataConversion
      */
     private function setAttrLabel(VCard $vcard, VObject\Property $vprop, string $attrname, string $newlabel): void
     {
-        $vkey = str_replace("-", "_", strtoupper($vprop->name));
-        if (method_exists($this, "setAttrLabel$vkey")) {
-            call_user_func([$this, "setAttrLabel$vkey"], $vcard, $vprop, $attrname, $newlabel);
-            return;
-        }
-
         // X-ABLabel?
         if (in_array($newlabel, $this->xlabels[$attrname])) {
             $usedGroups = $this->getAllPropertyGroups($vcard);
@@ -719,47 +714,6 @@ class DataConversion
         }
     }
 
-    // phpcs:disable PSR1.Methods.CamelCapsMethodName -- method names computed from property names
-    private function setAttrLabelX_AIM(): void
-    {
-    }
-
-    private function setAttrLabelX_GADUGADU(): void
-    {
-    }
-
-    private function setAttrLabelX_GOOGLE_TALK(): void
-    {
-    }
-
-    private function setAttrLabelX_GROUPWISE(): void
-    {
-    }
-
-    private function setAttrLabelX_ICQ(): void
-    {
-    }
-
-    private function setAttrLabelX_JABBER(): void
-    {
-    }
-
-    private function setAttrLabelX_MSN(): void
-    {
-    }
-
-    private function setAttrLabelX_SKYPE(): void
-    {
-    }
-
-    private function setAttrLabelX_TWITTER(): void
-    {
-    }
-
-    private function setAttrLabelX_YAHOO(): void
-    {
-    }
-    // phpcs:enable PSR1.Methods.CamelCapsMethodName
 
     /**
      * Provides the label (subtype) of a multi-value property.
