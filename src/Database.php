@@ -124,6 +124,8 @@ abstract class Database
                 self::$logger->error("Database::endTransaction ERROR: " . $dbh->is_error());
                 throw new DatabaseException($dbh->is_error());
             }
+
+            $this->resetTransactionSettings();
         } else {
             throw new \Exception("Attempt to commit a transaction while not within a transaction");
         }
@@ -142,11 +144,36 @@ abstract class Database
                 self::$logger->error("Database::rollbackTransaction ERROR: " . $dbh->is_error());
                 throw new \Exception($dbh->is_error());
             }
+
+            $this->resetTransactionSettings();
         } else {
             // not throwing an error here facilitates usage of the interface at caller side. The caller
             // can issue rollback without having to keep track whether an error occurred before/after a
             // transaction was started/ended.
             self::$logger->notice("Ignored request to rollback a transaction while not within a transaction");
+        }
+    }
+
+    /**
+     * Resets database transaction settings to defaults that should apply to autocommit transactions.
+     */
+    private function resetTransactionSettings(): void
+    {
+        $logger = $this->logger;
+        $dbh = $this->dbHandle;
+        switch ($dbh->db_provider) {
+            case "postgres":
+                $ret = $dbh->query(
+                    "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE"
+                );
+                break;
+            default:
+                return;
+        }
+
+        // reset default session characteristics to read/write for autocommit single-statement transactions
+        if ($ret === false) {
+            $logger->warning(__METHOD__ . " ERROR: " . $dbh->is_error());
         }
     }
 
