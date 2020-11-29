@@ -31,4 +31,5 @@ There are a few specifics to be tested during the creation:
   to show as company and use organization as displayname.
 - EmptyDisplaynameResetShowAs: Like EmptyDisplayname, but set to show as company when no organization attribute is
   available. Must reset showas to individual and compose displayname from name attributes.
-
+- Group: A KIND=group VCard
+- InstantMessaging: Contains data for all supported instant messaging services and custom ones.

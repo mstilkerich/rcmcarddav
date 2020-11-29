@@ -7,7 +7,7 @@ CD_TABLES=$(foreach tbl,addressbooks contacts groups group_user xsubtypes migrat
 
 all: staticanalyses
 
-verification: staticanalyses schematest tests
+verification: staticanalyses schematest tests checktestspecs
 
 staticanalyses: stylecheck phpcompatcheck psalmanalysis
 
@@ -107,7 +107,6 @@ tests: $(foreach dbtype,$(DBTYPES),tests-$(dbtype)) unittests
 schematest: $(foreach dbtype,$(DBTYPES),schematest-$(dbtype))
 
 .PHONY: unittests
-
 unittests: tests/unit/phpunit.xml
 	@echo
 	@echo  ==========================================================
@@ -115,4 +114,13 @@ unittests: tests/unit/phpunit.xml
 	@echo  ==========================================================
 	@echo
 	vendor/bin/phpunit -c tests/unit/phpunit.xml
+
+.PHONY: checktestspecs
+checktestspecs:
+	for d in tests/unit/data/vcard*; do \
+		for vcf in $$d/*.vcf; do \
+			f=$$(basename "$$vcf" .vcf); \
+			grep -q -- "- $$f:" $$d/README.md || ( echo "No test description for $$d/$$f"; exit 1); \
+		done; \
+	done
 

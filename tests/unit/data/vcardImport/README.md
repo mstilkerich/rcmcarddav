@@ -27,7 +27,7 @@ There are a few specifics to be tested during the import:
   be composed from the mail address.
 - EmptyFNPhone: Like EmptyFN, but with empty `N` and `ORG` properties, but available `TEL`. Displayname must be set from
   the phone number.
-- EmptyFNBlank Like EmptyFN, but with no properties usable for a name at all.
+- EmptyFNBlank: Like EmptyFN, but with no properties usable for a name at all.
 - CompanySetFN: A card with an `X-ABSHOWAS` property set to COMPANY and a `ORG` value that differs from the `FN` value.
   The `FN` must be kept.
 - LabelPreference: Uses several standard labels in different order on an `EMAIL` property. RCMCardDAV should select the
@@ -37,10 +37,18 @@ There are a few specifics to be tested during the import:
   should retrieve the picture from the given URL and provide it to roundcube.
 - UriPhotoCrop: Like UriPhoto, but additionally contains an `X-ABCROP-RECTANGLE` parameter that requests that only a
   crop of the entire image should be displayed to the user.
+- InvalidUriPhoto: Like UriPhoto, but the referenced URI will return error when attempting to fetch
 - XAbLabel: Contains a custom label assigned via `X-ABLABEL` property to an EMAIL property. Furthermore, it also
   contains a second `EMAIL` property that is also part of a group, but that group has no `X-ABLABEL` property. A
   standard or default label must be selected instead.
 - XAbLabelAppleBuiltin: Uses the special Apple syntax in an `X-ABLABEL` that Apple uses for their builtin extra labels.
 - XAbLabelOnly: Contains an `EMAIL` property that only has a subtype assigned via `X-ABLABEL`, no `TYPE` param is
   attached.
-
+- Group: A KIND=group VCard
+- IM-eMClient: A VCard containing instant messaging attributes produced by eMClient
+- IM-Evolution: A VCard containing instant messaging attributes produced by evolution
+- IM-GoogleContacts: A VCard containing instant messaging attributes produced by Google contacts
+- IM-iOS: A VCard containing instant messaging attributes produced by iOS addressbook
+- IM-KAddressbook: A VCard containing instant messaging attributes produced by KAddressbook
+- IM-Nextcloud: A VCard containing instant messaging attributes produced by nextcloud
+- IM-Owncloud: A VCard containing instant messaging attributes produced by owncloud
