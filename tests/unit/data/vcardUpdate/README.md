@@ -16,3 +16,4 @@ preserved.
 - PhotoUpdated: A PHOTO property shall be updated with a new photo
 - XABLabel: Two EMAIL properties have a custom label given with X-ABLabel in the original VCard. One of the addresses
   gets a new custom attribute, while the other one retains the original custom label.
+- Group: Update a KIND=group VCard to have a new group name

@@ -22,11 +22,11 @@ psalmanalysis:
 
 .PHONY: tarball
 tarball:
-	VERS=$$(git tag --points-at HEAD); \
+	@VERS=$$(git tag --points-at HEAD); \
 		if [ -z "$$VERS" ]; then echo "Error: HEAD has no version tag"; exit 1; else \
 			NVERS=$$(echo "$$VERS" | sed -e 's/^v//') \
-			&& grep -q "const PLUGIN_VERSION = '$$VERS'" carddav.php || (echo "carddav::PLUGIN_VERSION does not match release" ; exit 1) \
-			&& grep -q "^## Version $$NVERS" CHANGELOG.md || (echo "No changelog entry for release $$NVERS" ; exit 1) \
+			&& grep -q "const PLUGIN_VERSION = '$$VERS'" carddav.php || {echo "carddav::PLUGIN_VERSION does not match release" ; exit 1; } \
+			&& grep -q "^## Version $$NVERS" CHANGELOG.md || {echo "No changelog entry for release $$NVERS" ; exit 1; } \
 			&& git archive --format tgz --prefix carddav/ -o carddav-$$VERS.tgz --worktree-attributes HEAD; \
 		fi
 
@@ -77,7 +77,7 @@ tests-$(1): tests/dbinterop/phpunit-$(1).xml
 	@echo "      EXECUTING DBINTEROP TESTS FOR DB $(1)"
 	@echo  ==========================================================
 	@echo
-	@[ -f tests/dbinterop/DatabaseAccounts.php ] || (echo "Create tests/dbinterop/DatabaseAccounts.php from template tests/dbinterop/DatabaseAccounts.php.dist to execute tests"; exit 1)
+	@[ -f tests/dbinterop/DatabaseAccounts.php ] || { echo "Create tests/dbinterop/DatabaseAccounts.php from template tests/dbinterop/DatabaseAccounts.php.dist to execute tests"; exit 1; }
 	$$(call CREATEDB_$(1))
 	$$(call EXECDBSCRIPT_$(1),dbmigrations/INIT-currentschema/$(1).sql)
 	vendor/bin/phpunit -c tests/dbinterop/phpunit-$(1).xml
@@ -117,10 +117,10 @@ unittests: tests/unit/phpunit.xml
 
 .PHONY: checktestspecs
 checktestspecs:
-	for d in tests/unit/data/vcard*; do \
+	@for d in tests/unit/data/vcard*; do \
 		for vcf in $$d/*.vcf; do \
 			f=$$(basename "$$vcf" .vcf); \
-			grep -q -- "- $$f:" $$d/README.md || ( echo "No test description for $$d/$$f"; exit 1); \
+			grep -q -- "- $$f:" $$d/README.md || { echo "No test description for $$d/$$f"; exit 1; } \
 		done; \
 	done
 
