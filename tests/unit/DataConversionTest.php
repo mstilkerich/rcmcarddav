@@ -448,7 +448,7 @@ final class DataConversionTest extends TestCase
 
         // These attributes are dynamically created / updated and therefore must not be compared with the static
         // expected card
-        $noCompare = [ 'REV', 'UID', 'PRODID', 'X-ABSHOWAS' ];
+        $noCompare = [ 'REV', 'UID', 'PRODID' ];
         foreach ($noCompare as $property) {
             unset($vcardExpected->{$property});
             unset($vcardRoundcube->{$property});
