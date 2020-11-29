@@ -506,9 +506,16 @@ class Addressbook extends rcube_addressbook
             $davAbook = $this->getCardDavObj();
 
             $vcard = $this->convRcube2VCard($save_data);
-            $davAbook->createCard($vcard);
+            [ 'uri' => $uri ] = $davAbook->createCard($vcard);
             $this->resync();
-            $contact = Database::get((string) $vcard->UID, 'id', 'contacts', true, 'cuid', ["abook_id" => $this->id]);
+
+            // We preferably check the UID. But as some CardDAV services (i.e. Google) change the UID in the VCard to a
+            // server-side one, we fall back to searching by URL if the UID search returned no results.
+            $uidStr = (string) $vcard->UID;
+            [ $contact ] = Database::get($uidStr, 'id', 'contacts', false, 'cuid', ["abook_id" => $this->id]);
+            if (!isset($contact)) {
+                $contact = Database::get($uri, 'id', 'contacts', true, 'uri', ["abook_id" => $this->id]);
+            }
 
             if (isset($contact["id"])) {
                 return $contact["id"];
