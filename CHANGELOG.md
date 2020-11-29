@@ -1,6 +1,6 @@
 # Changelog for RCMCardDAV
 
-## Version 4.1.0 (to 4.0.x)
+## Version 4.1.0 (to 4.0.4)
 
 - Fix: Prefer labels from X-ABLabel extension if available over standard labels
 - Fix #317: Support specification of department with empty organization
@@ -15,7 +15,7 @@
 - Removed a workaround that appears to be needed in the part to provide address data to the calendar plugin. It seems
   this is no longer the case for current versions of calendar.
 
-## Version 4.0.x (to 4.0.3)
+## Version 4.0.4 (to 4.0.3)
 
 - Fix #321: Boolean settings in presets caused errors when trying to store the preset's addressbooks to the database
 - Fix #322: The refresh time string from admin presets was not converted to seconds, causing errors or wrong values when
