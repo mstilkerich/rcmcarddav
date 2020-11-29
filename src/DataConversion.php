@@ -517,7 +517,7 @@ class DataConversion
      *
      * @param array $address The address array as provided by roundcube
      * @param VCard $vcard The VCard to add the property to.
-     * @param string $subtype The subtype/label assigned by roundcube
+     * @param string $_subtype The subtype/label assigned by roundcube
      * @return ?VObject\Property The created property, null if no property was created.
      */
     private function fromRoundcubeADR(array $address, VCard $vcard, string $_subtype): ?VObject\Property
@@ -540,6 +540,28 @@ class DataConversion
                 $address['zipcode'] ?? "",
                 $address['country'] ?? "",
             ]);
+            $vcard->add($prop);
+        }
+
+        return $prop;
+    }
+
+    /**
+     * Creates an URL property from roundcube address data and adds it to a VCard.
+     *
+     * The extra behavior of this function is to add a VALUE=URI parameter to the created VCard.
+     *
+     * @param string $url The URL value
+     * @param VCard $vcard The VCard to add the property to.
+     * @param string $_subtype The subtype/label assigned by roundcube
+     * @return ?VObject\Property The created property, null if no property was created.
+     */
+    private function fromRoundcubeURL(string $url, VCard $vcard, string $_subtype): ?VObject\Property
+    {
+        $prop = null;
+
+        if (!empty($url)) {
+            $prop = $vcard->createProperty('URL', $url, [ "VALUE" => "URI" ]);
             $vcard->add($prop);
         }
 
