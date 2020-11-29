@@ -125,7 +125,7 @@ abstract class Database
                 throw new DatabaseException($dbh->is_error());
             }
 
-            $this->resetTransactionSettings();
+            self::resetTransactionSettings();
         } else {
             throw new \Exception("Attempt to commit a transaction while not within a transaction");
         }
@@ -145,7 +145,7 @@ abstract class Database
                 throw new \Exception($dbh->is_error());
             }
 
-            $this->resetTransactionSettings();
+            self::resetTransactionSettings();
         } else {
             // not throwing an error here facilitates usage of the interface at caller side. The caller
             // can issue rollback without having to keep track whether an error occurred before/after a
@@ -157,10 +157,11 @@ abstract class Database
     /**
      * Resets database transaction settings to defaults that should apply to autocommit transactions.
      */
-    private function resetTransactionSettings(): void
+    private static function resetTransactionSettings(): void
     {
-        $logger = $this->logger;
-        $dbh = $this->dbHandle;
+        $logger = self::$logger;
+        $dbh = self::getDbHandle();
+
         switch ($dbh->db_provider) {
             case "postgres":
                 $ret = $dbh->query(
