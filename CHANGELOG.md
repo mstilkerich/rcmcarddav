@@ -6,6 +6,7 @@
 - Fix #322: The refresh time string from admin presets was not converted to seconds, causing errors or wrong values when
   storing the preset's addressbooks to the database
 - Fix #324: Changes not immediately visible with postgresql (delete contact, add/remove contact to/from group)
+- Fix: spurious error returned when creating VCard on Google
 
 ## Version 4.0.3 (to 4.0.2)
 
