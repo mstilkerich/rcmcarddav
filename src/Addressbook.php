@@ -50,15 +50,6 @@ class Addressbook extends rcube_addressbook
     /** @var ?AddressbookCollection $davAbook the DAV AddressbookCollection Object */
     private $davAbook = null;
 
-    /** @var string $primary_key database primary key, used by RC to search by ID */
-    public $primary_key = 'id';
-
-    /** @var array $coltypes */
-    public $coltypes;
-
-    /** @var string[] Attributes containing dates, affects roundcube sorting */
-    public $date_cols = ['birthday', 'anniversary'];
-
     /** @var DataConversion $dataConverter to convert between VCard and roundcube's representation of contacts. */
     private $dataConverter;
 
@@ -102,8 +93,10 @@ class Addressbook extends rcube_addressbook
         $this->db = $db;
         $this->cache = $cache;
 
+        $this->primary_key = 'id';
         $this->groups   = true;
         $this->readonly = $readonly;
+        $this->date_cols = ['birthday', 'anniversary'];
         $this->requiredProps = $requiredProps;
         $this->id       = $dbid;
 
@@ -415,6 +408,24 @@ class Addressbook extends rcube_addressbook
             $this->logger->error("Could not get contact $id: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
             return $assoc ? [] : new rcube_result_set();
+        }
+    }
+
+    /**
+     * Set internal sort settings
+     *
+     * @param ?string $sort_col   Sort column
+     * @param ?string $sort_order Sort order
+     */
+    // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
+    public function set_sort_order($sort_col, $sort_order = null): void
+    {
+        if (isset($sort_col) && key_exists($sort_col, $this->coltypes)) {
+            $this->sort_col = $sort_col;
+        }
+
+        if (isset($sort_order)) {
+            $this->sort_order = strtoupper($sort_order) == 'DESC' ? 'DESC' : 'ASC';
         }
     }
 
@@ -984,7 +995,7 @@ class Addressbook extends rcube_addressbook
     /**
      * Get group assignments of a specific contact record
      *
-     * @param string $id Record identifier
+     * @param mixed $id Record identifier
      *
      * @return array List of assigned groups as ID=>Name pairs
      * @since 0.5-beta
@@ -1153,7 +1164,6 @@ class Addressbook extends rcube_addressbook
             $xwhere .= " AND $col <> " . $dbh->quote('') . " ";
         }
 
-        // Workaround for Roundcube versions < 0.7.2
         $sort_column = $this->sort_col ? $this->sort_col : 'surname';
         $sort_order  = $this->sort_order ? $this->sort_order : 'ASC';
 
@@ -1314,7 +1324,11 @@ class Addressbook extends rcube_addressbook
             );
 
             $resultrow = $dbh->fetch_assoc($sql_result);
-            $this->total_cards = $resultrow['total_cards'];
+            if ($resultrow !== false) {
+                $this->total_cards = $resultrow['total_cards'];
+            } else {
+                $this->total_cards = -1;
+            }
         }
         return $this->total_cards;
     }
