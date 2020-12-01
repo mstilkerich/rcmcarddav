@@ -976,11 +976,13 @@ class carddav extends rcube_plugin
         $url = rcube_utils::get_input_value("${abookId}_cd_url", rcube_utils::INPUT_POST);
         if (isset($url)) {
             $url = trim($url);
-            // FILTER_VALIDATE_URL requires the scheme component, default to https if not specified
-            if (strpos($url, "://") === false) {
-                $url = "https://$url";
+            if (!empty($url)) {
+                // FILTER_VALIDATE_URL requires the scheme component, default to https if not specified
+                if (strpos($url, "://") === false) {
+                    $url = "https://$url";
+                }
+                $result["url"] = $url;
             }
-            $result["url"] = $url;
         }
 
         try {
