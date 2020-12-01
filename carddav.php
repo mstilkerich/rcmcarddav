@@ -529,6 +529,9 @@ class carddav extends rcube_plugin
                 && !empty($new['name']) // user entered a name (and hopefully more data) for a new addressbook
             ) {
                 try {
+                    if (filter_var($new["url"], FILTER_VALIDATE_URL, FILTER_FLAG_HOST_REQUIRED) === false) {
+                        throw new \Exception("Invalid URL: {$new['url']}");
+                    }
                     $account = new Account(
                         $new['url'],
                         $new['username'],
@@ -957,7 +960,6 @@ class carddav extends rcube_plugin
             "use_categories" => "1",
         ];
 
-        // for name we must not whether it is null or not to detect whether the settings form was POSTed or not
         $name = rcube_utils::get_input_value("${abookId}_cd_name", rcube_utils::INPUT_POST);
         $active = rcube_utils::get_input_value("${abookId}_cd_active", rcube_utils::INPUT_POST);
         $use_categories = rcube_utils::get_input_value("${abookId}_cd_use_categories", rcube_utils::INPUT_POST);
@@ -967,10 +969,19 @@ class carddav extends rcube_plugin
             'name' => $name,
             'username' => rcube_utils::get_input_value("${abookId}_cd_username", rcube_utils::INPUT_POST, true),
             'password' => rcube_utils::get_input_value("${abookId}_cd_password", rcube_utils::INPUT_POST, true),
-            'url' => rcube_utils::get_input_value("${abookId}_cd_url", rcube_utils::INPUT_POST),
             'active' => $active,
             'use_categories' => $use_categories,
         ];
+
+        $url = rcube_utils::get_input_value("${abookId}_cd_url", rcube_utils::INPUT_POST);
+        if (isset($url)) {
+            $url = trim($url);
+            // FILTER_VALIDATE_URL requires the scheme component, default to https if not specified
+            if (strpos($url, "://") === false) {
+                $url = "https://$url";
+            }
+            $result["url"] = $url;
+        }
 
         try {
             $refresh_timestr = rcube_utils::get_input_value("${abookId}_cd_refresh_time", rcube_utils::INPUT_POST);
