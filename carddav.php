@@ -74,9 +74,7 @@ class carddav extends rcube_plugin
     /** @var ?rcube_cache $cache */
     private $cache;
 
-    // the dummy task is used by the calendar plugin, which requires
-    // the addressbook to be initialized
-    public $task = 'addressbook|login|mail|settings|dummy';
+    public $task = 'addressbook|login|mail|settings';
 
     /** @var ?string[] $abooksDb Cache of the user's addressbook DB entries.
      *                           Associative array mapping addressbook IDs to DB rows.
