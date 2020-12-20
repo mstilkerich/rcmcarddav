@@ -68,13 +68,13 @@ class SyncHandlerRoundcube implements SyncHandler
         $abookId = $this->rcAbook->getId();
 
         // determine existing local contact URIs and ETAGs
-        $contacts = $db->get(['abook_id' => $abookId], 'id,uri,etag', 'contacts', false);
+        $contacts = $db->get(['abook_id' => $abookId], 'id,uri,etag', 'contacts');
         foreach ($contacts as $contact) {
             $this->localCards[$contact['uri']] = $contact;
         }
 
         // determine existing local group URIs and ETAGs
-        $groups = $db->get(['abook_id' => $abookId], 'id,uri,etag', 'groups', false);
+        $groups = $db->get(['abook_id' => $abookId], 'id,uri,etag', 'groups');
         foreach ($groups as $group) {
             if (isset($group['uri'])) { // these are groups defined by a KIND=group VCard
                 $this->localGrpCards[$group['uri']] = $group;
@@ -145,12 +145,7 @@ class SyncHandlerRoundcube implements SyncHandler
             // what groups the user belonged to.
             if (!empty($this->localCatGrpIds)) {
                 $group_ids = array_column(
-                    $db->get(
-                        ["contact_id" => $dbid, "group_id" => $this->localCatGrpIds],
-                        "group_id",
-                        "group_user",
-                        false
-                    ),
+                    $db->get(["contact_id" => $dbid, "group_id" => $this->localCatGrpIds], "group_id", "group_user"),
                     "group_id"
                 );
                 $this->clearGroupCandidates = array_merge($this->clearGroupCandidates, $group_ids);
@@ -214,7 +209,7 @@ class SyncHandlerRoundcube implements SyncHandler
             try {
                 $db->startTransaction(false);
                 $group_ids_nonempty = array_column(
-                    $db->get(["group_id" => $group_ids], "group_id", "group_user", false),
+                    $db->get(["group_id" => $group_ids], "group_id", "group_user"),
                     "group_id"
                 );
 
@@ -259,7 +254,7 @@ class SyncHandlerRoundcube implements SyncHandler
         try {
             $db->startTransaction(false);
             $group_ids_by_name = array_column(
-                $db->get(["abook_id" => $abookId, "uri" => null, "name" => $categories], "id,name", "groups", false),
+                $db->get(["abook_id" => $abookId, "uri" => null, "name" => $categories], "id,name", "groups"),
                 "id",
                 "name"
             );
@@ -320,12 +315,7 @@ class SyncHandlerRoundcube implements SyncHandler
             $old_group_ids = empty($this->localCatGrpIds)
                 ? []
                 : array_column(
-                    $db->get(
-                        ["contact_id" => $dbid, "group_id" => $this->localCatGrpIds ],
-                        "group_id",
-                        "group_user",
-                        false
-                    ),
+                    $db->get(["contact_id" => $dbid, "group_id" => $this->localCatGrpIds ], "group_id", "group_user"),
                     "group_id"
                 );
 

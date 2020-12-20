@@ -857,7 +857,7 @@ class DataConversion
         }
 
         // read extra subtypes
-        $xtypes = $this->db->get(['abook_id' => $this->abookId], 'typename,subtype', 'xsubtypes', false);
+        $xtypes = $this->db->get(['abook_id' => $this->abookId], 'typename,subtype', 'xsubtypes');
 
         foreach ($xtypes as $row) {
             [ "typename" => $attr, "subtype" => $subtype ] = $row;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
+use PDOStatement;
 use rcube_db;
 use Psr\Log\LoggerInterface;
 
@@ -521,20 +522,58 @@ class Database
      * @param string $cols        A comma-separated list of database column names used in the SELECT clause of the SQL
      *                            statement. By default, all columns are selected.
      * @param string $table       Name of the database table to select from, without the carddav_ prefix.
-     * @param bool $retsingle     If true, exactly one single row is expected as result. If false, any number of rows is
-     *                            expected as result.
-     * @return array              If $retsingle is true and no error occurred, returns an associative row array with the
-     *                            matching row, where keys are fieldnames and their value is the corresponding database
-     *                            value of the field in the result row. If $retsingle is false, a possibly empty array
-     *                            of such row-arrays is returned.
+     * @return array              If $retsingle no error occurred, returns an array of associative row arrays with the
+     *                            matching rows. Each row array has the fieldnames as keys and the corresponding
+     *                            database value as value.
      * @see getConditionQuery()
      */
-    public function get(
-        $conditions,
-        string $cols = '*',
-        string $table = 'contacts',
-        bool $retsingle = true
-    ): array {
+    public function get($conditions, string $cols = '*', string $table = 'contacts'): array
+    {
+        $dbh = $this->dbHandle;
+        $sql_result = $this->internalGet($conditions, $cols, $table);
+
+        $ret = [];
+        while ($row = $dbh->fetch_assoc($sql_result)) {
+            $ret[] = $row;
+        }
+        return $ret;
+    }
+
+    /**
+     * Like get(), but expects exactly a single row as result.
+     *
+     * If the query yields fewer or more than one row, an exception is thrown.
+     *
+     * @param ?string|(?string|string[])[] $conditions
+     * @param bool $retsingle     If true, exactly one single row is expected as result. If false, any number of rows is
+     *                            expected as result.
+     * @return array              If no error occurred, returns an associative row array with the
+     *                            matching row, where keys are fieldnames and their value is the corresponding database
+     *                            value of the field in the result row.
+     * @see get()
+     * @see getConditionQuery()
+     */
+    public function lookup($conditions, string $cols = '*', string $table = 'contacts'): array
+    {
+        $dbh = $this->dbHandle;
+        $sql_result = $this->internalGet($conditions, $cols, $table);
+
+        $ret = $dbh->fetch_assoc($sql_result);
+        if ($ret === false) {
+            throw new \Exception("Single-row query ({$sql_result->queryString}) without result/with error");
+        }
+        return $ret;
+    }
+
+    /**
+     * Like get(), but returns the unfetched PDOStatement result.
+     *
+     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
+     *                            and their match criterion as value. Or a single string value that will be matched
+     *                            against the id column of the given DB table. Or null to not filter at all.
+     */
+    private function internalGet($conditions, string $cols = '*', string $table = 'contacts'): PDOStatement
+    {
         $dbh = $this->dbHandle;
         $logger = $this->logger;
 
@@ -545,26 +584,12 @@ class Database
 
         $sql_result = $dbh->query($sql);
 
-        if ($dbh->is_error()) {
+        if ($sql_result === false || $dbh->is_error()) {
             $logger->error("Database::get ($sql) ERROR: " . $dbh->is_error());
             throw new DatabaseException($dbh->is_error());
         }
 
-        // single result row expected?
-        if ($retsingle) {
-            $ret = $dbh->fetch_assoc($sql_result);
-            if ($ret === false) {
-                throw new \Exception("Single-row query ($sql) without result");
-            }
-            return $ret;
-        } else {
-            // multiple rows requested
-            $ret = [];
-            while ($row = $dbh->fetch_assoc($sql_result)) {
-                $ret[] = $row;
-            }
-            return $ret;
-        }
+        return $sql_result;
     }
 
     /**
@@ -577,10 +602,8 @@ class Database
      * @return int                The number of rows deleted.
      * @see getConditionQuery()
      */
-    public function delete(
-        $conditions,
-        string $table = 'contacts'
-    ): int {
+    public function delete($conditions, string $table = 'contacts'): int
+    {
         $dbh = $this->dbHandle;
         $logger = $this->logger;
 
