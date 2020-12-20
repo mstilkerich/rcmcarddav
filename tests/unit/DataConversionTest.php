@@ -48,7 +48,7 @@ final class DataConversionTest extends TestCase
     }
 
     /**
-     * Tests that our UNIQUE constraints in the database use case-insensitive semantics on the included key components.
+     * Tests the conversion of VCards to roundcube's internal address data representation.
      *
      * @dataProvider vcardImportSamplesProvider
      */
