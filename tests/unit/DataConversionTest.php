@@ -73,11 +73,10 @@ final class DataConversionTest extends TestCase
         $db->expects($this->once())
             ->method("get")
             ->with(
-                $this->equalTo("42"),
+                $this->equalTo(["abook_id" => "42"]),
                 $this->equalTo('typename,subtype'),
                 $this->equalTo('xsubtypes'),
-                $this->equalTo(false),
-                $this->equalTo('abook_id')
+                $this->equalTo(false)
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "Speciallabel"] ]));
         $db->expects($this->once())
@@ -104,11 +103,10 @@ final class DataConversionTest extends TestCase
         $db->expects($this->once())
             ->method("get")
             ->with(
-                $this->equalTo("42"),
+                $this->equalTo(["abook_id" => "42"]),
                 $this->equalTo('typename,subtype'),
                 $this->equalTo('xsubtypes'),
-                $this->equalTo(false),
-                $this->equalTo('abook_id')
+                $this->equalTo(false)
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
 
@@ -127,11 +125,10 @@ final class DataConversionTest extends TestCase
         $db->expects($this->once())
             ->method("get")
             ->with(
-                $this->equalTo("42"),
+                $this->equalTo(["abook_id" => "42"]),
                 $this->equalTo('typename,subtype'),
                 $this->equalTo('xsubtypes'),
-                $this->equalTo(false),
-                $this->equalTo('abook_id')
+                $this->equalTo(false)
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
         $db->expects($this->never())
@@ -159,11 +156,10 @@ final class DataConversionTest extends TestCase
         $db->expects($this->once())
             ->method("get")
             ->with(
-                $this->equalTo("42"),
+                $this->equalTo(["abook_id" => "42"]),
                 $this->equalTo('typename,subtype'),
                 $this->equalTo('xsubtypes'),
-                $this->equalTo(false),
-                $this->equalTo('abook_id')
+                $this->equalTo(false)
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
         $dc = new DataConversion("42", $db, $cache, $logger);
@@ -191,11 +187,10 @@ final class DataConversionTest extends TestCase
         $db->expects($this->once())
             ->method("get")
             ->with(
-                $this->equalTo("42"),
+                $this->equalTo(["abook_id" => "42"]),
                 $this->equalTo('typename,subtype'),
                 $this->equalTo('xsubtypes'),
-                $this->equalTo(false),
-                $this->equalTo('abook_id')
+                $this->equalTo(false)
             )
             ->will($this->returnValue([
                 ["typename" => "email", "subtype" => "SpecialLabel"],

@@ -37,7 +37,7 @@ final class DatabaseSyncTest extends TestCase
     {
         fclose($this->sockets[0]);
         fclose($this->sockets[1]);
-        self::$db->delete("UNITTEST-SYNC%", "migrations", "%filename");
+        self::$db->delete(["%filename" => "UNITTEST-SYNC%"], "migrations");
     }
 
     public function testOverlappingWriteAborts(): void
@@ -56,7 +56,7 @@ final class DatabaseSyncTest extends TestCase
                 // perform a SELECT so that DBMS has to assume the following update was computed based on this query
                 // before we run our update, the parent will update, thus there is a serialization conflict
                 [ "id" => $id, "filename" => $fn ] =
-                    $db->get("UNITTEST-SYNC%", "id,filename", "migrations", true, "%filename");
+                    $db->get(["%filename" => "UNITTEST-SYNC%"], "id,filename", "migrations");
                 $this->barrierReached("C_TA_START");
                 sleep(1);
                 $db->update($id, ["filename"], ["$fn-CLD"], "migrations");
@@ -78,7 +78,7 @@ final class DatabaseSyncTest extends TestCase
                 $this->barrierReached("P_TA_START");
                 $this->barrierWait("C_TA_START");
 
-                [ "filename" => $fn ] = $db->get("UNITTEST-SYNC%", "id,filename", "migrations", true, "%filename");
+                [ "filename" => $fn ] = $db->get(["%filename" => "UNITTEST-SYNC%"], "id,filename", "migrations");
                 $db->update($recordId, ["filename"], ["$fn-PAR"], "migrations");
                 sleep(1);
 
@@ -145,7 +145,7 @@ final class DatabaseSyncTest extends TestCase
         try {
             $recordId = $db->insert("migrations", ["filename"], ["UNITTEST-SYNC-WPAROT"]);
             $db->startTransaction(true); // read-only transaction
-            [ 'id' => $recordId2] = $db->get("UNITTEST-SYNC-WPAROT", "id", "migrations", true, "filename");
+            [ 'id' => $recordId2] = $db->get(["filename" => "UNITTEST-SYNC-WPAROT"], "id", "migrations");
             $db->endTransaction();
 
             $this->assertSame($recordId, $recordId2);

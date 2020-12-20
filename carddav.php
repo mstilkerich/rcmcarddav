@@ -1051,18 +1051,18 @@ class carddav extends rcube_plugin
             // we explicitly delete all data belonging to the addressbook, since
             // cascaded deleted are not supported by all database backends
             // ...custom subtypes
-            $db->delete($abookId, 'xsubtypes', 'abook_id');
+            $db->delete(['abook_id' => $abookId], 'xsubtypes');
 
             // ...groups and memberships
-            $delgroups = array_column($db->get($abookId, 'id', 'groups', false, 'abook_id'), "id");
+            $delgroups = array_column($db->get(['abook_id' => $abookId], 'id', 'groups', false), "id");
             if (!empty($delgroups)) {
-                $db->delete($delgroups, 'group_user', 'group_id');
+                $db->delete(['group_id' => $delgroups], 'group_user');
             }
 
-            $db->delete($abookId, 'groups', 'abook_id');
+            $db->delete(['abook_id' => $abookId], 'groups');
 
             // ...contacts
-            $db->delete($abookId, 'contacts', 'abook_id');
+            $db->delete(['abook_id' => $abookId], 'contacts');
 
             $db->delete($abookId, 'addressbooks');
 
@@ -1212,7 +1212,7 @@ class carddav extends rcube_plugin
             $db = $this->db;
 
             $this->abooksDb = [];
-            foreach ($db->get($_SESSION['user_id'], '*', 'addressbooks', false, 'user_id') as $abookrow) {
+            foreach ($db->get(['user_id' => $_SESSION['user_id']], '*', 'addressbooks', false) as $abookrow) {
                 $this->abooksDb[$abookrow["id"]] = $abookrow;
             }
         }

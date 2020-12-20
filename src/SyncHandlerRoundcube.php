@@ -68,13 +68,13 @@ class SyncHandlerRoundcube implements SyncHandler
         $abookId = $this->rcAbook->getId();
 
         // determine existing local contact URIs and ETAGs
-        $contacts = $db->get($abookId, 'id,uri,etag', 'contacts', false, 'abook_id');
+        $contacts = $db->get(['abook_id' => $abookId], 'id,uri,etag', 'contacts', false);
         foreach ($contacts as $contact) {
             $this->localCards[$contact['uri']] = $contact;
         }
 
         // determine existing local group URIs and ETAGs
-        $groups = $db->get($abookId, 'id,uri,etag', 'groups', false, 'abook_id');
+        $groups = $db->get(['abook_id' => $abookId], 'id,uri,etag', 'groups', false);
         foreach ($groups as $group) {
             if (isset($group['uri'])) { // these are groups defined by a KIND=group VCard
                 $this->localGrpCards[$group['uri']] = $group;
@@ -146,18 +146,16 @@ class SyncHandlerRoundcube implements SyncHandler
             if (!empty($this->localCatGrpIds)) {
                 $group_ids = array_column(
                     $db->get(
-                        $dbid,
+                        ["contact_id" => $dbid, "group_id" => $this->localCatGrpIds],
                         "group_id",
                         "group_user",
-                        false,
-                        "contact_id",
-                        [ "group_id" => $this->localCatGrpIds ]
+                        false
                     ),
                     "group_id"
                 );
                 $this->clearGroupCandidates = array_merge($this->clearGroupCandidates, $group_ids);
 
-                $db->delete($dbid, "group_user", "contact_id");
+                $db->delete(["contact_id" => $dbid], "group_user");
             }
             $db->delete($dbid);
 
@@ -166,7 +164,7 @@ class SyncHandlerRoundcube implements SyncHandler
         } elseif (isset($this->localGrpCards[$uri]["id"])) {
             // delete VCard-type group
             $dbid = $this->localGrpCards[$uri]["id"];
-            $db->delete($dbid, "group_user", "group_id");
+            $db->delete(["group_id" => $dbid], "group_user");
             $db->delete($dbid, "groups");
 
             // important: URI may be reported as deleted and then reused for new card.
@@ -216,14 +214,14 @@ class SyncHandlerRoundcube implements SyncHandler
             try {
                 $db->startTransaction(false);
                 $group_ids_nonempty = array_column(
-                    $db->get($group_ids, "group_id", "group_user", false, "group_id"),
+                    $db->get(["group_id" => $group_ids], "group_id", "group_user", false),
                     "group_id"
                 );
 
                 $group_ids_empty = array_diff($group_ids, $group_ids_nonempty);
                 if (!empty($group_ids_empty)) {
                     $this->logger->info("Delete empty CATEGORIES-type groups: " . implode(",", $group_ids_empty));
-                    $db->delete($group_ids_empty, "groups", "id", [ "uri" => null, "abook_id" => $abookId ]);
+                    $db->delete(["id" => $group_ids_empty, "uri" => null, "abook_id" => $abookId], "groups");
                 }
                 $db->endTransaction();
             } catch (\Exception $e) {
@@ -261,7 +259,7 @@ class SyncHandlerRoundcube implements SyncHandler
         try {
             $db->startTransaction(false);
             $group_ids_by_name = array_column(
-                $db->get($abookId, "id,name", "groups", false, "abook_id", ["uri" => null, "name" => $categories]),
+                $db->get(["abook_id" => $abookId, "uri" => null, "name" => $categories], "id,name", "groups", false),
                 "id",
                 "name"
             );
@@ -323,12 +321,10 @@ class SyncHandlerRoundcube implements SyncHandler
                 ? []
                 : array_column(
                     $db->get(
-                        $dbid,
+                        ["contact_id" => $dbid, "group_id" => $this->localCatGrpIds ],
                         "group_id",
                         "group_user",
-                        false,
-                        "contact_id",
-                        [ "group_id" => $this->localCatGrpIds ]
+                        false
                     ),
                     "group_id"
                 );
@@ -338,7 +334,7 @@ class SyncHandlerRoundcube implements SyncHandler
                 // CATEGORIES-type groups may become empty when members are removed. Record those the user belonged to.
                 $this->clearGroupCandidates = array_merge($this->clearGroupCandidates, $del_group_ids);
                 // remove contact from CATEGORIES-type groups he no longer belongs to
-                $db->delete($dbid, 'group_user', 'contact_id', [ "group_id" => $del_group_ids ]);
+                $db->delete(["contact_id" => $dbid, "group_id" => $del_group_ids], 'group_user');
             }
 
             // add contact to CATEGORIES-type groups he newly belongs to
@@ -397,7 +393,7 @@ class SyncHandlerRoundcube implements SyncHandler
             $dbid = $db->storeGroup($abookId, $save_data, $dbid, $etag, $uri, $card->serialize());
 
             // delete current group members (will be reinserted if needed below)
-            $db->delete($dbid, 'group_user', 'group_id');
+            $db->delete(["group_id" => $dbid], 'group_user');
 
             // Update member assignments
             if (count($cuids) > 0) {

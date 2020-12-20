@@ -418,7 +418,7 @@ class Database
         if (isset($dbid)) {
             $logger->debug("UPDATE card $dbid/$carddesc in $table");
 
-            $this->update($dbid, $xcol, $xval, $table, 'id');
+            $this->update($dbid, $xcol, $xval, $table);
         } else {
             $logger->debug("INSERT card $carddesc to $table");
 
@@ -478,36 +478,28 @@ class Database
     /**
      * Updates records in a database table.
      *
-     * @param string|string[] $id A single database ID (string) or an array of database IDs if several records should be
-     *                            updated. These IDs are queried against the database column specified by $idfield. Can
-     *                            be a single or multiple values, null is not permitted.
+     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
+     *                            and their match criterion as value. Or a single string value that will be matched
+     *                            against the id column of the given DB table. Or null to not filter at all.
      * @param string[] $cols      Database column names of attributes to update.
      * @param string[] $vals      The values to set into the column specified by $cols at the corresponding index.
      * @param string $table       Name of the database table to select from, without the carddav_ prefix.
-     * @param string $idfield     The name of the column against which $id is matched.
-     * @param array  $other_conditions An associative array with database column names as keys and their match criterion
-     *                                 as value.
      * @return int                The number of rows updated.
      * @see getConditionQuery()
      */
     public function update(
-        $id,
+        $conditions,
         array $cols,
         array $vals,
-        string $table = 'contacts',
-        string $idfield = 'id',
-        array $other_conditions = []
+        string $table = 'contacts'
     ): int {
         $dbh = $this->dbHandle;
         $logger = $this->logger;
 
-        $sql = 'UPDATE ' . $dbh->table_name("carddav_$table") . ' SET ' . implode("=?,", $cols) . '=? WHERE ';
+        $sql = 'UPDATE ' . $dbh->table_name("carddav_$table") . ' SET ' . implode("=?,", $cols) . '=? ';
 
-        // Main selection condition
-        $sql .= $this->getConditionQuery($idfield, $id);
-
-        // Append additional conditions
-        $sql .= $this->getOtherConditionsQuery($other_conditions);
+        // WHERE clause
+        $sql .= $this->getConditionsQuery($conditions);
 
         $logger->debug("UPDATE $table ($sql)");
         $sql_result = $dbh->query($sql, $vals);
@@ -523,17 +515,14 @@ class Database
     /**
      * Gets rows from a database table.
      *
-     * @param string|string[] $id A single database ID (string) or an array of database IDs if several records should be
-     *                            queried. These IDs are queried against the database column specified by $idfield. Can
-     *                            be a single or multiple values, null is not permitted.
+     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
+     *                            and their match criterion as value. Or a single string value that will be matched
+     *                            against the id column of the given DB table. Or null to not filter at all.
      * @param string $cols        A comma-separated list of database column names used in the SELECT clause of the SQL
      *                            statement. By default, all columns are selected.
      * @param string $table       Name of the database table to select from, without the carddav_ prefix.
      * @param bool $retsingle     If true, exactly one single row is expected as result. If false, any number of rows is
      *                            expected as result.
-     * @param string $idfield     The name of the column against which $id is matched.
-     * @param array  $other_conditions An associative array with database column names as keys and their match criterion
-     *                                 as value.
      * @return array              If $retsingle is true and no error occurred, returns an associative row array with the
      *                            matching row, where keys are fieldnames and their value is the corresponding database
      *                            value of the field in the result row. If $retsingle is false, a possibly empty array
@@ -541,23 +530,18 @@ class Database
      * @see getConditionQuery()
      */
     public function get(
-        $id,
+        $conditions,
         string $cols = '*',
         string $table = 'contacts',
-        bool $retsingle = true,
-        string $idfield = 'id',
-        array $other_conditions = []
+        bool $retsingle = true
     ): array {
         $dbh = $this->dbHandle;
         $logger = $this->logger;
 
-        $sql = "SELECT $cols FROM " . $dbh->table_name("carddav_$table") . ' WHERE ';
+        $sql = "SELECT $cols FROM " . $dbh->table_name("carddav_$table");
 
-        // Main selection condition
-        $sql .= $this->getConditionQuery($idfield, $id);
-
-        // Append additional conditions
-        $sql .= $this->getOtherConditionsQuery($other_conditions);
+        // WHERE clause
+        $sql .= $this->getConditionsQuery($conditions);
 
         $sql_result = $dbh->query($sql);
 
@@ -586,32 +570,24 @@ class Database
     /**
      * Deletes rows from a database table.
      *
-     * @param string|string[] $id A single database ID (string) or an array of database IDs if several records should be
-     *                            deleted. These IDs are queried against the database column specified by $idfield. Can
-     *                            be a single or multiple values, null is not permitted.
+     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
+     *                            and their match criterion as value. Or a single string value that will be matched
+     *                            against the id column of the given DB table. Or null to not filter at all.
      * @param string $table       Name of the database table to select from, without the carddav_ prefix.
-     * @param string $idfield     The name of the column against which $id is matched.
-     * @param array  $other_conditions An associative array with database column names as keys and their match criterion
-     *                                 as value.
      * @return int                The number of rows deleted.
      * @see getConditionQuery()
      */
     public function delete(
-        $id,
-        string $table = 'contacts',
-        string $idfield = 'id',
-        array $other_conditions = []
+        $conditions,
+        string $table = 'contacts'
     ): int {
         $dbh = $this->dbHandle;
         $logger = $this->logger;
 
-        $sql = "DELETE FROM " . $dbh->table_name("carddav_$table") . " WHERE ";
+        $sql = "DELETE FROM " . $dbh->table_name("carddav_$table");
 
-        // Main selection condition
-        $sql .= $this->getConditionQuery($idfield, $id);
-
-        // Append additional conditions
-        $sql .= $this->getOtherConditionsQuery($other_conditions);
+        // WHERE clause
+        $sql .= $this->getConditionsQuery($conditions);
 
         $logger->debug("Database::delete $sql");
 
@@ -682,13 +658,33 @@ class Database
         return $sql;
     }
 
-    private function getOtherConditionsQuery(array $other_conditions): string
+    /**
+     * Produces the WHERE clause from a $conditions parameter.
+     *
+     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
+     *                            and their match criterion as value. Or a single string value that will be matched
+     *                            against the id column of the given DB table. Or null to not filter at all.
+     * @return string             The WHERE clause, an empty string if no conditions were given.
+     * @see getConditionQuery()
+     */
+    private function getConditionsQuery($conditions): string
     {
         $sql = "";
 
-        foreach ($other_conditions as $field => $value) {
-            $sql .= ' AND ';
-            $sql .= $this->getConditionQuery($field, $value);
+        if (isset($conditions)) {
+            if (!is_array($conditions)) {
+                $conditions = [ 'id' => $conditions ];
+            }
+
+            $conditions_sql = [];
+            foreach ($conditions as $field => $value) {
+                $conditions_sql[] = $this->getConditionQuery($field, $value);
+            }
+
+            if (!empty($conditions_sql)) {
+                $sql .= ' WHERE ';
+                $sql .= implode(' AND ', $conditions_sql);
+            }
         }
 
         return $sql;
