@@ -834,7 +834,7 @@ class DataConversion
      */
     private function storeextrasubtype(string $typename, string $subtype): void
     {
-        $this->db->insert("xsubtypes", ["typename", "subtype", "abook_id"], [$typename, $subtype, $this->abookId]);
+        $this->db->insert("xsubtypes", ["typename", "subtype", "abook_id"], [[$typename, $subtype, $this->abookId]]);
         $this->coltypes[$typename]['subtypes'][] = $subtype;
         $this->xlabels[$typename][] = $subtype;
     }

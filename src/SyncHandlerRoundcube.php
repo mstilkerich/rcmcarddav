@@ -22,6 +22,9 @@ class SyncHandlerRoundcube implements SyncHandler
     /** @var Addressbook Object of the addressbook that is being synchronized */
     private $rcAbook;
 
+    /** @var array Maps UIDs of locally available contact cards to (database) id */
+    private $localCardsByUID = [];
+
     /** @var array Maps URIs to an associative array containing etag and (database) id */
     private $localCards = [];
 
@@ -68,9 +71,10 @@ class SyncHandlerRoundcube implements SyncHandler
         $abookId = $this->rcAbook->getId();
 
         // determine existing local contact URIs and ETAGs
-        $contacts = $db->get(['abook_id' => $abookId], 'id,uri,etag', 'contacts');
+        $contacts = $db->get(['abook_id' => $abookId], 'id,uri,etag,cuid', 'contacts');
         foreach ($contacts as $contact) {
             $this->localCards[$contact['uri']] = $contact;
+            $this->localCardsByUID[$contact['cuid']] = $contact['id'];
         }
 
         // determine existing local group URIs and ETAGs
@@ -140,6 +144,7 @@ class SyncHandlerRoundcube implements SyncHandler
         if (isset($this->localCards[$uri]["id"])) {
             // delete contact
             $dbid = $this->localCards[$uri]["id"];
+            $cardUID = $this->localCards[$uri]["cuid"];
 
             // CATEGORIES-type groups may become empty as a user is deleted and should then be deleted as well. Record
             // what groups the user belonged to.
@@ -155,6 +160,7 @@ class SyncHandlerRoundcube implements SyncHandler
             $db->delete($dbid);
 
             // important: URI may be reported as deleted and then reused for new card.
+            unset($this->localCardsByUID[$cardUID]);
             unset($this->localCards[$uri]);
         } elseif (isset($this->localGrpCards[$uri]["id"])) {
             // delete VCard-type group
@@ -306,6 +312,11 @@ class SyncHandlerRoundcube implements SyncHandler
             $dbid = $db->storeContact($abookId, $etag, $uri, $card->serialize(), $save_data, $dbid);
             $db->endTransaction();
 
+            // remember in the local cache - might be needed in finalizeSync to map UID to DB ID without DB query
+            if (!isset($this->localCardsByUID[$save_data["cuid"]])) {
+                $this->localCardsByUID[$save_data["cuid"]] = $dbid;
+            }
+
             // determine current assignments to CATGEGORIES-type groups
             $cur_group_ids = $this->getCategoryTypeGroupsForUser($card);
 
@@ -329,8 +340,17 @@ class SyncHandlerRoundcube implements SyncHandler
 
             // add contact to CATEGORIES-type groups he newly belongs to
             $add_group_ids = array_diff($cur_group_ids, $old_group_ids);
-            foreach ($add_group_ids as $group_id) {
-                $db->insert("group_user", ["contact_id", "group_id"], [$dbid, $group_id]);
+            if (!empty($add_group_ids)) {
+                $db->insert(
+                    "group_user",
+                    ["contact_id", "group_id"],
+                    array_map(
+                        function (string $groupId) use ($dbid) {
+                            return [$dbid, $groupId];
+                        },
+                        $add_group_ids
+                    )
+                );
             }
 
             $db->endTransaction();
@@ -351,7 +371,6 @@ class SyncHandlerRoundcube implements SyncHandler
     private function updateGroupCard(string $uri, string $etag, VCard $card): void
     {
         $db = $this->db;
-        $dbh = $db->getDbHandle();
         $abookId = $this->rcAbook->getId();
 
         $save_data = $this->dataConverter->toRoundcube($card, $this->davAbook);
@@ -365,16 +384,21 @@ class SyncHandlerRoundcube implements SyncHandler
 
         // X-ADDRESSBOOKSERVER-MEMBER:urn:uuid:51A7211B-358B-4996-90AD-016D25E77A6E
         $members = $card->{'X-ADDRESSBOOKSERVER-MEMBER'} ?? [];
-        $cuids = [];
+        $memberIds = [];
 
         $this->logger->debug("Group $uri has " . count($members) . " members");
         foreach ($members as $mbr) {
             $mbrc = explode(':', (string) $mbr);
             if (count($mbrc) != 3 || $mbrc[0] !== 'urn' || $mbrc[1] !== 'uuid') {
                 $this->logger->warning("don't know how to interpret group membership: $mbr");
-                continue;
+            } else {
+                $memberId = $this->localCardsByUID[$mbrc[2]];
+                if (isset($memberId)) {
+                    $memberIds[] = $memberId;
+                } else {
+                    $this->logger->warning("cannot find DB ID for group member: $mbrc[2]");
+                }
             }
-            $cuids[] = $dbh->quote($mbrc[2]);
         }
 
         try {
@@ -386,13 +410,19 @@ class SyncHandlerRoundcube implements SyncHandler
             $db->delete(["group_id" => $dbid], 'group_user');
 
             // Update member assignments
-            if (count($cuids) > 0) {
-                $sql_result = $dbh->query('INSERT INTO ' .
-                    $dbh->table_name('carddav_group_user') .
-                    ' (group_id,contact_id) SELECT ?,id from ' .
-                    $dbh->table_name('carddav_contacts') .
-                    ' WHERE abook_id=? AND cuid IN (' . implode(',', $cuids) . ')', $dbid, $abookId);
-                $this->logger->debug("Added " . $dbh->affected_rows($sql_result) . " contacts to group $dbid");
+            if (count($memberIds) > 0) {
+                $db->insert(
+                    'group_user',
+                    ['group_id', 'contact_id'],
+                    array_map(
+                        function (string $contactId) use ($dbid): array {
+                            return [ $dbid, $contactId ];
+                        },
+                        $memberIds
+                    )
+                );
+
+                $this->logger->debug("Added " . count($memberIds) . " contacts to group $dbid");
             }
             $db->endTransaction();
         } catch (\Exception $e) {

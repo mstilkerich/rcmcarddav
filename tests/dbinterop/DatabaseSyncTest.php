@@ -70,7 +70,7 @@ final class DatabaseSyncTest extends TestCase
         } else {
             $db = self::$db;
 
-            $recordId = $db->insert("migrations", ["filename"], ["UNITTEST-SYNC"]);
+            $recordId = $db->insert("migrations", ["filename"], [["UNITTEST-SYNC"]]);
 
             try {
                 $db->startTransaction(false);
@@ -143,7 +143,7 @@ final class DatabaseSyncTest extends TestCase
         $db = self::$db;
 
         try {
-            $recordId = $db->insert("migrations", ["filename"], ["UNITTEST-SYNC-WPAROT"]);
+            $recordId = $db->insert("migrations", ["filename"], [["UNITTEST-SYNC-WPAROT"]]);
             $db->startTransaction(true); // read-only transaction
             [ 'id' => $recordId2] = $db->lookup(["filename" => "UNITTEST-SYNC-WPAROT"], "id", "migrations");
             $db->endTransaction();

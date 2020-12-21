@@ -435,31 +435,47 @@ class Database
                 $xval[] = $save_data['cuid'];
             }
 
-            $dbid = $this->insert($table, $xcol, $xval);
+            $dbid = $this->insert($table, $xcol, [$xval]);
         }
 
         return $dbid;
     }
 
     /**
-     * Stores a new entity to the database.
+     * Inserts new rows to a database table.
      *
-     * @param string $table The database table to store the entity to.
+     * @param string $table The database table to store the row to.
      * @param string[] $cols Database column names of attributes to insert.
-     * @param string[] $vals The values to insert into the column specified by $cols at the corresponding index.
-     * @return string The database id of the created database record. Empty string if the table has no ID column.
+     * @param string[][] $rows An array of rows to insert. Indexes of each row must match those in $cols.
+     * @return string The database id of the last created database row. Empty string if the table has no ID column.
      */
-    public function insert(string $table, array $cols, array $vals): string
+    public function insert(string $table, array $cols, array $rows): string
     {
         $dbh = $this->dbHandle;
         $logger = $this->logger;
 
+        // check parameters
+        $numCols = count($cols);
+        if (empty($rows)) {
+            throw new \Exception("Database::insert on $table called without rows to insert");
+        }
+        foreach ($rows as $row) {
+            if (count($row) != $numCols) {
+                throw new \Exception("Database::insert on $table: row given that does not match $numCols columns");
+            }
+        }
+
+        // build / execute query
+        $sqlRowPlaceholders = '(?' . str_repeat(',?', $numCols - 1) . ')';
+
         $sql = 'INSERT INTO ' . $dbh->table_name("carddav_$table") .
             '(' . implode(",", $cols)  . ') ' .
-            'VALUES (?' . str_repeat(',?', count($cols) - 1) . ')';
+            'VALUES ' .
+            implode(', ', array_fill(0, count($rows), $sqlRowPlaceholders));
 
-        $dbh->query($sql, $vals);
+        $dbh->query($sql, call_user_func_array('array_merge', $rows));
 
+        // return ID of last inserted row
         if (in_array($table, self::DBTABLES_WITHOUT_ID)) {
             $dbid = "";
         } else {

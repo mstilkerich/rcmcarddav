@@ -1102,7 +1102,7 @@ class carddav extends rcube_plugin
             }
         }
 
-        $this->db->insert("addressbooks", $qf, $qv);
+        $this->db->insert("addressbooks", $qf, [$qv]);
         $this->abooksDb = null;
     }
 

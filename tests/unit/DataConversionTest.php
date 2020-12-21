@@ -83,7 +83,7 @@ final class DataConversionTest extends TestCase
             ->with(
                 $this->equalTo("xsubtypes"),
                 $this->equalTo(["typename", "subtype", "abook_id"]),
-                $this->equalTo(["email", "SpecialLabel", "42"])
+                $this->equalTo([["email", "SpecialLabel", "42"]])
             )
             ->will($this->returnValue("49"));
 
