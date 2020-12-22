@@ -6,3 +6,4 @@ composer.*
 .*.swp
 /testreports
 /tests/dbinterop/DatabaseAccounts.php
+/doc/api/
