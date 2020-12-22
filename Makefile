@@ -2,10 +2,11 @@ ROUNDCUBEDIR=../roundcubemail
 DBTYPES=postgres sqlite3 mysql
 SQLITE_TESTDB=testreports/test.db
 CD_TABLES=$(foreach tbl,addressbooks contacts groups group_user xsubtypes migrations,carddav_$(tbl))
+DOCDIR := doc/api/
 
-.PHONY: all stylecheck phpcompatcheck staticanalyses psalmanalysis tests verification
+.PHONY: all stylecheck phpcompatcheck staticanalyses psalmanalysis tests verification doc
 
-all: staticanalyses
+all: staticanalyses doc
 
 verification: staticanalyses schematest tests checktestspecs
 
@@ -124,3 +125,6 @@ checktestspecs:
 		done; \
 	done
 
+doc:
+	rm -rf $(DOCDIR)
+	phpDocumentor.phar -d . -i vendor/ -t $(DOCDIR) --title="RCMCardDAV Plugin for Roundcube"
