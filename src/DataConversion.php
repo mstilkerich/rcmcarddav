@@ -145,7 +145,7 @@ class DataConversion
     /** @var LoggerInterface $logger */
     private $logger;
 
-    /** @var Database The database object to use for DB access */
+    /** @var DatabaseInterface The database object to use for DB access */
     private $db;
 
     /** @var \rcube_cache $cache */
@@ -162,11 +162,11 @@ class DataConversion
      * dependencies are injected with the constructor to allow for testing of this class using stub versions.
      *
      * @param string $abookId The database ID of the addressbook the data conversion object is bound to.
-     * @param Database $db The database object.
+     * @param DatabaseInterface $db The database object.
      * @param \rcube_cache $cache The roundcube cache object.
      * @param LoggerInterface $logger The logger object.
      */
-    public function __construct(string $abookId, Database $db, \rcube_cache $cache, LoggerInterface $logger)
+    public function __construct(string $abookId, DatabaseInterface $db, \rcube_cache $cache, LoggerInterface $logger)
     {
         $this->abookId = $abookId;
         $this->db = $db;

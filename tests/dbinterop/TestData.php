@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
-use MStilkerich\CardDavAddressbook4Roundcube\{Database};
+use MStilkerich\CardDavAddressbook4Roundcube\DatabaseInterface;
 use PHPUnit\Framework\TestCase;
 
 final class TestData
@@ -118,7 +118,7 @@ final class TestData
      * It initializes all tables listed in self::$tables in the given order. Table data is cleared in reverse order
      * listed before inserting of data is started.
      */
-    public static function initDatabase(Database $db): void
+    public static function initDatabase(DatabaseInterface $db): void
     {
         self::$data = self::INITDATA;
         $dbh = $db->getDbHandle();
@@ -138,7 +138,7 @@ final class TestData
         }
     }
 
-    public static function insertRow(Database $db, string $tbl, array $cols, array &$row): string
+    public static function insertRow(DatabaseInterface $db, string $tbl, array $cols, array &$row): string
     {
         $dbh = $db->getDbHandle();
         $cols = array_map([$dbh, "quote_identifier"], $cols);

@@ -19,7 +19,7 @@ use Psr\Log\LoggerInterface;
  * @todo At the moment, this class is just a container for the already existing methods and only partially fulfills its
  *   purpose stated above.
  */
-class Database
+class Database implements DatabaseInterface
 {
     /** @var string[] DBTABLES_WITHOUT_ID List of table names that have no single ID column. */
     private const DBTABLES_WITHOUT_ID = ['group_user'];
@@ -44,24 +44,11 @@ class Database
         $this->dbHandle = $dbh;
     }
 
-    /**
-     * Provides the lower level roundcube database handle.
-     *
-     * This is meant to support legacy parts of the plugin and should not be used for new code.
-     */
     public function getDbHandle(): rcube_db
     {
         return $this->dbHandle;
     }
 
-    /**
-     * Starts a transaction on the internal DB connection.
-     *
-     * Note that all queries in the transaction must be done using the same Database object, to make sure they use the
-     * same database connection.
-     *
-     * @param bool $readonly True if the started transaction only queries, but does not modify data.
-     */
     public function startTransaction(bool $readonly = true): void
     {
         $dbh = $this->dbHandle;
@@ -103,9 +90,6 @@ class Database
         }
     }
 
-    /**
-     * Commits the transaction on the internal DB connection.
-     */
     public function endTransaction(): void
     {
         $dbh = $this->dbHandle;
@@ -125,9 +109,6 @@ class Database
         }
     }
 
-    /**
-     * Rolls back the transaction on the internal DB connection.
-     */
     public function rollbackTransaction(): void
     {
         $dbh = $this->dbHandle;
@@ -173,15 +154,12 @@ class Database
     }
 
     /**
-     * Checks if the database schema is up to date and performs migrations if needed.
+     * {@inheritDoc}
      *
      * If this function encounters an error, it will abort execution of the migrations. The database will be
      * in a potentially broken state, causing further errors when the plugin is executed. Unfortunately, I do not see a
      * better way to handle errors. Throwing an exception would result in Roundcube not being usable at all for the user
      * in case of errors.
-     *
-     * @param string $dbPrefix The optional prefix to all database table names as configured in Roundcube.
-     * @param string $scriptDir Path of the parent directory containing all the migration scripts, each in a subdir.
      */
     public function checkMigrations(string $dbPrefix, string $scriptDir): void
     {
@@ -303,18 +281,6 @@ class Database
         return true;
     }
 
-    /**
-     * Stores a contact to the local database.
-     *
-     * @param string $abookid Database of the addressbook the contact shall be inserted to
-     * @param string $etag of the VCard in the given version on the CardDAV server
-     * @param string $uri path to the VCard on the CardDAV server
-     * @param string $vcfstr string representation of the VCard
-     * @param array  $save_data associative array containing the roundcube save data for the contact
-     * @param ?string $dbid optionally, database id of the contact if the store operation is an update
-     *
-     * @return string The database id of the created or updated card.
-     */
     public function storeContact(
         string $abookid,
         string $etag,
@@ -345,22 +311,6 @@ class Database
         return $this->storeAddressObject('contacts', $abookid, $etag, $uri, $vcfstr, $save_data, $dbid, $xcol, $xval);
     }
 
-    /**
-     * Stores a group in the database.
-     *
-     * If the group is based on a KIND=group vcard, the record must be stored with ETag, URI and VCard. Otherwise, if
-     * the group is derived from a CATEGORIES property of a contact VCard, the ETag, URI and VCard must be set to NULL
-     * to indicate this.
-     *
-     * @param string $abookid Database of the addressbook the contact shall be inserted to
-     * @param array  $save_data  associative array containing at least name and cuid (card UID)
-     * @param ?string $dbid optionally, database id of the group if the store operation is an update
-     * @param ?string $etag of the VCard in the given version on the CardDAV server
-     * @param ?string $uri path to the VCard on the CardDAV server
-     * @param ?string $vcfstr string representation of the VCard
-     *
-     * @return string The database id of the created or updated card.
-     */
     public function storeGroup(
         string $abookid,
         array $save_data,
@@ -441,14 +391,6 @@ class Database
         return $dbid;
     }
 
-    /**
-     * Inserts new rows to a database table.
-     *
-     * @param string $table The database table to store the row to.
-     * @param string[] $cols Database column names of attributes to insert.
-     * @param string[][] $rows An array of rows to insert. Indexes of each row must match those in $cols.
-     * @return string The database id of the last created database row. Empty string if the table has no ID column.
-     */
     public function insert(string $table, array $cols, array $rows): string
     {
         $dbh = $this->dbHandle;
@@ -492,18 +434,6 @@ class Database
         return $dbid;
     }
 
-    /**
-     * Updates records in a database table.
-     *
-     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
-     *                            and their match criterion as value. Or a single string value that will be matched
-     *                            against the id column of the given DB table. Or null to not filter at all.
-     * @param string[] $cols      Database column names of attributes to update.
-     * @param string[] $vals      The values to set into the column specified by $cols at the corresponding index.
-     * @param string $table       Name of the database table to select from, without the carddav_ prefix.
-     * @return int                The number of rows updated.
-     * @see getConditionQuery()
-     */
     public function update(
         $conditions,
         array $cols,
@@ -529,20 +459,6 @@ class Database
         return $dbh->affected_rows($sql_result);
     }
 
-    /**
-     * Gets rows from a database table.
-     *
-     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
-     *                            and their match criterion as value. Or a single string value that will be matched
-     *                            against the id column of the given DB table. Or null to not filter at all.
-     * @param string $cols        A comma-separated list of database column names used in the SELECT clause of the SQL
-     *                            statement. By default, all columns are selected.
-     * @param string $table       Name of the database table to select from, without the carddav_ prefix.
-     * @return array              If $retsingle no error occurred, returns an array of associative row arrays with the
-     *                            matching rows. Each row array has the fieldnames as keys and the corresponding
-     *                            database value as value.
-     * @see getConditionQuery()
-     */
     public function get($conditions, string $cols = '*', string $table = 'contacts'): array
     {
         $dbh = $this->dbHandle;
@@ -555,20 +471,6 @@ class Database
         return $ret;
     }
 
-    /**
-     * Like get(), but expects exactly a single row as result.
-     *
-     * If the query yields fewer or more than one row, an exception is thrown.
-     *
-     * @param ?string|(?string|string[])[] $conditions
-     * @param bool $retsingle     If true, exactly one single row is expected as result. If false, any number of rows is
-     *                            expected as result.
-     * @return array              If no error occurred, returns an associative row array with the
-     *                            matching row, where keys are fieldnames and their value is the corresponding database
-     *                            value of the field in the result row.
-     * @see get()
-     * @see getConditionQuery()
-     */
     public function lookup($conditions, string $cols = '*', string $table = 'contacts'): array
     {
         $dbh = $this->dbHandle;
@@ -582,7 +484,7 @@ class Database
     }
 
     /**
-     * Like get(), but returns the unfetched PDOStatement result.
+     * Like {@see get()}, but returns the unfetched PDOStatement result.
      *
      * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
      *                            and their match criterion as value. Or a single string value that will be matched
@@ -608,16 +510,6 @@ class Database
         return $sql_result;
     }
 
-    /**
-     * Deletes rows from a database table.
-     *
-     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
-     *                            and their match criterion as value. Or a single string value that will be matched
-     *                            against the id column of the given DB table. Or null to not filter at all.
-     * @param string $table       Name of the database table to select from, without the carddav_ prefix.
-     * @return int                The number of rows deleted.
-     * @see getConditionQuery()
-     */
     public function delete($conditions, string $table = 'contacts'): int
     {
         $dbh = $this->dbHandle;
