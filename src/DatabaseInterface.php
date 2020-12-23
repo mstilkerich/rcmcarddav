@@ -98,7 +98,7 @@ interface DatabaseInterface
      *
      * @param string $table The database table to store the row to.
      * @param string[] $cols Database column names of attributes to insert.
-     * @param string[][] $rows An array of rows to insert. Indexes of each row must match those in $cols.
+     * @param (?string)[][] $rows An array of rows to insert. Indexes of each row must match those in $cols.
      * @return string The database id of the last created database row. Empty string if the table has no ID column.
      */
     public function insert(string $table, array $cols, array $rows): string;
