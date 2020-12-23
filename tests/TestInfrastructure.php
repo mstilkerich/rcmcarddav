@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube;
 
 use Psr\Log\LoggerInterface;
+use PHPUnit\Framework\TestCase;
 
 final class TestInfrastructure
 {
@@ -20,6 +21,17 @@ final class TestInfrastructure
             }
             self::$logger = new \Wa72\SimpleLogger\FileLogger($logfile, \Psr\Log\LogLevel::DEBUG);
         }
+    }
+
+    public static function readJsonArray(string $jsonFile): array
+    {
+        TestCase::assertFileIsReadable($jsonFile);
+        $json = file_get_contents($jsonFile);
+        TestCase::assertNotFalse($json);
+        $phpArray = json_decode($json, true);
+        TestCase::assertTrue(is_array($phpArray));
+
+        return $phpArray;
     }
 }
 

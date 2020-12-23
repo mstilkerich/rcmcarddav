@@ -408,11 +408,7 @@ final class DataConversionTest extends TestCase
 
     private function readJsonArray(string $jsonFile): array
     {
-        $this->assertFileIsReadable($jsonFile);
-        $json = file_get_contents($jsonFile);
-        $this->assertNotFalse($json);
-        $phpArray = json_decode($json, true);
-        $this->assertTrue(is_array($phpArray));
+        $phpArray = TestInfrastructure::readJsonArray($jsonFile);
 
         // special handling for photo as we cannot encode binary data in json
         if (isset($phpArray['photo'])) {
