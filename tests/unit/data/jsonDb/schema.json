@@ -1,0 +1,54 @@
+{
+	"addressbooks": {
+		"id": "key",
+		"name": "string",
+		"username": "string",
+		"password": "string",
+		"url": "string",
+		"active": "int=1",
+		"user_id": "int",
+		"last_updated": "int=0",
+		"refresh_time": "int=3600",
+		"sync_token": "string=",
+		"presetname": "?string",
+		"use_categories": "int=0"
+	},
+	"contacts": {
+		"id": "key",
+		"abook_id": "key[addressbooks.id]",
+		"name": "string",
+		"email": "?string",
+		"firstname": "?string",
+		"surname": "?string",
+		"organization": "?string",
+		"showas": "string=",
+		"vcard": "string",
+		"etag": "string",
+		"uri": "string",
+		"cuid": "string"
+	},
+	"groups": {
+		"id": "key",
+		"abook_id": "key[addressbooks.id]",
+		"name": "string",
+		"vcard": "?string",
+		"etag": "?string",
+		"uri": "?string",
+		"cuid": "?string"
+	},
+	"group_user": {
+		"group_id": "key[groups.id]",
+		"contact_id": "key[contacts.id]"
+	},
+	"xsubtypes": {
+		"id": "key",
+		"abook_id": "key[addressbooks.id]",
+		"typename": "string",
+		"subtype": "string"
+	},
+	"migrations": {
+		"id": "key",
+		"filename": "string",
+		"processed_at": "string=1234"
+	}
+}
