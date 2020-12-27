@@ -28,11 +28,13 @@ class JsonDatabase extends AbstractDatabase
     /**
      * Initializes a JsonDatabase instance.
      *
-     * @param string $jsonDbSchema Path to a JSON file defining the tables.
      * @param string[] $jsonDbData Paths to JSON files containing the initial data for the tables.
+     * @param string $jsonDbSchema Path to a JSON file defining the tables.
      */
-    public function __construct(string $jsonDbSchema, array $jsonDbData = [])
-    {
+    public function __construct(
+        array $jsonDbData = [],
+        string $jsonDbSchema = "tests/unit/data/jsonDb/schema.json"
+    ) {
         $this->schema = TestInfrastructure::readJsonArray($jsonDbSchema);
         $this->validateSchema();
         foreach (array_keys($this->schema) as $table) {
@@ -87,7 +89,20 @@ class JsonDatabase extends AbstractDatabase
                 $cols = array_keys($row);
                 $vals = [];
                 foreach ($cols as $col) {
-                    $vals[] = isset($row[$col]) ? (string) $row[$col] : null;
+                    if (isset($row[$col])) {
+                        if (is_array($row[$col])) {
+                            [ $type, $param ] = $row[$col];
+                            if ($type === "file") {
+                                $vals[] = TestInfrastructure::readFileRelative($param, $dataFile);
+                            } else {
+                                throw new \Exception("Unknown data input type $type with param $param");
+                            }
+                        } else {
+                            $vals[] = (string) $row[$col];
+                        }
+                    } else {
+                        $vals[] = null;
+                    }
                 }
                 $this->insert($table, $cols, [$vals]);
             }
@@ -316,8 +331,9 @@ class JsonDatabase extends AbstractDatabase
     {
         $rows = $this->get($conditions, $cols, $table);
 
-        if (count($rows) !== 1) {
-            throw new \Exception("Single-row query with zero or several results");
+        $numRows = count($rows);
+        if ($numRows !== 1) {
+            throw new \Exception("Single-row query on $table with $numRows results: " . print_r($conditions, true));
         }
 
         return $rows[0];
