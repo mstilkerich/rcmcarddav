@@ -243,10 +243,10 @@ class DataConversion
             $properties = $vcard->{$vkey};
             if (isset($properties)) {
                 // if the attribute already maps to a specific subtype, it is contained in rckey
-                [ $rckey, $rclabel ] = explode(':', $rckey, 2);
+                [$rckey] = $rckeyComp = explode(':', $rckey, 2);
 
                 foreach ($properties as $prop) {
-                    $label = empty($rclabel) ? $this->getAttrLabel($vcard, $prop, $rckey) : $rclabel;
+                    $label = (count($rckeyComp) < 2) ? $this->getAttrLabel($vcard, $prop, $rckey) : $rckeyComp[1];
 
                     if (method_exists($this, "toRoundcube$vkey")) {
                         // special handler for structured property
@@ -477,10 +477,12 @@ class DataConversion
         foreach (self::VCF2RC['multi'] as $vkey => $rckey) {
             // Determine the actually present subtypes in the save data; if the VCard property is mapped to a specific
             // subtype, restrict the selection to that subtype.
-            [ $rckey, $rclabel ] = explode(':', $rckey, 2);
-            if (isset($rclabel)) {
+            [$rckey] = $rckeyComp = explode(':', $rckey, 2);
+            if (count($rckeyComp) > 1) {
+                [ $rckey, $rclabel ] = $rckeyComp;
                 $subtypes = isset($save_data["$rckey:$rclabel"]) ? [ $rclabel ] : [];
             } else {
+                $rclabel = null;
                 $subtypes = preg_filter("/^$rckey:/", '', array_keys($save_data), 1);
             }
 
@@ -890,7 +892,7 @@ class DataConversion
      */
     private function determineShowAs(array $save_data): string
     {
-        $showAs = $save_data['showas'];
+        $showAs = $save_data['showas'] ?? "";
 
         if (empty($showAs)) { // new contact
             if (empty($save_data['surname']) && empty($save_data['firstname']) && !empty($save_data['organization'])) {
@@ -927,7 +929,8 @@ class DataConversion
      */
     private static function composeDisplayname(array $save_data): string
     {
-        if (strcasecmp($save_data['showas'], 'COMPANY') == 0 && !empty($save_data['organization'])) {
+        $showAs = $save_data['showas'] ?? "";
+        if (strcasecmp($showAs, 'COMPANY') == 0 && !empty($save_data['organization'])) {
             return $save_data['organization'];
         }
 
