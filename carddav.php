@@ -59,7 +59,7 @@ class carddav extends rcube_plugin
     /** @var string $pwstore_scheme encryption scheme */
     private $pwstore_scheme = 'encrypted';
 
-    /** @var array $admin_settings admin settings from config.inc.php */
+    /** @var ?array $admin_settings admin settings from config.inc.php */
     private static $admin_settings;
 
     /** @var LoggerInterface $logger */
