@@ -38,7 +38,7 @@ class Addressbook extends rcube_addressbook
     /** @var string SEPARATOR Separator character used by roundcube to encode multiple values in a single string. */
     private const SEPARATOR = ',';
 
-    /** @var DatabaseInterface $db Database access object */
+    /** @var AbstractDatabase $db Database access object */
     private $db;
 
     /** @var \rcube_cache $cache */
@@ -81,7 +81,7 @@ class Addressbook extends rcube_addressbook
 
     public function __construct(
         string $dbid,
-        DatabaseInterface $db,
+        AbstractDatabase $db,
         \rcube_cache $cache,
         LoggerInterface $logger,
         array $config,

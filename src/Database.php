@@ -19,7 +19,7 @@ use Psr\Log\LoggerInterface;
  * @todo At the moment, this class is just a container for the already existing methods and only partially fulfills its
  *   purpose stated above.
  */
-class Database implements DatabaseInterface
+class Database extends AbstractDatabase
 {
     /** @var string[] DBTABLES_WITHOUT_ID List of table names that have no single ID column. */
     private const DBTABLES_WITHOUT_ID = ['group_user'];
@@ -279,116 +279,6 @@ class Database implements DatabaseInterface
         }
 
         return true;
-    }
-
-    public function storeContact(
-        string $abookid,
-        string $etag,
-        string $uri,
-        string $vcfstr,
-        array $save_data,
-        ?string $dbid = null
-    ) {
-        // build email search string
-        $email_keys = preg_grep('/^email(:|$)/', array_keys($save_data));
-        $email_addrs = [];
-        foreach ($email_keys as $email_key) {
-            $email_addrs = array_merge($email_addrs, (array) $save_data[$email_key]);
-        }
-        $save_data['email'] = implode(', ', $email_addrs);
-
-        // extra columns for the contacts table
-        $xcol_all = array('firstname','surname','organization','showas','email');
-        $xcol = [];
-        $xval = [];
-        foreach ($xcol_all as $k) {
-            if (key_exists($k, $save_data)) {
-                $xcol[] = $k;
-                $xval[] = $save_data[$k];
-            }
-        }
-
-        return $this->storeAddressObject('contacts', $abookid, $etag, $uri, $vcfstr, $save_data, $dbid, $xcol, $xval);
-    }
-
-    public function storeGroup(
-        string $abookid,
-        array $save_data,
-        ?string $dbid = null,
-        ?string $etag = null,
-        ?string $uri = null,
-        ?string $vcfstr = null
-    ) {
-        return $this->storeAddressObject('groups', $abookid, $etag, $uri, $vcfstr, $save_data, $dbid);
-    }
-
-    /**
-     * Inserts a new contact or group into the database, or updates an existing one.
-     *
-     * If the address object is not backed by an object on the server side (CATEGORIES-type groups), the parameters
-     * $etag, $uri and $vcfstr are not applicable and shall be passed as NULL.
-     *
-     * @param string $table The target table, without carddav_ prefix (contacts or groups)
-     * @param string $abookid The database ID of the addressbook the address object belongs to.
-     * @param ?string $etag The ETag value of the CardDAV-server address object that this object is created from.
-     * @param ?string $uri  The URI of the CardDAV-server address object that this object is created from.
-     * @param ?string $vcfstr The VCard string of the CardDAV-server address object that this object is created from.
-     * @param string[] $save_data The Roundcube representation of the address object.
-     * @param ?string $dbid If an existing object is updated, this specifies its database id.
-     * @param string[] $xcol Database column names of attributes to insert.
-     * @param string[] $xval The values to insert into the column specified by $xcol at the corresponding index.
-     * @return string The database id of the created or updated card.
-     */
-    private function storeAddressObject(
-        string $table,
-        string $abookid,
-        ?string $etag,
-        ?string $uri,
-        ?string $vcfstr,
-        array $save_data,
-        ?string $dbid,
-        array $xcol = [],
-        array $xval = []
-    ): string {
-        $logger = $this->logger;
-
-        $carddesc = $uri ?? "(entry not backed by card)";
-        $xcol[] = 'name';
-        $xval[] = $save_data['name'];
-
-        if (isset($etag)) {
-            $xcol[] = 'etag';
-            $xval[] = $etag;
-        }
-
-        if (isset($vcfstr)) {
-            $xcol[] = 'vcard';
-            $xval[] = $vcfstr;
-        }
-
-        if (isset($dbid)) {
-            $logger->debug("UPDATE card $dbid/$carddesc in $table");
-
-            $this->update($dbid, $xcol, $xval, $table);
-        } else {
-            $logger->debug("INSERT card $carddesc to $table");
-
-            $xcol[] = 'abook_id';
-            $xval[] = $abookid;
-
-            if (isset($uri)) {
-                $xcol[] = 'uri';
-                $xval[] = $uri;
-            }
-            if (isset($save_data['cuid'])) {
-                $xcol[] = 'cuid';
-                $xval[] = $save_data['cuid'];
-            }
-
-            $dbid = $this->insert($table, $xcol, [$xval]);
-        }
-
-        return $dbid;
     }
 
     public function insert(string $table, array $cols, array $rows): string

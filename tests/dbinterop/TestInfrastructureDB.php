@@ -6,11 +6,11 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
 use Psr\Log\LoggerInterface;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
-use MStilkerich\CardDavAddressbook4Roundcube\{Database,DatabaseInterface};
+use MStilkerich\CardDavAddressbook4Roundcube\{Database,AbstractDatabase};
 
 final class TestInfrastructureDB
 {
-    public static function initDatabase(string $db_dsnw, string $db_prefix = ""): DatabaseInterface
+    public static function initDatabase(string $db_dsnw, string $db_prefix = ""): AbstractDatabase
     {
         $_SESSION["user_id"] = "1";
 

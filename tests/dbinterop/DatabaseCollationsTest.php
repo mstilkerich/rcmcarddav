@@ -6,11 +6,11 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
-use MStilkerich\CardDavAddressbook4Roundcube\DatabaseInterface;
+use MStilkerich\CardDavAddressbook4Roundcube\AbstractDatabase;
 
 final class DatabaseCollationsTest extends TestCase
 {
-    /** @var DatabaseInterface */
+    /** @var AbstractDatabase */
     private static $db;
 
     public static function setUpBeforeClass(): void

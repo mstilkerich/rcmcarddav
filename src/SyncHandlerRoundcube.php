@@ -49,7 +49,7 @@ class SyncHandlerRoundcube implements SyncHandler
     /** @var AddressbookCollection $davAbook */
     private $davAbook;
 
-    /** @var DatabaseInterface $db Database access object */
+    /** @var AbstractDatabase $db Database access object */
     private $db;
 
     /** @var LoggerInterface $logger Log object */
@@ -57,7 +57,7 @@ class SyncHandlerRoundcube implements SyncHandler
 
     public function __construct(
         Addressbook $rcAbook,
-        DatabaseInterface $db,
+        AbstractDatabase $db,
         LoggerInterface $logger,
         DataConversion $dataConverter,
         AddressbookCollection $davAbook

@@ -7,14 +7,14 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
 use rcube_db;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
-use MStilkerich\CardDavAddressbook4Roundcube\DatabaseInterface;
+use MStilkerich\CardDavAddressbook4Roundcube\AbstractDatabase;
 
 /**
  * Implementation of the database access interface to the roundcube DB for unit tests.
  *
  * It emulates the DB operations based on an initial dataset read from a Json file.
  */
-class JsonDatabase implements DatabaseInterface
+class JsonDatabase extends AbstractDatabase
 {
     /** @var bool $inTransaction Indicates whether we are currently inside a transaction */
     private $inTransaction = false;
@@ -44,6 +44,12 @@ class JsonDatabase implements DatabaseInterface
         }
     }
 
+    /**
+     * Validates the loaded database schema.
+     *
+     * It performs the following checks:
+     *   - Foreign key references point to existing key columns
+     */
     private function validateSchema(): void
     {
         foreach ($this->schema as $table => $tcols) {
@@ -62,6 +68,14 @@ class JsonDatabase implements DatabaseInterface
 
     /**
      * Imports the data rows contained in the given JSON file to the corresponding tables.
+     *
+     * Data can be important from external sources (currently from an external file) if the data item of a cell is not a
+     * string value but an array. The array has two members: A type (currently only "file") and a parameter (the
+     * filename, relative to the JSON file).
+     *
+     * The function uses the insert() function to add each imported row to the table, and therefore the data validation
+     * that is performed by insert() also applies to data imported from JSON files.
+     *
      * @param string $dataFile Path to a JSON file containing the row definitions.
      */
     private function importData(string $dataFile): void
@@ -111,109 +125,6 @@ class JsonDatabase implements DatabaseInterface
     public function checkMigrations(string $dbPrefix, string $scriptDir): void
     {
         throw new \Exception("checkMigrations() is not implemented");
-    }
-
-    public function storeContact(
-        string $abookid,
-        string $etag,
-        string $uri,
-        string $vcfstr,
-        array $save_data,
-        ?string $dbid = null
-    ) {
-        // build email search string
-        $email_keys = preg_grep('/^email(:|$)/', array_keys($save_data));
-        $email_addrs = [];
-        foreach ($email_keys as $email_key) {
-            $email_addrs = array_merge($email_addrs, (array) $save_data[$email_key]);
-        }
-        $save_data['email'] = implode(', ', $email_addrs);
-
-        // extra columns for the contacts table
-        $xcol_all = array('firstname','surname','organization','showas','email');
-        $xcol = [];
-        $xval = [];
-        foreach ($xcol_all as $k) {
-            if (key_exists($k, $save_data)) {
-                $xcol[] = $k;
-                $xval[] = $save_data[$k];
-            }
-        }
-
-        return $this->storeAddressObject('contacts', $abookid, $etag, $uri, $vcfstr, $save_data, $dbid, $xcol, $xval);
-    }
-
-    public function storeGroup(
-        string $abookid,
-        array $save_data,
-        ?string $dbid = null,
-        ?string $etag = null,
-        ?string $uri = null,
-        ?string $vcfstr = null
-    ) {
-        return $this->storeAddressObject('groups', $abookid, $etag, $uri, $vcfstr, $save_data, $dbid);
-    }
-
-    /**
-     * Inserts a new contact or group into the database, or updates an existing one.
-     *
-     * If the address object is not backed by an object on the server side (CATEGORIES-type groups), the parameters
-     * $etag, $uri and $vcfstr are not applicable and shall be passed as NULL.
-     *
-     * @param string $table The target table, without carddav_ prefix (contacts or groups)
-     * @param string $abookid The database ID of the addressbook the address object belongs to.
-     * @param ?string $etag The ETag value of the CardDAV-server address object that this object is created from.
-     * @param ?string $uri  The URI of the CardDAV-server address object that this object is created from.
-     * @param ?string $vcfstr The VCard string of the CardDAV-server address object that this object is created from.
-     * @param string[] $save_data The Roundcube representation of the address object.
-     * @param ?string $dbid If an existing object is updated, this specifies its database id.
-     * @param string[] $xcol Database column names of attributes to insert.
-     * @param string[] $xval The values to insert into the column specified by $xcol at the corresponding index.
-     * @return string The database id of the created or updated card.
-     */
-    private function storeAddressObject(
-        string $table,
-        string $abookid,
-        ?string $etag,
-        ?string $uri,
-        ?string $vcfstr,
-        array $save_data,
-        ?string $dbid,
-        array $xcol = [],
-        array $xval = []
-    ): string {
-        $xcol[] = 'name';
-        $xval[] = $save_data['name'];
-
-        if (isset($etag)) {
-            $xcol[] = 'etag';
-            $xval[] = $etag;
-        }
-
-        if (isset($vcfstr)) {
-            $xcol[] = 'vcard';
-            $xval[] = $vcfstr;
-        }
-
-        if (isset($dbid)) {
-            $this->update($dbid, $xcol, $xval, $table);
-        } else {
-            $xcol[] = 'abook_id';
-            $xval[] = $abookid;
-
-            if (isset($uri)) {
-                $xcol[] = 'uri';
-                $xval[] = $uri;
-            }
-            if (isset($save_data['cuid'])) {
-                $xcol[] = 'cuid';
-                $xval[] = $save_data['cuid'];
-            }
-
-            $dbid = $this->insert($table, $xcol, [$xval]);
-        }
-
-        return $dbid;
     }
 
     public function insert(string $table, array $cols, array $rows): string
