@@ -5,7 +5,7 @@ UID:96687582-d181-4d29-9b2f-923fba693441
 FN:Test Kontakt
 ADR;TYPE=HOME:;;;;;;
 EMAIL;TYPE=HOME:kontakt@example.com
-TEL;TYPE=&quot;HOME,VOICE&quot;:
+TEL;TYPE="HOME,VOICE":
 IMPP;TYPE=SKYPE:skype@example.com
 IMPP;TYPE=XMPP:xmpp@example.com
 IMPP;TYPE=IRC:irc@example.com
