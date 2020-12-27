@@ -1,0 +1,18 @@
+{
+	"addressbooks": [
+		{
+			"id": 42,
+			"name": "Test Addressbook",
+			"username": "theUser",
+			"password": "thePassword",
+			"url": "https://carddav.example.com/book42",
+			"active": 1,
+			"user_id": "1000",
+			"last_updated": 12345,
+			"refresh_time": 3600,
+			"sync_token": "sync@3600",
+			"presetname": null,
+			"use_categories": 1
+		}
+	]
+}

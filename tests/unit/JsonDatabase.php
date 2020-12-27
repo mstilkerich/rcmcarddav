@@ -114,6 +114,106 @@ class JsonDatabase extends AbstractDatabase
         throw new \Exception("getDbHandle() is not implemented - adapt the tested class to not use it");
     }
 
+    /**
+     * This function compares two rows of a table, possibly from different databases.
+     *
+     * It returns an integer that defines an order between the rows and therefore can also be used to sort table rows
+     * for easier comparison of two entire tables.
+     *
+     * The comparison considers that key values may differ in rows of different databases. The values of key columns are
+     * ignored in the comparison. For foreign key columns, this function is called recursively to compare the referenced
+     * rows to determine equality, not the value of the foreign key.
+     *
+     * @param string $table The table the given rows belong to.
+     * @param JsonDatabase $row2Db The JsonDatabase object $row2 belongs to ($row1 always belong to $this)
+     * @param string[] $row1 A row from the given table in $this JsonDatabase object
+     * @param string[] $row2 A row from the given table in $row2Db JsonDatabase object
+     * @return int Negative/Zero/Positive if $row1 is smaller/equal/greater than $row2
+     */
+    public function compareRows(string $table, JsonDatabase $row2Db, array $row1, array $row2): int
+    {
+        // check parameters
+        TestCase::assertArrayHasKey($table, $this->schema, "compareRows of unknown table $table");
+        $tcols = $this->schema[$table];
+
+        TestCase::assertCount(count($tcols), $row1, "compareRows for row1 with columns not matching schema");
+        TestCase::assertCount(count($tcols), $row2, "compareRows for row2 with columns not matching schema");
+
+        // compare all the columns
+        foreach ($tcols as $col => $coldef) {
+            $coldef = $this->parseColumnDef($coldef);
+
+            TestCase::assertArrayHasKey($col, $row1, "compareRows: row1 lacks column $col");
+            TestCase::assertArrayHasKey($col, $row2, "compareRows: row2 lacks column $col");
+
+            if (!empty($coldef["fktable"])) {
+                $fktable = $coldef["fktable"];
+                $fkcol = $coldef["fkcolumn"];
+                $frow1 = $this->lookup([$fkcol => $row1[$col]], '*', $fktable);
+                $frow2 = $row2Db->lookup([$fkcol => $row2[$col]], '*', $fktable);
+
+                $result = $this->compareRows($fktable, $row2Db, $frow1, $frow2);
+            } elseif ($coldef["type"] === "key") {
+                $result = 0;
+            } else {
+                if (isset($row1[$col]) && isset($row2[$col])) {
+                    $result = strcmp($row1[$col], $row2[$col]);
+                } elseif (isset($row1[$col])) {
+                    $result = 1;
+                } elseif (isset($row2[$col])) {
+                    $result = -1;
+                } else {
+                    $result = 0;
+                }
+            }
+
+            if ($result !== 0) {
+                return $result;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Compares two tables of different databases with identical schema.
+     *
+     * The result is reported via JUnit assertions, i.e. a test calling this function should expect equality, therefore
+     * the test will fail in case of inequality of the two tables.
+     *
+     * @param string $table Name of the table to compare
+     * @param JsonDatabase $otherDb The other database whose table $table should be compared to the one in $this.
+     */
+    public function compareTables(string $table, JsonDatabase $otherDb): void
+    {
+        // check parameters
+        TestCase::assertArrayHasKey($table, $this->schema, "compareTables of unknown table $table");
+        TestCase::assertArrayHasKey($table, $otherDb->schema, "compareTables of unknown table $table");
+        TestCase::assertEquals($this->schema[$table], $otherDb->schema[$table], "Schema of table $table mismatch");
+        TestCase::assertArrayHasKey($table, $this->data, "compareTables of unknown table $table");
+        TestCase::assertArrayHasKey($table, $otherDb->data, "compareTables of unknown table $table");
+
+        $compareFn1 = function (array $row1, array $row2) use ($table): int {
+            return $this->compareRows($table, $this, $row1, $row2);
+        };
+        $compareFn2 = function (array $row1, array $row2) use ($table, $otherDb): int {
+            return $otherDb->compareRows($table, $otherDb, $row1, $row2);
+        };
+
+        $t1sorted = $this->data[$table];
+        $t2sorted = $otherDb->data[$table];
+        usort($t1sorted, $compareFn1);
+        usort($t2sorted, $compareFn2);
+
+        TestCase::assertCount(count($t1sorted), $t2sorted, "Compare tables $table with different number of rows");
+        for ($i = 0; $i < count($t1sorted); ++$i) {
+            $diff = $this->compareRows($table, $otherDb, $t1sorted[$i], $t2sorted[$i]);
+            if ($diff !== 0) {
+                TestCase::assertEquals($t1sorted[$i], $t2sorted[$i], "$table row $i differs");
+            }
+        }
+    }
+
     public function startTransaction(bool $readonly = true): void
     {
         if ($this->inTransaction) {

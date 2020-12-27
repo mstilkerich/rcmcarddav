@@ -1,0 +1,11 @@
+BEGIN:VCARD
+VERSION:3.0
+PRODID:-//Sabre//Sabre VObject 4.3.0//EN
+UID:e76b5acb-5627-4397-bd4b-95038ec8cbbb
+FN:Jaime Lannister
+ADR;TYPE=HOME:;;;;;;
+EMAIL;TYPE=HOME:jamie@lannister.example.com
+TEL;TYPE="HOME,VOICE":
+CATEGORIES:House Lannister
+REV;VALUE=DATE-AND-OR-TIME:20201227T103431Z
+END:VCARD

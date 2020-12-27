@@ -1,0 +1,121 @@
+{
+	"addressbooks": [
+		{
+			"id": 42,
+			"name": "Test Addressbook",
+			"username": "theUser",
+			"password": "thePassword",
+			"url": "https://carddav.example.com/book42",
+			"active": 1,
+			"user_id": "1000",
+			"last_updated": 12345,
+			"refresh_time": 3600,
+			"sync_token": "sync@3600",
+			"presetname": null,
+			"use_categories": 1
+		}
+	],
+	"contacts": [
+		{
+			"id": 50,
+			"abook_id": 42,
+			"name": "Eddard Stark",
+			"email": "ned@stark.example.com, warden_of_the_north@stark.example.com",
+			"firstname": "Eddard",
+			"surname": "Stark",
+			"organization": "The North",
+			"showas": "",
+			"vcard": ["file", "nedstark.vcf"],
+			"etag": "etag@nedstark_1",
+			"uri": "/book42/nedstark.vcf",
+			"cuid": "736dc919-1cce-4d9f-95ea-12a2e5322efe"
+		},
+		{
+			"id": 51,
+			"abook_id": 42,
+			"name": "Cersei Lannister",
+			"email": "cersei@example.com",
+			"firstname": null, "surname": null, "organization": null,
+			"showas": "",
+			"vcard": ["file", "cersei.vcf"],
+			"etag": "etag@cersei_1",
+			"uri": "/book42/cersei.vcf",
+			"cuid": "2e0537cf-20e8-47bb-a851-27e895a9a6e1"
+		},
+		{
+			"id": 52,
+			"abook_id": 42,
+			"name": "Jaime Lannister",
+			"email": "jamie@lannister.example.com",
+			"firstname": null, "surname": null, "organization": null,
+			"showas": "",
+			"vcard": ["file", "jamie.vcf"],
+			"etag": "etag@jamie_1",
+			"uri": "/book42/jamie.vcf",
+			"cuid": "e76b5acb-5627-4397-bd4b-95038ec8cbbb"
+		},
+		{
+			"id": 53,
+			"abook_id": 42,
+			"name": "Robert Baratheon",
+			"email": "robert@baratheon.example.com",
+			"firstname": null,
+			"surname": null,
+			"organization": null,
+			"showas": "",
+			"vcard": ["file", "robert.vcf"],
+			"etag": "etag@robert_1",
+			"uri": "/book42/robert.vcf",
+			"cuid": "9e1c1cf8-51f8-42b1-9314-44e34a7d148f"
+		},
+		{
+			"id": 54,
+			"abook_id": 42,
+			"name": "The Golden Company",
+			"email": "golden.company@example.com",
+			"firstname": "Harry",
+			"surname": "Strickland",
+			"organization": "The Golden Company",
+			"showas": "COMPANY",
+			"vcard": ["file", "goldencomp.vcf"],
+			"etag": "etag@goldencomp_1",
+			"uri": "/book42/goldencomp.vcf",
+			"cuid": "97184f86-c184-4ec6-a47e-8459b7ebe1d1"
+		}
+	],
+	"groups": [
+		{
+			"id": 500,
+			"abook_id": 42,
+			"name": "House Stark",
+			"vcard": null, "etag": null, "uri": null, "cuid": null
+		},
+		{
+			"id": 501,
+			"abook_id": 42,
+			"name": "House Baratheon",
+			"vcard": null, "etag": null, "uri": null, "cuid": null
+		},
+		{
+			"id": 502,
+			"abook_id": 42,
+			"name": "House Lannister",
+			"vcard": null, "etag": null, "uri": null, "cuid": null
+		}
+	],
+	"group_user": [
+		{ "group_id": 500, "contact_id": 50 },
+		{ "group_id": 501, "contact_id": 51 },
+		{ "group_id": 501, "contact_id": 53 },
+		{ "group_id": 502, "contact_id": 51 },
+		{ "group_id": 502, "contact_id": 52 }
+	],
+	"xsubtypes": [
+		{
+			"id": 1,
+			"abook_id": 42,
+			"typename": "email",
+			"subtype": "SpecialLabel"
+		}
+	]
+}
