@@ -142,7 +142,7 @@ final class TestData
     {
         $dbh = $db->getDbHandle();
         $cols = array_map([$dbh, "quote_identifier"], $cols);
-        TestCase::assertEquals(count($cols), count($row), "Column count mismatch of $tbl row" . join(",", $row));
+        TestCase::assertCount(count($cols), $row, "Column count mismatch of $tbl row " . print_r($row, true));
 
         $sql = "INSERT INTO " . $dbh->table_name($tbl)
             . " (" . implode(",", $cols) . ") "

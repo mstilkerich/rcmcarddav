@@ -57,7 +57,7 @@ final class DataConversionTest extends TestCase
         [ $logger, $db, $cache, $abook ] = $this->initStubs();
 
         $dc = new DataConversion("42", $db, $cache, $logger);
-        $vcard = $this->readVCard($vcfFile);
+        $vcard = TestInfrastructure::readVCard($vcfFile);
         $saveDataExpected = $this->readJsonArray($jsonFile);
         $saveData = $dc->toRoundcube($vcard, $abook);
         $this->assertEquals($saveDataExpected, $saveData, "Converted VCard does not result in expected roundcube data");
@@ -88,7 +88,7 @@ final class DataConversionTest extends TestCase
             ->will($this->returnValue("49"));
 
         $dc = new DataConversion("42", $db, $cache, $logger);
-        $vcard = $this->readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
+        $vcard = TestInfrastructure::readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
         $dc->toRoundcube($vcard, $abook);
     }
 
@@ -132,7 +132,7 @@ final class DataConversionTest extends TestCase
             ->method("insert");
 
         $dc = new DataConversion("42", $db, $cache, $logger);
-        $vcard = $this->readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
+        $vcard = TestInfrastructure::readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
         $dc->toRoundcube($vcard, $abook);
     }
 
@@ -159,7 +159,7 @@ final class DataConversionTest extends TestCase
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
         $dc = new DataConversion("42", $db, $cache, $logger);
-        $vcardExpected = $this->readVCard($vcfFile);
+        $vcardExpected = TestInfrastructure::readVCard($vcfFile);
         $saveData = $this->readJsonArray($jsonFile);
         $result = $dc->fromRoundcube($saveData);
 
@@ -193,8 +193,8 @@ final class DataConversionTest extends TestCase
             ]));
 
         $dc = new DataConversion("42", $db, $cache, $logger);
-        $vcardOriginal = $this->readVCard($vcfFile);
-        $vcardExpected = $this->readVCard("$vcfFile.new");
+        $vcardOriginal = TestInfrastructure::readVCard($vcfFile);
+        $vcardExpected = TestInfrastructure::readVCard("$vcfFile.new");
         $saveData = $this->readJsonArray($jsonFile);
 
         $result = $dc->fromRoundcube($saveData, $vcardOriginal);
@@ -220,7 +220,7 @@ final class DataConversionTest extends TestCase
     {
         [ $logger, $db, $cache, $abook ] = $this->initStubs();
 
-        $vcard = $this->readVCard("$basename.vcf");
+        $vcard = TestInfrastructure::readVCard("$basename.vcf");
         $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
 
         $key = "photo_105_" . md5((string) $vcard->UID);
@@ -271,7 +271,7 @@ final class DataConversionTest extends TestCase
         $cachedPhotoData = file_get_contents("tests/unit/data/srv/pixel.jpg");
         $this->assertNotFalse($cachedPhotoData);
 
-        $vcard = $this->readVCard("$basename.vcf");
+        $vcard = TestInfrastructure::readVCard("$basename.vcf");
         $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
 
         $key = "photo_105_" . md5((string) $vcard->UID);
@@ -318,7 +318,7 @@ final class DataConversionTest extends TestCase
         $cachedPhotoData = file_get_contents("tests/unit/data/srv/pixel.jpg");
         $this->assertNotFalse($cachedPhotoData);
 
-        $vcard = $this->readVCard("$basename.vcf");
+        $vcard = TestInfrastructure::readVCard("$basename.vcf");
         $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
 
         $key = "photo_105_" . md5((string) $vcard->UID);
@@ -372,7 +372,7 @@ final class DataConversionTest extends TestCase
     {
         [ $logger, $_db, $cache, $abook ] = $this->initStubs();
 
-        $vcard = $this->readVCard("tests/unit/data/vcardImport/AllAttr.vcf");
+        $vcard = TestInfrastructure::readVCard("tests/unit/data/vcardImport/AllAttr.vcf");
         $this->assertNull($vcard->PHOTO);
 
         $proxy = new DelayedPhotoLoader($vcard, $abook, $cache, $logger);
@@ -398,14 +398,6 @@ final class DataConversionTest extends TestCase
         return [ $logger, $db, $cache, $abook ];
     }
 
-    private function readVCard(string $vcfFile): VCard
-    {
-        $this->assertFileIsReadable($vcfFile);
-        $vcard = VObject\Reader::read(fopen($vcfFile, 'r'));
-        $this->assertInstanceOf(VCard::class, $vcard);
-        return $vcard;
-    }
-
     private function readJsonArray(string $jsonFile): array
     {
         $phpArray = TestInfrastructure::readJsonArray($jsonFile);
@@ -413,12 +405,9 @@ final class DataConversionTest extends TestCase
         // special handling for photo as we cannot encode binary data in json
         if (isset($phpArray['photo'])) {
             $photoFile = $phpArray['photo'];
-            if ($photoFile[0] == '@') {
+            if (!empty($photoFile) && $photoFile[0] == '@') {
                 $photoFile = substr($photoFile, 1);
-                $comp = pathinfo($jsonFile);
-                $photoFile = "{$comp["dirname"]}/$photoFile";
-                $this->assertFileIsReadable($photoFile);
-                $phpArray['photo'] = file_get_contents($photoFile);
+                $phpArray['photo'] = TestInfrastructure::readFileRelative($photoFile, $jsonFile);
             }
         }
         return $phpArray;
