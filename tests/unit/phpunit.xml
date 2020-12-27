@@ -1,6 +1,9 @@
 <phpunit colors="true" testdox="true" bootstrap="autoload.php" verbose="true">
     <php>
         <var name="TEST_TESTRUN" value="unit"/>
+
+        <!-- make sure all PHP errors are reported and raise PHPunit exceptions -->
+        <ini name="error_reporting" value="-1"/>
     </php>
     <testsuites>
         <testsuite name="unit">
