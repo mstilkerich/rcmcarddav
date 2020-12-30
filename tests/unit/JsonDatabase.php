@@ -8,6 +8,7 @@ use rcube_db;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use MStilkerich\CardDavAddressbook4Roundcube\AbstractDatabase;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\{DbAndCondition,DbOrCondition};
 
 /**
  * Implementation of the database access interface to the roundcube DB for unit tests.
@@ -439,26 +440,92 @@ class JsonDatabase extends AbstractDatabase
         return $rows[0];
     }
 
-    /**
-     * Query rows from the database matching conditions and extract specified columns.
-     *
-     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
-     *                            and their match criterion as value. Or a single string value that will be matched
-     *                            against the id column of the given DB table. Or null to not filter at all.
-     */
-    public function get($conditions, string $cols = '*', string $table = 'contacts'): array
+    public function get($conditions, string $cols = '*', string $table = 'contacts', array $options = []): array
     {
         TestCase::assertArrayHasKey($table, $this->data, "Get for unknown table $table");
-        $cols = $cols == '*' ? array_keys($this->schema[$table]) : preg_split('/\s*,\s*/', $cols);
+        $columns = $cols == '*' ? array_keys($this->schema[$table]) : preg_split('/\s*,\s*/', $cols);
         $filteredRows = [];
 
-        $unknownCols = array_diff($cols, array_keys($this->schema[$table]));
+        $unknownCols = array_diff($columns, array_keys($this->schema[$table]));
         TestCase::assertCount(0, $unknownCols, "Get for unknown columns in table $table: " . join(', ', $unknownCols));
 
-        $cols = array_flip($cols);
+        $columns = array_flip($columns);
         foreach ($this->data[$table] as $row) {
             if ($this->checkRowMatch($conditions, $row)) {
-                $filteredRows[] = array_intersect_key($row, $cols);
+                $filteredRows[] = array_intersect_key($row, $columns);
+            }
+        }
+
+        // ORDER
+        if (is_array($options['order'] ?? null)) {
+            $orderDef = [];
+            foreach ($options['order'] as $col) {
+                if ($col[0] === "!") {
+                    $orderDef[] = [ substr($col, 1), -1 ];
+                } else {
+                    $orderDef[] = [ $col, 1 ];
+                }
+            }
+
+            if (!empty($orderDef)) {
+                usort(
+                    $filteredRows,
+                    function (array $a, array $b) use ($orderDef): int {
+                        $res = 0;
+                        foreach ($orderDef as $od) {
+                            [ $col, $orderAsc ] = $od;
+                            $res = strcmp($a[$col], $b[$col]) * $orderAsc;
+                            if ($res !== 0) {
+                                break;
+                            }
+                        }
+                        return $res;
+                    }
+                );
+            }
+        }
+
+        // COUNT
+        if ($options['count'] ?? false) {
+            $cntcols = preg_split("/\s*,\s*/", $cols);
+            $result = [];
+
+            foreach ($cntcols as $col) {
+                if ($col === '*') {
+                    $result['*'] = count($filteredRows);
+                } else {
+                    $nonNull = array_filter(
+                        array_column($filteredRows, $col),
+                        function (?string $v): bool {
+                            return isset($v);
+                        }
+                    );
+                    $result[$col] = count($nonNull);
+                }
+            }
+
+            $filteredRows = [ $result ];
+        }
+
+        // LIMIT
+        if (isset($options['limit'])) {
+            $l = $options['limit'];
+            $err = false;
+            if (is_array($l) && count($l) == 2) {
+                [ $offset, $limit ] = $l;
+                if (is_int($offset) && is_int($limit) && $offset >= 0 && $limit > 0) {
+                    $filteredRows = array_slice($filteredRows, $offset, $limit);
+                } else {
+                    $err = true;
+                }
+            } else {
+                $err = true;
+            }
+
+            if ($err) {
+                $msg = "The limit option needs an array parameter of two unsigned integers [offset,limit]; got: ";
+                $msg .= print_r($l, true);
+                throw new \Exception($msg);
             }
         }
 
@@ -468,22 +535,20 @@ class JsonDatabase extends AbstractDatabase
     /**
      * Checks if the given row matches the given condition.
      *
-     * @param string $field Name of the database column.
-     *                      Prefix with ! to invert the condition.
-     *                      Prefix with % to indicate that the value is a pattern to be matched with ILIKE.
-     *                      Prefixes can be combined but must be given in the order listed here.
-     * @param ?string|string[] $value The value to check field for. Can be one of the following:
-     *          - null: Assert that the field is NULL (or not NULL if inverted)
-     *          - string: Assert that the field value matches $value (or does not match value, if inverted)
-     *          - string[]: Assert that the field matches one of the strings in values (or none, if inverted)
+     * @param DbOrCondition $orCond
      * @param (?string)[] $row The DB row to match with the condition
      *
      * @return bool Match result of condition against row
+     *
+     * @see DbOrCondition For a description on the format of field/value specifiers.
      */
-    private function checkRowMatchSingleCondition(string $field, $value, array $row): bool
+    private function checkRowMatchSingleCondition(DbOrCondition $orCond, array $row): bool
     {
         $invertCondition = false;
         $ilike = false;
+
+        $field = $orCond->fieldSpec;
+        $value = $orCond->valueSpec;
 
         if ($field[0] === "!") {
             $field = substr($field, 1);
@@ -523,23 +588,28 @@ class JsonDatabase extends AbstractDatabase
     /**
      * Checks if the given row matches all given conditions.
      *
-     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
-     *                            and their match criterion as value. Or a single string value that will be matched
-     *                            against the id column of the given DB table. Or null to not filter at all.
+     * @param string|(?string|string[])[]|DbAndCondition[] $conditions
      * @param (?string)[] $row The DB row to match with the condition
      * @return bool Match result of conditions against row
+     *
+     * @see AbstractDatabase::normalizeConditions() for a description of $conditions
      */
     private function checkRowMatch($conditions, array $row): bool
     {
-        if (isset($conditions)) {
-            if (!is_array($conditions)) {
-                $conditions = [ 'id' => $conditions ];
+        $conditions = $this->normalizeConditions($conditions);
+
+        foreach ($conditions as $andCond) {
+            $andCondMatched = false;
+
+            foreach ($andCond->orConditions as $orCond) {
+                if ($this->checkRowMatchSingleCondition($orCond, $row)) {
+                    $andCondMatched = true;
+                    break;
+                }
             }
 
-            foreach ($conditions as $field => $value) {
-                if (!$this->checkRowMatchSingleCondition($field, $value, $row)) {
-                    return false;
-                }
+            if ($andCondMatched === false) {
+                return false;
             }
         }
 

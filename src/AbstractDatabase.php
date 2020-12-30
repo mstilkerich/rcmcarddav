@@ -6,12 +6,20 @@ namespace MStilkerich\CardDavAddressbook4Roundcube;
 
 use rcube_db;
 use Psr\Log\LoggerInterface;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\{DbAndCondition,DbOrCondition};
 
 /**
  * Access interface for the roundcube database.
  */
 abstract class AbstractDatabase
 {
+    /**
+     * @var string Separator string used when several values are combined in one DB column.
+     *
+     * This is relevant to the email column of the contacts table, where several email addresses can be stored.
+     */
+    public const MULTIVAL_SEP = ", ";
+
     /**
      * Provides the lower level roundcube database handle.
      *
@@ -60,58 +68,75 @@ abstract class AbstractDatabase
     /**
      * Updates records in a database table.
      *
-     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
-     *                            and their match criterion as value. Or a single string value that will be matched
-     *                            against the id column of the given DB table. Or null to not filter at all.
+     * @param string|(?string|string[])[]|DbAndCondition[] $conditions Selects the rows to update.
      * @param string[] $cols      Database column names of attributes to update.
      * @param string[] $vals      The values to set into the column specified by $cols at the corresponding index.
      * @param string $table       Name of the database table to select from, without the carddav_ prefix.
      * @return int                The number of rows updated.
-     * @see AbstractDatabase::getConditionQuery()
+     *
+     * @see normalizeConditions() for a description of $conditions
+     * @see Database::getConditionsQuery()
      */
     abstract public function update($conditions, array $cols, array $vals, string $table = 'contacts'): int;
 
     /**
      * Gets rows from a database table.
      *
-     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
-     *                            and their match criterion as value. Or a single string value that will be matched
-     *                            against the id column of the given DB table. Or null to not filter at all.
+     * @param string|(?string|string[])[]|DbAndCondition[] $conditions Selects the rows to get.
      * @param string $cols        A comma-separated list of database column names used in the SELECT clause of the SQL
      *                            statement. By default, all columns are selected.
      * @param string $table       Name of the database table to select from, without the carddav_ prefix.
+     * @param array  $options     Associative array with extra options, mapping option name => option setting
+     *                            Currently supported:
+     *                              - limit: Value is an array of two integers [ $offset, $numrows ]. Limits the
+     *                                       returned rows to maximum $numrows starting at $offset of the full result.
+     *                              - order: Value is a list of column names to order by in ascending order. Prefix the
+     *                                       column name with "!" (e.g. "!firstname") to sort in descending order.
+     *                              - count: Value must be true.
+     *                                       Execute an aggregate query on the columns in $cols. The result will be a
+     *                                       single row, where each column's value is the number of non-null values in
+     *                                       the query result. The special column '*' can be used to count the rows.
      * @return array              If $retsingle no error occurred, returns an array of associative row arrays with the
      *                            matching rows. Each row array has the fieldnames as keys and the corresponding
      *                            database value as value.
-     * @see getConditionQuery()
+     *
+     * @see normalizeConditions() for a description of $conditions
+     * @see Database::getConditionsQuery()
      */
-    abstract public function get($conditions, string $cols = '*', string $table = 'contacts'): array;
+    abstract public function get(
+        $conditions,
+        string $cols = '*',
+        string $table = 'contacts',
+        array $options = []
+    ): array;
 
     /**
      * Like {@see get()}, but expects exactly a single row as result.
      *
      * If the query yields fewer or more than one row, an exception is thrown.
      *
-     * @param ?string|(?string|string[])[] $conditions
+     * @param string|(?string|string[])[]|DbAndCondition[] $conditions Selects the row to lookup.
      * @param bool $retsingle     If true, exactly one single row is expected as result. If false, any number of rows is
      *                            expected as result.
      * @return array              If no error occurred, returns an associative row array with the
      *                            matching row, where keys are fieldnames and their value is the corresponding database
      *                            value of the field in the result row.
+     *
      * @see get()
-     * @see getConditionQuery()
+     * @see normalizeConditions() for a description of $conditions
+     * @see Database::getConditionsQuery()
      */
     abstract public function lookup($conditions, string $cols = '*', string $table = 'contacts'): array;
 
     /**
      * Deletes rows from a database table.
      *
-     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
-     *                            and their match criterion as value. Or a single string value that will be matched
-     *                            against the id column of the given DB table. Or null to not filter at all.
+     * @param string|(?string|string[])[]|DbAndCondition[] $conditions Selects the rows to delete.
      * @param string $table       Name of the database table to select from, without the carddav_ prefix.
      * @return int                The number of rows deleted.
-     * @see getConditionQuery()
+     *
+     * @see normalizeConditions() for a description of $conditions
+     * @see Database::getConditionsQuery()
      */
     abstract public function delete($conditions, string $table = 'contacts'): int;
 
@@ -244,6 +269,41 @@ abstract class AbstractDatabase
         }
 
         return $dbid;
+    }
+
+    /**
+     * Normalizes the short form of specifying DB filter conditions to DbAndCondition[].
+     *
+     * The following short forms are supported for $conditions:
+     *   - Empty array: No filter at all
+     *   - Single string value: matched against the "id" column
+     *   - Associative array mapping "field specifier" => "value specifier": All match criteria must match.
+     *
+     * The normalized form is an array of DbAndCondition.
+     *
+     * @param string|(?string|string[])[]|DbAndCondition[] $conditions See above for description.
+     * @return DbAndCondition[]
+     *
+     * @see DbOrCondition For a description on the format of field/value specifiers.
+     */
+    protected function normalizeConditions($conditions): array
+    {
+        if (is_string($conditions)) {
+            $cond = [ new DbAndCondition(new DbOrCondition("id", $conditions)) ];
+        } elseif (empty($conditions)) {
+            $cond = [];
+        } elseif (($conditions[0] ?? null) instanceof DbAndCondition) {
+            /** @var DbAndCondition[] */
+            $cond = $conditions;
+        } else {
+            $cond = [];
+            /** @var ?string|string[] $valueSpec */
+            foreach ($conditions as $fieldSpec => $valueSpec) {
+                $cond[] = new DbAndCondition(new DbOrCondition($fieldSpec, $valueSpec));
+            }
+        }
+
+        return $cond;
     }
 }
 

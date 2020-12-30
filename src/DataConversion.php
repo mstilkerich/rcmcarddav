@@ -182,6 +182,20 @@ class DataConversion
     }
 
     /**
+     * Allows to query if a property is a multi-value property (e.g., phone, email).
+     *
+     * @return bool True if the given property is a multi-value property, false if it is a single-value property.
+     */
+    public function isMultivalueProperty(string $attrname): bool
+    {
+        if (isset($this->coltypes[$attrname])) {
+            return isset($this->coltypes[$attrname]['subtypes']);
+        } else {
+            throw new \Exception("$attrname is not a known roundcube contact property");
+        }
+    }
+
+    /**
      * Creates the roundcube representation of a contact from a VCard.
      *
      * If the card contains a URI referencing an external photo, this

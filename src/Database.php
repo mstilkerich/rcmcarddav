@@ -7,6 +7,7 @@ namespace MStilkerich\CardDavAddressbook4Roundcube;
 use PDOStatement;
 use rcube_db;
 use Psr\Log\LoggerInterface;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\{DbAndCondition,DbOrCondition};
 
 /**
  * Access module for the roundcube database.
@@ -349,10 +350,10 @@ class Database extends AbstractDatabase
         return $dbh->affected_rows($sql_result);
     }
 
-    public function get($conditions, string $cols = '*', string $table = 'contacts'): array
+    public function get($conditions, string $cols = '*', string $table = 'contacts', array $options = []): array
     {
         $dbh = $this->dbHandle;
-        $sql_result = $this->internalGet($conditions, $cols, $table);
+        $sql_result = $this->internalGet($conditions, $cols, $table, $options);
 
         $ret = [];
         while ($row = $dbh->fetch_assoc($sql_result)) {
@@ -376,21 +377,77 @@ class Database extends AbstractDatabase
     /**
      * Like {@see get()}, but returns the unfetched PDOStatement result.
      *
-     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
-     *                            and their match criterion as value. Or a single string value that will be matched
-     *                            against the id column of the given DB table. Or null to not filter at all.
+     * @param string|(?string|string[])[]|DbAndCondition[] $conditions
      */
-    private function internalGet($conditions, string $cols = '*', string $table = 'contacts'): PDOStatement
-    {
+    private function internalGet(
+        $conditions,
+        string $cols = '*',
+        string $table = 'contacts',
+        array $options = []
+    ): PDOStatement {
         $dbh = $this->dbHandle;
         $logger = $this->logger;
 
-        $sql = "SELECT $cols FROM " . $dbh->table_name("carddav_$table");
+        $sql = "SELECT ";
+        if ($options['count'] ?? false) {
+            $columns = preg_split("/\s*,\s*/", $cols);
+            $columns = array_map(
+                function (string $col) use ($dbh): string {
+                    return "COUNT($col) as " . $dbh->quote_identifier($col); // quoting needed for "*"
+                },
+                $columns
+            );
+            $sql .= implode(", ", $columns);
+        } else {
+            $sql .= $cols;
+        }
+        $sql .= " FROM " . $dbh->table_name("carddav_$table");
 
         // WHERE clause
         $sql .= $this->getConditionsQuery($conditions);
 
-        $sql_result = $dbh->query($sql);
+        // ORDER BY clause
+        if (is_array($options['order'] ?? null)) {
+            $orderClauses = [];
+
+            foreach ($options['order'] as $col) {
+                $order = 'ASC';
+                if ($col[0] === "!") {
+                    $col = substr($col, 1);
+                    $order = 'DESC';
+                }
+
+                $orderClauses[] = $dbh->quote_identifier($col) . " $order";
+            }
+
+            if (!empty($orderClauses)) {
+                $sql .= ' ORDER BY ' . implode(", ", $orderClauses);
+            }
+        }
+
+        $sql_result = false;
+        if (isset($options['limit'])) {
+            $l = $options['limit'];
+            $err = false;
+            if (is_array($l) && count($l) == 2) {
+                [ $offset, $limit ] = $l;
+                if (is_int($offset) && is_int($limit) && $offset >= 0 && $limit > 0) {
+                    $sql_result = $dbh->limitquery($sql, $offset, $limit);
+                } else {
+                    $err = true;
+                }
+            } else {
+                $err = true;
+            }
+
+            if ($err) {
+                $msg = "The limit option needs an array parameter of two unsigned integers [offset,limit]; got: ";
+                $msg .= print_r($l, true);
+                throw new \Exception($msg);
+            }
+        } else {
+            $sql_result = $dbh->query($sql);
+        }
 
         if ($sql_result === false || $dbh->is_error()) {
             $logger->error("Database::get ($sql) ERROR: " . $dbh->is_error());
@@ -425,20 +482,16 @@ class Database extends AbstractDatabase
     /**
      * Creates a condition query on a database column to be used in an SQL WHERE clause.
      *
-     * @param string $field Name of the database column.
-     *                      Prefix with ! to invert the condition.
-     *                      Prefix with % to indicate that the value is a pattern to be matched with ILIKE.
-     *                      Prefixes can be combined but must be given in the order listed here.
-     * @param ?string|string[] $value The value to check field for. Can be one of the following:
-     *          - null: Assert that the field is NULL (or not NULL if inverted)
-     *          - string: Assert that the field value matches $value (or does not match value, if inverted)
-     *          - string[]: Assert that the field matches one of the strings in values (or none, if inverted)
+     * @see DbOrCondition For a description on the format of field/value specifiers.
      */
-    private function getConditionQuery(string $field, $value): string
+    private function getConditionQuery(DbOrCondition $orCond): string
     {
         $dbh = $this->dbHandle;
         $invertCondition = false;
         $ilike = false;
+
+        $field = $orCond->fieldSpec;
+        $value = $orCond->valueSpec;
 
         if ($field[0] === "!") {
             $field = substr($field, 1);
@@ -482,33 +535,38 @@ class Database extends AbstractDatabase
     /**
      * Produces the WHERE clause from a $conditions parameter.
      *
-     * @param ?string|(?string|string[])[] $conditions Either an associative array with database column names as keys
-     *                            and their match criterion as value. Or a single string value that will be matched
-     *                            against the id column of the given DB table. Or null to not filter at all.
-     * @return string             The WHERE clause, an empty string if no conditions were given.
-     * @see getConditionQuery()
+     * Normalized, the given $conditions parameter is a list of AND-conditions, i.e. a row must match all the
+     * AND-conditions to be included in the result. Each AND-condition can be either a single condition, or a list of
+     * OR-conditions, i.e. at least one of the OR-conditions must match for the AND-condition be considered a match.
+     * Each individual OR-condition is a two-element array of a field specifier and a value specifier. See
+     * getConditionQuery() for details on the interpretation of the field and value specifiers.
+     *
+     * If conditions is an empty array, no filtering is performed.
+     *
+     * @param string|(?string|string[])[]|DbAndCondition[] $conditions
+     * @return string The WHERE clause, an empty string if no conditions were given.
+     *
+     * @see AbstractDatabase::normalizeConditions() for a description of $conditions
      */
     private function getConditionsQuery($conditions): string
     {
-        $sql = "";
+        $conditions = $this->normalizeConditions($conditions);
 
-        if (isset($conditions)) {
-            if (!is_array($conditions)) {
-                $conditions = [ 'id' => $conditions ];
+        $andCondSql = [];
+        foreach ($conditions as $andCond) {
+            $orCondSql = [];
+            foreach ($andCond->orConditions as $orCond) {
+                $orCondSql[] = $this->getConditionQuery($orCond);
             }
 
-            $conditions_sql = [];
-            foreach ($conditions as $field => $value) {
-                $conditions_sql[] = $this->getConditionQuery($field, $value);
-            }
-
-            if (!empty($conditions_sql)) {
-                $sql .= ' WHERE ';
-                $sql .= implode(' AND ', $conditions_sql);
-            }
+            $andCondSql[] = '(' . implode(') OR (', $orCondSql) . ')';
         }
 
-        return $sql;
+        if (!empty($andCondSql)) {
+            $sql = " WHERE " . implode(' AND ', $andCondSql);
+        }
+
+        return $sql ?? "";
     }
 }
 

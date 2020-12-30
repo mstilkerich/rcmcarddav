@@ -31,6 +31,7 @@ use rcube_result_set;
 use rcube_utils;
 use MStilkerich\CardDavClient\{Account, AddressbookCollection};
 use MStilkerich\CardDavClient\Services\{Discovery, Sync};
+use MStilkerich\CardDavAddressbook4Roundcube\Db\{DbAndCondition,DbOrCondition};
 use carddav;
 
 class Addressbook extends rcube_addressbook
@@ -56,8 +57,8 @@ class Addressbook extends rcube_addressbook
     /** @var string $id database ID of the addressbook */
     private $id;
 
-    /** @var ?string An additional filter to limit contact searches (content: SQL WHERE clause on contacts table) */
-    private $filter;
+    /** @var DbAndCondition[] An additional filter to limit contact searches */
+    private $filter = [];
 
     /** @var string[] $requiredProps A list of addressobject fields that must not be empty, otherwise the addressobject
      *                               will be hidden.
@@ -77,7 +78,7 @@ class Addressbook extends rcube_addressbook
      * attributes that are redundantly stored in the contact table and need
      * not be parsed from the vcard
      */
-    private $table_cols = ['id', 'name', 'email', 'firstname', 'surname'];
+    private $table_cols = ['id', 'name', 'email', 'firstname', 'surname', 'organization'];
 
     public function __construct(
         string $dbid,
@@ -129,7 +130,11 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function set_search_set($filter): void
     {
-        $this->filter = $filter;
+        if (is_array($filter) && (empty($filter) || $filter[0] instanceof DbAndCondition)) {
+            $this->filter = $filter;
+        } else {
+            throw new \Exception(__METHOD__ . " requires a DbAndCondition[] type filter");
+        }
         $this->total_cards = -1;
     }
 
@@ -150,7 +155,7 @@ class Addressbook extends rcube_addressbook
     public function reset(): void
     {
         $this->result = null;
-        $this->filter = null;
+        $this->filter = [];
         $this->total_cards = -1;
     }
 
@@ -196,54 +201,64 @@ class Addressbook extends rcube_addressbook
     /**
      * Search contacts
      *
-     * This function can either perform a simple search, where several fields are matched on whether any of them
-     * contains a specific value, or an advanced search, where several fields are checked to match with individual
-     * values. The distinction is coded into the $value parameter: if it contains a single value only, the list of
-     * fields is matched on whether any of them matches, if $value is an array, each value is matched against the
-     * corresponding index in $fields and all fields must match for an entry to be found.
+     * Depending on the given parameters the search() function operates in different modes (in the order listed):
+     * Mode "Direct ID search" - $fields is either 'ID' or $this->primary_key:
+     *       $values is either: a string of contact IDs separated by self::SEPARATOR (,)
+     *                          an array of contact IDs
+     *       - Any contact with one of the given IDs is returned
+     *       - $mode is ignored in this case
      *
-     * @param mixed   $fields   The field name of array of field names to search in
-     * @param mixed   $value    Search value (or array of values if $fields is array and advanced search shall be done)
-     * @param int     $mode     Matching mode:
-     *                          0 - partial (*abc*),
-     *                          1 - strict (=),
-     *                          2 - prefix (abc*)
-     * @param boolean $select   True if results are requested, False if count only
-     * @param boolean $nocount  True to skip the count query (select only)
-     * @param string|array $required List of fields that cannot be empty
+     * Mode "Advanced search" - $value is an array
+     *       - Each value in $values is the search value for the field in $fields at the same index
+     *       - All fields must match their value to be included in the result ("AND" semantics)
      *
-     * @return object rcube_result_set Contact records and 'count' value
+     * Mode "Search all fields" - $fields is '*' (note: $value is a single string)
+     *       - Any field must match the value to be included in the result ("OR" semantics)
+     *
+     * Mode "Search given fields"
+     *       - Any of the given fields must match the value to be included in the result ("OR" semantics)
+     *
+     * All matching is done case insensitive.
+     *
+     * The search settings are remembered until reset using the reset() function. They can be retrieved using
+     * get_search_set(). The remembered search settings must be considered by list_records() and count().
+     *
+     * The search mode can be set by the admin via the config.inc.php setting addressbook_search_mode, which defaults to
+     * 0. It is used as a bit mask, but the search modes are mostly exclusive; from the roundcube code, I take the
+     * following interpretation:
+     *   bits [1..0] = 0b00: Search all (*abc*)
+     *   bits [1..0] = 0b01: Search strict (case insensitive =)
+     *   bits [1..0] = 0b10: Prefix search (abc*)
+     * The purpose of SEARCH_GROUPS is not clear to me and not considered.
+     *
+     * @param string|string[] $fields Field names to search in
+     * @param string|string[] $value Search value, or array of values, one for each field in $fields
+     * @param int $mode     Search mode. Sum of rcube_addressbook::SEARCH_*.
+     * @param bool $select   True if results are requested, false if count only
+     * @param bool $nocount  True to skip the count query (select only)
+     * @param string|string[] $required Field or list of fields that cannot be empty
+     *
+     * @return rcube_result_set Contact records and 'count' value
      */
-    public function search(
-        $fields,
-        $value,
-        $mode = 0,
-        $select = true,
-        $nocount = false,
-        $required = []
-    ) {
-        $dbh = $this->db->getDbHandle();
+    public function search($fields, $value, $mode = 0, $select = true, $nocount = false, $required = [])
+    {
+        $mode = intval($mode);
 
-        if (!is_array($fields)) {
-            $fields = [$fields];
-        }
         if (!is_array($required)) {
             $required = empty($required) ? [] : [$required];
         }
 
         $this->logger->debug(
             "search("
-            . "[" . implode(", ", $fields) . "], "
-            . (is_array($value) ? "[" . implode(", ", $value) . "]" : $value) . ", "
-            . "$mode, $select, $nocount, "
-            . "[" . implode(", ", $required) . "]"
+            . "FIELDS=[" . (is_array($fields) ? implode(", ", $fields) : $fields) . "], "
+            . "VAL=" . (is_array($value) ? "[" . implode(", ", $value) . "]" : $value) . ", "
+            . "MODE=$mode, SEL=$select, NOCNT=$nocount, "
+            . "REQ=[" . implode(", ", $required) . "]"
             . ")"
         );
 
-        $mode = intval($mode);
-
         // (1) build the SQL WHERE clause for the fields to check against specific values
-        [$whereclause, $post_search] = $this->buildDatabaseSearchFilter($fields, $value, $mode);
+        [$search_conditions, $_post_search] = $this->buildDatabaseSearchFilter($fields, $value, $mode);
 
         // (2) Additionally, the search may request some fields not to be empty.
         // Compute the corresponding search clause and append to the existing one from (1)
@@ -251,91 +266,81 @@ class Addressbook extends rcube_addressbook
         // this is an optional filter configured by the administrator that requires the given fields be not empty
         $required = array_unique(array_merge($required, $this->requiredProps));
 
-        $and_where = [];
         foreach (array_intersect($required, $this->table_cols) as $col) {
-            $and_where[] = $dbh->quote_identifier($col) . ' <> ' . $dbh->quote('');
+            $search_conditions[] = new DbAndCondition(new DbOrCondition("!{$col}", ""));
         }
-
-        if (!empty($and_where)) {
-            $and_whereclause = join(' AND ', $and_where);
-
-            if (empty($whereclause)) {
-                $whereclause = $and_whereclause;
-            } else {
-                $whereclause = "($whereclause) AND $and_whereclause";
-            }
-        }
+//      $required = array_diff($required, $this->table_cols);
 
         // Post-searching in vCard data fields
         // we will search in all records and then build a where clause for their IDs
-        if (!empty($post_search)) {
-            $ids = [0];
-            // build key name regexp
-            $regexp = '/^(' . implode('|', array_keys($post_search)) . ')(?:.*)$/';
-            // use initial WHERE clause, to limit records number if possible
-            if (!empty($whereclause)) {
-                $this->set_search_set($whereclause);
-            }
+//      if (!empty($post_search) || !empty($required)) {
+//          $ids = [0];
+//          // build key name regexp
+//          $regexp = '/^(' . implode('|', array_keys($post_search)) . ')(?:.*)$/';
+//          // use initial WHERE clause, to limit records number if possible
+//          if (!empty($whereclause)) {
+//              $this->set_search_set($whereclause);
+//          }
 
-            // count result pages
-            $cnt   = $this->count();
-            $pages = ceil($cnt / $this->page_size);
-            $scnt  = count($post_search);
+//          // count result pages
+//          $cnt   = $this->count();
+//          $pages = ceil($cnt / $this->page_size);
+//          $scnt  = count($post_search);
 
-            // get (paged) result
-            for ($i = 0; $i < $pages; $i++) {
-                $result = $this->list_records(null, $i, true);
+//          // get (paged) result
+//          for ($i = 0; $i < $pages; $i++) {
+//              $result = $this->list_records(null, $i, true);
 
-                while (
-                    /** @var ?array */
-                    $row = $result->next()
-                ) {
-                    $id = $row[$this->primary_key];
-                    $found = [];
-                    foreach (preg_grep($regexp, array_keys($row)) as $col) {
-                        $pos     = strpos($col, ':');
-                        $colname = $pos ? substr($col, 0, $pos) : $col;
-                        $search  = $post_search[$colname];
-                        foreach ((array)$row[$col] as $value) {
-                            // composite field, e.g. address
-                            foreach ((array)$value as $val) {
-                                $val = mb_strtolower($val);
-                                if ($mode & 1) {
-                                    $got = ($val == $search);
-                                } elseif ($mode & 2) {
-                                    $got = ($search == substr($val, 0, strlen($search)));
-                                } else {
-                                    $got = (strpos($val, $search) !== false);
-                                }
+//              while (
+//                  /** @var ?array */
+//                  $row = $result->next()
+//              ) {
+//                  $id = $row[$this->primary_key];
+//                  $found = [];
+//                  foreach (preg_grep($regexp, array_keys($row)) as $col) {
+//                      $pos     = strpos($col, ':');
+//                      $colname = $pos ? substr($col, 0, $pos) : $col;
+//                      $search  = $post_search[$colname];
+//                      foreach ((array)$row[$col] as $value) {
+//                          // composite field, e.g. address
+//                          foreach ((array)$value as $val) {
+//                              $val = mb_strtolower($val);
+//                              if ($mode & 1) {
+//                                  $got = ($val == $search);
+//                              } elseif ($mode & 2) {
+//                                  $got = ($search == substr($val, 0, strlen($search)));
+//                              } else {
+//                                  $got = (strpos($val, $search) !== false);
+//                              }
 
-                                if ($got) {
-                                    $found[$colname] = true;
-                                    break 2;
-                                }
-                            }
-                        }
-                    }
-                    // all fields match
-                    if (count($found) >= $scnt) {
-                        $ids[] = $id;
-                    }
-                }
-            }
+//                              if ($got) {
+//                                  $found[$colname] = true;
+//                                  break 2;
+//                              }
+//                          }
+//                      }
+//                  }
+//                  // all fields match
+//                  if (count($found) >= $scnt) {
+//                      $ids[] = $id;
+//                  }
+//              }
+//          }
 
             // build WHERE clause
-            $ids = $dbh->array2list($ids, 'integer');
-            $whereclause = $this->primary_key . ' IN (' . $ids . ')';
+//          $ids = $dbh->array2list($ids, 'integer');
+//          $whereclause = $this->primary_key . ' IN (' . $ids . ')';
 
-            // when we know we have an empty result
-            if ($ids == '0') {
-                $this->set_search_set($whereclause);
-                $result = new rcube_result_set(0, 0);
-                $this->result = $result;
-                return $result;
-            }
-        }
+//          // when we know we have an empty result
+//          if ($ids == '0') {
+//              $this->set_search_set($search_conditions);
+//              $result = new rcube_result_set(0, 0);
+//              $this->result = $result;
+//              return $result;
+//          }
+//      }
 
-        $this->set_search_set($whereclause);
+        $this->set_search_set($search_conditions);
         if ($select) {
             $result = $this->list_records(null, 0, $nocount);
         } else {
@@ -383,7 +388,7 @@ class Addressbook extends rcube_addressbook
      * Get a specific contact record
      *
      * @param mixed  $id    Record identifier(s)
-     * @param boolean $assoc True to return record as associative array, otherwise a result set is returned
+     * @param bool $assoc True to return record as associative array, otherwise a result set is returned
      *
      * @return rcube_result_set|array Result object with all record fields
      */
@@ -435,7 +440,7 @@ class Addressbook extends rcube_addressbook
      * @param array $save_data Associative array with save data
      *  Keys:   Field name with optional section in the form FIELD:SECTION
      *  Values: Field value. Can be either a string or an array of strings for multiple values
-     * @param boolean $check True to check for duplicates first
+     * @param bool $check True to check for duplicates first
      *
      * @return string|bool The created record ID on success, False on error
      */
@@ -619,14 +624,6 @@ class Addressbook extends rcube_addressbook
                 $db = $this->db;
                 // check for valid ID with the database - this throws an exception if the group cannot be found
                 $db->lookup(["id" => $gid, "abook_id" => $this->id], "id", "groups");
-
-                $dbh = $db->getDbHandle();
-                $this->set_search_set(
-                    "EXISTS(SELECT * FROM " . $dbh->table_name("carddav_group_user")
-                    . " WHERE group_id='$gid' AND contact_id=" . $dbh->table_name("carddav_contacts") . ".id)"
-                );
-            } else {
-                $this->reset();
             }
 
             $this->group_id = $gid;
@@ -749,7 +746,7 @@ class Addressbook extends rcube_addressbook
      *
      * @param string $group_id Group identifier
      *
-     * @return boolean True on success, false if no data was changed
+     * @return bool True on success, false if no data was changed
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function delete_group($group_id): bool
@@ -1126,75 +1123,66 @@ class Addressbook extends rcube_addressbook
 
     private function listRecordsReadDB(?array $cols, int $subset, rcube_result_set $result): int
     {
-        $dbh = $this->db->getDbHandle();
-
-        // true if we can use DB filtering or no filtering is requested
-        $filter = $this->get_search_set();
-
-        // determine whether we have to parse the vcard or if only db cols are requested
-        $read_vcard = (!isset($cols)) || (count(array_intersect($cols, $this->table_cols)) < count($cols));
-
         // determine result subset needed
         $firstrow = ($subset >= 0) ?
             $result->first : ($result->first + $this->page_size + $subset);
         $numrows  = $subset ? abs($subset) : $this->page_size;
 
-        $this->logger->debug("listRecordsReadDB " . (isset($cols) ? implode(",", $cols) : "ALL") . " $read_vcard");
-
-        $dbattr = $read_vcard ? 'vcard' : 'firstname,surname,email';
-
-        $limit_index = $firstrow;
-        $limit_rows  = $numrows;
-
-        $xfrom = '';
-        $xwhere = '';
-        if ($this->group_id) {
-            $xfrom = ',' . $dbh->table_name('carddav_group_user');
-            $xwhere = ' AND id=contact_id AND group_id=' . $dbh->quote($this->group_id) . ' ';
+        // determine whether we have to parse the vcard or if only db cols are requested
+        if (isset($cols)) {
+            if (count(array_intersect($cols, $this->table_cols)) < count($cols)) {
+                $dbattr = 'vcard';
+            } else {
+                $dbattr = implode(",", $cols);
+            }
+        } else {
+            $dbattr = 'vcard';
         }
 
-        foreach (array_intersect($this->requiredProps, $this->table_cols) as $col) {
-            $xwhere .= " AND $col <> " . $dbh->quote('') . " ";
+        $sort_column = $this->sort_col;
+        if ($this->sort_order == "DESC") {
+            $sort_column = "!$sort_column";
         }
 
-        $sort_column = $this->sort_col ? $this->sort_col : 'surname';
-        $sort_order  = $this->sort_order ? $this->sort_order : 'ASC';
-
-        $sql_result = $dbh->limitquery(
-            "SELECT id,name,$dbattr FROM " .
-            $dbh->table_name('carddav_contacts') . $xfrom .
-            ' WHERE abook_id=? ' . $xwhere .
-            ($filter ? " AND (" . $filter . ")" : "") .
-            " ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $sort_column . " END) "
-            . $sort_order,
-            $limit_index,
-            $limit_rows,
-            $this->id
+        $this->logger->debug("listRecordsReadDB $dbattr [$firstrow, $numrows] ORD($sort_column)");
+        $contacts = $this->db->get(
+            $this->currentFilterConditions(),
+            "id,name,$dbattr",
+            'contacts',
+            [
+                'limit' => [ $firstrow, $numrows ],
+                'order' => [ $sort_column ]
+            ]
         );
 
+        // FIXME ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $sort_column . " END)
+
         $addresses = [];
-        while ($contact = $dbh->fetch_assoc($sql_result)) {
-            if ($read_vcard) {
+        $dc = $this->dataConverter;
+        foreach ($contacts as $contact) {
+            if (isset($contact['vcard'])) {
                 try {
                     $vcf = $this->parseVCard($contact['vcard']);
                     $davAbook = $this->getCardDavObj();
-                    $save_data = $this->dataConverter->toRoundcube($vcf, $davAbook);
+                    $save_data = $dc->toRoundcube($vcf, $davAbook);
                 } catch (\Exception $e) {
                     $this->logger->warning("Couldn't parse vcard " . $contact['vcard']);
                     continue;
                 }
-            } else {
+            } elseif (isset($cols)) { // NOTE always true at this point, but difficult to know for psalm
                 $save_data = [];
-                $cols = $cols ?? []; // note: $cols is always an array at this point, this is for the static analyzer
                 foreach ($cols as $col) {
-                    if (strcmp($col, 'email') == 0) {
-                        $save_data[$col] = preg_split('/,\s*/', $contact[$col]);
+                    if ($dc->isMultivalueProperty($col)) {
+                        $save_data[$col] = explode(AbstractDatabase::MULTIVAL_SEP, $contact[$col]);
                     } else {
                         $save_data[$col] = $contact[$col];
                     }
                 }
             }
-            $addresses[] = ['ID' => $contact['id'], 'name' => $contact['name'], 'save_data' => $save_data];
+
+            if (isset($save_data)) {
+                $addresses[] = ['ID' => $contact['id'], 'name' => $contact['name'], 'save_data' => $save_data];
+            }
         }
 
         // create results for roundcube
@@ -1207,97 +1195,108 @@ class Addressbook extends rcube_addressbook
     }
 
     /**
-     * This function builds an array of search criteria (SQL WHERE clauses) for matching the requested
+     * This function builds an array of search criteria for the Database search for matching the requested
      * contact search fields against fields of the carddav_contacts table according to the given search $mode.
      *
      * Only some fields are contained as individual columns in the carddav_contacts table, as indicated by
      * $this->table_cols. The remaining fields need to be searched for in the VCards, which are a single column in the
-     * database. Therefore, the SQL filter can only match against the VCard in its entirety, but will not check if the
-     * correct property of the VCard contained the value. Thus, if such search fields are queried, the SQL result needs
+     * database. Therefore, the database search can only match against the entire VCard, but will not check if the
+     * correct property of the VCard contained the value. Thus, if such search fields are queried, the DB result needs
      * to be post-filtered with a check for these particular fields against the VCard properties.
      *
      * This function returns two values in an indexed array:
-     *   index 0: A string containing the WHERE clause for the SQL part of the search
+     *   index 0: An array of conditions for use with the AbstractDatabase::get() function.
      *   index 1: An associative array (fieldname => search value), listing the search fields that need to be checked
      *            in the VCard properties
      *
-     * @param mixed   $fields   The field name of array of field names to search in
-     * @param mixed   $value    Search value (or array of values if $fields is array and advanced search shall be done)
-     * @param int     $mode     Matching mode, see search()
+     * @param string|string[] $fields Field names to search in
+     * @param string|string[] $value Search value, or array of values, one for each field in $fields
+     * @param int $mode Matching mode, see Addressbook::search() for extended description.
      */
-    private function buildDatabaseSearchFilter($fields, $value, $mode): array
+    private function buildDatabaseSearchFilter($fields, $value, int $mode): array
     {
-        $dbh = $this->db->getDbHandle();
-        $WS = ' ';
-        $AS = self::SEPARATOR;
-
-        $where = [];
+        /** @var DbAndCondition[] */
+        $conditions = [];
         $post_search = [];
 
-        foreach ($fields as $idx => $col) {
+        if (($fields == "ID") || ($fields == $this->primary_key)) {
             // direct ID search
-            if ($col == 'ID' || $col == $this->primary_key) {
-                $ids     = !is_array($value) ? explode(self::SEPARATOR, $value) : $value;
-                $ids     = $dbh->array2list($ids, 'integer');
-                $where[] = $this->primary_key . ' IN (' . $ids . ')';
-                continue;
-            }
-
-            $val = is_array($value) ? $value[$idx] : $value;
-
-            if (in_array($col, $this->table_cols)) { // table column
-                if ($mode & 1) {
-                    // strict
-                    $where[] =
-                        // exact match 'name@domain.com'
-                        '(' . $dbh->ilike($col, $val)
-                        // line beginning match 'name@domain.com,%'
-                        . ' OR ' . $dbh->ilike($col, $val . $AS . '%')
-                        // middle match '%, name@domain.com,%'
-                        . ' OR ' . $dbh->ilike($col, '%' . $AS . $WS . $val . $AS . '%')
-                        // line end match '%, name@domain.com'
-                        . ' OR ' . $dbh->ilike($col, '%' . $AS . $WS . $val) . ')';
-                } elseif ($mode & 2) {
-                    // prefix
-                    $where[] = '(' . $dbh->ilike($col, $val . '%')
-                        . ' OR ' . $dbh->ilike($col, $AS . $WS . $val . '%') . ')';
-                } else {
-                    // partial
-                    $where[] = $dbh->ilike($col, '%' . $val . '%');
+            $ids     = is_array($value) ? $value : explode(self::SEPARATOR, $value);
+            return [ new DbAndCondition(new DbOrCondition($this->primary_key, $ids)) ];
+        } elseif (is_array($value)) {
+            // Advanced search
+            foreach ((array) $fields as $idx => $col) {
+                // the value to check this field for
+                $fValue = $value[$idx];
+                if (empty($fValue)) {
+                    continue;
                 }
-            } else { // vCard field
-                $words = [];
-                /** @var string $search_val second parameter asks normalize_string to return a string */
-                $search_val = rcube_utils::normalize_string($val, false);
-                foreach (explode(" ", $search_val) as $word) {
-                    if ($mode & 1) {
-                        // strict
-                        $words[] = '(' . $dbh->ilike('vcard', $word . $WS . '%')
-                            . ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word . $WS . '%')
-                            . ' OR ' . $dbh->ilike('vcard', '%' . $AS . $WS . $word) . ')';
-                    } elseif ($mode & 2) {
-                        // prefix
-                        $words[] = '(' . $dbh->ilike('vcard', $word . '%')
-                            . ' OR ' . $dbh->ilike('vcard', $AS . $WS . $word . '%') . ')';
-                    } else {
-                        // partial
-                        $words[] = $dbh->ilike('vcard', '%' . $word . '%');
+
+                if (in_array($col, $this->table_cols)) { // table column
+                    $conditions[] = $this->rcSearchCondition($mode, $col, $fValue);
+                } else { // vCard field
+                    $conditions[] = $this->rcSearchCondition(rcube_addressbook::SEARCH_ALL, 'vcard', $fValue);
+                    $post_search[] = [$col, mb_strtolower($fValue), $mode];
+                }
+            }
+        } elseif ($fields == '*') {
+            // search all fields
+            $conditions[] = $this->rcSearchCondition(rcube_addressbook::SEARCH_ALL, 'vcard', $value);
+            $post_search[] = ['*', mb_strtolower($value), $mode];
+        } else {
+            $andCond = new DbAndCondition();
+            $hadVCard = false;
+
+            // search given fields
+            foreach ((array) $fields as $col) {
+                if (in_array($col, $this->table_cols)) { // table column
+                    $andCond->append($this->rcSearchCondition($mode, $col, $value));
+                } else { // vCard field
+                    if ($hadVCard == false) {
+                        $hadVCard = true;
+                        $andCond->append($this->rcSearchCondition(rcube_addressbook::SEARCH_ALL, 'vcard', $value));
                     }
-                }
-                $where[] = '(' . join(' AND ', $words) . ')';
-                if (is_array($value)) {
-                    $post_search[$col] = mb_strtolower($val);
+                    $post_search[] = [$col, mb_strtolower($value), $mode];
                 }
             }
+
+            $conditions[] = $andCond;
         }
 
+        return [$conditions, $post_search];
+    }
 
-        $whereclause = "";
-        if (!empty($where)) {
-            // use AND operator for advanced searches
-            $whereclause = join(is_array($value) ? ' AND ' : ' OR ', $where);
+    /**
+     * Produces a DbAndCondition resembling a roundcube search condition passed to the search() function.
+     *
+     * @param int $mode The search mode as given to search()
+     * @param string $col The database column so search in
+     * @param string $val The value to match for, according to the search mode
+     */
+    private function rcSearchCondition(int $mode, string $col, string $val): DbAndCondition
+    {
+        $cond = new DbAndCondition();
+        $multi = (($col == "vcard") ? false : $this->dataConverter->isMultivalueProperty($col));
+        $SEP = AbstractDatabase::MULTIVAL_SEP;
+
+        if ($mode & rcube_addressbook::SEARCH_STRICT) { // exact match
+            $cond->add("%{$col}", $val);
+
+            if ($multi) {
+                $cond->add("%{$col}", "{$val}{$SEP}%")        // line beginning match 'name@domain.com, %'
+                     ->add("%{$col}", "%{$SEP}{$val}{$SEP}%") // middle match '%, name@domain.com, %'
+                     ->add("%{$col}", "%{$SEP}{$val}");       // line end match '%, name@domain.com'
+            }
+        } elseif ($mode & rcube_addressbook::SEARCH_PREFIX) { // prefix match (abc*)
+            $cond->add("%{$col}", "{$val}%");
+            if ($multi) {
+                $cond->add("%{$col}", "%{$SEP}{$val}%"); // middle/end match '%, name%'
+            }
+        } else { // "contains" match (*abc*)
+            $cond->add("%{$col}", "%{$val}%");
         }
-        return [$whereclause, $post_search];
+
+        return $cond;
     }
 
     /**
@@ -1305,24 +1304,17 @@ class Addressbook extends rcube_addressbook
      */
     private function doCount(): int
     {
-        $dbh = $this->db->getDbHandle();
-
         if ($this->total_cards < 0) {
-            $sql_result = $dbh->query(
-                'SELECT COUNT(id) as total_cards FROM ' .
-                $dbh->table_name('carddav_contacts') .
-                ' WHERE abook_id=?' .
-                ($this->filter ? " AND (" . $this->filter . ")" : ""),
-                $this->id
+            [$result] = $this->db->get(
+                $this->currentFilterConditions(),
+                '*',
+                'contacts',
+                [ 'count' => true ]
             );
 
-            $resultrow = $dbh->fetch_assoc($sql_result);
-            if ($resultrow !== false) {
-                $this->total_cards = $resultrow['total_cards'];
-            } else {
-                $this->total_cards = -1;
-            }
+            $this->total_cards = $result['*'];
         }
+
         return $this->total_cards;
     }
 
@@ -1447,6 +1439,30 @@ class Addressbook extends rcube_addressbook
                 $davAbook->updateCard($contact['uri'], $vcard, $contact['etag']);
             }
         }
+    }
+
+    /**
+     * Determines the AbstractDatabase::get() contact filter conditions.
+     *
+     * It must consider:
+     *   - Always constrain list to current addressbook
+     *   - The required non-empty fields configured by the admin ($this->requiredProps)
+     *   - A search filter set by roundcube ($this->filter)
+     *   - TODO A currenty selected group ($this->group_id)
+     *
+     * @return DbAndCondition[]
+     */
+    private function currentFilterConditions(): array
+    {
+        $conditions = $this->filter;
+        $conditions[] = new DbAndCondition(new DbOrCondition("abook_id", $this->id));
+        foreach (array_intersect($this->requiredProps, $this->table_cols) as $col) {
+            $conditions[] = new DbAndCondition(new DbOrCondition("!{$col}", ""));
+            $conditions[] = new DbAndCondition(new DbOrCondition("!{$col}", null));
+        }
+
+        // TODO filter contacts belonging to $this->group_id; NOTE must be integrated in SQL query so that limit works
+        return $conditions;
     }
 }
 
