@@ -258,7 +258,8 @@ class Addressbook extends rcube_addressbook
         );
 
         // (1) build the SQL WHERE clause for the fields to check against specific values
-        [$search_conditions, $_post_search] = $this->buildDatabaseSearchFilter($fields, $value, $mode);
+        ['filter' => $filter, 'postSearchMode' => $allMustMatch, 'postSearchFilter' => $postSearchFilter] =
+            $this->buildDatabaseSearchFilter($fields, $value, $mode);
 
         // (2) Additionally, the search may request some fields not to be empty.
         // Compute the corresponding search clause and append to the existing one from (1)
@@ -267,80 +268,40 @@ class Addressbook extends rcube_addressbook
         $required = array_unique(array_merge($required, $this->requiredProps));
 
         foreach (array_intersect($required, $this->table_cols) as $col) {
-            $search_conditions[] = new DbAndCondition(new DbOrCondition("!{$col}", ""));
+            $filter[] = new DbAndCondition(new DbOrCondition("!{$col}", ""));
         }
-//      $required = array_diff($required, $this->table_cols);
+        $required = array_diff($required, $this->table_cols);
 
         // Post-searching in vCard data fields
         // we will search in all records and then build a where clause for their IDs
-//      if (!empty($post_search) || !empty($required)) {
-//          $ids = [0];
-//          // build key name regexp
-//          $regexp = '/^(' . implode('|', array_keys($post_search)) . ')(?:.*)$/';
-//          // use initial WHERE clause, to limit records number if possible
-//          if (!empty($whereclause)) {
-//              $this->set_search_set($whereclause);
-//          }
+        if (!empty($postSearchFilter) || !empty($required)) {
+            $ids = [ "0" ]; // 0 is never a valid ID
+            // use initial filter to limit records number if possible
+            $this->set_search_set($filter);
 
-//          // count result pages
-//          $cnt   = $this->count();
-//          $pages = ceil($cnt / $this->page_size);
-//          $scnt  = count($post_search);
+            $result = $this->list_records();
 
-//          // get (paged) result
-//          for ($i = 0; $i < $pages; $i++) {
-//              $result = $this->list_records(null, $i, true);
+            while (
+                /** @var ?string[] $save_data */
+                $save_data = $result->next()
+            ) {
+                if ($this->checkPostSearchFilter($save_data, $required, $allMustMatch, $postSearchFilter, $mode)) {
+                    $ids[] = $save_data["ID"];
+                }
+            }
 
-//              while (
-//                  /** @var ?array */
-//                  $row = $result->next()
-//              ) {
-//                  $id = $row[$this->primary_key];
-//                  $found = [];
-//                  foreach (preg_grep($regexp, array_keys($row)) as $col) {
-//                      $pos     = strpos($col, ':');
-//                      $colname = $pos ? substr($col, 0, $pos) : $col;
-//                      $search  = $post_search[$colname];
-//                      foreach ((array)$row[$col] as $value) {
-//                          // composite field, e.g. address
-//                          foreach ((array)$value as $val) {
-//                              $val = mb_strtolower($val);
-//                              if ($mode & 1) {
-//                                  $got = ($val == $search);
-//                              } elseif ($mode & 2) {
-//                                  $got = ($search == substr($val, 0, strlen($search)));
-//                              } else {
-//                                  $got = (strpos($val, $search) !== false);
-//                              }
+            $filter = [ new DbAndCondition(new DbOrCondition($this->primary_key, $ids)) ];
 
-//                              if ($got) {
-//                                  $found[$colname] = true;
-//                                  break 2;
-//                              }
-//                          }
-//                      }
-//                  }
-//                  // all fields match
-//                  if (count($found) >= $scnt) {
-//                      $ids[] = $id;
-//                  }
-//              }
-//          }
+            // when we know we have an empty result
+            if (count($ids) < 2) {
+                $this->set_search_set($filter);
+                $result = new rcube_result_set(0, 0);
+                $this->result = $result;
+                return $result;
+            }
+        }
 
-            // build WHERE clause
-//          $ids = $dbh->array2list($ids, 'integer');
-//          $whereclause = $this->primary_key . ' IN (' . $ids . ')';
-
-//          // when we know we have an empty result
-//          if ($ids == '0') {
-//              $this->set_search_set($search_conditions);
-//              $result = new rcube_result_set(0, 0);
-//              $this->result = $result;
-//              return $result;
-//          }
-//      }
-
-        $this->set_search_set($search_conditions);
+        $this->set_search_set($filter);
         if ($select) {
             $result = $this->list_records(null, 0, $nocount);
         } else {
@@ -1156,8 +1117,8 @@ class Addressbook extends rcube_addressbook
 
         // FIXME ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $sort_column . " END)
 
-        $addresses = [];
         $dc = $this->dataConverter;
+        $resultCount = 0;
         foreach ($contacts as $contact) {
             if (isset($contact['vcard'])) {
                 try {
@@ -1180,17 +1141,13 @@ class Addressbook extends rcube_addressbook
             }
 
             if (isset($save_data)) {
-                $addresses[] = ['ID' => $contact['id'], 'name' => $contact['name'], 'save_data' => $save_data];
+                $save_data['ID'] = $contact['id'];
+                ++$resultCount;
+                $result->add($save_data);
             }
         }
 
-        // create results for roundcube
-        foreach ($addresses as $a) {
-            $a['save_data']['ID'] = $a['ID'];
-            $result->add($a['save_data']);
-        }
-
-        return count($addresses);
+        return $resultCount;
     }
 
     /**
@@ -1203,10 +1160,10 @@ class Addressbook extends rcube_addressbook
      * correct property of the VCard contained the value. Thus, if such search fields are queried, the DB result needs
      * to be post-filtered with a check for these particular fields against the VCard properties.
      *
-     * This function returns two values in an indexed array:
-     *   index 0: An array of conditions for use with the AbstractDatabase::get() function.
-     *   index 1: An associative array (fieldname => search value), listing the search fields that need to be checked
-     *            in the VCard properties
+     * This function returns two values in an associative array with entries:
+     *   "filter": An array of DbAndCondition for use with the AbstractDatabase::get() function.
+     *   "postSearchMode": true if all conditions must match ("AND"), false if a single match is sufficient ("OR")
+     *   "postSearchFilter": An array of two-element arrays, each with: [ column name, lower-cased search value ]
      *
      * @param string|string[] $fields Field names to search in
      * @param string|string[] $value Search value, or array of values, one for each field in $fields
@@ -1216,13 +1173,16 @@ class Addressbook extends rcube_addressbook
     {
         /** @var DbAndCondition[] */
         $conditions = [];
-        $post_search = [];
+        $postSearchMode = false;
+        $postSearchFilter = [];
 
         if (($fields == "ID") || ($fields == $this->primary_key)) {
             // direct ID search
             $ids     = is_array($value) ? $value : explode(self::SEPARATOR, $value);
-            return [ new DbAndCondition(new DbOrCondition($this->primary_key, $ids)) ];
+            $conditions[] = new DbAndCondition(new DbOrCondition($this->primary_key, $ids));
         } elseif (is_array($value)) {
+            $postSearchMode = true;
+
             // Advanced search
             foreach ((array) $fields as $idx => $col) {
                 // the value to check this field for
@@ -1235,34 +1195,30 @@ class Addressbook extends rcube_addressbook
                     $conditions[] = $this->rcSearchCondition($mode, $col, $fValue);
                 } else { // vCard field
                     $conditions[] = $this->rcSearchCondition(rcube_addressbook::SEARCH_ALL, 'vcard', $fValue);
-                    $post_search[] = [$col, mb_strtolower($fValue), $mode];
+                    $postSearchFilter[] = [$col, mb_strtolower($fValue)];
                 }
             }
         } elseif ($fields == '*') {
             // search all fields
             $conditions[] = $this->rcSearchCondition(rcube_addressbook::SEARCH_ALL, 'vcard', $value);
-            $post_search[] = ['*', mb_strtolower($value), $mode];
+            $postSearchFilter[] = ['*', mb_strtolower($value)];
         } else {
             $andCond = new DbAndCondition();
-            $hadVCard = false;
 
             // search given fields
             foreach ((array) $fields as $col) {
                 if (in_array($col, $this->table_cols)) { // table column
                     $andCond->append($this->rcSearchCondition($mode, $col, $value));
                 } else { // vCard field
-                    if ($hadVCard == false) {
-                        $hadVCard = true;
-                        $andCond->append($this->rcSearchCondition(rcube_addressbook::SEARCH_ALL, 'vcard', $value));
-                    }
-                    $post_search[] = [$col, mb_strtolower($value), $mode];
+                    $andCond->append($this->rcSearchCondition(rcube_addressbook::SEARCH_ALL, 'vcard', $value));
+                    $postSearchFilter[] = [$col, mb_strtolower($value)];
                 }
             }
 
             $conditions[] = $andCond;
         }
 
-        return [$conditions, $post_search];
+        return ['filter' => $conditions, 'postSearchMode' => $postSearchMode, 'postSearchFilter' => $postSearchFilter];
     }
 
     /**
@@ -1470,6 +1426,82 @@ class Addressbook extends rcube_addressbook
         }
 
         return $conditions;
+    }
+
+    /**
+     * Checks the post-filter conditions on a contact.
+     *
+     * Background: Some search conditions cannot be reliably filtered using the database query. This is the case if the
+     * searched contact attribute is not stored as a separate database column but only found inside the vcard. In this
+     * case, we will perform a prefiltering in the database query only to check if the vcard as a whole matches the
+     * search condition, but post filtering is needed to check whether the match actually occurs in the correct
+     * attribute.
+     *
+     * This function checks these post filter condition on a single contact that was provided by the database after
+     * pre-filtering using the database query.
+     *
+     * @param string[] $save_data The contact data to check
+     * @param string[] $required A list of contact attributes that must not be empty
+     * @param bool $allMustMatch Indicates if all post filter conditions must match, or if a single match is sufficient.
+     * @param string[][] $postSearchFilter The post filter conditions as pairs of attribute name and match value
+     * @param int $mode The roundcube search mode.
+     *
+     * @see search()
+     */
+    private function checkPostSearchFilter(
+        array $save_data,
+        array $required,
+        bool $allMustMatch,
+        array $postSearchFilter,
+        int $mode
+    ): bool {
+        // normalize the attributes with subtype (e.g. email:home) to the generic attribute (e.g. email)
+        foreach (array_keys($save_data) as $attr) {
+            $colonPos = strpos($attr, ':');
+            if ($colonPos !== false) {
+                $genAttr = substr($attr, 0, $colonPos);
+                if (isset($save_data[$genAttr])) {
+                    $save_data[$genAttr] = array_merge((array) $save_data[$genAttr], (array) $save_data[$attr]);
+                } else {
+                    $save_data[$genAttr] = (array) $save_data[$attr];
+                }
+
+                unset($save_data[$attr]);
+            }
+        }
+
+        // check that all the required fields are not empty
+        foreach ($required as $requiredField) {
+            if (!isset($save_data[$requiredField]) || $save_data[$requiredField] == "") {
+                return false;
+            }
+        }
+
+        $contactMatches = true;
+        foreach ($postSearchFilter as $psfilter) {
+            [ $col, $val ] = $psfilter;
+            $psFilterMatched = false;
+
+            if ($col == '*') { // any contact attribute must match $val
+                foreach ($save_data as $k => $v) {
+                    if ($this->compare_search_value($k, $v, $val, $mode)) {
+                        $psFilterMatched = true;
+                        break;
+                    }
+                }
+            } else {
+                $psFilterMatched = $this->compare_search_value($col, $save_data[$col], $val, $mode);
+            }
+
+            if (!$allMustMatch && $psFilterMatched) {
+                break; // single post filter match is sufficient -> done
+            } elseif ($allMustMatch && !$psFilterMatched) {
+                $contactMatches = false; // single post filter match failure suffices -> abort
+                break;
+            }
+        }
+
+        return $contactMatches;
     }
 }
 
