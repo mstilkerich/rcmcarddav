@@ -563,7 +563,7 @@ class Database extends AbstractDatabase
         }
 
         if (!empty($andCondSql)) {
-            $sql = " WHERE " . implode(' AND ', $andCondSql);
+            $sql = " WHERE (" . implode(') AND (', $andCondSql) . ')';
         }
 
         return $sql ?? "";
