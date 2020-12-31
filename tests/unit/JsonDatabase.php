@@ -7,8 +7,7 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
 use rcube_db;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
-use MStilkerich\CardDavAddressbook4Roundcube\AbstractDatabase;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\{DbAndCondition,DbOrCondition};
+use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
 
 /**
  * Implementation of the database access interface to the roundcube DB for unit tests.

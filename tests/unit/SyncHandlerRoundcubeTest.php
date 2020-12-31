@@ -10,7 +10,8 @@ use Sabre\VObject\Component\VCard;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavClient\AddressbookCollection;
-use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook,AbstractDatabase,DataConversion,SyncHandlerRoundcube};
+use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook,DataConversion,SyncHandlerRoundcube};
+use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 final class SyncHandlerRoundcubeTest extends TestCase
 {

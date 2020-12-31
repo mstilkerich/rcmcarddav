@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
-use MStilkerich\CardDavAddressbook4Roundcube\AbstractDatabase;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use PHPUnit\Framework\TestCase;
 
 final class TestData

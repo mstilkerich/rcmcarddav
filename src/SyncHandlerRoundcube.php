@@ -12,6 +12,7 @@ use Psr\Log\LoggerInterface;
 use Sabre\VObject\Component\VCard;
 use MStilkerich\CardDavClient\AddressbookCollection;
 use MStilkerich\CardDavClient\Services\SyncHandler;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use carddav;
 
 class SyncHandlerRoundcube implements SyncHandler

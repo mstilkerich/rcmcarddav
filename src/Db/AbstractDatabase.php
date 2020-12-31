@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube;
+namespace MStilkerich\CardDavAddressbook4Roundcube\Db;
 
 use rcube_db;
 use Psr\Log\LoggerInterface;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\{DbAndCondition,DbOrCondition};
 
 /**
  * Access interface for the roundcube database.

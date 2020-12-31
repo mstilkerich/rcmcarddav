@@ -10,7 +10,8 @@ use Sabre\VObject\Component\VCard;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavClient\{Account,AddressbookCollection};
-use MStilkerich\CardDavAddressbook4Roundcube\{Database,DataConversion,DelayedPhotoLoader};
+use MStilkerich\CardDavAddressbook4Roundcube\{DataConversion,DelayedPhotoLoader};
+use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
 
 final class DataConversionTest extends TestCase
 {

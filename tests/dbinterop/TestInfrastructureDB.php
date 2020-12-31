@@ -6,7 +6,7 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
 use Psr\Log\LoggerInterface;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
-use MStilkerich\CardDavAddressbook4Roundcube\{Database,AbstractDatabase};
+use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database,AbstractDatabase};
 
 final class TestInfrastructureDB
 {

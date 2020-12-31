@@ -23,7 +23,8 @@
 use MStilkerich\CardDavClient\{Account, Config};
 use MStilkerich\CardDavClient\Services\Discovery;
 use Psr\Log\LoggerInterface;
-use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Database, AbstractDatabase, RoundcubeLogger};
+use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, RoundcubeLogger};
+use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
 
 // phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
 class carddav extends rcube_plugin

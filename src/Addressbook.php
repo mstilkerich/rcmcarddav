@@ -31,7 +31,7 @@ use rcube_result_set;
 use rcube_utils;
 use MStilkerich\CardDavClient\{Account, AddressbookCollection};
 use MStilkerich\CardDavClient\Services\{Discovery, Sync};
-use MStilkerich\CardDavAddressbook4Roundcube\Db\{DbAndCondition,DbOrCondition};
+use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
 use carddav;
 
 class Addressbook extends rcube_addressbook

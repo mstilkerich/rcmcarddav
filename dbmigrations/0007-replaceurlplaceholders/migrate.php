@@ -8,7 +8,7 @@ use rcmail;
 use rcube_db;
 use carddav;
 use Psr\Log\LoggerInterface;
-use MStilkerich\CardDavAddressbook4Roundcube\DBMigrationInterface;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\DBMigrationInterface;
 
 /**
  * Replaces all placeholder in the URL fields of addressbooks in the database.

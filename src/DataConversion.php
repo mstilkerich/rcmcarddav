@@ -6,6 +6,7 @@ use Psr\Log\LoggerInterface;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use MStilkerich\CardDavClient\AddressbookCollection;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use carddav;
 use rcube_utils;
 
