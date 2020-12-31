@@ -425,6 +425,7 @@ class Database extends AbstractDatabase
         }
 
         $sql_result = false;
+        $logger->debug("internalGet query: $sql");
         if (isset($options['limit'])) {
             $l = $options['limit'];
             $err = false;

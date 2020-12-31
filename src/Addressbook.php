@@ -358,13 +358,12 @@ class Addressbook extends rcube_addressbook
      */
     public function count(): rcube_result_set
     {
-        $this->logger->debug("count()");
-
         try {
             if ($this->total_cards < 0) {
                 $this->doCount();
             }
 
+            $this->logger->debug("count() => {$this->total_cards}");
             return new rcube_result_set($this->total_cards, ($this->list_page - 1) * $this->page_size);
         } catch (\Exception $e) {
             $this->logger->error(__METHOD__ . " exception: " . $e->getMessage());
@@ -1448,7 +1447,7 @@ class Addressbook extends rcube_addressbook
      *   - Always constrain list to current addressbook
      *   - The required non-empty fields configured by the admin ($this->requiredProps)
      *   - A search filter set by roundcube ($this->filter)
-     *   - TODO A currenty selected group ($this->group_id)
+     *   - A currenty selected group ($this->group_id)
      *
      * @return DbAndCondition[]
      */
@@ -1461,7 +1460,15 @@ class Addressbook extends rcube_addressbook
             $conditions[] = new DbAndCondition(new DbOrCondition("!{$col}", null));
         }
 
-        // TODO filter contacts belonging to $this->group_id; NOTE must be integrated in SQL query so that limit works
+        // TODO Better if we could handle this without a separate SQL query here, but requires join or subquery
+        if ($this->group_id) {
+            $contactsInGroup = array_column(
+                $this->db->get(['group_id' => $this->group_id], 'contact_id', 'group_user'),
+                'contact_id'
+            );
+            $conditions[] = new DbAndCondition(new DbOrCondition("id", $contactsInGroup));
+        }
+
         return $conditions;
     }
 }
