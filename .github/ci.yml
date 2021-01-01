@@ -1,0 +1,27 @@
+name: CI
+
+on:
+    push:
+        branches:
+            - v4.1
+
+jobs:
+  buildtest:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout roundcubemail
+      uses: actions/checkout@v2
+      with:
+        path: roundcubemail
+        repository: roundcube/roundcubemail
+    - name: Checkout rcmcarddav
+      uses: actions/checkout@v2
+      with:
+        path: rcmcarddav
+    - name: Install dependencies
+      uses: php-actions/composer@v5
+    - name: Run unit tests
+      uses: php-actions/phpunit@v2
+      with:
+        configuration: tests/unit/phpunit.xml
