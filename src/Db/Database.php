@@ -15,9 +15,6 @@ use Psr\Log\LoggerInterface;
  * purpose of this is to set a ground for testing, where the actual access to the database (this class) could be
  * replaced by mocks. The methods of this class should be able to satisfy all query needs of the plugin without the need
  * to have SQL queries directly inside the plugin, as these would be difficult to parse in a test mock.
- *
- * @todo At the moment, this class is just a container for the already existing methods and only partially fulfills its
- *   purpose stated above.
  */
 class Database extends AbstractDatabase
 {
@@ -42,11 +39,6 @@ class Database extends AbstractDatabase
     {
         $this->logger   = $logger;
         $this->dbHandle = $dbh;
-    }
-
-    public function getDbHandle(): rcube_db
-    {
-        return $this->dbHandle;
     }
 
     public function startTransaction(bool $readonly = true): void

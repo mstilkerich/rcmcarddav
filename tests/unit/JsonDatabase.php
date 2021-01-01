@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
 
-use rcube_db;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
@@ -107,11 +106,6 @@ class JsonDatabase extends AbstractDatabase
                 $this->insert($table, $cols, [$vals]);
             }
         }
-    }
-
-    public function getDbHandle(): rcube_db
-    {
-        throw new \Exception("getDbHandle() is not implemented - adapt the tested class to not use it");
     }
 
     /**

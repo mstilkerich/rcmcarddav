@@ -118,10 +118,10 @@ final class TestData
      * It initializes all tables listed in self::$tables in the given order. Table data is cleared in reverse order
      * listed before inserting of data is started.
      */
-    public static function initDatabase(AbstractDatabase $db): void
+    public static function initDatabase(): void
     {
         self::$data = self::INITDATA;
-        $dbh = $db->getDbHandle();
+        $dbh = TestInfrastructureDB::getDbHandle();
 
         foreach (array_column(array_reverse(self::$tables), 0) as $tbl) {
             $dbh->query("DELETE FROM " . $dbh->table_name($tbl));
@@ -133,14 +133,14 @@ final class TestData
             TestCase::assertArrayHasKey($tbl, self::$data, "No init data for table $tbl");
 
             foreach (self::$data[$tbl] as &$row) {
-                $row["id"] = self::insertRow($db, $tbl, $cols, $row);
+                $row["id"] = self::insertRow($tbl, $cols, $row);
             }
         }
     }
 
-    public static function insertRow(AbstractDatabase $db, string $tbl, array $cols, array &$row): string
+    public static function insertRow(string $tbl, array $cols, array &$row): string
     {
-        $dbh = $db->getDbHandle();
+        $dbh = TestInfrastructureDB::getDbHandle();
         $cols = array_map([$dbh, "quote_identifier"], $cols);
         TestCase::assertCount(count($cols), $row, "Column count mismatch of $tbl row " . print_r($row, true));
 

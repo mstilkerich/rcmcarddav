@@ -21,7 +21,7 @@ final class CarddavTest extends TestCase
         $db_dsnw = $dbsettings[0];
         $db = TestInfrastructureDB::initDatabase($db_dsnw);
 
-        TestData::initDatabase($db);
+        TestData::initDatabase();
 
         /** @var \Psr\Log\LoggerInterface */
         $logger = TestInfrastructure::$logger;

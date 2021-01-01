@@ -20,7 +20,7 @@ final class DatabaseCollationsTest extends TestCase
         $dbsettings = TestInfrastructureDB::dbSettings();
         $db_dsnw = $dbsettings[0];
         self::$db = TestInfrastructureDB::initDatabase($db_dsnw);
-        TestData::initDatabase(self::$db);
+        TestData::initDatabase();
     }
 
     public function setUp(): void
@@ -131,7 +131,7 @@ final class DatabaseCollationsTest extends TestCase
             $tblshort = preg_replace('/^carddav_/', '', $tbl);
             $this->assertNotNull($tblshort);
 
-            TestData::insertRow($db, $tbl, $cols, $row);
+            TestData::insertRow($tbl, $cols, $row);
             $row2 = $db->lookup(array_combine($cols, $row), join(",", $cols), $tblshort);
             $this->assertEquals(array_combine($cols, $row), $row2, "Inserted row not same as in DB");
         }
@@ -173,14 +173,14 @@ final class DatabaseCollationsTest extends TestCase
         $tblshort = preg_replace('/^carddav_/', '', $tbl);
         $this->assertNotNull($tblshort);
 
-        TestData::insertRow($db, $tbl, $cols, $row);
+        TestData::insertRow($tbl, $cols, $row);
 
         // insert row with specified columns uppercased
         $rowuc = $row;
         foreach ($uccols as $idx) {
             $rowuc[$idx] = strtoupper($rowuc[$idx]);
         }
-        $rowucId = TestData::insertRow($db, $tbl, $cols, $rowuc);
+        $rowucId = TestData::insertRow($tbl, $cols, $rowuc);
 
         // check that select with equals on any uppercase column returns only the new uppercased record
         foreach ($uccols as $idx) {
@@ -227,7 +227,7 @@ final class DatabaseCollationsTest extends TestCase
         $tblshort = preg_replace('/^carddav_/', '', $tbl);
         $this->assertNotNull($tblshort);
 
-        $rowId = TestData::insertRow($db, $tbl, $cols, $row);
+        $rowId = TestData::insertRow($tbl, $cols, $row);
 
         // insert row with specified columns uppercased
         $rowuc = $row;
@@ -239,7 +239,7 @@ final class DatabaseCollationsTest extends TestCase
                 $rowuc[$idx] = $rowuc[$idx] . "-" . bin2hex(random_bytes(5));
             }
         }
-        $rowucId = TestData::insertRow($db, $tbl, $cols, $rowuc);
+        $rowucId = TestData::insertRow($tbl, $cols, $rowuc);
 
         // check that select with equals on any uppercase column returns only the new uppercased record
         $expectedIds = [$rowId, $rowucId];

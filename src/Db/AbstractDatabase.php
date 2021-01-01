@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube\Db;
 
-use rcube_db;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -18,13 +17,6 @@ abstract class AbstractDatabase
      * This is relevant to the email column of the contacts table, where several email addresses can be stored.
      */
     public const MULTIVAL_SEP = ", ";
-
-    /**
-     * Provides the lower level roundcube database handle.
-     *
-     * This is meant to support legacy parts of the plugin and should not be used for new code.
-     */
-    abstract public function getDbHandle(): rcube_db;
 
     /**
      * Starts a transaction on the internal DB connection.
