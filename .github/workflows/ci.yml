@@ -11,12 +11,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Setup PHP extensions
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '7.4'
-        extensions: gd
-        coverage: xdebug
     - name: Checkout rcmcarddav
       uses: actions/checkout@v2
     - name: Checkout roundcubemail
@@ -34,3 +28,4 @@ jobs:
       with:
         configuration: tests/unit/phpunit.xml
         php_version: '7.4'
+        php_extensions: xdebug gd
