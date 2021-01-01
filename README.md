@@ -1,4 +1,5 @@
 # RCMCardDAV
+![Unit tests](https://github.com/mstilkerich/rcmcarddav/workflows/CI/badge.svg)
 
 CardDAV plugin for the RoundCube Webmailer
 
