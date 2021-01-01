@@ -96,8 +96,9 @@ final class SyncHandlerRoundcubeTest extends TestCase
 
         $cache = $synch->getExistingVCardETags();
 
-        $entries = $db->get(['abook_id' => '42']);
-        $this->assertCount(count($entries), $cache);
+        $centries = $db->get(['abook_id' => '42']);
+        $gentries = $db->get(['abook_id' => '42', '!vcard' => null], 'id', 'groups');
+        $this->assertCount(count($centries)+count($gentries), $cache);
     }
 
     public function testInitialSyncOnEmptyDatabase(): void

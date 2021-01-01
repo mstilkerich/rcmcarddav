@@ -101,6 +101,15 @@
 			"abook_id": 42,
 			"name": "House Lannister",
 			"vcard": null, "etag": null, "uri": null, "cuid": null
+		},
+		{
+			"id": 503,
+			"abook_id": 42,
+			"name": "Kings",
+			"vcard": ["file", "kings.vcf"],
+			"etag": "etag@kings_1",
+			"uri": "/book42/kings.vcf",
+			"cuid": "60EA9405-3E1F-4DA5-9140-BE46278AACCD"
 		}
 	],
 	"group_user": [
@@ -108,7 +117,9 @@
 		{ "group_id": 501, "contact_id": 51 },
 		{ "group_id": 501, "contact_id": 53 },
 		{ "group_id": 502, "contact_id": 51 },
-		{ "group_id": 502, "contact_id": 52 }
+		{ "group_id": 502, "contact_id": 52 },
+		{ "group_id": 503, "contact_id": 51 },
+		{ "group_id": 503, "contact_id": 53 }
 	],
 	"xsubtypes": [
 		{
