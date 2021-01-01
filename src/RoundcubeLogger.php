@@ -22,6 +22,17 @@ class RoundcubeLogger extends AbstractLogger
         LogLevel::EMERGENCY => 8
     ];
 
+    private const LOGLEVELS_SHORT = [
+        LogLevel::DEBUG     => "DBG",
+        LogLevel::INFO      => "NFO",
+        LogLevel::NOTICE    => "NTC",
+        LogLevel::WARNING   => "WRN",
+        LogLevel::ERROR     => "ERR",
+        LogLevel::CRITICAL  => "CRT",
+        LogLevel::ALERT     => "ALT",
+        LogLevel::EMERGENCY => "EMG"
+    ];
+
     /** @var string $logfile Name of the roundcube logfile that this logger logs to */
     private $logfile;
 
@@ -68,6 +79,10 @@ class RoundcubeLogger extends AbstractLogger
             if ($this->redact) {
                 $message = $this->redactMessage($message);
             }
+
+            $levelNumeric = self::LOGLEVELS[$level];
+            $levelShort = self::LOGLEVELS_SHORT[$level];
+            $message = "[$levelNumeric $levelShort] $message";
             \rcube::write_log($this->logfile, $message);
         }
     }
