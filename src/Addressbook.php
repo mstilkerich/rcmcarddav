@@ -948,25 +948,21 @@ class Addressbook extends rcube_addressbook
      * @param mixed $id Record identifier
      *
      * @return array List of assigned groups as ID=>Name pairs
-     * @since 0.5-beta
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_record_groups($id): array
     {
         try {
             $this->logger->debug("get_record_groups($id)");
-            $dbh = $this->db->getDbHandle();
-            $sql_result = $dbh->query('SELECT id,name FROM ' .
-                $dbh->table_name('carddav_group_user') . ',' .
-                $dbh->table_name('carddav_groups') .
-                ' WHERE contact_id=? AND id=group_id AND abook_id=?', $id, $this->id);
+            $db = $this->db;
+            $groupIds = array_column($db->get(['contact_id' => $id], 'group_id', 'group_user'), 'group_id');
+            $groups = array_column(
+                $db->get(['id' => $groupIds, 'abook_id' => $this->id], 'id,name', 'groups'),
+                'name',
+                'id'
+            );
 
-            $res = [];
-            while ($row = $dbh->fetch_assoc($sql_result)) {
-                $res[$row['id']] = $row['name'];
-            }
-
-            return $res;
+            return $groups;
         } catch (\Exception $e) {
             $this->logger->error("get_record_groups($id): " . $e->getMessage());
             $this->set_error(self::ERROR_SEARCH, $e->getMessage());
