@@ -1,4 +1,4 @@
-ROUNDCUBEDIR=../roundcubemail
+ROUNDCUBEDIR=roundcubemail
 DBTYPES=postgres sqlite3 mysql
 SQLITE_TESTDB=testreports/test.db
 CD_TABLES=$(foreach tbl,addressbooks contacts groups group_user xsubtypes migrations,carddav_$(tbl))

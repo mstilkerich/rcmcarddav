@@ -8,3 +8,4 @@ composer.*
 /tests/dbinterop/DatabaseAccounts.php
 /doc/api/
 /.phpdoc/
+/roundcubemail

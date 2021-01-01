@@ -20,7 +20,7 @@
     </projectFiles>
 
     <extraFiles>
-        <directory name="../roundcubemail/program/" />
+        <directory name="roundcubemail/program/" />
     </extraFiles>
 
     <issueHandlers>
