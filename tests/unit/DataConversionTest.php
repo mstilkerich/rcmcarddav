@@ -380,6 +380,50 @@ final class DataConversionTest extends TestCase
         $this->assertEquals("", $proxy);
     }
 
+    /**
+     * Tests that the function properly reports single-value attributes.
+     */
+    public function testSinglevalueAttributesReportedAsSuch(): void
+    {
+        [ $logger, $db, $cache, $_abook ] = $this->initStubs();
+        $dc = new DataConversion("42", $db, $cache, $logger);
+
+        $knownSingle  = ['name', 'firstname', 'surname', 'middlename', 'prefix', 'suffix', 'nickname', 'jobtitle',
+            'organization', 'department', 'assistant', 'manager', 'gender', 'maidenname', 'spouse', 'birthday',
+            'anniversary', 'notes', 'photo'];
+
+        foreach ($knownSingle as $singleAttr) {
+            $this->assertFalse($dc->isMultivalueProperty($singleAttr), "Attribute $singleAttr expected to be single");
+        }
+    }
+
+    /**
+     * Tests that the data converter properly reports multi-value attributes.
+     */
+    public function testMultivalueAttributesReportedAsSuch(): void
+    {
+        [ $logger, $db, $cache, $_abook ] = $this->initStubs();
+        $dc = new DataConversion("42", $db, $cache, $logger);
+
+        $knownMulti  = ['email', 'phone', 'address', 'website', 'im'];
+
+        foreach ($knownMulti as $multiAttr) {
+            $this->assertTrue($dc->isMultivalueProperty($multiAttr), "Attribute $multiAttr expected to be multi");
+        }
+    }
+
+    /**
+     * Tests that the data converter throws an exception when asked for the type of an unknown attribute.
+     */
+    public function testExceptionWhenAskedForTypeOfUnknownAttribute(): void
+    {
+        [ $logger, $db, $cache, $_abook ] = $this->initStubs();
+        $dc = new DataConversion("42", $db, $cache, $logger);
+
+        $this->expectExceptionMessage('not a known roundcube contact property');
+        $dc->isMultivalueProperty("unknown");
+    }
+
     private function initStubs(): array
     {
         $logger = TestInfrastructure::$logger;
