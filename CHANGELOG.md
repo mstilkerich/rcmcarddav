@@ -9,6 +9,7 @@
 - Fix #53: Only create displayname when not present in VCard / not provided by roundcube
 - Fix #325: Roundcube setting for contact sorting field was not used
 - Fix #279: More specific error message when syntactically wrong URL is entered for new addressbook
+- Fix #328: Contact search with MySQL might not have returned all results
 - New: Download externally referenced photos on demand, drastically speeding up sync with when photos are stored
   separately from the VCard (e.g. iCloud). For details see #247.
 - New: Support for instant messaging data fields and maiden name (resolves #46). Interoperability with other
