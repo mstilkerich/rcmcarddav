@@ -21,9 +21,9 @@ jobs:
     - name: Install dependencies
       uses: php-actions/composer@v5
       with:
-        php-version: '7.4'
+        php_version: '7.4'
     - name: Run unit tests
       uses: php-actions/phpunit@v2
       with:
         configuration: tests/unit/phpunit.xml
-        php-version: '7.4'
+        php_version: '7.4'
