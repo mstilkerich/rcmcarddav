@@ -81,7 +81,6 @@ class DelayedPhotoLoader
      */
     private function computePhotoFromProperty(): string
     {
-
         $vcard = $this->vcard;
         $photoProp = $vcard->PHOTO;
         if (!isset($photoProp)) {

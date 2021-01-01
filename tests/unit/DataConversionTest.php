@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavClient\{Account,AddressbookCollection};
 use MStilkerich\CardDavAddressbook4Roundcube\{DataConversion,DelayedPhotoLoader};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
+use BigV\ImageCompare;
 
 final class DataConversionTest extends TestCase
 {
@@ -27,6 +28,13 @@ final class DataConversionTest extends TestCase
 
     public function tearDown(): void
     {
+        // delete temporary files from image comparison
+        $tmpimgs = glob("testreports/imgcomp_*");
+        if (!empty($tmpimgs)) {
+            foreach ($tmpimgs as $tmpimg) {
+                unlink($tmpimg);
+            }
+        }
     }
 
     private function vcardSamplesProvider(string $basedir): array
@@ -59,9 +67,9 @@ final class DataConversionTest extends TestCase
 
         $dc = new DataConversion("42", $db, $cache, $logger);
         $vcard = TestInfrastructure::readVCard($vcfFile);
-        $saveDataExpected = $this->readJsonArray($jsonFile);
+        $saveDataExp = $this->readJsonArray($jsonFile);
         $saveData = $dc->toRoundcube($vcard, $abook);
-        $this->assertEquals($saveDataExpected, $saveData, "Converted VCard does not result in expected roundcube data");
+        $this->compareSaveData($saveDataExp, $saveData, "Converted VCard does not result in expected roundcube data");
     }
 
     /**
@@ -240,14 +248,18 @@ final class DataConversionTest extends TestCase
         }
 
         if ($storeExp) {
+            $checkPhotoFn = function (array $cacheObj) use ($vcard, $saveDataExpected): bool {
+                $this->assertNotNull($cacheObj['photoPropMd5']);
+                $this->assertNotNull($cacheObj['photo']);
+                $this->assertSame(md5($vcard->PHOTO->serialize()), $cacheObj['photoPropMd5']);
+                $this->comparePhoto($saveDataExpected["photo"], $cacheObj['photo']);
+                return true;
+            };
             $cache->expects($this->once())
                ->method("set")
                ->with(
                    $this->equalTo($key),
-                   $this->equalTo([
-                       'photoPropMd5' => md5($vcard->PHOTO->serialize()),
-                       'photo' => $saveDataExpected["photo"]
-                   ])
+                   $this->callback($checkPhotoFn)
                )
                ->will($this->returnValue(true));
         } else {
@@ -256,7 +268,7 @@ final class DataConversionTest extends TestCase
 
         $dc = new DataConversion("42", $db, $cache, $logger);
         $saveData = $dc->toRoundcube($vcard, $abook);
-        $this->assertEquals($saveDataExpected["photo"], $saveData["photo"]);
+        $this->comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
     }
 
     /**
@@ -300,9 +312,9 @@ final class DataConversionTest extends TestCase
         $saveData = $dc->toRoundcube($vcard, $abook);
 
         if ($getExp) {
-            $this->assertEquals($cachedPhotoData, $saveData["photo"]);
+            $this->comparePhoto($cachedPhotoData, (string) $saveData["photo"]);
         } else {
-            $this->assertEquals($saveDataExpected["photo"], $saveData["photo"]);
+            $this->comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
         }
     }
 
@@ -347,14 +359,18 @@ final class DataConversionTest extends TestCase
 
         // a new record should be inserted if photo requires caching
         if ($storeExp) {
+            $checkPhotoFn = function (array $cacheObj) use ($vcard, $saveDataExpected): bool {
+                $this->assertNotNull($cacheObj['photoPropMd5']);
+                $this->assertNotNull($cacheObj['photo']);
+                $this->assertSame(md5($vcard->PHOTO->serialize()), $cacheObj['photoPropMd5']);
+                $this->comparePhoto($saveDataExpected["photo"], $cacheObj['photo']);
+                return true;
+            };
             $cache->expects($this->once())
                ->method("set")
                ->with(
                    $this->equalTo($key),
-                   $this->equalTo([
-                       'photoPropMd5' => md5($vcard->PHOTO->serialize()),
-                       'photo' => $saveDataExpected["photo"]
-                   ])
+                   $this->callback($checkPhotoFn)
                )
                ->will($this->returnValue(true));
         } else {
@@ -363,7 +379,7 @@ final class DataConversionTest extends TestCase
 
         $dc = new DataConversion("42", $db, $cache, $logger);
         $saveData = $dc->toRoundcube($vcard, $abook);
-        $this->assertEquals($saveDataExpected["photo"], $saveData["photo"]);
+        $this->comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
     }
 
     /**
@@ -458,31 +474,8 @@ final class DataConversionTest extends TestCase
         return $phpArray;
     }
 
-    private function compareVCardsOld(VCard $vcardExpected, VCard $vcardRoundcube): void
-    {
-        // this is needed to get a VCard object that is identical in structure to the one parsed
-        // from file. There is differences with respect to the parent attributes and concerning whether single value
-        // properties have an array setting or a plain value. We want to use phpunits equal assertion, so the data
-        // structures need to be identical
-        $vcardRoundcube = VObject\Reader::read($vcardRoundcube->serialize());
-
-        // These attributes are dynamically created / updated and therefore must not be compared with the static
-        // expected card
-        $noCompare = [ 'REV', 'UID', 'PRODID' ];
-        foreach ($noCompare as $property) {
-            unset($vcardExpected->{$property});
-            unset($vcardRoundcube->{$property});
-        }
-
-        $this->assertEquals($vcardExpected, $vcardRoundcube, "Created VCard does not match roundcube data");
-    }
-
     private function compareVCards(VCard $vcardExpected, VCard $vcardRoundcube): void
     {
-        // FIXME for now we call the old comparision function in addition. It is known not to work with sabre/vobject 3,
-        //       but we'll keep it for a while to detect whether the new comparison code misses any relevant property.
-        $this->compareVCardsOld($vcardExpected, $vcardRoundcube);
-
         // These attributes are dynamically created / updated and therefore must not be compared with the static
         // expected card
         $noCompare = [ 'REV', 'UID', 'PRODID' ];
@@ -552,8 +545,66 @@ final class DataConversionTest extends TestCase
         $this->assertCount(count($exp), $rc, "Different amount of $dbgid");
 
         for ($i = 0; $i < count($exp); ++$i) {
-            $this->assertEquals($exp[$i]->getValue(), $rc[$i]->getValue(), "Nodes $dbgid differ");
+            if ($dbgid == "Property PHOTO") {
+                $this->comparePhoto((string) $exp[$i]->getValue(), (string) $rc[$i]->getValue());
+            } else {
+                $this->assertEquals($exp[$i]->getValue(), $rc[$i]->getValue(), "Nodes $dbgid differ");
+            }
         }
+    }
+
+    /**
+     * Compares two roundcube save data arrays with special handling of photo.
+     */
+    private function compareSaveData(array $saveDataExp, array $saveDataRc, string $msg): void
+    {
+        $this->assertSame(isset($saveDataExp['photo']), isset($saveDataRc['photo']));
+        if (isset($saveDataExp['photo'])) {
+            $this->comparePhoto($saveDataExp['photo'], (string) $saveDataRc['photo']);
+            unset($saveDataExp['photo']);
+            unset($saveDataRc['photo']);
+        }
+        $this->assertEquals($saveDataExp, $saveDataRc, $msg);
+    }
+
+    /**
+     * Compares two photos given as binary strings.
+     *
+     * @param string $pExpStr The expected photo data
+     * @param string $pRcStr The photo data produced by the test object
+     */
+    private function comparePhoto(string $pExpStr, string $pRcStr): void
+    {
+        $this->assertTrue(function_exists('gd_info'), "php-gd required");
+
+        // shortcut that also covers URI - if identical strings, save the comparison
+        if (empty($pExpStr) || empty($pRcStr) || str_contains($pExpStr, "http")) {
+            $this->assertSame($pExpStr, $pRcStr, "PHOTO comparison on URI value failed");
+            return;
+        }
+
+        // dimensions must be the same
+        $pExp = getimagesizefromstring($pExpStr);
+        $this->assertNotFalse($pExp, "Exp Image could not be identified");
+        $pRc = getimagesizefromstring($pRcStr);
+        $this->assertNotFalse($pRc, "RC Image could not be identified");
+
+        $this->assertSame($pExp[0], $pRc[0], "X dimension of PHOTO differs");
+        $this->assertSame($pExp[1], $pRc[1], "Y dimension of PHOTO differs");
+        $this->assertSame($pExp[2], $pRc[2], "Image type of PHOTO differs");
+
+        // store to temporary files for comparison
+        $expFile = tempnam("testreports", "imgcomp_") . image_type_to_extension($pExp[2]);
+        $rcFile = tempnam("testreports", "imgcomp_") . image_type_to_extension($pRc[2]);
+
+        $this->assertNotFalse(file_put_contents($expFile, $pExpStr), "Cannot write $expFile");
+        $this->assertNotFalse(file_put_contents($rcFile, $pRcStr), "Cannot write $rcFile");
+
+        // compare
+        $imageComp = new ImageCompare();
+        $compResult = $imageComp->compare($expFile, $rcFile);
+        $this->assertNotFalse($compResult, "Image comparison returned error");
+        $this->assertSame(0, $compResult, "Image comparison returned too high difference $compResult");
     }
 }
 
