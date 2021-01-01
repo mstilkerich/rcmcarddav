@@ -17,11 +17,7 @@ final class TestInfrastructure
     public static function init(): void
     {
         if (!isset(self::$logger)) {
-            $logfile = "testreports/tests-{$GLOBALS['TEST_TESTRUN']}.log";
-            if (file_exists($logfile)) {
-                unlink($logfile);
-            }
-            self::$logger = new \Wa72\SimpleLogger\FileLogger($logfile, \Psr\Log\LogLevel::DEBUG);
+            self::$logger = new TestLogger();
         }
     }
 

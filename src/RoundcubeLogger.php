@@ -22,6 +22,9 @@ class RoundcubeLogger extends AbstractLogger
         LogLevel::EMERGENCY => 8
     ];
 
+    /**
+     * @var string[] Assigns each short name to each log level.
+     */
     private const LOGLEVELS_SHORT = [
         LogLevel::DEBUG     => "DBG",
         LogLevel::INFO      => "NFO",
