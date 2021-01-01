@@ -28,6 +28,7 @@ jobs:
       uses: php-actions/composer@v5
       with:
         php_version: '7.4'
+        args: --ignore-platform-reqs
     - name: Run unit tests
       uses: php-actions/phpunit@v2
       with:
