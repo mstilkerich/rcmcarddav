@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube;
 
-use Psr\Log\LoggerInterface;
 use PHPUnit\Framework\TestCase;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 
 final class TestInfrastructure
 {
-    /** @var ?LoggerInterface Logger object used to store log messages produced during the tests */
+    /** @var ?TestLogger Logger object used to store log messages produced during the tests */
     public static $logger;
 
     public static function init(): void

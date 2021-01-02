@@ -393,7 +393,7 @@ class SyncHandlerRoundcube implements SyncHandler
             if (count($mbrc) != 3 || $mbrc[0] !== 'urn' || $mbrc[1] !== 'uuid') {
                 $this->logger->warning("don't know how to interpret group membership: $mbr");
             } else {
-                $memberId = $this->localCardsByUID[$mbrc[2]];
+                $memberId = $this->localCardsByUID[$mbrc[2]] ?? null;
                 if (isset($memberId)) {
                     $memberIds[] = $memberId;
                 } else {
