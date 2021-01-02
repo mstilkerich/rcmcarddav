@@ -23,12 +23,13 @@ psalmanalysis:
 
 .PHONY: tarball
 tarball:
+	@mkdir -p releases
 	@VERS=$$(git tag --points-at HEAD); \
 		if [ -z "$$VERS" ]; then echo "Error: HEAD has no version tag"; exit 1; else \
 			NVERS=$$(echo "$$VERS" | sed -e 's/^v//') \
 			&& grep -q "const PLUGIN_VERSION = '$$VERS'" carddav.php || {echo "carddav::PLUGIN_VERSION does not match release" ; exit 1; } \
 			&& grep -q "^## Version $$NVERS" CHANGELOG.md || {echo "No changelog entry for release $$NVERS" ; exit 1; } \
-			&& git archive --format tgz --prefix carddav/ -o carddav-$$VERS.tgz --worktree-attributes HEAD; \
+			&& git archive --format tgz --prefix carddav/ -o releases/carddav-$$VERS.tgz --worktree-attributes HEAD; \
 		fi
 
 define EXECDBSCRIPT_postgres

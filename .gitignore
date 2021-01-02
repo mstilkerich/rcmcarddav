@@ -9,3 +9,4 @@ composer.*
 /doc/api/
 /.phpdoc/
 /roundcubemail
+/releases
