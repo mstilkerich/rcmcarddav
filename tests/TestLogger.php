@@ -55,7 +55,7 @@ class TestLogger extends AbstractLogger
 
     /**
      * At the time of destruction, there may be no unchecked log messages of warning or higher level.
-     * 
+     *
      * Tests should call reset() when done (in tearDown()), this is just a fallback to detect if a test did not and
      * there were errors. When the error is raised from the destructor, the relation to the test function that triggered
      * the leftover log messages is lost and PHPUnit may report the issue for an unrelated test function within the same

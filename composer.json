@@ -31,7 +31,7 @@
         "phpunit/phpcov": "*",
         "wa72/simplelogger": "^1.1",
         "dealerdirect/phpcodesniffer-composer-installer": ">= 0.7.0",
-        "vajiral/php-image-compare": "~1"
+        "aodto/phasher": "dev-master"
     },
     "extra": {
         "roundcube": {

@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavClient\{Account,AddressbookCollection};
 use MStilkerich\CardDavAddressbook4Roundcube\{DataConversion,DelayedPhotoLoader};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
-use BigV\ImageCompare;
+use PHasher;
 
 final class DataConversionTest extends TestCase
 {
@@ -618,10 +618,10 @@ final class DataConversionTest extends TestCase
         $this->assertNotFalse(file_put_contents($rcFile, $pRcStr), "Cannot write $rcFile");
 
         // compare
-        $imageComp = new ImageCompare();
-        $compResult = $imageComp->compare($expFile, $rcFile);
-        $this->assertNotFalse($compResult, "Image comparison returned error");
-        $this->assertSame(0, $compResult, "Image comparison returned too high difference $compResult");
+        $phasher = PHasher::Instance();
+        // similarity is returned as percentage
+        $compResult = intval($phasher->Compare($expFile, $rcFile));
+        $this->assertSame(100, $compResult, "Image comparison returned too little similarity $compResult%");
     }
 
     /**
