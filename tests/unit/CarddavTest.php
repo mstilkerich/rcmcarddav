@@ -21,8 +21,8 @@ final class CarddavTest extends TestCase
 
     public function tearDown(): void
     {
+        TestInfrastructure::logger()->reset();
     }
-
 
     public function timeStringProvider(): array
     {

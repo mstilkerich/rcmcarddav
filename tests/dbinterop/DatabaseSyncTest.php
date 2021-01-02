@@ -38,6 +38,8 @@ final class DatabaseSyncTest extends TestCase
         fclose($this->sockets[0]);
         fclose($this->sockets[1]);
         self::$db->delete(["%filename" => "UNITTEST-SYNC%"], "migrations");
+
+        TestInfrastructure::logger()->reset();
     }
 
     public function testOverlappingWriteAborts(): void

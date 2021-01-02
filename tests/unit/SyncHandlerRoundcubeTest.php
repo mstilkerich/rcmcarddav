@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
 
-use Psr\Log\LoggerInterface;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
@@ -27,6 +26,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
 
     public function tearDown(): void
     {
+        TestInfrastructure::logger()->reset();
     }
 
     private function vcardSamplesProvider(string $basedir): array
@@ -76,7 +76,8 @@ final class SyncHandlerRoundcubeTest extends TestCase
     public function testSyncHandlerProvidesExistingCacheStateEmpty(): void
     {
         $db = new JsonDatabase();
-        [ $logger, $dc, $abook, $rcAbook ] = $this->initStubs($db);
+        $logger = TestInfrastructure::logger();
+        [ $dc, $abook, $rcAbook ] = $this->initStubs($db);
 
         $synch = new SyncHandlerRoundcube($rcAbook, $db, $logger, $dc, $abook);
 
@@ -90,7 +91,8 @@ final class SyncHandlerRoundcubeTest extends TestCase
     public function testSyncHandlerProvidesExistingCacheState(): void
     {
         $db = new JsonDatabase(['tests/unit/data/syncHandlerTest/db.json']);
-        [ $logger, $dc, $abook, $rcAbook ] = $this->initStubs($db);
+        $logger = TestInfrastructure::logger();
+        [ $dc, $abook, $rcAbook ] = $this->initStubs($db);
 
         $synch = new SyncHandlerRoundcube($rcAbook, $db, $logger, $dc, $abook);
 
@@ -136,7 +138,8 @@ final class SyncHandlerRoundcubeTest extends TestCase
     {
         $db = new JsonDatabase(['tests/unit/data/syncHandlerTest/initialdb.json']);
         $expDb = new JsonDatabase(['tests/unit/data/syncHandlerTest/db.json']);
-        [ $logger, $dc, $abook, $rcAbook ] = $this->initStubs($db);
+        $logger = TestInfrastructure::logger();
+        [ $dc, $abook, $rcAbook ] = $this->initStubs($db);
 
         $synch = new SyncHandlerRoundcube($rcAbook, $db, $logger, $dc, $abook);
 
@@ -166,15 +169,11 @@ final class SyncHandlerRoundcubeTest extends TestCase
         $expDb->compareTables('groups', $db);
         $expDb->compareTables('group_user', $db);
         $expDb->compareTables('xsubtypes', $db);
-
     }
 
     private function initStubs(AbstractDatabase $db): array
     {
-        $logger = TestInfrastructure::$logger;
-        $this->assertNotNull($logger);
-        $logger->reset();
-        $this->assertInstanceOf(LoggerInterface::class, $logger);
+        $logger = TestInfrastructure::logger();
         $rcAbook = $this->createStub(Addressbook::class);
         $rcAbook->method('getId')->will($this->returnValue("42"));
 
@@ -182,7 +181,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
         $cache = $this->createMock(\rcube_cache::class);
 
         $dc = new DataConversion("42", $db, $cache, $logger);
-        return [ $logger, $dc, $abook, $rcAbook ];
+        return [ $dc, $abook, $rcAbook ];
     }
 }
 

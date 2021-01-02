@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
-use Psr\Log\LoggerInterface;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database,AbstractDatabase};
 use rcube_db;
@@ -22,8 +21,7 @@ final class TestInfrastructureDB
         $rcconfig->set("db_prefix", $db_prefix, false);
         $rcconfig->set("db_dsnw", $db_dsnw, false);
         self::$dbh = rcube_db::factory($db_dsnw);
-        /** @var \Psr\Log\LoggerInterface */
-        $logger = TestInfrastructure::$logger;
+        $logger = TestInfrastructure::logger();
         $db = new Database($logger, self::$dbh);
         return $db;
     }

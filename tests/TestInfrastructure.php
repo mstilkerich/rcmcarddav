@@ -11,13 +11,20 @@ use Sabre\VObject\Component\VCard;
 final class TestInfrastructure
 {
     /** @var ?TestLogger Logger object used to store log messages produced during the tests */
-    public static $logger;
+    private static $logger;
 
     public static function init(): void
     {
         if (!isset(self::$logger)) {
             self::$logger = new TestLogger();
         }
+    }
+
+    public static function logger(): TestLogger
+    {
+        $logger = self::$logger;
+        TestCase::assertNotNull($logger, "Call init() before asking for logger");
+        return $logger;
     }
 
     public static function readJsonArray(string $jsonFile): array

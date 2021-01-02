@@ -202,6 +202,7 @@ class Addressbook extends rcube_addressbook
      * Search contacts
      *
      * Depending on the given parameters the search() function operates in different modes (in the order listed):
+     *
      * Mode "Direct ID search" - $fields is either 'ID' or $this->primary_key:
      *       $values is either: a string of contact IDs separated by self::SEPARATOR (,)
      *                          an array of contact IDs

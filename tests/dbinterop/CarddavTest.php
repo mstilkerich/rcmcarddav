@@ -22,9 +22,7 @@ final class CarddavTest extends TestCase
         $db = TestInfrastructureDB::initDatabase($db_dsnw);
 
         TestData::initDatabase();
-
-        /** @var \Psr\Log\LoggerInterface */
-        $logger = TestInfrastructure::$logger;
+        $logger = TestInfrastructure::logger();
         self::$plugin = new carddav(
             \rcube_plugin_api::get_instance(),
             [ "logger" => $logger, "logger_http" => $logger, "db" => $db ]
@@ -38,6 +36,7 @@ final class CarddavTest extends TestCase
 
     public function tearDown(): void
     {
+        TestInfrastructure::logger()->reset();
     }
 
     public function testProvidesCorrectListOfAddressbooks(): void

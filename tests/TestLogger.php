@@ -54,6 +54,19 @@ class TestLogger extends AbstractLogger
     }
 
     /**
+     * At the time of destruction, there may be no unchecked log messages of warning or higher level.
+     * 
+     * Tests should call reset() when done (in tearDown()), this is just a fallback to detect if a test did not and
+     * there were errors. When the error is raised from the destructor, the relation to the test function that triggered
+     * the leftover log messages is lost and PHPUnit may report the issue for an unrelated test function within the same
+     * test case.
+     */
+    public function __destruct()
+    {
+        $this->reset();
+    }
+
+    /**
      * Logs with an arbitrary level.
      *
      * @param mixed $level
@@ -69,8 +82,8 @@ class TestLogger extends AbstractLogger
             $this->fileLogger->log($level, "[$levelNumeric $levelShort] $message", $context);
 
             // only warnings or more critical messages are interesting for testing
-            if (self::LOGLEVELS[$level] >= LogLevel::WARNING) {
-                $this->logBuffer[] = [ $level, $message ];
+            if (self::LOGLEVELS[$level] >= self::LOGLEVELS[LogLevel::WARNING]) {
+                $this->logBuffer[] = [ $level, $message, 'UNCHECKED' ];
             }
         } else {
             throw new \Exception("Unknown log level $level");
@@ -82,6 +95,10 @@ class TestLogger extends AbstractLogger
      */
     public function reset(): void
     {
+        foreach ($this->logBuffer as $recMsg) {
+            [ $level, $msg, $checked ] = $recMsg;
+            TestCase::assertSame('CHECKED', $checked, "Unchecked log message of level $level: $msg");
+        }
         $this->logBuffer = [];
     }
 
@@ -92,9 +109,10 @@ class TestLogger extends AbstractLogger
     {
         $found = false;
 
-        foreach ($this->logBuffer as $recMsg) {
+        foreach ($this->logBuffer as &$recMsg) {
             [ $level, $msg ] = $recMsg;
             if (($level == $expLevel) && str_contains($msg, $expMsg)) {
+                $recMsg[2] = 'CHECKED';
                 $found = true;
                 break;
             }

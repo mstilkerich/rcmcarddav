@@ -29,8 +29,8 @@ final class DatabaseCollationsTest extends TestCase
 
     public function tearDown(): void
     {
+        TestInfrastructure::logger()->reset();
     }
-
 
     public function uniqueDataProviderDiffcase(): array
     {
