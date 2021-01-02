@@ -227,6 +227,9 @@ class DelayedPhotoLoader
      *  - The 3rd number is the crop width
      *  - The 4th number is the crop height
      *
+     * For tests, this operation can be done using imagemagick, geometry is width x height +OffsetX +OffsetY
+     *  convert raven.jpg -gravity SouthWest -crop '181x181+60+179' ravencrop.png
+     *
      * The meaning of the base64 encoded last part of the parameter is unknown and ignored.
      *
      * @return ?string The resulting cropped photo as binary string. Null in case the given photo was not modified,
