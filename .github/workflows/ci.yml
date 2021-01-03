@@ -1,41 +1,41 @@
 name: CI Build
 
 on:
-    workflow_dispatch:
-    push:
-        branches:
-            - v4.1
+  workflow_dispatch:
+  push:
+    branches:
+      - v4.1
 
 jobs:
   buildtest:
     runs-on: ubuntu-latest
 
     env:
-        XDEBUG_MODE: coverage
+      XDEBUG_MODE: coverage
 
     steps:
-     - name: Set up PHP
-       uses: shivammathur/setup-php@v2
-       with:
-         php-version: '7.4'
-         tools: composer:v2
-         extensions: gd, xdebug, curl
-         coverage: xdebug
-    - name: Checkout rcmcarddav
-      uses: actions/checkout@v2
-    - name: Checkout roundcubemail
-      uses: actions/checkout@v2
-      with:
-        path: roundcubemail
-        repository: roundcube/roundcubemail
-    - name: Install dependencies
-      run: composer update
-    - name: Run unit tests
-      run: make unittests
-    - name: Upload coverage reports to codecov.io
-      uses: codecov/codecov-action@v1
-      with:
-        file: testreports/coverage-unit-clover.xml
-        flags: unittests
-        name: RCMCardDAV test coverage
-        fail_ci_if_error: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer:v2
+          extensions: gd, xdebug, curl
+          coverage: xdebug
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
+      - name: Checkout roundcubemail
+        uses: actions/checkout@v2
+        with:
+          path: roundcubemail
+          repository: roundcube/roundcubemail
+      - name: Install dependencies
+        run: composer update
+      - name: Run unit tests
+        run: make unittests
+      - name: Upload coverage reports to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          file: testreports/coverage-unit-clover.xml
+          flags: unittests
+          name: RCMCardDAV test coverage
+          fail_ci_if_error: false
