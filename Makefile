@@ -4,6 +4,16 @@ SQLITE_TESTDB=testreports/test.db
 CD_TABLES=$(foreach tbl,addressbooks contacts groups group_user xsubtypes migrations,carddav_$(tbl))
 DOCDIR := doc/api/
 
+# This environment variable is set on github actions
+# If not defined, it is expected that the root user can authenticate via unix socket auth
+ifeq ($(MYSQL_ROOT_PASSWORD),)
+	MYSQL := sudo mysql
+	MYSQLDUMP := sudo mysqldump
+else
+	MYSQL := mysql -u root -p$(MYSQL_ROOT_PASSWORD)
+	MYSQLDUMP := mysqldump -u root -p$(MYSQL_ROOT_PASSWORD)
+endif
+
 .PHONY: all stylecheck phpcompatcheck staticanalyses psalmanalysis tests verification doc
 
 all: staticanalyses doc
@@ -36,7 +46,7 @@ define EXECDBSCRIPT_postgres
 sed -e 's/TABLE_PREFIX//g' <$(1) | psql -U rcmcarddavtest rcmcarddavtest
 endef
 define EXECDBSCRIPT_mysql
-sed -e 's/TABLE_PREFIX//g' <$(1) | sudo mysql --show-warnings rcmcarddavtest
+sed -e 's/TABLE_PREFIX//g' <$(1) | $(MYSQL) --show-warnings rcmcarddavtest
 endef
 define EXECDBSCRIPT_sqlite3
 sed -e 's/TABLE_PREFIX//g' <$(1) | sqlite3 $(SQLITE_TESTDB)
@@ -48,8 +58,8 @@ sudo -u postgres createdb -O rcmcarddavtest -E UNICODE rcmcarddavtest
 $(call EXECDBSCRIPT_postgres,$(ROUNDCUBEDIR)/SQL/postgres.initial.sql)
 endef
 define CREATEDB_mysql
-sudo mysql --show-warnings -e 'DROP DATABASE IF EXISTS rcmcarddavtest;'
-sudo mysql --show-warnings -e 'CREATE DATABASE rcmcarddavtest /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;' -e 'GRANT ALL PRIVILEGES ON rcmcarddavtest.* TO rcmcarddavtest@localhost;'
+$(MYSQL) --show-warnings -e 'DROP DATABASE IF EXISTS rcmcarddavtest;'
+$(MYSQL) --show-warnings -e 'CREATE DATABASE rcmcarddavtest /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;' -e 'GRANT ALL PRIVILEGES ON rcmcarddavtest.* TO rcmcarddavtest@localhost;'
 $(call EXECDBSCRIPT_mysql,$(ROUNDCUBEDIR)/SQL/mysql.initial.sql)
 endef
 define CREATEDB_sqlite3
@@ -62,7 +72,7 @@ define DUMPTBL_postgres
 pg_dump -U rcmcarddavtest --no-owner -s $(foreach tbl,$(CD_TABLES),-t $(tbl)) rcmcarddavtest >$(1)
 endef
 define DUMPTBL_mysql
-sudo mysqldump --skip-dump-date --no-data rcmcarddavtest $(CD_TABLES) >$(1)
+$(MYSQLDUMP) --skip-dump-date --no-data rcmcarddavtest $(CD_TABLES) >$(1)
 endef
 define DUMPTBL_sqlite3
 /bin/echo -e '$(foreach tbl,$(CD_TABLES),.dump $(tbl)\n)' | sed -e 's/^\s*//' | sqlite3 $(SQLITE_TESTDB) | sed -e 's/IF NOT EXISTS "carddav_\([^"]\+\)"/carddav_\1/' -e 's/^\s\+$$//' >$(1)
