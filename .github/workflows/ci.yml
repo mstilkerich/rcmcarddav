@@ -10,6 +10,9 @@ jobs:
   buildtest:
     runs-on: ubuntu-latest
 
+    env:
+        XDEBUG_MODE: coverage
+
     steps:
     - name: Checkout rcmcarddav
       uses: actions/checkout@v2
