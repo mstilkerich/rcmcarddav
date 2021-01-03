@@ -48,7 +48,7 @@ jobs:
           ref: 'fix_phpdoc_annotations'
       - name: Copy config files
         run: |
-          cp -av .github/workflows/ci-cfg/.* ~/
+          cp -v .github/workflows/ci-cfg/.* ~/
           chmod 600 ~/.pgpass ~/.mylogin.cnf
       - name: Set up MySQL
         run: |
