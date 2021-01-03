@@ -74,6 +74,8 @@ jobs:
         run: make tests-sqlite3
       - name: Database interoperability tests for MySQL
         run: make tests-mysql
+      - name: Database interoperability tests for Postgres
+        run: make tests-postgres
       - name: Check test datasets have a description
         run: make checktestspecs
       - name: Run unit tests
@@ -88,7 +90,7 @@ jobs:
       - name: Upload DB interoperability test coverage reports to codecov.io
         uses: codecov/codecov-action@v1
         with:
-          files: testreports/coverage-dbinterop-sqlite3-clover.xml, testreports/coverage-dbinterop-mysql-clover.xml
+          files: testreports/coverage-dbinterop-sqlite3-clover.xml, testreports/coverage-dbinterop-mysql-clover.xml, testreports/coverage-dbinterop-postgres-clover.xml
           flags: dbinterop
           name: RCMCardDAV database interoperability test coverage
           fail_ci_if_error: false
