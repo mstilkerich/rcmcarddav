@@ -10,8 +10,8 @@ ifeq ($(MYSQL_PASSWORD),)
 	MYSQL := sudo mysql
 	MYSQLDUMP := sudo mysqldump
 else
-	MYSQL := mysql -u root -p$(MYSQL_PASSWORD)
-	MYSQLDUMP := mysqldump -u root -p$(MYSQL_PASSWORD)
+	MYSQL := mysql -u root
+	MYSQLDUMP := mysqldump -u root
 endif
 
 # This environment variable is set on github actions

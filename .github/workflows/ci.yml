@@ -34,6 +34,11 @@ jobs:
       - name: Set up MySQL
         run: |
           sudo systemctl start mysql.service
+          echo '[client]' > ~/.mylogin.cnf
+          echo 'user = root' >> ~/.mylogin.cnf
+          echo 'password = root' >> ~/.mylogin.cnf
+          echo 'host = 127.0.0.1' >> ~/.mylogin.cnf
+          chmod 600 ~/.mylogin.cnf
           echo "CREATE USER 'rcmcarddavtest'@'localhost' IDENTIFIED BY 'rcmcarddavtest';" | mysql -u root -proot
       - name: Set up Postgres
         run: |
