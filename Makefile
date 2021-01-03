@@ -63,8 +63,8 @@ sed -e 's/TABLE_PREFIX//g' <$(1) | sqlite3 $(SQLITE_TESTDB)
 endef
 
 define CREATEDB_postgres
-sudo -u postgres dropdb rcmcarddavtest
-sudo -u postgres createdb -O rcmcarddavtest -E UNICODE rcmcarddavtest
+$(PG_DROPDB) rcmcarddavtest
+$(PG_CREATEDB) -O rcmcarddavtest -E UNICODE rcmcarddavtest
 $(call EXECDBSCRIPT_postgres,$(ROUNDCUBEDIR)/SQL/postgres.initial.sql)
 endef
 define CREATEDB_mysql
