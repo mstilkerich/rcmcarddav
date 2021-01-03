@@ -6,12 +6,22 @@ DOCDIR := doc/api/
 
 # This environment variable is set on github actions
 # If not defined, it is expected that the root user can authenticate via unix socket auth
-ifeq ($(MYSQL_ROOT_PASSWORD),)
+ifeq ($(MYSQL_PASSWORD),)
 	MYSQL := sudo mysql
 	MYSQLDUMP := sudo mysqldump
 else
-	MYSQL := mysql -u root -p$(MYSQL_ROOT_PASSWORD)
-	MYSQLDUMP := mysqldump -u root -p$(MYSQL_ROOT_PASSWORD)
+	MYSQL := mysql -u root -p$(MYSQL_PASSWORD)
+	MYSQLDUMP := mysqldump -u root -p$(MYSQL_PASSWORD)
+endif
+
+# This environment variable is set on github actions
+# If not defined, it is expected that the root user can authenticate via unix socket auth
+ifeq ($(POSTGRES_PASSWORD),)
+	PG_CREATEDB := sudo -u postgres createdb
+	PG_DROPDB	:= sudo -u postgres dropdb
+else
+	PG_CREATEDB := createdb
+	PG_DROPDB	:= dropdb
 endif
 
 .PHONY: all stylecheck phpcompatcheck staticanalyses psalmanalysis tests verification doc
