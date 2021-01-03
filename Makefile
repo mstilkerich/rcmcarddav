@@ -53,6 +53,7 @@ sudo mysql --show-warnings -e 'CREATE DATABASE rcmcarddavtest /*!40101 CHARACTER
 $(call EXECDBSCRIPT_mysql,$(ROUNDCUBEDIR)/SQL/mysql.initial.sql)
 endef
 define CREATEDB_sqlite3
+mkdir -p $(dir $(SQLITE_TESTDB))
 rm -f $(SQLITE_TESTDB)
 $(call EXECDBSCRIPT_sqlite3,$(ROUNDCUBEDIR)/SQL/sqlite.initial.sql)
 endef
