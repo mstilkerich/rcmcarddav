@@ -43,10 +43,17 @@ jobs:
         run: make checktestspecs
       - name: Run unit tests
         run: make unittests
-      - name: Upload coverage reports to codecov.io
+      - name: Upload unit test coverage reports to codecov.io
         uses: codecov/codecov-action@v1
         with:
           file: testreports/coverage-unit-clover.xml
           flags: unittests
-          name: RCMCardDAV test coverage
+          name: RCMCardDAV unit test coverage
+          fail_ci_if_error: false
+      - name: Upload DB interoperability test coverage reports to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          file: testreports/coverage-dbinterop-sqlite3-clover.xml
+          flags: dbinterop
+          name: RCMCardDAV database interoperability test coverage
           fail_ci_if_error: false
