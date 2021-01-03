@@ -18,7 +18,7 @@ stylecheck:
 phpcompatcheck:
 	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/ tests/
 
-psalmanalysis:
+psalmanalysis: tests/dbinterop/DatabaseAccounts.php
 	vendor/bin/psalm --no-cache
 
 .PHONY: tarball
@@ -73,7 +73,7 @@ tests/dbinterop/phpunit-$(1).xml: tests/dbinterop/phpunit.tmpl.xml
 	sed -e 's/%TEST_DBTYPE%/$(1)/g' tests/dbinterop/phpunit.tmpl.xml >tests/dbinterop/phpunit-$(1).xml
 
 .PHONY: tests-$(1)
-tests-$(1): tests/dbinterop/phpunit-$(1).xml
+tests-$(1): tests/dbinterop/phpunit-$(1).xml tests/dbinterop/DatabaseAccounts.php
 	@echo
 	@echo  ==========================================================
 	@echo "      EXECUTING DBINTEROP TESTS FOR DB $(1)"
@@ -107,6 +107,10 @@ tests: $(foreach dbtype,$(DBTYPES),tests-$(dbtype)) unittests
 
 # Checks that the schema after playing all migrations matches the one in INIT
 schematest: $(foreach dbtype,$(DBTYPES),schematest-$(dbtype))
+
+# For github CI system - if DatabaseAccounts.php is not available, create from DatabaseAccounts.php.dist
+tests/dbinterop/DatabaseAccounts.php: | tests/dbinterop/DatabaseAccounts.php.dist
+	cp $| $@ 
 
 .PHONY: unittests
 unittests: tests/unit/phpunit.xml
