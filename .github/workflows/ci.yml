@@ -14,6 +14,13 @@ jobs:
         XDEBUG_MODE: coverage
 
     steps:
+     - name: Set up PHP
+       uses: shivammathur/setup-php@v2
+       with:
+         php-version: '7.4'
+         tools: composer:v2
+         extensions: gd, xdebug, curl
+         coverage: xdebug
     - name: Checkout rcmcarddav
       uses: actions/checkout@v2
     - name: Checkout roundcubemail
@@ -22,16 +29,9 @@ jobs:
         path: roundcubemail
         repository: roundcube/roundcubemail
     - name: Install dependencies
-      uses: php-actions/composer@v5
-      with:
-        php_version: '7.4'
-        args: --ignore-platform-reqs
+      run: composer update
     - name: Run unit tests
-      uses: php-actions/phpunit@v2
-      with:
-        configuration: tests/unit/phpunit.xml
-        php_version: '7.4'
-        php_extensions: xdebug gd
+      run: make unittests
     - name: Upload coverage reports to codecov.io
       uses: codecov/codecov-action@v1
       with:
