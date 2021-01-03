@@ -19,6 +19,7 @@
 
         <report>
             <php outputFile="../../testreports/coverage-dbinterop-%TEST_DBTYPE%.cov"/>
+            <clover outputFile="../../testreports/coverage-dbinterop-%TEST_DBTYPE%-clover.xml"/>
         </report>
     </coverage>
 

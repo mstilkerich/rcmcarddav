@@ -19,6 +19,7 @@
 
         <report>
             <php outputFile="../../testreports/coverage-unit.cov"/>
+            <clover outputFile="../../testreports/coverage-unit-clover.xml"/>
         </report>
     </coverage>
 

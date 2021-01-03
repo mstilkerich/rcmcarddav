@@ -1,4 +1,4 @@
-name: CI
+name: CI Build
 
 on:
     workflow_dispatch:
@@ -29,3 +29,10 @@ jobs:
         configuration: tests/unit/phpunit.xml
         php_version: '7.4'
         php_extensions: xdebug gd
+    - name: Upload coverage reports to codecov.io
+      uses: codecov/codecov-action@v1
+      with:
+        file: testreports/coverage-unit-clover.xml
+        flags: unittests
+        name: RCMCardDAV test coverage
+        fail_ci_if_error: false
