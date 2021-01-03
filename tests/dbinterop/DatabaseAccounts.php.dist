@@ -12,7 +12,7 @@ final class DatabaseAccounts
      */
     public const ACCOUNTS = [
         "sqlite3" => [ "sqlite:///" . __DIR__ . "/../../testreports/test.db?mode=0640" ],
-//        "postgres" => [ "pgsql://rcmcarddav:pwd@localhost/rcmcarddavtest" ],
+        "postgres" => [ "pgsql://rcmcarddavtest:rcmcarddavtest@localhost/rcmcarddavtest" ],
         "mysql" => [ "mysql://rcmcarddavtest:rcmcarddavtest@localhost/rcmcarddavtest" ],
     ];
 }

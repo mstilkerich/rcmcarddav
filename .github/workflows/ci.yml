@@ -12,13 +12,33 @@ jobs:
 
     env:
       XDEBUG_MODE: coverage
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_PASSWORD: root
+      POSTGRES_PASSWORD: postgres
+      PGHOST: localhost
+      PGUSER: postgres
+
+    services:
+      postgres:
+        image: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - name: Set up MySQL
         run: |
           sudo systemctl start mysql.service
           echo "CREATE USER 'rcmcarddavtest'@'localhost' IDENTIFIED BY 'rcmcarddavtest';" | mysql -u root -proot
+      - name: Set up Postgres
+        run: |
+          echo '*:*:*:postgres:postgres' > ~/.pgpass
+          echo '*:*:*:rcmcarddavtest:rcmcarddavtest' >> ~/.pgpass
+          chmod 600 ~/.pgpass
+          psql --username=postgres -c "create role rcmcarddavtest with login password 'rcmcarddavtest';"
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
