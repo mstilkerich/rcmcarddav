@@ -17,6 +17,7 @@ jobs:
       - name: Set up MySQL
         run: |
           sudo systemctl start mysql.service
+          echo "GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED WITH auth_socket;" | mysql -u root -proot
           echo "CREATE USER 'rcmcarddavtest' IDENTIFIED BY 'rcmcarddavtest';" | mysql -u root -proot
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
