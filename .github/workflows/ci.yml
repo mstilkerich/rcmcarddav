@@ -31,17 +31,6 @@ jobs:
           - 5432:5432
 
     steps:
-      - name: Copy config files
-        run: |
-          cp -av .github/workflows/ci-cfg/.* ~/
-          chmod 600 ~/.pgpass ~/.mylogin.cnf
-      - name: Set up MySQL
-        run: |
-          sudo systemctl start mysql.service
-          echo "CREATE USER 'rcmcarddavtest'@'localhost' IDENTIFIED BY 'rcmcarddavtest';" | mysql -u root
-      - name: Set up Postgres
-        run: |
-          psql --username=postgres -c "create role rcmcarddavtest with login password 'rcmcarddavtest';"
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -57,6 +46,17 @@ jobs:
           path: roundcubemail
           repository: mstilkerich/roundcubemail
           ref: 'fix_phpdoc_annotations'
+      - name: Copy config files
+        run: |
+          cp -av .github/workflows/ci-cfg/.* ~/
+          chmod 600 ~/.pgpass ~/.mylogin.cnf
+      - name: Set up MySQL
+        run: |
+          sudo systemctl start mysql.service
+          echo "CREATE USER 'rcmcarddavtest'@'localhost' IDENTIFIED BY 'rcmcarddavtest';" | mysql -u root
+      - name: Set up Postgres
+        run: |
+          psql --username=postgres -c "create role rcmcarddavtest with login password 'rcmcarddavtest';"
       - name: Install dependencies
         run: composer update --no-interaction --no-progress
       - name: Check code style compliance with PSR12
