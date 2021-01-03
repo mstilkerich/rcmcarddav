@@ -530,7 +530,7 @@ class carddav extends rcube_plugin
                 && !empty($new['name']) // user entered a name (and hopefully more data) for a new addressbook
             ) {
                 try {
-                    if (filter_var($new["url"], FILTER_VALIDATE_URL, FILTER_FLAG_HOST_REQUIRED) === false) {
+                    if (filter_var($new["url"], FILTER_VALIDATE_URL) === false) {
                         throw new \Exception("Invalid URL: {$new['url']}");
                     }
                     $account = new Account(
