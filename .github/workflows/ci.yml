@@ -17,7 +17,7 @@ jobs:
       - name: Set up MySQL
         run: |
           sudo systemctl start mysql.service
-          echo "CREATE USER 'rcmcarddavtest' IDENTIFIED BY 'rcmcarddavtest';" | mysql -u root -p root
+          echo "CREATE USER 'rcmcarddavtest' IDENTIFIED BY 'rcmcarddavtest';" | mysql -u root -proot
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
