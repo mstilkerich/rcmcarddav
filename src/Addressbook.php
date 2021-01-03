@@ -957,11 +957,15 @@ class Addressbook extends rcube_addressbook
             $this->logger->debug("get_record_groups($id)");
             $db = $this->db;
             $groupIds = array_column($db->get(['contact_id' => $id], 'group_id', 'group_user'), 'group_id');
-            $groups = array_column(
-                $db->get(['id' => $groupIds, 'abook_id' => $this->id], 'id,name', 'groups'),
-                'name',
-                'id'
-            );
+            if (empty($groupIds)) {
+                $groups = [];
+            } else {
+                $groups = array_column(
+                    $db->get(['id' => $groupIds, 'abook_id' => $this->id], 'id,name', 'groups'),
+                    'name',
+                    'id'
+                );
+            }
 
             return $groups;
         } catch (\Exception $e) {
