@@ -27,7 +27,8 @@ jobs:
         uses: actions/checkout@v2
         with:
           path: roundcubemail
-          repository: roundcube/roundcubemail
+          repository: mstilkerich/roundcubemail
+          ref: 'fix_phpdoc_annotations'
       - name: Install dependencies
         run: composer update --no-interaction --no-progress
       - name: Check code style compliance with PSR12
