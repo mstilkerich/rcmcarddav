@@ -29,7 +29,17 @@ jobs:
           path: roundcubemail
           repository: roundcube/roundcubemail
       - name: Install dependencies
-        run: composer update
+        run: composer update --no-interaction --no-progress
+      - name: Check code style compliance with PSR12
+        run: make stylecheck
+      - name: Check code compatibility with minimum supported PHP version
+        run: make phpcompatcheck
+      - name: Run psalm static analysis
+        run: make psalmanalysis
+      - name: Database interoperability tests for SQLite3
+        run: make tests-sqlite3
+      - name: Check test datasets have a description
+        run: make checktestspecs
       - name: Run unit tests
         run: make unittests
       - name: Upload coverage reports to codecov.io
