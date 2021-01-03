@@ -14,6 +14,10 @@ jobs:
       XDEBUG_MODE: coverage
 
     steps:
+      - name: Set up MySQL
+        run: |
+          sudo systemctl start mysql.service
+          echo "CREATE USER 'rcmcarddavtest' IDENTIFIED BY 'rcmcarddavtest';" | mysql -u root -p root
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -39,6 +43,8 @@ jobs:
         run: make psalmanalysis
       - name: Database interoperability tests for SQLite3
         run: make tests-sqlite3
+      - name: Database interoperability tests for MySQL
+        run: make tests-mysql
       - name: Check test datasets have a description
         run: make checktestspecs
       - name: Run unit tests
@@ -53,7 +59,7 @@ jobs:
       - name: Upload DB interoperability test coverage reports to codecov.io
         uses: codecov/codecov-action@v1
         with:
-          file: testreports/coverage-dbinterop-sqlite3-clover.xml
+          files: testreports/coverage-dbinterop-sqlite3-clover.xml, testreports/coverage-dbinterop-mysql-clover.xml
           flags: dbinterop
           name: RCMCardDAV database interoperability test coverage
           fail_ci_if_error: false

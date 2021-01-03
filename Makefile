@@ -111,7 +111,7 @@ schematest: $(foreach dbtype,$(DBTYPES),schematest-$(dbtype))
 
 # For github CI system - if DatabaseAccounts.php is not available, create from DatabaseAccounts.php.dist
 tests/dbinterop/DatabaseAccounts.php: | tests/dbinterop/DatabaseAccounts.php.dist
-	cp $| $@ 
+	cp $| $@
 
 .PHONY: unittests
 unittests: tests/unit/phpunit.xml
