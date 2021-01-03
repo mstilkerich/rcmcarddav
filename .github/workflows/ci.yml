@@ -31,20 +31,16 @@ jobs:
           - 5432:5432
 
     steps:
+      - name: Copy config files
+        run: |
+          cp -av .github/workflows/ci-cfg/.* ~/
+          chmod 600 ~/.pgpass ~/.mylogin.cnf
       - name: Set up MySQL
         run: |
           sudo systemctl start mysql.service
-          echo '[client]' > ~/.mylogin.cnf
-          echo 'user = root' >> ~/.mylogin.cnf
-          echo 'password = root' >> ~/.mylogin.cnf
-          echo 'host = 127.0.0.1' >> ~/.mylogin.cnf
-          chmod 600 ~/.mylogin.cnf
-          echo "CREATE USER 'rcmcarddavtest'@'localhost' IDENTIFIED BY 'rcmcarddavtest';" | mysql -u root -proot
+          echo "CREATE USER 'rcmcarddavtest'@'localhost' IDENTIFIED BY 'rcmcarddavtest';" | mysql -u root
       - name: Set up Postgres
         run: |
-          echo '*:*:*:postgres:postgres' > ~/.pgpass
-          echo '*:*:*:rcmcarddavtest:rcmcarddavtest' >> ~/.pgpass
-          chmod 600 ~/.pgpass
           psql --username=postgres -c "create role rcmcarddavtest with login password 'rcmcarddavtest';"
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
