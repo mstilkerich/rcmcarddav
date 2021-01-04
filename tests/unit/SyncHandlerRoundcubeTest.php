@@ -101,6 +101,12 @@ final class SyncHandlerRoundcubeTest extends TestCase
         $centries = $db->get(['abook_id' => '42']);
         $gentries = $db->get(['abook_id' => '42', '!vcard' => null], 'id', 'groups');
         $this->assertCount(count($centries) + count($gentries), $cache);
+
+        // check that contact and group card both contained
+        foreach (['nedstark', 'kings'] as $dataset) {
+            $this->assertArrayHasKey("/book42/$dataset.vcf", $cache);
+            $this->assertSame($cache["/book42/$dataset.vcf"], "etag@{$dataset}_1");
+        }
     }
 
     /**
