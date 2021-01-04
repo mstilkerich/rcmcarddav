@@ -18,13 +18,12 @@
         </include>
 
         <report>
-            <php outputFile="../../testreports/coverage-dbinterop-%TEST_DBTYPE%.cov"/>
-            <clover outputFile="../../testreports/coverage-dbinterop-%TEST_DBTYPE%-clover.xml"/>
+            <php outputFile="../../testreports/dbinterop-%TEST_DBTYPE%/coverage.cov"/>
         </report>
     </coverage>
 
     <logging>
-        <testdoxHtml outputFile="../../testreports/testdox-dbinterop-%TEST_DBTYPE%.html"/>
+        <testdoxHtml outputFile="../../testreports/dbinterop-%TEST_DBTYPE%/results.html"/>
     </logging>
 </phpunit>
 

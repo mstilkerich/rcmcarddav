@@ -18,13 +18,12 @@
         </include>
 
         <report>
-            <php outputFile="../../testreports/coverage-unit.cov"/>
-            <clover outputFile="../../testreports/coverage-unit-clover.xml"/>
+            <php outputFile="../../testreports/unit/coverage.cov"/>
         </report>
     </coverage>
 
     <logging>
-        <testdoxHtml outputFile="../../testreports/testdox-unit.html"/>
+        <testdoxHtml outputFile="../../testreports/unit/results.html"/>
     </logging>
 </phpunit>
 

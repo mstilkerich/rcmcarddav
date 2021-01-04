@@ -45,7 +45,7 @@ class TestLogger extends AbstractLogger
 
     public function __construct()
     {
-        $logfile = "testreports/tests-{$GLOBALS['TEST_TESTRUN']}.log";
+        $logfile = "testreports/{$GLOBALS['TEST_TESTRUN']}/test.log";
         if (file_exists($logfile)) {
             unlink($logfile);
         }
