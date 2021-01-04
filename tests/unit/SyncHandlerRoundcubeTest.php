@@ -12,6 +12,35 @@ use MStilkerich\CardDavClient\AddressbookCollection;
 use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook,DataConversion,SyncHandlerRoundcube};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
+/**
+ * Tests for the SyncHandlerRoundcube class.
+ *
+ * Situations to consider in the test:
+ *
+ * GetExistingVCards: Provide array URI => ETAG
+ *   - Case: Empty addressbook
+ *   - Case: Addressbook with contacts AND vcard-style groups AND CATEGORIES-style groups [not contained]
+ * Changes: URI, ETAG, ?Card
+ *   - Card is NULL
+ *   - New contact
+ *     - with CATEGORIES
+ *     - with PHOTO referenced by URI (no download from CardDAV server)
+ *   - Updated contact, with CATEGORIES
+ *      - New CATEGORIES
+ *      - Removed CATEGORIES
+ *      - A CATEGORIES-type group becomes empty during the sync
+ *   - New group
+ *      - Without members
+ *      - With members provided in previous Change invocations
+ *      - With members provided in later Change invocations
+ *      - With members already locally available, but not changed
+ *      - Error: With member UIDs that are unknown
+ * Deleted: URI
+ *      - Existing contact card
+ *      - Existing group card
+ *      - Unknown URI
+ * Finalize:
+ */
 final class SyncHandlerRoundcubeTest extends TestCase
 {
     public static function setUpBeforeClass(): void
@@ -27,47 +56,6 @@ final class SyncHandlerRoundcubeTest extends TestCase
     public function tearDown(): void
     {
         TestInfrastructure::logger()->reset();
-    }
-
-    private function vcardSamplesProvider(string $basedir): array
-    {
-        $vcfFiles = glob("$basedir/*.vcf");
-
-        $result = [];
-        foreach ($vcfFiles as $vcfFile) {
-            $comp = pathinfo($vcfFile);
-            $jsonFile = "{$comp["dirname"]}/{$comp["filename"]}.json";
-            $result[$comp["basename"]] = [ $vcfFile, $jsonFile ];
-        }
-
-        return $result;
-    }
-
-    // GetExistingVCards: Provide array URI => ETAG
-    //   - Case: Empty addressbook
-    //   - Case: Addressbook with contacts AND vcard-style groups AND CATEGORIES-style groups [not contained]
-    // Changes: URI, ETAG, ?Card
-    //   - Card is NULL
-    //   - New contact
-    //     - with CATEGORIES
-    //     - with PHOTO referenced by URI (no download from CardDAV server)
-    //   - Updated contact, with CATEGORIES
-    //      - New CATEGORIES
-    //      - Removed CATEGORIES
-    //   - New group
-    //      - Without members
-    //      - With members provided in previous Change invocations
-    //      - With members provided in later Change invocations
-    //      - With members already locally available, but not changed
-    //      - Error: With member UIDs that are unknown
-    // Deleted: URI
-    //      - Existing contact card
-    //      - Existing group card
-    //      - Unknown URI
-    // Finalize:
-    public function vcardImportSamplesProvider(): array
-    {
-        return $this->vcardSamplesProvider('tests/unit/data/vcardImport');
     }
 
     /**
@@ -90,7 +78,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
      */
     public function testSyncHandlerProvidesExistingCacheState(): void
     {
-        $db = new JsonDatabase(['tests/unit/data/syncHandlerTest/db.json']);
+        $db = new JsonDatabase(['tests/unit/data/syncHandlerTest/initial/db.json']);
         $logger = TestInfrastructure::logger();
         [ $dc, $abook, $rcAbook ] = $this->initStubs($db);
 
@@ -121,7 +109,8 @@ final class SyncHandlerRoundcubeTest extends TestCase
      */
     public function testInitialSyncOnEmptyDatabase(): void
     {
-        $vcfFiles = (glob("tests/unit/data/syncHandlerTest/*.vcf"));
+        $vcfFiles = (glob("tests/unit/data/syncHandlerTest/initial/*.vcf"));
+        $this->assertIsArray($vcfFiles);
         $this->assertTrue(sort($vcfFiles));
         $this->initialSyncTestHelper($vcfFiles);
     }
@@ -135,7 +124,8 @@ final class SyncHandlerRoundcubeTest extends TestCase
      */
     public function testInitialSyncOnEmptyDatabaseInReverseOrder(): void
     {
-        $vcfFiles = (glob("tests/unit/data/syncHandlerTest/*.vcf"));
+        $vcfFiles = (glob("tests/unit/data/syncHandlerTest/initial/*.vcf"));
+        $this->assertIsArray($vcfFiles);
         $this->assertTrue(rsort($vcfFiles));
         $this->initialSyncTestHelper($vcfFiles);
     }
@@ -143,7 +133,6 @@ final class SyncHandlerRoundcubeTest extends TestCase
     private function initialSyncTestHelper(array $vcfFiles): void
     {
         $db = new JsonDatabase(['tests/unit/data/syncHandlerTest/initialdb.json']);
-        $expDb = new JsonDatabase(['tests/unit/data/syncHandlerTest/db.json']);
         $logger = TestInfrastructure::logger();
         [ $dc, $abook, $rcAbook ] = $this->initStubs($db);
 
@@ -177,6 +166,56 @@ final class SyncHandlerRoundcubeTest extends TestCase
             "error",
             "Card /book42/error.vcf changed, but error in retrieving address data (card ignored)"
         );
+
+        $this->compareResultDb($db, "initial");
+    }
+
+    /**
+     * Tests a subsequent sync to the database state of the initial sync.
+     */
+    public function testFollowupSync1(): void
+    {
+        $db = new JsonDatabase(['tests/unit/data/syncHandlerTest/initial/db.json']);
+        $logger = TestInfrastructure::logger();
+        [ $dc, $abook, $rcAbook ] = $this->initStubs($db);
+
+        $vcfFiles = (glob("tests/unit/data/syncHandlerTest/increment1/*.vcf"));
+        $this->assertIsArray($vcfFiles);
+
+        // get list of cards to report as deleted
+        $deleted = file(
+            "tests/unit/data/syncHandlerTest/increment1/remove.txt",
+            FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES
+        );
+        $this->assertIsArray($deleted);
+
+        $synch = new SyncHandlerRoundcube($rcAbook, $db, $logger, $dc, $abook);
+
+        foreach ($deleted as $deletedCard) {
+            $synch->addressObjectDeleted("/book42/$deletedCard");
+        }
+
+        // include deletion of an unknown card, should be gracefully ignored
+        $synch->addressObjectDeleted("/book42/doesNotExist");
+
+        // Report all VCards of the test DB as changed
+        foreach ($vcfFiles as $vcfFile) {
+            $base = basename($vcfFile, ".vcf");
+            $synch->addressObjectChanged(
+                "/book42/$base.vcf",
+                "etag@${base}_2",
+                TestInfrastructure::readVCard($vcfFile)
+            );
+        }
+
+        $synch->finalizeSync();
+
+        $this->compareResultDb($db, "increment1");
+    }
+
+    private function compareResultDb(JsonDatabase $db, string $syncStage): void
+    {
+        $expDb = new JsonDatabase(["tests/unit/data/syncHandlerTest/$syncStage/db.json"]);
 
         // Compare database with expected state
         $expDb->compareTables('contacts', $db);
