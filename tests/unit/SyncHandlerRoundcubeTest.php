@@ -158,6 +158,10 @@ final class SyncHandlerRoundcubeTest extends TestCase
                 TestInfrastructure::readVCard($vcfFile)
             );
         }
+
+        // simulate a VCard parse error
+        $synch->addressObjectChanged("/book42/error.vcf", "etag@error_1", null);
+
         $synch->finalizeSync();
 
         // check emitted warnings
@@ -168,6 +172,10 @@ final class SyncHandlerRoundcubeTest extends TestCase
         $logger->expectMessage(
             "warning",
             "cannot find DB ID for group member: 11111111-2222-3333-4444-555555555555"
+        );
+        $logger->expectMessage(
+            "error",
+            "Card /book42/error.vcf changed, but error in retrieving address data (card ignored)"
         );
 
         // Compare database with expected state

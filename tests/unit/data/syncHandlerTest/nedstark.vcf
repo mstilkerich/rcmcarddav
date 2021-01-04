@@ -11,4 +11,5 @@ EMAIL;TYPE=WORK:warden_of_the_north@stark.example.com
 TITLE:Warden of the North
 CATEGORIES:House Stark
 REV;VALUE=DATE-AND-OR-TIME:20201227T103400Z
+PHOTO;VALUE=uri:http://localhost/doesNotExist.jpg
 END:VCARD
