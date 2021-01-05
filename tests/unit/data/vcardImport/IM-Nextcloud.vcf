@@ -1,0 +1,22 @@
+BEGIN:VCARD
+VERSION:3.0
+PRODID:-//Sabre//Sabre VObject 4.1.6//EN
+UID:96687582-d181-4d29-9b2f-923fba693441
+FN:Test Kontakt
+ADR;TYPE=HOME:;;;;;;
+EMAIL;TYPE=HOME:kontakt@example.com
+TEL;TYPE="HOME,VOICE":
+IMPP;TYPE=SKYPE:skype@example.com
+IMPP;TYPE=XMPP:xmpp@example.com
+IMPP;TYPE=IRC:irc@example.com
+IMPP;TYPE=KIK:kik@example.com
+IMPP;TYPE=TELEGRAM:telegram@example.com
+IMPP;TYPE=SIP:sip@example.com
+IMPP;TYPE=QQ:qq@example.com
+IMPP;TYPE=WECHAT:wechat@example.com
+IMPP;TYPE=LINE:line@example.com
+IMPP;TYPE=KAKAOTALK:kakaotalk@example.com
+IMPP;TYPE=MATRIX:matrix@example.com
+IMPP;TYPE=ZOOM:zoom@example.com
+REV;VALUE=DATE-AND-OR-TIME:20201126T095416Z
+END:VCARD

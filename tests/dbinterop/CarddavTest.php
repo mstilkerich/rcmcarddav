@@ -6,7 +6,7 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
-use MStilkerich\CardDavAddressbook4Roundcube\{Database};
+use carddav;
 
 final class CarddavTest extends TestCase
 {
@@ -19,15 +19,15 @@ final class CarddavTest extends TestCase
 
         $dbsettings = TestInfrastructureDB::dbSettings();
         $db_dsnw = $dbsettings[0];
-        TestInfrastructureDB::initDatabase($db_dsnw);
+        $db = TestInfrastructureDB::initDatabase($db_dsnw);
 
-        $dbh = Database::getDbHandle();
         TestData::initDatabase();
-
-        /** @var \Psr\Log\LoggerInterface */
-        $logger = TestInfrastructure::$logger;
-        self::$plugin = new \carddav(\rcube_plugin_api::get_instance());
-        self::$plugin->init([ "logger" => $logger, "logger_http" => $logger ]);
+        $logger = TestInfrastructure::logger();
+        self::$plugin = new carddav(
+            \rcube_plugin_api::get_instance(),
+            [ "logger" => $logger, "logger_http" => $logger, "db" => $db ]
+        );
+        self::$plugin->init();
     }
 
     public function setUp(): void
@@ -36,6 +36,7 @@ final class CarddavTest extends TestCase
 
     public function tearDown(): void
     {
+        TestInfrastructure::logger()->reset();
     }
 
     public function testProvidesCorrectListOfAddressbooks(): void

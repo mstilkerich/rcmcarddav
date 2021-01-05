@@ -1,0 +1,13 @@
+{
+	"name": "Max Mustermann",
+	"firstname": "Max",
+	"surname": "Mustermann",
+	"cuid": "B92B8FDB-E918-481F-AD6F-9713D5324AC5",
+	"kind": "individual",
+	"email:SpecialLabel": [
+		"special@maxmu.de"
+	],
+	"email:other": [
+		"group_but_not_xablabel@example.com"
+	]
+}

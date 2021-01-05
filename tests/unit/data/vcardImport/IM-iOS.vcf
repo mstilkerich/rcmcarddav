@@ -1,0 +1,44 @@
+BEGIN:VCARD
+VERSION:3.0
+PRODID:-//Apple Inc.//iOS 14.2//EN
+N:IosIMKontakt;Test;;;
+FN:Test IosIMKontakt
+item1.X-ICQ:18383828
+item1.X-ABLabel:ICQ
+item2.X-AIM:aim@example.com
+item2.X-ABLabel:AIM
+item3.X-MSN:msn@example.com
+item3.X-ABLabel:MSN
+item4.X-YAHOO:yahoo@example.com
+item4.X-ABLabel:Yahoo
+item5.X-JABBER:jabber@example.com
+item5.X-ABLabel:Jabber
+item6.IMPP;X-SERVICE-TYPE=Skype;type=pref:skype:skype@example.com
+item6.X-ABLabel:Skype
+item7.IMPP;X-SERVICE-TYPE=WhatsApp;x-teamidentifier=57T9237FN3;x-bundleidentifiers=net.whatsapp.WhatsApp:x-apple:0283839
+item7.X-ABLabel:WhatsApp
+item8.IMPP;X-SERVICE-TYPE="Mike’s very special, custom IM:":x-apple:mikeim@example.com
+item8.X-ABLabel:Mike’s very special\, custom IM:
+item9.IMPP;X-SERVICE-TYPE=ICQ:aim:18383828
+item9.X-ABLabel:ICQ
+item10.IMPP;X-SERVICE-TYPE=AIM:aim:aim@example.com
+item10.X-ABLabel:AIM
+item11.IMPP;X-SERVICE-TYPE=MSN:msnim:msn@example.com
+item11.X-ABLabel:MSN
+item12.IMPP;X-SERVICE-TYPE=GoogleTalk:xmpp:gtalk@example.com
+item12.X-ABLabel:GoogleTalk
+item13.IMPP;X-SERVICE-TYPE=Facebook:xmpp:fbook@example.com
+item13.X-ABLabel:Facebook
+item14.IMPP;X-SERVICE-TYPE=Yahoo:ymsgr:yahoo@example.com
+item14.X-ABLabel:Yahoo
+item15.IMPP;X-SERVICE-TYPE=Jabber:xmpp:jabber@example.com
+item15.X-ABLabel:Jabber
+item16.IMPP;X-SERVICE-TYPE=QQ:x-apple:qq@example.com
+item16.X-ABLabel:QQ
+item17.IMPP;X-SERVICE-TYPE=GaduGadu:x-apple:gadu@example.com
+item17.X-ABLabel:GaduGadu
+item18.IMPP;X-SERVICE-TYPE=Skype:skype:skype2@example.com
+item18.X-ABLabel:Skype
+REV:2020-11-26T09:34:12Z
+UID:E627D8ED-37BB-4AF0-91D3-E622B6390BF3
+END:VCARD

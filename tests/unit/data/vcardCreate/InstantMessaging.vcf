@@ -1,0 +1,45 @@
+BEGIN:VCARD
+VERSION:3.0
+PRODID:-//Sabre//Sabre VObject 4.3.1//EN
+UID:E627D8ED-37BB-4AF0-91D3-E622B6390BF3
+REV:2020-08-27T20:38:49Z
+N:Doe;John;;;
+FN:John Doe
+IMPP;TYPE=Skype;X-SERVICE-TYPE=Skype:skype:skype@example.com
+IMPP;TYPE=Skype;X-SERVICE-TYPE=Skype:skype:skype2@example.com
+X-SKYPE:skype@example.com
+X-SKYPE:skype2@example.com
+IMPP;TYPE=WhatsApp;X-SERVICE-TYPE=WhatsApp:whatsapp:0283839
+IMPP;TYPE="Mike’s very special, custom IM:";X-SERVICE-TYPE="Mike’s very special, custom IM:":x-unknown:mikeim@example.com
+IMPP;TYPE=ICQ;X-SERVICE-TYPE=ICQ:icq:18383828
+X-ICQ:18383828
+IMPP;TYPE=AIM;X-SERVICE-TYPE=AIM:aim:aim@example.com
+X-AIM:aim@example.com
+IMPP;TYPE=MSN;X-SERVICE-TYPE=MSN:msnim:msn@example.com
+X-MSN:msn@example.com
+IMPP;TYPE=GoogleTalk;X-SERVICE-TYPE=GoogleTalk:gtalk:gtalk@example.com
+X-GOOGLE-TALK:gtalk@example.com
+IMPP;TYPE=Facebook;X-SERVICE-TYPE=Facebook:facebook:fbook@example.com
+IMPP;TYPE=Yahoo;X-SERVICE-TYPE=Yahoo:ymsgr:yahoo@example.com
+X-YAHOO:yahoo@example.com
+IMPP;TYPE=Jabber;X-SERVICE-TYPE=Jabber:xmpp:jabber@example.com
+X-JABBER:jabber@example.com
+IMPP;TYPE=QQ;X-SERVICE-TYPE=QQ:qq:qq@example.com
+IMPP;TYPE=Groupwise;X-SERVICE-TYPE=Groupwise:groupwise:groupwise@example.com
+X-GROUPWISE:groupwise@example.com
+IMPP;TYPE=Twitter;X-SERVICE-TYPE=Twitter:twitter:mtwitterich
+X-TWITTER:mtwitterich
+IMPP;TYPE=GaduGadu;X-SERVICE-TYPE=GaduGadu:gg:gadu@example.com
+X-GADUGADU:gadu@example.com
+IMPP;TYPE=IRC;X-SERVICE-TYPE=IRC:irc:irc@example.com
+IMPP;TYPE=Kakaotalk;X-SERVICE-TYPE=Kakaotalk:kakaotalk:kakaotalk@example.com
+IMPP;TYPE=Kik;X-SERVICE-TYPE=Kik:kik:kik@example.com
+IMPP;TYPE=Line;X-SERVICE-TYPE=Line:line:line@example.com
+IMPP;TYPE=Matrix;X-SERVICE-TYPE=Matrix:matrix:matrix@example.com
+IMPP;TYPE=SIP;X-SERVICE-TYPE=SIP:sip:sip@example.com
+IMPP;TYPE=Telegram;X-SERVICE-TYPE=Telegram:telegram:telegram@example.com
+IMPP;TYPE=WeChat;X-SERVICE-TYPE=WeChat:wechat:wechat@example.com
+IMPP;TYPE=Zoom;X-SERVICE-TYPE=Zoom:zoomus:zoom@example.com
+IMPP;TYPE=other;X-SERVICE-TYPE=other:other:other@example.com
+X-ADDRESSBOOKSERVER-KIND:individual
+END:VCARD

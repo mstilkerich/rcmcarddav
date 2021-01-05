@@ -1,0 +1,10 @@
+BEGIN:VCARD
+VERSION:3.0
+UID:B92B8FDB-E918-481F-AD6F-9713D5324AC5
+N:Mustermann;Max;;;
+FN:Max Mustermann
+EMAIL;TYPE=internet:special@maxmu.de
+PRODID:-//Apple Inc.//iCloud Web Address Book 2018B71//EN
+REV:2020-10-03T10:30:20Z
+PHOTO;X-ABCROP-RECTANGLE=ABClipRect_1&60&179&181&181&qZ54yqewvBZj2mycxrnqsA==;VALUE=uri:http://localhost/raven.jpg
+END:VCARD

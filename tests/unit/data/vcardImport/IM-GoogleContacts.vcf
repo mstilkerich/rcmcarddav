@@ -1,0 +1,23 @@
+BEGIN:VCARD
+VERSION:3.0
+N:IMTestKontakt;Google;;;
+FN:Google IMTestKontakt
+REV:2020-11-27T07:21:06Z
+UID:30ebe760088dd995
+item1.IMPP;X-SERVICE-TYPE=AIM:aim:aim@example.com
+item2.IMPP;X-SERVICE-TYPE=ICQ:aim:12345
+item3.IMPP;X-SERVICE-TYPE=GoogleTalk:xmpp:gtalk@example.com
+item4.IMPP;X-SERVICE-TYPE=QQ:x-apple:qq@example.com
+item5.IMPP;X-SERVICE-TYPE=Skype:skype:skype@example.com
+item6.IMPP;X-SERVICE-TYPE=Yahoo:ymsgr:yahoo@example.com
+item7.IMPP;X-SERVICE-TYPE=MSN:msnim:msn@example.com
+item8.IMPP;X-SERVICE-TYPE=Jabber:xmpp:jabber@example.com
+item1.X-ABLabel:Other
+item2.X-ABLabel:Other
+item3.X-ABLabel:Other
+item4.X-ABLabel:Other
+item5.X-ABLabel:Other
+item6.X-ABLabel:Other
+item7.X-ABLabel:Other
+item8.X-ABLabel:Other
+END:VCARD

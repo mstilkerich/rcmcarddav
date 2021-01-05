@@ -1,0 +1,15 @@
+BEGIN:VCARD
+VERSION:3.0
+PRODID:-//Sabre//Sabre VObject 4.3.0//EN
+UID:736dc919-1cce-4d9f-95ea-12a2e5322efe
+FN:Eddard Stark
+N:Stark;Eddard;;;
+ORG:The North;Winterfell
+ADR;TYPE=HOME:;;;;;;
+EMAIL;TYPE=HOME:ned@stark.example.com
+EMAIL;TYPE=WORK:warden_of_the_north@stark.example.com
+TITLE:Warden of the North
+CATEGORIES:House Stark
+REV;VALUE=DATE-AND-OR-TIME:20201227T103400Z
+PHOTO;VALUE=uri:http://localhost/doesNotExist.jpg
+END:VCARD

@@ -1,5 +1,7 @@
-.git*    export-ignore
-*.xml    export-ignore
-Makefile export-ignore
-doc      export-ignore
-*.tgz    export-ignore
+.git*     export-ignore
+*.xml     export-ignore
+Makefile  export-ignore
+doc       export-ignore
+/tests    export-ignore
+*.vcf     text eol=crlf
+*.vcf.new text eol=crlf

@@ -1,0 +1,9 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:Owncloud IMKontakt
+UID:a7bbe93c-be17-4f9c-a652-0e6028b19c11
+REV:20201126T095821Z
+IMPP;TYPE=IRC:irc@example.com
+IMPP;TYPE=SKYPE:skype@example.com
+IMPP;TYPE=TELEGRAM:telegram@example.com
+END:VCARD

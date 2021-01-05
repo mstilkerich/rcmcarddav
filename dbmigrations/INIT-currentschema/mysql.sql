@@ -1,17 +1,17 @@
 -- table to store the configured address books
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-	name VARCHAR(64) NOT NULL,
-	username VARCHAR(255) NOT NULL,
-	password TEXT NOT NULL,
-	url VARCHAR(4095) NOT NULL,
+	name VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+	username VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+	password TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+	url VARCHAR(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
 	active TINYINT UNSIGNED NOT NULL DEFAULT 1,
 	user_id INT(10) UNSIGNED NOT NULL,
 	last_updated BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the last update of the local database
 	refresh_time INT NOT NULL DEFAULT 3600, -- time span (seconds) after that the local database will be refreshed, default 1h
-	sync_token TEXT, -- sync-token the server sent us for the last sync
+	sync_token TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, -- sync-token the server sent us for the last sync
 
-	presetname   VARCHAR(255), -- presetname
+	presetname VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, -- presetname
 	use_categories INT NOT NULL DEFAULT '0',
 
 	PRIMARY KEY(id),
@@ -22,16 +22,16 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_contacts (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
 	abook_id INT UNSIGNED NOT NULL,
-	name VARCHAR(255)     NOT NULL, -- display name
-	email VARCHAR(4095), -- ", " separated list of mail addresses
-	firstname VARCHAR(255),
-	surname VARCHAR(255),
-	organization VARCHAR(255),
-	showas VARCHAR(32) NOT NULL DEFAULT '', -- special display type (e.g., as a company)
-	vcard LONGTEXT NOT NULL,    -- complete vcard
-	etag VARCHAR(255) NOT NULL, -- entity tag, can be used to check if card changed on server
-	uri  VARCHAR(700) NOT NULL, -- path of the card on the server
-	cuid VARCHAR(255) NOT NULL, -- unique identifier of the card within the collection
+	name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL, -- display name
+	email VARCHAR(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, -- ", " separated list of mail addresses
+	firstname VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+	surname VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+	organization VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+	showas VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '', -- special display type (e.g., as a company)
+	vcard LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,    -- complete vcard
+	etag VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL, -- entity tag, can be used to check if card changed on server
+	uri  VARCHAR(700) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL, -- path of the card on the server
+	cuid VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL, -- unique identifier of the card within the collection
 
 	PRIMARY KEY(id),
 	INDEX (abook_id),
@@ -42,8 +42,8 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_contacts (
 
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_xsubtypes (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-	typename VARCHAR(128) NOT NULL,  -- name of the type
-	subtype  VARCHAR(128) NOT NULL,  -- name of the subtype
+	typename VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,  -- name of the type
+	subtype  VARCHAR(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,  -- name of the subtype
 	abook_id INT UNSIGNED NOT NULL,
 	PRIMARY KEY(id),
 	UNIQUE INDEX(typename,subtype,abook_id),
@@ -53,11 +53,11 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_xsubtypes (
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_groups (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
 	abook_id INT UNSIGNED NOT NULL,
-	name VARCHAR(255) NOT NULL,     -- display name
-	vcard LONGTEXT DEFAULT NULL,    -- complete vcard
-	etag VARCHAR(255) DEFAULT NULL, -- entity tag, can be used to check if card changed on server
-	uri  VARCHAR(700) DEFAULT NULL, -- path of the card on the server
-	cuid VARCHAR(255) DEFAULT NULL, -- unique identifier of the card within the collection
+	name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,     -- display name
+	vcard LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,    -- complete vcard
+	etag VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, -- entity tag, can be used to check if card changed on server
+	uri  VARCHAR(700) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, -- path of the card on the server
+	cuid VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, -- unique identifier of the card within the collection
 
 	PRIMARY KEY(id),
 	UNIQUE INDEX(uri,abook_id),

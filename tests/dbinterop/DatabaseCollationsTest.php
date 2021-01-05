@@ -6,19 +6,20 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
-use MStilkerich\CardDavAddressbook4Roundcube\{Database};
+use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 final class DatabaseCollationsTest extends TestCase
 {
+    /** @var AbstractDatabase */
+    private static $db;
+
     public static function setUpBeforeClass(): void
     {
         TestInfrastructure::init();
 
         $dbsettings = TestInfrastructureDB::dbSettings();
         $db_dsnw = $dbsettings[0];
-        TestInfrastructureDB::initDatabase($db_dsnw);
-
-        $dbh = Database::getDbHandle();
+        self::$db = TestInfrastructureDB::initDatabase($db_dsnw);
         TestData::initDatabase();
     }
 
@@ -28,9 +29,8 @@ final class DatabaseCollationsTest extends TestCase
 
     public function tearDown(): void
     {
-        //Database::delete("UNITTEST-SYNC%", "migrations", "%filename");
+        TestInfrastructure::logger()->reset();
     }
-
 
     public function uniqueDataProviderDiffcase(): array
     {
@@ -126,12 +126,13 @@ final class DatabaseCollationsTest extends TestCase
      */
     public function testUniqueConstraintCaseSensitive(string $tbl, array $cols, array $datarows): void
     {
+        $db = self::$db;
         foreach ($datarows as $row) {
             $tblshort = preg_replace('/^carddav_/', '', $tbl);
             $this->assertNotNull($tblshort);
 
             TestData::insertRow($tbl, $cols, $row);
-            $row2 = Database::get($row[0], join(",", $cols), $tblshort, true, $cols[0], array_combine($cols, $row));
+            $row2 = $db->lookup(array_combine($cols, $row), join(",", $cols), $tblshort);
             $this->assertEquals(array_combine($cols, $row), $row2, "Inserted row not same as in DB");
         }
     }
@@ -167,6 +168,8 @@ final class DatabaseCollationsTest extends TestCase
      */
     public function testEqualsOperatorIsCaseSensitive(string $tbl, array $cols, array $row, array $uccols): void
     {
+        $db = self::$db;
+
         $tblshort = preg_replace('/^carddav_/', '', $tbl);
         $this->assertNotNull($tblshort);
 
@@ -181,7 +184,7 @@ final class DatabaseCollationsTest extends TestCase
 
         // check that select with equals on any uppercase column returns only the new uppercased record
         foreach ($uccols as $idx) {
-            $rowuc2 = Database::get($rowuc[$idx], "id", $tblshort, true, $cols[$idx]);
+            $rowuc2 = $db->lookup([$cols[$idx] => $rowuc[$idx]], "id", $tblshort);
             $this->assertEquals($rowucId, $rowuc2["id"], "Queried row not the uppercased one for $tbl $cols[$idx]");
         }
     }
@@ -219,6 +222,8 @@ final class DatabaseCollationsTest extends TestCase
      */
     public function testIlikeSelectorIsCaseInsensitive(string $tbl, array $cols, array $row, array $uccols): void
     {
+        $db = self::$db;
+
         $tblshort = preg_replace('/^carddav_/', '', $tbl);
         $this->assertNotNull($tblshort);
 
@@ -242,7 +247,7 @@ final class DatabaseCollationsTest extends TestCase
 
         foreach ($uccols as $idx => $pattern) {
             if (isset($pattern)) {
-                $rows = Database::get($pattern, "id", $tblshort, false, "%" . $cols[$idx]);
+                $rows = $db->get(["%$cols[$idx]" => $pattern], "id", $tblshort);
                 $this->assertCount(2, $rows, "Number of returned $tbl rows not as expected ($cols[$idx])");
 
                 $gotIds = array_column($rows, "id");

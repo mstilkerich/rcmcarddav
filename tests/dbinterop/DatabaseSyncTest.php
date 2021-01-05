@@ -6,10 +6,13 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
-use MStilkerich\CardDavAddressbook4Roundcube\{Database};
+use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 final class DatabaseSyncTest extends TestCase
 {
+    /** @var AbstractDatabase */
+    private static $db;
+
     /** @var resource[] */
     private $sockets;
     /** @var resource */
@@ -18,6 +21,10 @@ final class DatabaseSyncTest extends TestCase
     public static function setUpBeforeClass(): void
     {
         TestInfrastructure::init();
+
+        $dbsettings = TestInfrastructureDB::dbSettings();
+        $db_dsnw = $dbsettings[0];
+        self::$db = TestInfrastructureDB::initDatabase($db_dsnw);
     }
 
     public function setUp(): void
@@ -30,60 +37,62 @@ final class DatabaseSyncTest extends TestCase
     {
         fclose($this->sockets[0]);
         fclose($this->sockets[1]);
-        Database::delete("UNITTEST-SYNC%", "migrations", "%filename");
+        self::$db->delete(["%filename" => "UNITTEST-SYNC%"], "migrations");
+
+        TestInfrastructure::logger()->reset();
     }
 
     public function testOverlappingWriteAborts(): void
     {
-        $dbsettings = TestInfrastructureDB::dbSettings();
-        $db_dsnw = $dbsettings[0];
-
         if ($this->split() === 0) {
-            TestInfrastructureDB::initDatabase($db_dsnw);
+            // Create a new database handle for the child so it uses a separate connection
+            $dbsettings = TestInfrastructureDB::dbSettings();
+            $db_dsnw = $dbsettings[0];
+            $db = TestInfrastructureDB::initDatabase($db_dsnw);
 
             try {
                 $this->barrierWait("P_TA_START");
 
-                Database::startTransaction(false);
+                $db->startTransaction(false);
 
                 // perform a SELECT so that DBMS has to assume the following update was computed based on this query
                 // before we run our update, the parent will update, thus there is a serialization conflict
                 [ "id" => $id, "filename" => $fn ] =
-                    Database::get("UNITTEST-SYNC%", "id,filename", "migrations", true, "%filename");
+                    $db->lookup(["%filename" => "UNITTEST-SYNC%"], "id,filename", "migrations");
                 $this->barrierReached("C_TA_START");
                 sleep(1);
-                Database::update($id, ["filename"], ["$fn-CLD"], "migrations");
+                $db->update($id, ["filename"], ["$fn-CLD"], "migrations");
 
-                Database::endTransaction();
+                $db->endTransaction();
             } catch (\Exception $e) {
-                Database::rollbackTransaction();
+                $db->rollbackTransaction();
                 exit(1);
             }
             exit(0);
         } else {
-            TestInfrastructureDB::initDatabase($db_dsnw);
-            $recordId = Database::insert("migrations", ["filename"], ["UNITTEST-SYNC"]);
+            $db = self::$db;
+
+            $recordId = $db->insert("migrations", ["filename"], [["UNITTEST-SYNC"]]);
 
             try {
-                Database::startTransaction(false);
+                $db->startTransaction(false);
 
                 $this->barrierReached("P_TA_START");
                 $this->barrierWait("C_TA_START");
 
-                [ "id" => $id, "filename" => $fn ] =
-                    Database::get("UNITTEST-SYNC%", "id,filename", "migrations", true, "%filename");
-                Database::update($recordId, ["filename"], ["$fn-PAR"], "migrations");
+                [ "filename" => $fn ] = $db->lookup(["%filename" => "UNITTEST-SYNC%"], "id,filename", "migrations");
+                $db->update($recordId, ["filename"], ["$fn-PAR"], "migrations");
                 sleep(1);
 
-                Database::endTransaction();
+                $db->endTransaction();
                 $parWins = true;
             } catch (\Exception $e) {
-                Database::rollbackTransaction();
+                $db->rollbackTransaction();
                 $parWins = false;
             }
 
             $cldWins = ($this->collectChild() === 0);
-            [ "filename" => $fn ] = Database::get($recordId, "*", "migrations");
+            [ "filename" => $fn ] = $db->lookup($recordId, "*", "migrations");
             // it would also be ok if both failed with no changes to the DB or both succeeded with a result matching
             // serial execution of the two transactions, but these are not expected by any of the three DBs
             $this->assertTrue($parWins xor $cldWins, "Exactly one transaction must succeed ($parWins/$cldWins, $fn)");
@@ -125,6 +134,29 @@ final class DatabaseSyncTest extends TestCase
         $recv = fgets($this->commSock);
         if ($recv !== "$id\n") {
             throw new \Exception("Barrier did not return ($recv) with expected ID ($id)");
+        }
+    }
+
+    /**
+     * Tests that after a read-only transaction it is possible to do read-write autocommit transactions.
+     */
+    public function testWritePossibleAfterReadOnlyTransaction(): void
+    {
+        $db = self::$db;
+
+        try {
+            $recordId = $db->insert("migrations", ["filename"], [["UNITTEST-SYNC-WPAROT"]]);
+            $db->startTransaction(true); // read-only transaction
+            [ 'id' => $recordId2] = $db->lookup(["filename" => "UNITTEST-SYNC-WPAROT"], "id", "migrations");
+            $db->endTransaction();
+
+            $this->assertSame($recordId, $recordId2);
+
+            // now try a read-write operation
+            $numdel = $db->delete($recordId, 'migrations');
+            $this->assertSame(1, $numdel, "Different number of rows deleted than expected");
+        } catch (\Exception $e) {
+            $db->rollbackTransaction();
         }
     }
 }

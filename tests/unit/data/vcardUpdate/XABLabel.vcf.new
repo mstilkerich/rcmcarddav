@@ -1,0 +1,13 @@
+BEGIN:VCARD
+VERSION:3.0
+UID:68F8AD34-3DEE-4232-AED8-07C183481D87
+N:Doe;John;;;
+FN:John Doe
+item1.EMAIL:johnspecial@doe.name
+item1.X-ABLABEL:SpecialLabel
+item2.X-FOOBAR:Has a group as well
+item3.EMAIL:alsospecial@doe.name
+item3.X-ABLABEL:SpecialLabel2
+PRODID:-//Apple Inc.//iCloud Web Address Book 2018B71//EN
+REV:2020-10-04T09:32:17Z
+END:VCARD

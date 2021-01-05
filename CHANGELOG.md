@@ -1,5 +1,23 @@
 # Changelog for RCMCardDAV
 
+## Version 4.1.0 (to 4.0.4)
+
+- Fix: Prefer labels from X-ABLabel extension if available over standard labels
+- Fix #317: Support specification of department with empty organization
+- Support several levels of departments separated by semicolon that end up as structured value in the VCard
+- Fix #318: Some attributes (e.g. gender) could not be deleted when updating a contact
+- Fix #53: Only create displayname when not present in VCard / not provided by roundcube
+- Fix #325: Roundcube setting for contact sorting field was not used
+- Fix #279: More specific error message when syntactically wrong URL is entered for new addressbook
+- Fix #328: Contact search with MySQL might not have returned all results
+- New: Download externally referenced photos on demand, drastically speeding up sync with when photos are stored
+  separately from the VCard (e.g. iCloud). For details see #247.
+- New: Support for instant messaging data fields and maiden name (resolves #46). Interoperability with other
+  CardDAV clients suffers some caveats, but I tried my best to achieve maximum possible interoperability. See
+  [IMPP.md](doc/devdoc/IMPP.md) for the gory details.
+- Removed a workaround that appears to be needed in the part to provide address data to the calendar plugin. It seems
+  this is no longer the case for current versions of calendar.
+
 ## Version 4.0.4 (to 4.0.3)
 
 - Fix #321: Boolean settings in presets caused errors when trying to store the preset's addressbooks to the database

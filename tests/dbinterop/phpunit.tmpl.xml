@@ -1,6 +1,9 @@
 <phpunit colors="true" testdox="true" bootstrap="autoload.php" verbose="true">
     <php>
         <var name="TEST_DBTYPE" value="%TEST_DBTYPE%"/>
+        <var name="TEST_TESTRUN" value="dbinterop-%TEST_DBTYPE%"/>
+        <!-- make sure all PHP errors are reported and raise PHPunit exceptions -->
+        <ini name="error_reporting" value="-1"/>
     </php>
     <testsuites>
         <testsuite name="dbinteroperability">
@@ -8,16 +11,19 @@
         </testsuite>
     </testsuites>
 
-    <filter>
-        <whitelist processUncoveredFilesFromWhitelist="true">
+    <coverage processUncoveredFiles="false" pathCoverage="true">
+        <include>
+            <file>../../carddav.php</file>
             <directory suffix=".php">../../src</directory>
-        </whitelist>
-    </filter>
+        </include>
+
+        <report>
+            <php outputFile="../../testreports/dbinterop-%TEST_DBTYPE%/coverage.cov"/>
+        </report>
+    </coverage>
 
     <logging>
-        <log type="coverage-html" target="../../testreports/coverage-dbinterop-%TEST_DBTYPE%" lowUpperBound="35" highLowerBound="70"/>
-        <!-- <log type="coverage-text" target="php://stdout" showUncoveredFiles="false"/> -->
-        <log type="testdox-html" target="../../testreports/testdox-dbinterop-%TEST_DBTYPE%.html"/>
+        <testdoxHtml outputFile="../../testreports/dbinterop-%TEST_DBTYPE%/results.html"/>
     </logging>
 </phpunit>
 

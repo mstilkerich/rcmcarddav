@@ -1,0 +1,19 @@
+{
+	"name": "Test IosIMKontakt",
+	"cuid": "E627D8ED-37BB-4AF0-91D3-E622B6390BF3",
+	"kind": "individual",
+	"surname": "IosIMKontakt",
+	"firstname": "Test",
+	"im:Skype": [ "skype@example.com", "skype2@example.com" ],
+	"im:WhatsApp": [ "0283839" ],
+	"im:Mike’s very special, custom IM:": [ "mikeim@example.com" ],
+	"im:ICQ": [ "18383828" ],
+	"im:AIM": [ "aim@example.com" ],
+	"im:MSN": [ "msn@example.com" ],
+	"im:GoogleTalk": [ "gtalk@example.com" ],
+	"im:Facebook": [ "fbook@example.com" ],
+	"im:Yahoo": [ "yahoo@example.com" ],
+	"im:Jabber": [ "jabber@example.com" ],
+	"im:QQ": [ "qq@example.com" ],
+	"im:GaduGadu": [ "gadu@example.com" ]
+}

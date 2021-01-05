@@ -1,0 +1,12 @@
+BEGIN:VCARD
+VERSION:3.0
+PRODID:-//Apple Inc.//macOS 11.1//EN
+N:Strickland;Harry;;;
+FN:The Golden Company
+ORG:The Golden Company;
+ITEM1.EMAIL;TYPE=WORK:golden.company@example.com
+ITEM1.X-ABLABEL:SpecialLabel
+X-ABSHOWAS:COMPANY
+REV:2020-12-27T21:13:25Z
+UID:97184f86-c184-4ec6-a47e-8459b7ebe1d1
+END:VCARD

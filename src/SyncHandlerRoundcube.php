@@ -8,10 +8,11 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
+use Psr\Log\LoggerInterface;
 use Sabre\VObject\Component\VCard;
 use MStilkerich\CardDavClient\AddressbookCollection;
 use MStilkerich\CardDavClient\Services\SyncHandler;
-use rcmail;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use carddav;
 
 class SyncHandlerRoundcube implements SyncHandler
@@ -21,6 +22,9 @@ class SyncHandlerRoundcube implements SyncHandler
 
     /** @var Addressbook Object of the addressbook that is being synchronized */
     private $rcAbook;
+
+    /** @var array Maps UIDs of locally available contact cards to (database) id */
+    private $localCardsByUID = [];
 
     /** @var array Maps URIs to an associative array containing etag and (database) id */
     private $localCards = [];
@@ -40,19 +44,42 @@ class SyncHandlerRoundcube implements SyncHandler
     /** @var string[] a list of group IDs that may be cleared from the DB if empty and CATEGORIES-type */
     private $clearGroupCandidates = [];
 
-    public function __construct(Addressbook $rcAbook)
-    {
+    /** @var DataConversion $dataConverter to convert between VCard and roundcube's representation of contacts. */
+    private $dataConverter;
+
+    /** @var AddressbookCollection $davAbook */
+    private $davAbook;
+
+    /** @var AbstractDatabase $db Database access object */
+    private $db;
+
+    /** @var LoggerInterface $logger Log object */
+    private $logger;
+
+    public function __construct(
+        Addressbook $rcAbook,
+        AbstractDatabase $db,
+        LoggerInterface $logger,
+        DataConversion $dataConverter,
+        AddressbookCollection $davAbook
+    ) {
+        $this->logger = $logger;
+        $this->db = $db;
         $this->rcAbook = $rcAbook;
+        $this->dataConverter = $dataConverter;
+        $this->davAbook = $davAbook;
+
         $abookId = $this->rcAbook->getId();
 
         // determine existing local contact URIs and ETAGs
-        $contacts = Database::get($abookId, 'id,uri,etag', 'contacts', false, 'abook_id');
+        $contacts = $db->get(['abook_id' => $abookId], 'id,uri,etag,cuid', 'contacts');
         foreach ($contacts as $contact) {
             $this->localCards[$contact['uri']] = $contact;
+            $this->localCardsByUID[$contact['cuid']] = $contact['id'];
         }
 
         // determine existing local group URIs and ETAGs
-        $groups = Database::get($abookId, 'id,uri,etag', 'groups', false, 'abook_id');
+        $groups = $db->get(['abook_id' => $abookId], 'id,uri,etag', 'groups');
         foreach ($groups as $group) {
             if (isset($group['uri'])) { // these are groups defined by a KIND=group VCard
                 $this->localGrpCards[$group['uri']] = $group;
@@ -78,7 +105,7 @@ class SyncHandlerRoundcube implements SyncHandler
         // in case a card has an error, we continue syncing the rest
         if (!isset($card)) {
             $this->hadErrors = true;
-            carddav::$logger->error("Card $uri changed, but error in retrieving address data (card ignored)");
+            $this->logger->error("Card $uri changed, but error in retrieving address data (card ignored)");
             return;
         }
 
@@ -112,44 +139,40 @@ class SyncHandlerRoundcube implements SyncHandler
      */
     public function addressObjectDeleted(string $uri): void
     {
-        carddav::$logger->info("Deleted card $uri");
+        $this->logger->info("Deleted card $uri");
+        $db = $this->db;
 
         if (isset($this->localCards[$uri]["id"])) {
             // delete contact
             $dbid = $this->localCards[$uri]["id"];
+            $cardUID = $this->localCards[$uri]["cuid"];
 
             // CATEGORIES-type groups may become empty as a user is deleted and should then be deleted as well. Record
             // what groups the user belonged to.
             if (!empty($this->localCatGrpIds)) {
                 $group_ids = array_column(
-                    Database::get(
-                        $dbid,
-                        "group_id",
-                        "group_user",
-                        false,
-                        "contact_id",
-                        [ "group_id" => $this->localCatGrpIds ]
-                    ),
+                    $db->get(["contact_id" => $dbid, "group_id" => $this->localCatGrpIds], "group_id", "group_user"),
                     "group_id"
                 );
                 $this->clearGroupCandidates = array_merge($this->clearGroupCandidates, $group_ids);
 
-                Database::delete($dbid, "group_user", "contact_id");
+                $db->delete(["contact_id" => $dbid], "group_user");
             }
-            Database::delete($dbid);
+            $db->delete($dbid);
 
             // important: URI may be reported as deleted and then reused for new card.
+            unset($this->localCardsByUID[$cardUID]);
             unset($this->localCards[$uri]);
         } elseif (isset($this->localGrpCards[$uri]["id"])) {
             // delete VCard-type group
             $dbid = $this->localGrpCards[$uri]["id"];
-            Database::delete($dbid, "group_user", "group_id");
-            Database::delete($dbid, "groups");
+            $db->delete(["group_id" => $dbid], "group_user");
+            $db->delete($dbid, "groups");
 
             // important: URI may be reported as deleted and then reused for new card.
             unset($this->localGrpCards[$uri]);
         } else {
-            carddav::$logger->notice("Server reported deleted card $uri for that no DB entry exists");
+            $this->logger->notice("Server reported deleted card $uri for that no DB entry exists");
         }
     }
 
@@ -179,7 +202,7 @@ class SyncHandlerRoundcube implements SyncHandler
      */
     public function finalizeSync(): void
     {
-        $dbh = Database::getDbHandle();
+        $db = $this->db;
         $abookId = $this->rcAbook->getId();
 
         // Now process all KIND=group type VCards that the server reported as changed
@@ -191,22 +214,22 @@ class SyncHandlerRoundcube implements SyncHandler
         $group_ids = array_unique($this->clearGroupCandidates);
         if (!empty($group_ids)) {
             try {
-                Database::startTransaction(false);
+                $db->startTransaction(false);
                 $group_ids_nonempty = array_column(
-                    Database::get($group_ids, "group_id", "group_user", false, "group_id"),
+                    $db->get(["group_id" => $group_ids], "group_id", "group_user"),
                     "group_id"
                 );
 
                 $group_ids_empty = array_diff($group_ids, $group_ids_nonempty);
                 if (!empty($group_ids_empty)) {
-                    carddav::$logger->info("Delete empty CATEGORIES-type groups: " . implode(",", $group_ids_empty));
-                    Database::delete($group_ids_empty, "groups", "id", [ "uri" => null, "abook_id" => $abookId ]);
+                    $this->logger->info("Delete empty CATEGORIES-type groups: " . implode(",", $group_ids_empty));
+                    $db->delete(["id" => $group_ids_empty, "uri" => null, "abook_id" => $abookId], "groups");
                 }
-                Database::endTransaction();
+                $db->endTransaction();
             } catch (\Exception $e) {
                 $this->hadErrors = true;
-                carddav::$logger->error("Failed to delete emptied CATEGORIES-type groups: " . $e->getMessage());
-                Database::rollbackTransaction();
+                $this->logger->error("Failed to delete emptied CATEGORIES-type groups: " . $e->getMessage());
+                $db->rollbackTransaction();
             }
         }
     }
@@ -234,10 +257,11 @@ class SyncHandlerRoundcube implements SyncHandler
             return [];
         }
 
+        $db = $this->db;
         try {
-            Database::startTransaction(false);
+            $db->startTransaction(false);
             $group_ids_by_name = array_column(
-                Database::get($abookId, "id,name", "groups", false, "abook_id", ["uri" => null, "name" => $categories]),
+                $db->get(["abook_id" => $abookId, "uri" => null, "name" => $categories], "id,name", "groups"),
                 "id",
                 "name"
             );
@@ -248,17 +272,17 @@ class SyncHandlerRoundcube implements SyncHandler
                         'name' => $category,
                         'kind' => 'group'
                     ];
-                    $dbid = Database::storeGroup($abookId, $gsave_data);
+                    $dbid = $db->storeGroup($abookId, $gsave_data);
                     $group_ids_by_name[$category] = $dbid;
                 }
             }
-            Database::endTransaction();
+            $db->endTransaction();
 
             return array_values($group_ids_by_name);
         } catch (\Exception $e) {
             $this->hadErrors = true;
-            carddav::$logger->error("Failed to determine CATEGORIES-type groups for contact: " . $e->getMessage());
-            Database::rollbackTransaction();
+            $this->logger->error("Failed to determine CATEGORIES-type groups for contact: " . $e->getMessage());
+            $db->rollbackTransaction();
         }
 
         return [];
@@ -274,11 +298,10 @@ class SyncHandlerRoundcube implements SyncHandler
     private function updateContactCard(string $uri, string $etag, VCard $card): void
     {
         $abookId = $this->rcAbook->getId();
-        $dbh = Database::getDbHandle();
+        $db = $this->db;
 
-        // card may be changed during conversion, in particular inlining of the PHOTO
-        [ 'save_data' => $save_data, 'vcf' => $card ] = $this->rcAbook->convVCard2Rcube($card);
-        carddav::$logger->info("Changed Individual $uri " . $save_data['name']);
+        $save_data = $this->dataConverter->toRoundcube($card, $this->davAbook);
+        $this->logger->info("Changed Individual $uri " . $save_data['name']);
 
         $dbid = $this->localCards[$uri]["id"] ?? null;
         if (isset($dbid)) {
@@ -286,27 +309,25 @@ class SyncHandlerRoundcube implements SyncHandler
         }
 
         try {
-            Database::startTransaction(false);
-            $dbid = Database::storeContact($abookId, $etag, $uri, $card->serialize(), $save_data, $dbid);
-            Database::endTransaction();
+            $db->startTransaction(false);
+            $dbid = $db->storeContact($abookId, $etag, $uri, $card->serialize(), $save_data, $dbid);
+            $db->endTransaction();
+
+            // remember in the local cache - might be needed in finalizeSync to map UID to DB ID without DB query
+            if (!isset($this->localCardsByUID[$save_data["cuid"]])) {
+                $this->localCardsByUID[$save_data["cuid"]] = $dbid;
+            }
 
             // determine current assignments to CATGEGORIES-type groups
             $cur_group_ids = $this->getCategoryTypeGroupsForUser($card);
 
-            Database::startTransaction(false);
+            $db->startTransaction(false);
 
             // Update membership to CATEGORIES-type groups
             $old_group_ids = empty($this->localCatGrpIds)
                 ? []
                 : array_column(
-                    Database::get(
-                        $dbid,
-                        "group_id",
-                        "group_user",
-                        false,
-                        "contact_id",
-                        [ "group_id" => $this->localCatGrpIds ]
-                    ),
+                    $db->get(["contact_id" => $dbid, "group_id" => $this->localCatGrpIds ], "group_id", "group_user"),
                     "group_id"
                 );
 
@@ -315,20 +336,29 @@ class SyncHandlerRoundcube implements SyncHandler
                 // CATEGORIES-type groups may become empty when members are removed. Record those the user belonged to.
                 $this->clearGroupCandidates = array_merge($this->clearGroupCandidates, $del_group_ids);
                 // remove contact from CATEGORIES-type groups he no longer belongs to
-                Database::delete($dbid, 'group_user', 'contact_id', [ "group_id" => $del_group_ids ]);
+                $db->delete(["contact_id" => $dbid, "group_id" => $del_group_ids], 'group_user');
             }
 
             // add contact to CATEGORIES-type groups he newly belongs to
             $add_group_ids = array_diff($cur_group_ids, $old_group_ids);
-            foreach ($add_group_ids as $group_id) {
-                Database::insert("group_user", ["contact_id", "group_id"], [$dbid, $group_id]);
+            if (!empty($add_group_ids)) {
+                $db->insert(
+                    "group_user",
+                    ["contact_id", "group_id"],
+                    array_map(
+                        function (string $groupId) use ($dbid) {
+                            return [$dbid, $groupId];
+                        },
+                        $add_group_ids
+                    )
+                );
             }
 
-            Database::endTransaction();
+            $db->endTransaction();
         } catch (\Exception $e) {
             $this->hadErrors = true;
-            carddav::$logger->error("Failed to process changed card $uri: " . $e->getMessage());
-            Database::rollbackTransaction();
+            $this->logger->error("Failed to process changed card $uri: " . $e->getMessage());
+            $db->rollbackTransaction();
         }
     }
 
@@ -341,55 +371,65 @@ class SyncHandlerRoundcube implements SyncHandler
      */
     private function updateGroupCard(string $uri, string $etag, VCard $card): void
     {
-        $dbh = Database::getDbHandle();
+        $db = $this->db;
         $abookId = $this->rcAbook->getId();
 
-        // card may be changed during conversion, in particular inlining of the PHOTO
-        [ 'save_data' => $save_data, 'vcf' => $card ] = $this->rcAbook->convVCard2Rcube($card);
+        $save_data = $this->dataConverter->toRoundcube($card, $this->davAbook);
 
         $dbid = $this->localGrpCards[$uri]["id"] ?? null;
         if (isset($dbid)) {
             $dbid = (string) $dbid;
         }
 
-        carddav::$logger->info("Changed Group $uri " . $save_data['name']);
+        $this->logger->info("Changed Group $uri " . $save_data['name']);
 
         // X-ADDRESSBOOKSERVER-MEMBER:urn:uuid:51A7211B-358B-4996-90AD-016D25E77A6E
         $members = $card->{'X-ADDRESSBOOKSERVER-MEMBER'} ?? [];
-        $cuids = [];
+        $memberIds = [];
 
-        carddav::$logger->debug("Group $uri has " . count($members) . " members");
+        $this->logger->debug("Group $uri has " . count($members) . " members");
         foreach ($members as $mbr) {
             $mbrc = explode(':', (string) $mbr);
             if (count($mbrc) != 3 || $mbrc[0] !== 'urn' || $mbrc[1] !== 'uuid') {
-                carddav::$logger->warning("don't know how to interpret group membership: $mbr");
-                continue;
+                $this->logger->warning("don't know how to interpret group membership: $mbr");
+            } else {
+                $memberId = $this->localCardsByUID[$mbrc[2]] ?? null;
+                if (isset($memberId)) {
+                    $memberIds[] = $memberId;
+                } else {
+                    $this->logger->warning("cannot find DB ID for group member: $mbrc[2]");
+                }
             }
-            $cuids[] = $dbh->quote($mbrc[2]);
         }
 
         try {
-            Database::startTransaction(false);
+            $db->startTransaction(false);
             // store group card
-            $dbid = Database::storeGroup($abookId, $save_data, $dbid, $etag, $uri, $card->serialize());
+            $dbid = $db->storeGroup($abookId, $save_data, $dbid, $etag, $uri, $card->serialize());
 
             // delete current group members (will be reinserted if needed below)
-            Database::delete($dbid, 'group_user', 'group_id');
+            $db->delete(["group_id" => $dbid], 'group_user');
 
             // Update member assignments
-            if (count($cuids) > 0) {
-                $sql_result = $dbh->query('INSERT INTO ' .
-                    $dbh->table_name('carddav_group_user') .
-                    ' (group_id,contact_id) SELECT ?,id from ' .
-                    $dbh->table_name('carddav_contacts') .
-                    ' WHERE abook_id=? AND cuid IN (' . implode(',', $cuids) . ')', $dbid, $abookId);
-                carddav::$logger->debug("Added " . $dbh->affected_rows($sql_result) . " contacts to group $dbid");
+            if (count($memberIds) > 0) {
+                $db->insert(
+                    'group_user',
+                    ['group_id', 'contact_id'],
+                    array_map(
+                        function (string $contactId) use ($dbid): array {
+                            return [ $dbid, $contactId ];
+                        },
+                        $memberIds
+                    )
+                );
+
+                $this->logger->debug("Added " . count($memberIds) . " contacts to group $dbid");
             }
-            Database::endTransaction();
+            $db->endTransaction();
         } catch (\Exception $e) {
             $this->hadErrors = true;
-            carddav::$logger->error("Failed to update group $dbid: " . $e->getMessage());
-            Database::rollbackTransaction();
+            $this->logger->error("Failed to update group $dbid: " . $e->getMessage());
+            $db->rollbackTransaction();
         }
     }
 }

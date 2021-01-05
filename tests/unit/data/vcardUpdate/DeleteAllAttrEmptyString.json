@@ -1,0 +1,32 @@
+{
+	"name": "Wesker",
+	"firstname": "",
+	"surname": "",
+	"prefix": "",
+	"suffix": "",
+	"organization": "",
+	"department": "",
+	"kind": "individual",
+	"birthday": "",
+	"anniversary": "",
+	"assistant": "",
+	"gender": "",
+	"manager": "",
+	"spouse": "",
+	"nickname": "",
+	"notes": "",
+	"jobtitle": "",
+	"email:home": [ "" ],
+	"phone:home": [ "" ],
+	"website:other": [ "" ],
+	"address:work": [
+	{
+		"street": "",
+		"locality": "",
+		"region": "",
+		"zipcode": "",
+		"country": ""
+	}
+	],
+	"showas": "INDIVIDUAL"
+}

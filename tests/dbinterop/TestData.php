@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
-use MStilkerich\CardDavAddressbook4Roundcube\{Database};
+use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use PHPUnit\Framework\TestCase;
 
 final class TestData
@@ -121,7 +121,7 @@ final class TestData
     public static function initDatabase(): void
     {
         self::$data = self::INITDATA;
-        $dbh = Database::getDbHandle();
+        $dbh = TestInfrastructureDB::getDbHandle();
 
         foreach (array_column(array_reverse(self::$tables), 0) as $tbl) {
             $dbh->query("DELETE FROM " . $dbh->table_name($tbl));
@@ -133,19 +133,16 @@ final class TestData
             TestCase::assertArrayHasKey($tbl, self::$data, "No init data for table $tbl");
 
             foreach (self::$data[$tbl] as &$row) {
-                $dbid = self::insertRow($tbl, $cols, $row);
-                $row["id"] = $dbid;
+                $row["id"] = self::insertRow($tbl, $cols, $row);
             }
         }
     }
 
-    /**
-     */
     public static function insertRow(string $tbl, array $cols, array &$row): string
     {
-        $dbh = Database::getDbHandle();
+        $dbh = TestInfrastructureDB::getDbHandle();
         $cols = array_map([$dbh, "quote_identifier"], $cols);
-        TestCase::assertEquals(count($cols), count($row), "Column count mismatch of $tbl row" . join(",", $row));
+        TestCase::assertCount(count($cols), $row, "Column count mismatch of $tbl row " . print_r($row, true));
 
         $sql = "INSERT INTO " . $dbh->table_name($tbl)
             . " (" . implode(",", $cols) . ") "

@@ -1,0 +1,30 @@
+<phpunit colors="true" testdox="true" bootstrap="autoload.php" verbose="true">
+    <php>
+        <var name="TEST_TESTRUN" value="unit"/>
+
+        <!-- make sure all PHP errors are reported and raise PHPunit exceptions -->
+        <ini name="error_reporting" value="-1"/>
+    </php>
+    <testsuites>
+        <testsuite name="unit">
+            <directory>.</directory>
+        </testsuite>
+    </testsuites>
+
+    <coverage processUncoveredFiles="false" pathCoverage="true">
+        <include>
+            <file>../../carddav.php</file>
+            <directory suffix=".php">../../src</directory>
+        </include>
+
+        <report>
+            <php outputFile="../../testreports/unit/coverage.cov"/>
+        </report>
+    </coverage>
+
+    <logging>
+        <testdoxHtml outputFile="../../testreports/unit/results.html"/>
+    </logging>
+</phpunit>
+
+<!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->

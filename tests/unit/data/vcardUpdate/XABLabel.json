@@ -1,0 +1,30 @@
+{
+	"name": "John Doe",
+	"firstname": "John",
+	"surname": "Doe",
+	"prefix": "",
+	"suffix": "",
+	"middlename": "",
+	"organization": "",
+	"department": "",
+	"gender": "",
+	"nickname": "",
+	"jobtitle": "",
+	"email:SpecialLabel": [
+		"johnspecial@doe.name"
+	],
+	"email:SpecialLabel2": [
+		"alsospecial@doe.name"
+	],
+	"phone:home": [ "" ],
+	"address:home": [{
+		"street": "",
+		"locality": "",
+		"region": "",
+		"zipcode": "",
+		"country": ""
+	}],
+	"notes": "",
+	"photo": "",
+	"showas": ""
+}

@@ -1,0 +1,8 @@
+{
+	"name": "Owncloud IMKontakt",
+	"cuid": "a7bbe93c-be17-4f9c-a652-0e6028b19c11",
+	"kind": "individual",
+	"im:Skype": [ "skype@example.com" ],
+	"im:IRC": [ "irc@example.com" ],
+	"im:Telegram": [ "telegram@example.com" ]
+}

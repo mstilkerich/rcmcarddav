@@ -1,0 +1,8 @@
+{
+	"name": "Max Mustermann",
+	"firstname": "Max",
+	"surname": "Mustermann",
+	"cuid": "B92B8FDB-E918-481F-AD6F-9713D5324AC5",
+	"kind": "individual",
+	"department": "Department; SubDep1;SubDep2;  SubDep3"
+}
