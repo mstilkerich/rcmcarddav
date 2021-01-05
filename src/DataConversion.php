@@ -12,7 +12,7 @@ use rcube_utils;
 
 class DataConversion
 {
-    /** 
+    /**
      * @var array{simple: array<string,string>, multi: array<string,string>} VCF2RC
      *      maps VCard property names to roundcube keys
      */
