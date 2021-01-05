@@ -224,6 +224,9 @@ final class SyncHandlerRoundcubeTest extends TestCase
         $expDb->compareTables('xsubtypes', $db);
     }
 
+    /**
+     * @return array{0: DataConversion, 1: AddressbookCollection, 2: Addressbook}
+     */
     private function initStubs(AbstractDatabase $db): array
     {
         $logger = TestInfrastructure::logger();

@@ -8,6 +8,7 @@ use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\{TestInfrastructure,TestLogger};
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\MockObject\MockObject;
 use MStilkerich\CardDavClient\{Account,AddressbookCollection};
 use MStilkerich\CardDavAddressbook4Roundcube\{DataConversion,DelayedPhotoLoader};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
@@ -38,6 +39,9 @@ final class DataConversionTest extends TestCase
         TestInfrastructure::logger()->reset();
     }
 
+    /**
+     * @return array<string, list<string>>
+     */
     private function vcardSamplesProvider(string $basedir): array
     {
         $vcfFiles = glob("$basedir/*.vcf");
@@ -52,6 +56,9 @@ final class DataConversionTest extends TestCase
         return $result;
     }
 
+    /**
+     * @return array<string, list<string>>
+     */
     public function vcardImportSamplesProvider(): array
     {
         return $this->vcardSamplesProvider('tests/unit/data/vcardImport');
@@ -151,6 +158,9 @@ final class DataConversionTest extends TestCase
         $dc->toRoundcube($vcard, $abook);
     }
 
+    /**
+     * @return array<string, list<string>>
+     */
     public function vcardCreateSamplesProvider(): array
     {
         return $this->vcardSamplesProvider('tests/unit/data/vcardCreate');
@@ -182,6 +192,9 @@ final class DataConversionTest extends TestCase
         $this->compareVCards($vcardExpected, $result);
     }
 
+    /**
+     * @return array<string, list<string>>
+     */
     public function vcardUpdateSamplesProvider(): array
     {
         return $this->vcardSamplesProvider('tests/unit/data/vcardUpdate');
@@ -218,6 +231,9 @@ final class DataConversionTest extends TestCase
         $this->compareVCards($vcardExpected, $result);
     }
 
+    /**
+     * @return array<string, array{0: string, 1: bool, 2: bool}>
+     */
     public function cachePhotosSamplesProvider(): array
     {
         return [
@@ -459,6 +475,9 @@ final class DataConversionTest extends TestCase
         $dc->isMultivalueProperty("unknown");
     }
 
+    /**
+     * @return array{0: Database & MockObject, 1: \rcube_cache & MockObject, 2: AddressbookCollection}
+     */
     private function initStubs(): array
     {
         $abook = $this->createStub(AddressbookCollection::class);
@@ -536,7 +555,7 @@ final class DataConversionTest extends TestCase
      * @template T of VObject\Property|VObject\Parameter
      *
      * @param T[] $nodes
-     * @return array<string, T[]> Array with node names as keys, and arrays of nodes by that name as values.
+     * @return array<string, list<T>> Array with node names as keys, and arrays of nodes by that name as values.
      */
     private function groupNodesByName(array $nodes): array
     {
