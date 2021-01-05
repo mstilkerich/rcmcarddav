@@ -68,7 +68,7 @@ class Addressbook extends rcube_addressbook
     /** @var ?rcube_result_set $result */
     private $result = null;
 
-    /** @var array $config configuration of the addressbook */
+    /** @var string[] configuration of the addressbook */
     private $config;
 
     /** @var int total number of contacts in address book. Negative if not computed yet. */
@@ -80,6 +80,10 @@ class Addressbook extends rcube_addressbook
      */
     private $table_cols = ['id', 'name', 'email', 'firstname', 'surname', 'organization'];
 
+    /**
+     * @param string[] $config
+     * @param list<string> $requiredProps
+     */
     public function __construct(
         string $dbid,
         AbstractDatabase $db,
@@ -992,7 +996,7 @@ class Addressbook extends rcube_addressbook
      */
     public function getRefreshTime(): int
     {
-        return $this->config['refresh_time'];
+        return intval($this->config['refresh_time']);
     }
 
     /**
@@ -1045,7 +1049,7 @@ class Addressbook extends rcube_addressbook
     public function checkResyncDue(): int
     {
         $ts_now = time();
-        $ts_nextupd = $this->config["last_updated"] + $this->config["refresh_time"];
+        $ts_nextupd = intval($this->config["last_updated"]) + intval($this->config["refresh_time"]);
         $ts_diff = ($ts_nextupd - $ts_now);
         return $ts_diff;
     }

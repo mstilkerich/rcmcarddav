@@ -12,7 +12,10 @@ use rcube_utils;
 
 class DataConversion
 {
-    /** @var array VCF2RC maps VCard property names to roundcube keys */
+    /** 
+     * @var array{simple: array<string,string>, multi: array<string,string>} VCF2RC
+     *      maps VCard property names to roundcube keys
+     */
     private const VCF2RC = [
         'simple' => [
             'BDAY' => 'birthday',
@@ -67,7 +70,10 @@ class DataConversion
         'Zoom' => "zoomus"
     ];
 
-    /** @var array $coltypes Descriptions on the different attributes of address objects for roundcube */
+    /**
+     * @var array<string,array{subtypes?: list<string>, subtypealias?: array<string,string>}> $coltypes
+     *      Descriptions on the different attributes of address objects for roundcube
+     */
     private $coltypes = [
         'name' => [],
         'firstname' => [],
@@ -137,7 +143,7 @@ class DataConversion
         ],
     ];
 
-    /** @var array $xlabels custom labels defined in the addressbook */
+    /** @var array<string,list<string>> $xlabels custom labels defined in the addressbook */
     private $xlabels = [];
 
     /** @var string $abookId Database ID of the Addressbook this converter is associated with */
@@ -219,6 +225,7 @@ class DataConversion
         ];
 
         foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
+            /** @var ?VObject\Property */
             $property = $vcard->{$vkey};
             if (!empty($property)) {
                 $save_data[$rckey] = (string) $property;
@@ -233,8 +240,9 @@ class DataConversion
         $property = $vcard->N;
         if (isset($property)) {
             $attrs = [ "surname", "firstname", "middlename", "prefix", "suffix" ];
+            /** @var list<string> */
             $N = $property->getParts();
-            for ($i = 0; $i <= count($N); $i++) {
+            for ($i = 0; $i < min(count($N), count($attrs)); $i++) {
                 if (!empty($N[$i])) {
                     $save_data[$attrs[$i]] = $N[$i];
                 }
@@ -243,6 +251,7 @@ class DataConversion
 
         $property = $vcard->ORG;
         if (isset($property)) {
+            /** @var list<string> */
             $ORG = $property->getParts();
             $organization = $ORG[0];
             if (!empty($organization)) {
@@ -255,16 +264,18 @@ class DataConversion
         }
 
         foreach (self::VCF2RC['multi'] as $vkey => $rckey) {
+            /** @var ?VObject\Property */
             $properties = $vcard->{$vkey};
             if (isset($properties)) {
                 // if the attribute already maps to a specific subtype, it is contained in rckey
                 [$rckey] = $rckeyComp = explode(':', $rckey, 2);
 
+                /** @var VObject\Property $prop */
                 foreach ($properties as $prop) {
                     $label = (count($rckeyComp) < 2) ? $this->getAttrLabel($vcard, $prop, $rckey) : $rckeyComp[1];
 
                     if (method_exists($this, "toRoundcube$vkey")) {
-                        // special handler for structured property
+                        /** @var string|string[] special handler for structured property */
                         $propValue = call_user_func([$this, "toRoundcube$vkey"], $prop);
                     } else {
                         $propValue = (string) $prop;
@@ -305,9 +316,10 @@ class DataConversion
             'zipcode',  // postal code
             'country'   // country name
         ];
+        /** @var list<string> */
         $p = $prop->getParts();
         $addr = [];
-        for ($i = 0; $i < count($p); $i++) {
+        for ($i = 0; $i < min(count($p), count($attrs)); $i++) {
             if (!empty($p[$i])) {
                 $addr[$attrs[$i]] = $p[$i];
             }
@@ -334,7 +346,7 @@ class DataConversion
     /**
      * Creates a new or updates an existing vcard from save data.
      *
-     * @param array $save_data The roundcube representation of the contact / group
+     * @param array<string,string|string[]> $save_data The roundcube representation of the contact / group
      * @param ?VCard $vcard The original VCard from that the address data was originally passed to roundcube. If a new
      *                      VCard should be created, this parameter must be null.
      * @return VCard Returns the created / updated VCard. If a VCard was passed in the $vcard parameter, it is updated
@@ -402,7 +414,7 @@ class DataConversion
      *
      * If neither organization nor department are given (or empty), the ORG property is deleted from the VCard.
      *
-     * @param array $save_data The roundcube representation of the contact
+     * @param array<string,string|string[]> $save_data The roundcube representation of the contact
      * @param VCard $vcard The VCard to set the ORG property for.
      */
     private function setOrgProperty(array $save_data, VCard $vcard): void
@@ -412,7 +424,7 @@ class DataConversion
             $orgParts[] = $save_data['organization'];
         }
 
-        if (!empty($save_data['department'])) {
+        if (!empty($save_data['department']) && is_string($save_data['department'])) {
             // the first element of ORG corresponds to organization, if that field is not filled but organization is
             // we need to store an empty value explicitly (otherwise, department would become organization when reading
             // back the VCard).
@@ -474,7 +486,7 @@ class DataConversion
      *     a colon (e.g. "email:home"). The value of each setting is an array. These arrays may include empty members if
      *     the field was part of the edit mask but not filled.
      *
-     * @param array $save_data The roundcube representation of the contact
+     * @param array<string,string|string[]> $save_data The roundcube representation of the contact
      * @param VCard $vcard The VCard to set the ORG property for.
      */
     private function setMultiValueProperties(array $save_data, VCard $vcard): void
@@ -502,12 +514,12 @@ class DataConversion
             }
 
             foreach ($subtypes as $subtype) {
-                foreach ($save_data["$rckey:$subtype"] as $value) {
+                foreach ((array) $save_data["$rckey:$subtype"] as $value) {
                     $prop = null;
 
                     $mkey = str_replace("-", "_", strtoupper($vkey));
                     if (method_exists($this, "fromRoundcube$mkey")) {
-                        // special handler for structured property
+                        /** @var ?VObject\Property special handler for structured property */
                         $prop = call_user_func([$this, "fromRoundcube$mkey"], $value, $vcard, $subtype);
                     } else {
                         if (!empty($value)) {
@@ -648,8 +660,9 @@ class DataConversion
     {
         $groups = [];
 
+        /** @var VObject\Property $p */
         foreach ($vcard->children() as $p) {
-            if (isset($p->group)) {
+            if (!empty($p->group)) {
                 $groups[strtoupper($p->group)] = true;
             }
         }
@@ -671,8 +684,9 @@ class DataConversion
         $usedGroups = [];
         $labelProps = [];
 
+        /** @var VObject\Property $p */
         foreach ($vcard->children() as $p) {
-            if (isset($p->group)) {
+            if (!empty($p->group)) {
                 if (strcasecmp($p->name, "X-ABLabel") === 0) {
                     $labelProps[] = $p;
                 } else {
@@ -751,19 +765,21 @@ class DataConversion
         // 1. Check if there is a property-specific handler to provide label
         $vkey = str_replace("-", "_", strtoupper($vprop->name));
         if (method_exists($this, "getAttrLabel$vkey")) {
+            /** @var string */
             return call_user_func([$this, "getAttrLabel$vkey"], $vcard, $vprop);
         }
 
         // 2. check for a custom label using Apple's X-ABLabel extension
         $group = $vprop->group;
         if ($group) {
+            /** @var ?VObject\Property */
             $xlabel = $vcard->{"$group.X-ABLabel"};
             if (!empty($xlabel)) {
                 // special labels from Apple namespace are stored in the form "_$!<Label>!$_" - extract label
-                $xlabel = preg_replace(';_\$!<(.*)>!\$_;', '$1', $xlabel);
+                $xlabel = preg_replace(';_\$!<(.*)>!\$_;', '$1', (string) $xlabel);
 
                 // add to known types if new
-                if (!in_array($xlabel, $this->coltypes[$attrname]['subtypes'])) {
+                if (!in_array($xlabel, $this->coltypes[$attrname]['subtypes'] ?? [])) {
                     $this->storeextrasubtype($attrname, $xlabel);
                 }
                 return $xlabel;
@@ -773,9 +789,10 @@ class DataConversion
 
         // 3. select a known standard label if available
         $selection = null;
-        if (isset($vprop["TYPE"]) && is_array($this->coltypes[$attrname]['subtypes'])) {
+        if (isset($vprop["TYPE"]) && !empty($this->coltypes[$attrname]['subtypes'])) {
+            /** @var VObject\Parameter */
             foreach ($vprop["TYPE"] as $type) {
-                $type = strtolower($type);
+                $type = strtolower((string) $type);
                 $pref = array_search($type, $this->coltypes[$attrname]['subtypes'], true);
 
                 if ($pref !== false) {
@@ -799,11 +816,14 @@ class DataConversion
      */
     private function getAttrLabelIMPP(VCard $_vcard, VObject\Property $prop): string
     {
-        $subtypesLower = array_map('strtolower', $this->coltypes["im"]['subtypes']);
+        assert(!empty($this->coltypes["im"]["subtypes"]), "im attribute requires a list of subtypes");
+        $subtypesLower = array_map('strtolower', $this->coltypes["im"]["subtypes"]);
 
         // check X-SERVICE-TYPE parameter (seen in entries created by Apple Addressbook)
         if (isset($prop["X-SERVICE-TYPE"])) {
+            /** @var VObject\Parameter */
             foreach ($prop["X-SERVICE-TYPE"] as $type) {
+                $type = (string) $type;
                 $ltype = strtolower($type);
                 $pos = array_search($ltype, $subtypesLower, true);
 
@@ -830,8 +850,9 @@ class DataConversion
 
         // check TYPE parameter
         if (isset($prop["TYPE"])) {
+            /** @var VObject\Parameter */
             foreach ($prop["TYPE"] as $type) {
-                $ltype = strtolower($type);
+                $ltype = strtolower((string) $type);
                 $ltype = $this->coltypes["im"]["subtypealias"][$ltype] ?? $ltype;
                 $pos = array_search($ltype, $subtypesLower, true);
                 if ($pos !== false) {
@@ -873,7 +894,7 @@ class DataConversion
             }
         }
 
-        // read extra subtypes
+        /** @var list<array{typename: string, subtype: string}> read extra subtypes */
         $xtypes = $this->db->get(['abook_id' => $this->abookId], 'typename,subtype', 'xsubtypes');
 
         foreach ($xtypes as $row) {
@@ -901,13 +922,15 @@ class DataConversion
      * If an existing ShowAs=COMPANY setting is given, but the organization field is empty, the setting will be reset to
      * INDIVIDUAL.
      *
-     * @param array $save_data The address data as roundcube's internal format, as entered by the user. For update of an
-     *                         existing contact, the showas key must be populated with the previous value.
+     * @param array<string,string|string[]> $save_data The address data as roundcube's internal format, as entered by
+     *                                                 the user. For update of an existing contact, the showas key must
+     *                                                 be populated with the previous value.
      * @return string INDIVIDUAL or COMPANY
      */
     private function determineShowAs(array $save_data): string
     {
         $showAs = $save_data['showas'] ?? "";
+        assert(is_string($showAs), "showAs must be string");
 
         if (empty($showAs)) { // new contact
             if (empty($save_data['surname']) && empty($save_data['firstname']) && !empty($save_data['organization'])) {
@@ -938,14 +961,16 @@ class DataConversion
      * From a VCard, the FN is mandatory. However, we may be served non-compliant VCards, or VCards with an empty FN
      * value. In those cases, we will set the display name, otherwise we will take the value provided in the VCard.
      *
-     * @param array $save_data The address data as roundcube's internal format. It may either have been provided by
-     *                         roundcube or be the result of a conversion of a VCard to roundcube's representation.
+     * @param array<string,string|string[]> $save_data The address data as roundcube's internal format.
      * @return string The composed displayname
      */
     private static function composeDisplayname(array $save_data): string
     {
         $showAs = $save_data['showas'] ?? "";
+        assert(is_string($showAs), "showAs must be string");
+
         if (strcasecmp($showAs, 'COMPANY') == 0 && !empty($save_data['organization'])) {
+            assert(is_string($save_data['organization']), "organization is a string attribute");
             return $save_data['organization'];
         }
 
@@ -953,6 +978,7 @@ class DataConversion
         $dname = [];
         foreach (["firstname", "surname"] as $attr) {
             if (!empty($save_data[$attr])) {
+                assert(is_string($save_data[$attr]), "$attr is a string attribute");
                 $dname[] = $save_data[$attr];
             }
         }
@@ -965,6 +991,7 @@ class DataConversion
         $epKeys = preg_grep(";^(email|phone):;", array_keys($save_data));
         sort($epKeys, SORT_STRING);
         foreach ($epKeys as $epKey) {
+            assert(is_array($save_data[$epKey]), "$attr is a multi-value attribute");
             foreach ($save_data[$epKey] as $epVal) {
                 if (!empty($epVal)) {
                     return $epVal;
