@@ -5,6 +5,7 @@ CD_TABLES=$(foreach tbl,addressbooks contacts groups group_user xsubtypes migrat
 DOCDIR := doc/api/
 PSALM_GOODFILES := src/DataConversion.php src/Db/DbAndCondition.php src/Db/DbOrCondition.php \
 	tests/TestInfrastructure.php tests/TestLogger.php tests/autoload.php tests/autoload_defs.php \
+	tests/dbinterop/DatabaseSyncTest.php \
 	tests/dbinterop/DatabaseAccounts.php tests/dbinterop/DatabaseTest.php tests/dbinterop/autoload.php \
 	tests/unit/CarddavTest.php tests/unit/autoload.php
 

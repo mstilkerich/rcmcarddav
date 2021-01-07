@@ -1450,7 +1450,7 @@ class Addressbook extends rcube_addressbook
         // TODO Better if we could handle this without a separate SQL query here, but requires join or subquery
         if ($this->group_id) {
             $contactsInGroup = array_column(
-                $this->db->get(['group_id' => $this->group_id], 'contact_id', 'group_user'),
+                $this->db->get(['group_id' => (string) $this->group_id], 'contact_id', 'group_user'),
                 'contact_id'
             );
             $conditions[] = new DbAndCondition(new DbOrCondition("id", $contactsInGroup));
