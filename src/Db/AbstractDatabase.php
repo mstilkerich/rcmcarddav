@@ -8,6 +8,20 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Access interface for the roundcube database.
+ *
+ * @psalm-type DbConditions = string|(?string|string[])[]|DbAndCondition[]
+ * @psalm-type DbGetResult = array<string,?string>
+ * @psalm-type DbGetResults = list<DbGetResult>
+ * @psalm-type DbInsRow = list<?string>
+ * @psalm-type DbGetOptions = array{limit?: array{int,int}, order?: list<string>, count?: true}
+ *
+ * @psalm-type FullAbookRow = array{
+ *                                  id: numeric-string, user_id: numeric-string, name: string,
+ *                                  username: string, password: string, url: string,
+ *                                  active: numeric-string, use_categories: numeric-string,
+ *                                  last_updated: numeric-string, refresh_time: numeric-string, sync-token: string,
+ *                                  presetname: ?string
+ *                                 }
  */
 abstract class AbstractDatabase
 {
@@ -50,8 +64,8 @@ abstract class AbstractDatabase
      * Inserts new rows to a database table.
      *
      * @param string $table The database table to store the row to.
-     * @param string[] $cols Database column names of attributes to insert.
-     * @param (?string)[][] $rows An array of rows to insert. Indexes of each row must match those in $cols.
+     * @param list<string> $cols Database column names of attributes to insert.
+     * @param list<DbInsRow> $rows An array of rows to insert. Indexes of each row must match those in $cols.
      * @return string The database id of the last created database row. Empty string if the table has no ID column.
      */
     abstract public function insert(string $table, array $cols, array $rows): string;
@@ -59,9 +73,9 @@ abstract class AbstractDatabase
     /**
      * Updates records in a database table.
      *
-     * @param string|(?string|string[])[]|DbAndCondition[] $conditions Selects the rows to update.
-     * @param string[] $cols      Database column names of attributes to update.
-     * @param string[] $vals      The values to set into the column specified by $cols at the corresponding index.
+     * @param DbConditions $conditions Selects the rows to update.
+     * @param list<string> $cols  Database column names of attributes to update.
+     * @param DbInsRow     $vals  The values to set into the column specified by $cols at the corresponding index.
      * @param string $table       Name of the database table to select from, without the carddav_ prefix.
      * @return int                The number of rows updated.
      *
@@ -73,11 +87,11 @@ abstract class AbstractDatabase
     /**
      * Gets rows from a database table.
      *
-     * @param string|(?string|string[])[]|DbAndCondition[] $conditions Selects the rows to get.
-     * @param string $cols        A comma-separated list of database column names used in the SELECT clause of the SQL
+     * @param DbConditions $conditions Selects the rows to get.
+     * @param string       $cols  A comma-separated list of database column names used in the SELECT clause of the SQL
      *                            statement. By default, all columns are selected.
      * @param string $table       Name of the database table to select from, without the carddav_ prefix.
-     * @param array  $options     Associative array with extra options, mapping option name => option setting
+     * @param DbGetOptions $options Associative array with extra options, mapping option name => option setting
      *                            Currently supported:
      *                              - limit: Value is an array of two integers [ $offset, $numrows ]. Limits the
      *                                       returned rows to maximum $numrows starting at $offset of the full result.
@@ -87,7 +101,7 @@ abstract class AbstractDatabase
      *                                       Execute an aggregate query on the columns in $cols. The result will be a
      *                                       single row, where each column's value is the number of non-null values in
      *                                       the query result. The special column '*' can be used to count the rows.
-     * @return array              If $retsingle no error occurred, returns an array of associative row arrays with the
+     * @return DbGetResults       If no error occurred, returns an array of associative row arrays with the
      *                            matching rows. Each row array has the fieldnames as keys and the corresponding
      *                            database value as value.
      *
@@ -106,14 +120,12 @@ abstract class AbstractDatabase
      *
      * If the query yields fewer or more than one row, an exception is thrown.
      *
-     * @param string|(?string|string[])[]|DbAndCondition[] $conditions Selects the row to lookup.
-     * @param bool $retsingle     If true, exactly one single row is expected as result. If false, any number of rows is
-     *                            expected as result.
-     * @return array              If no error occurred, returns an associative row array with the
-     *                            matching row, where keys are fieldnames and their value is the corresponding database
-     *                            value of the field in the result row.
+     * @param DbConditions $conditions Selects the row to lookup.
+     * @return DbGetResult If no error occurred, returns an associative row array with the
+     *                     matching row, where keys are fieldnames and their value is the corresponding database
+     *                     value of the field in the result row.
      *
-     * @see get()
+     * @see get() For other parameter descriptions
      * @see normalizeConditions() for a description of $conditions
      * @see Database::getConditionsQuery()
      */
@@ -122,7 +134,7 @@ abstract class AbstractDatabase
     /**
      * Deletes rows from a database table.
      *
-     * @param string|(?string|string[])[]|DbAndCondition[] $conditions Selects the rows to delete.
+     * @param DbConditions $conditions Selects the rows to delete.
      * @param string $table       Name of the database table to select from, without the carddav_ prefix.
      * @return int                The number of rows deleted.
      *
@@ -213,8 +225,8 @@ abstract class AbstractDatabase
      * @param ?string $vcfstr The VCard string of the CardDAV-server address object that this object is created from.
      * @param string[] $save_data The Roundcube representation of the address object.
      * @param ?string $dbid If an existing object is updated, this specifies its database id.
-     * @param string[] $xcol Database column names of attributes to insert.
-     * @param string[] $xval The values to insert into the column specified by $xcol at the corresponding index.
+     * @param list<string> $xcol Database column names of attributes to insert.
+     * @param DbInsRow $xval The values to insert into the column specified by $xcol at the corresponding index.
      * @return string The database id of the created or updated card.
      */
     protected function storeAddressObject(
@@ -272,8 +284,8 @@ abstract class AbstractDatabase
      *
      * The normalized form is an array of DbAndCondition.
      *
-     * @param string|(?string|string[])[]|DbAndCondition[] $conditions See above for description.
-     * @return DbAndCondition[]
+     * @param DbConditions $conditions See above for description.
+     * @return list<DbAndCondition>
      *
      * @see DbOrCondition For a description on the format of field/value specifiers.
      */

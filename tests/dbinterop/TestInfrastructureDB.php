@@ -26,6 +26,7 @@ final class TestInfrastructureDB
         return $db;
     }
 
+    /** @return list<string> */
     public static function dbSettings(): array
     {
         return DatabaseAccounts::ACCOUNTS[$GLOBALS["TEST_DBTYPE"]];

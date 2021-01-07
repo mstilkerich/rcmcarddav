@@ -15,6 +15,8 @@ use Psr\Log\LoggerInterface;
  * purpose of this is to set a ground for testing, where the actual access to the database (this class) could be
  * replaced by mocks. The methods of this class should be able to satisfy all query needs of the plugin without the need
  * to have SQL queries directly inside the plugin, as these would be difficult to parse in a test mock.
+ *
+ * @psalm-import-type DbConditions from AbstractDatabase
  */
 class Database extends AbstractDatabase
 {
@@ -368,7 +370,7 @@ class Database extends AbstractDatabase
     /**
      * Like {@see get()}, but returns the unfetched PDOStatement result.
      *
-     * @param string|(?string|string[])[]|DbAndCondition[] $conditions
+     * @param DbConditions $conditions
      */
     private function internalGet(
         $conditions,
@@ -535,7 +537,7 @@ class Database extends AbstractDatabase
      *
      * If conditions is an empty array, no filtering is performed.
      *
-     * @param string|(?string|string[])[]|DbAndCondition[] $conditions
+     * @param DbConditions $conditions
      * @return string The WHERE clause, an empty string if no conditions were given.
      *
      * @see AbstractDatabase::normalizeConditions() for a description of $conditions

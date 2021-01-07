@@ -12,6 +12,9 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition
  * Implementation of the database access interface to the roundcube DB for unit tests.
  *
  * It emulates the DB operations based on an initial dataset read from a Json file.
+ *
+ * @psalm-type JsonDbRow = array<string,?string>
+ * @psalm-import-type DbConditions from AbstractDatabase
  */
 class JsonDatabase extends AbstractDatabase
 {
@@ -27,7 +30,7 @@ class JsonDatabase extends AbstractDatabase
     /**
      * Initializes a JsonDatabase instance.
      *
-     * @param string[] $jsonDbData Paths to JSON files containing the initial data for the tables.
+     * @param list<string> $jsonDbData Paths to JSON files containing the initial data for the tables.
      * @param string $jsonDbSchema Path to a JSON file defining the tables.
      */
     public function __construct(
@@ -120,8 +123,8 @@ class JsonDatabase extends AbstractDatabase
      *
      * @param string $table The table the given rows belong to.
      * @param JsonDatabase $row2Db The JsonDatabase object $row2 belongs to ($row1 always belong to $this)
-     * @param string[] $row1 A row from the given table in $this JsonDatabase object
-     * @param string[] $row2 A row from the given table in $row2Db JsonDatabase object
+     * @param JsonDbRow $row1 A row from the given table in $this JsonDatabase object
+     * @param JsonDbRow $row2 A row from the given table in $row2Db JsonDatabase object
      * @return int Negative/Zero/Positive if $row1 is smaller/equal/greater than $row2
      */
     public function compareRows(string $table, JsonDatabase $row2Db, array $row1, array $row2): int
@@ -450,7 +453,7 @@ class JsonDatabase extends AbstractDatabase
         }
 
         // ORDER
-        if (is_array($options['order'] ?? null)) {
+        if (isset($options['order'])) {
             $orderDef = [];
             foreach ($options['order'] as $col) {
                 if ($col[0] === "!") {
@@ -529,7 +532,7 @@ class JsonDatabase extends AbstractDatabase
      * Checks if the given row matches the given condition.
      *
      * @param DbOrCondition $orCond
-     * @param (?string)[] $row The DB row to match with the condition
+     * @param JsonDbRow $row The DB row to match with the condition
      *
      * @return bool Match result of condition against row
      *
@@ -581,8 +584,8 @@ class JsonDatabase extends AbstractDatabase
     /**
      * Checks if the given row matches all given conditions.
      *
-     * @param string|(?string|string[])[]|DbAndCondition[] $conditions
-     * @param (?string)[] $row The DB row to match with the condition
+     * @param DbConditions $conditions
+     * @param JsonDbRow $row The DB row to match with the condition
      * @return bool Match result of conditions against row
      *
      * @see AbstractDatabase::normalizeConditions() for a description of $conditions

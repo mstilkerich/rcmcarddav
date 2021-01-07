@@ -60,6 +60,8 @@ final class DatabaseSyncTest extends TestCase
                 [ "id" => $id, "filename" => $fn ] =
                     $db->lookup(["%filename" => "UNITTEST-SYNC%"], "id,filename", "migrations");
                 $this->barrierReached("C_TA_START");
+                $this->assertIsString($id);
+                $this->assertIsString($fn);
                 sleep(1);
                 $db->update($id, ["filename"], ["$fn-CLD"], "migrations");
 

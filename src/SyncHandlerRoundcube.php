@@ -71,20 +71,26 @@ class SyncHandlerRoundcube implements SyncHandler
 
         $abookId = $this->rcAbook->getId();
 
-        // determine existing local contact URIs and ETAGs
-        $contacts = $db->get(['abook_id' => $abookId], 'id,uri,etag,cuid', 'contacts');
+        /**
+         *  determine existing local contact URIs and ETAGs
+         *  @var list<array{id: numeric-string, etag: string, uri: string, cuid: string}> $contacts
+         */
+        $contacts = $db->get(['abook_id' => $abookId], 'id,etag,uri,cuid', 'contacts');
         foreach ($contacts as $contact) {
             $this->localCards[$contact['uri']] = $contact;
             $this->localCardsByUID[$contact['cuid']] = $contact['id'];
         }
 
-        // determine existing local group URIs and ETAGs
+        /**
+         * determine existing local group URIs and ETAGs
+         * @var list<array{id: numeric-string, uri: ?string, etag: ?string}> $groups
+         */
         $groups = $db->get(['abook_id' => $abookId], 'id,uri,etag', 'groups');
         foreach ($groups as $group) {
             if (isset($group['uri'])) { // these are groups defined by a KIND=group VCard
                 $this->localGrpCards[$group['uri']] = $group;
             } else { // these are groups derived from CATEGORIES in the contact VCards
-                $this->localCatGrpIds[] = (string) $group['id'];
+                $this->localCatGrpIds[] = $group['id'];
             }
         }
     }

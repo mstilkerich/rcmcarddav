@@ -26,6 +26,14 @@ use Psr\Log\LoggerInterface;
 use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, RoundcubeLogger};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
 
+/**
+ * @psalm-type CarddavOptions = array{
+ *                                    logger?: LoggerInterface, logger_http?: LoggerInterface,
+ *                                    db?: AbstractDatabase,
+ *                                    cache?: rcube_cache
+ *                                   }
+ * @psalm-import-type FullAbookRow from AbstractDatabase
+ */
 // phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
 class carddav extends rcube_plugin
 {
@@ -47,14 +55,14 @@ class carddav extends rcube_plugin
         'uri' => 'https://github.com/blind-coder/rcmcarddav/'
     ];
 
-    /** @var string[] ABOOK_PROPS A list of addressbook property keys. These are both found in the settings form as well
-     *                            as in the database as columns.
+    /** @var list<string> ABOOK_PROPS A list of addressbook property keys. These are both found in the settings form as
+     *                                well as in the database as columns.
      */
     private const ABOOK_PROPS = [
         "name", "active", "use_categories", "username", "password", "url", "refresh_time", "sync_token"
     ];
 
-    /** @var string[] ABOOK_PROPS_BOOL A list of addressbook property keys of all boolean properties. */
+    /** @var list<string> ABOOK_PROPS_BOOL A list of addressbook property keys of all boolean properties. */
     private const ABOOK_PROPS_BOOL = [ "active", "use_categories" ];
 
     /** @var string $pwstore_scheme encryption scheme */
@@ -77,8 +85,8 @@ class carddav extends rcube_plugin
 
     public $task = 'addressbook|login|mail|settings';
 
-    /** @var ?string[] $abooksDb Cache of the user's addressbook DB entries.
-     *                           Associative array mapping addressbook IDs to DB rows.
+    /** @var ?array<string, FullAbookRow> $abooksDb Cache of the user's addressbook DB entries.
+     *                                              Associative array mapping addressbook IDs to DB rows.
      */
     private $abooksDb = null;
 
@@ -104,6 +112,7 @@ class carddav extends rcube_plugin
      * Default constructor.
      *
      * @param rcube_plugin_api $api Plugin API
+     * @param CarddavOptions $options
      */
     public function __construct($api, array $options = [])
     {
@@ -148,8 +157,6 @@ class carddav extends rcube_plugin
                     $this->httpLogger->setLogLevel($prefs['_GLOBAL']['loglevel_http']);
                 }
             }
-
-            $logger->debug(__METHOD__);
 
             // initialize carddavclient library
             Config::init($logger, $this->httpLogger);
@@ -1113,7 +1120,7 @@ class carddav extends rcube_plugin
      * Upon first call, the config file is read and the result is cached and returned. On subsequent calls, the cached
      * result is returned without reading the file again.
      *
-     * @returns The admin settings array defined in config.inc.php.
+     * @return array The admin settings array defined in config.inc.php.
      */
     private function getAdminSettings(): array
     {
@@ -1213,6 +1220,7 @@ class carddav extends rcube_plugin
             $db = $this->db;
 
             $this->abooksDb = [];
+            /** @var FullAbookRow $abookrow */
             foreach ($db->get(['user_id' => $_SESSION['user_id']], '*', 'addressbooks') as $abookrow) {
                 $this->abooksDb[$abookrow["id"]] = $abookrow;
             }

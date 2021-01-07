@@ -76,17 +76,16 @@ class TestLogger extends AbstractLogger
      */
     public function log($level, $message, array $context = array())
     {
-        if (isset(self::LOGLEVELS[$level])) {
-            $levelNumeric = self::LOGLEVELS[$level];
-            $levelShort = self::LOGLEVELS_SHORT[$level];
-            $this->fileLogger->log($level, "[$levelNumeric $levelShort] $message", $context);
+        TestCase::assertIsString($level);
+        TestCase::assertNotNull(self::LOGLEVELS[$level]);
 
-            // only warnings or more critical messages are interesting for testing
-            if (self::LOGLEVELS[$level] >= self::LOGLEVELS[LogLevel::WARNING]) {
-                $this->logBuffer[] = [ $level, $message, 'UNCHECKED' ];
-            }
-        } else {
-            throw new \Exception("Unknown log level $level");
+        $levelNumeric = self::LOGLEVELS[$level];
+        $levelShort = self::LOGLEVELS_SHORT[$level];
+        $this->fileLogger->log($level, "[$levelNumeric $levelShort] $message", $context);
+
+        // only warnings or more critical messages are interesting for testing
+        if (self::LOGLEVELS[$level] >= self::LOGLEVELS[LogLevel::WARNING]) {
+            $this->logBuffer[] = [ $level, $message, 'UNCHECKED' ];
         }
     }
 
