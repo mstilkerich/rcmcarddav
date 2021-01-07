@@ -17,6 +17,7 @@ use Psr\Log\LoggerInterface;
  * to have SQL queries directly inside the plugin, as these would be difficult to parse in a test mock.
  *
  * @psalm-import-type DbConditions from AbstractDatabase
+ * @psalm-import-type DbGetOptions from AbstractDatabase
  */
 class Database extends AbstractDatabase
 {
@@ -186,18 +187,20 @@ class Database extends AbstractDatabase
 
         // (2) Determine which migration scripts have already been executed. This must handle the initial case that
         //     the plugin's database tables to not exist yet, in which case they will be initialized.
-        $migrationsDone = [];
-        $dbh->set_option('ignore_key_errors', true);
-        $sql_result = $dbh->query('SELECT filename FROM ' . $dbh->table_name('carddav_migrations')) ?: [];
-        while ($processed = $dbh->fetch_assoc($sql_result)) {
-            $migrationsDone[$processed['filename']] = true;
+        try {
+            $dbh->set_option('ignore_key_errors', true);
+            /** @var list<array{filename: string}> $migrations */
+            $migrationsDone = $this->get([], 'filename', 'migrations');
+            $migrationsDone = array_column($migrationsDone, 'filename');
+            $dbh->set_option('ignore_key_errors', null);
+        } catch (DatabaseException $e) {
+            $migrationsDone = [];
         }
-        $dbh->set_option('ignore_key_errors', null);
 
         // (3) Execute the migration scripts that have not been executed before
         foreach ($migrationsAvailable as $migration) {
             // skip migrations that have already been done
-            if (key_exists($migration, $migrationsDone)) {
+            if (in_array($migration, $migrationsDone)) {
                 continue;
             }
 
@@ -305,12 +308,12 @@ class Database extends AbstractDatabase
         if (in_array($table, self::DBTABLES_WITHOUT_ID)) {
             $dbid = "";
         } else {
+            /** @var string|false $dbid */
             $dbid = $dbh->insert_id("carddav_$table");
-            $dbid = is_bool($dbid) ? "" /* error thrown below */ : (string) $dbid;
         }
         $logger->debug("INSERT $table ($sql) -> $dbid");
 
-        if ($dbh->is_error()) {
+        if ($dbid === false) {
             $logger->error("Database::insert ($sql) ERROR: " . $dbh->is_error());
             throw new DatabaseException($dbh->is_error());
         }
@@ -371,6 +374,7 @@ class Database extends AbstractDatabase
      * Like {@see get()}, but returns the unfetched PDOStatement result.
      *
      * @param DbConditions $conditions
+     * @param DbGetOptions $options
      */
     private function internalGet(
         $conditions,
@@ -400,7 +404,7 @@ class Database extends AbstractDatabase
         $sql .= $this->getConditionsQuery($conditions);
 
         // ORDER BY clause
-        if (is_array($options['order'] ?? null)) {
+        if (isset($options['order'])) {
             $orderClauses = [];
 
             foreach ($options['order'] as $col) {
@@ -418,25 +422,14 @@ class Database extends AbstractDatabase
             }
         }
 
-        $sql_result = false;
         $logger->debug("internalGet query: $sql");
         if (isset($options['limit'])) {
-            $l = $options['limit'];
-            $err = false;
-            if (is_array($l) && count($l) == 2) {
-                [ $offset, $limit ] = $l;
-                if (is_int($offset) && is_int($limit) && $offset >= 0 && $limit > 0) {
-                    $sql_result = $dbh->limitquery($sql, $offset, $limit);
-                } else {
-                    $err = true;
-                }
+            [ $offset, $limit ] = $options['limit'];
+            if ($offset >= 0 && $limit > 0) {
+                $sql_result = $dbh->limitquery($sql, $offset, $limit);
             } else {
-                $err = true;
-            }
-
-            if ($err) {
                 $msg = "The limit option needs an array parameter of two unsigned integers [offset,limit]; got: ";
-                $msg .= print_r($l, true);
+                $msg .= print_r($options['limit'], true);
                 throw new \Exception($msg);
             }
         } else {
@@ -556,11 +549,13 @@ class Database extends AbstractDatabase
             $andCondSql[] = '(' . implode(') OR (', $orCondSql) . ')';
         }
 
-        if (!empty($andCondSql)) {
+        if (empty($andCondSql)) {
+            $sql = "";
+        } else {
             $sql = " WHERE (" . implode(') AND (', $andCondSql) . ')';
         }
 
-        return $sql ?? "";
+        return $sql;
     }
 }
 

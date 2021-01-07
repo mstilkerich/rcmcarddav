@@ -10,6 +10,12 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use carddav;
 use rcube_utils;
 
+/**
+ * @psalm-type SaveDataSimpleField = string
+ * @psalm-type SaveDataMultiField = list<string>
+ * @psalm-type SaveDataAddressField = array<string,string>
+ * @psalm-type SaveData = array<string, SaveDataSimpleField|SaveDataMultiField|SaveDataAddressField>
+ */
 class DataConversion
 {
     /**

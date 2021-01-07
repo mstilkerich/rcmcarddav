@@ -25,6 +25,8 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  * The goal of this mechanism is to perform the potentially expensive operation of photo processing only when the photo
  * is actually needed, and particularly not during the synchronization operation (for all photos that are part of the
  * synced vcards).
+ *
+ * @psalm-type PhotoCacheObject array{photoPropMd5: string, photo: string}
  */
 class DelayedPhotoLoader
 {
@@ -96,6 +98,8 @@ class DelayedPhotoLoader
         $kind = $photoProp['VALUE'];
         if (($kind instanceof VObject\Parameter) && strcasecmp('uri', (string) $kind) == 0) {
             $photoUri = (string) $photoProp;
+        } else {
+            $photoUri = null;
         }
 
         // true if the photo must be processed (downloaded/cropped) and the result should be cached
@@ -154,6 +158,7 @@ class DelayedPhotoLoader
     private function fetchFromRoundcubeCache(VObject\Property $photoProp): ?string
     {
         $key = $this->determineCacheKey();
+        /** @var ?PhotoCacheObject $cacheObject */
         $cacheObject = $this->cache->get($key);
 
         if (!isset($cacheObject)) {
@@ -202,9 +207,11 @@ class DelayedPhotoLoader
     private function determineCacheKey(): string
     {
         $uid = (string) $this->vcard->UID;
+        $userid = $_SESSION['user_id'];
+        assert(is_string($userid), "user must be logged on to use photo cache");
 
         $key  = "photo_";
-        $key .= $_SESSION['user_id'] . "_" ;
+        $key .= $userid . "_" ;
         $key .= md5($uid);
 
         return $key;

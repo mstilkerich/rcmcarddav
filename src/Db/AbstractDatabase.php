@@ -9,19 +9,21 @@ use Psr\Log\LoggerInterface;
 /**
  * Access interface for the roundcube database.
  *
- * @psalm-type DbConditions = string|(?string|string[])[]|DbAndCondition[]
+ * @psalm-type DbConditions = string|array<string, null|string|string[]>|list<DbAndCondition>
  * @psalm-type DbGetResult = array<string,?string>
  * @psalm-type DbGetResults = list<DbGetResult>
  * @psalm-type DbInsRow = list<?string>
  * @psalm-type DbGetOptions = array{limit?: array{int,int}, order?: list<string>, count?: true}
  *
  * @psalm-type FullAbookRow = array{
- *                                  id: numeric-string, user_id: numeric-string, name: string,
- *                                  username: string, password: string, url: string,
- *                                  active: numeric-string, use_categories: numeric-string,
- *                                  last_updated: numeric-string, refresh_time: numeric-string, sync-token: string,
- *                                  presetname: ?string
- *                                 }
+ *     id: numeric-string, user_id: numeric-string, name: string,
+ *     username: string, password: string, url: string,
+ *     active: numeric-string, use_categories: numeric-string,
+ *     last_updated: numeric-string, refresh_time: numeric-string, sync-token: string,
+ *     presetname: ?string
+ * }
+ *
+ * @psalm-import-type SaveData from \MStilkerich\CardDavAddressbook4Roundcube\DataConversion
  */
 abstract class AbstractDatabase
 {
@@ -150,7 +152,7 @@ abstract class AbstractDatabase
      * @param string $etag of the VCard in the given version on the CardDAV server
      * @param string $uri path to the VCard on the CardDAV server
      * @param string $vcfstr string representation of the VCard
-     * @param array  $save_data associative array containing the roundcube save data for the contact
+     * @param SaveData $save_data associative array containing the roundcube save data for the contact
      * @param ?string $dbid optionally, database id of the contact if the store operation is an update
      *
      * @return string The database id of the created or updated card.
@@ -176,9 +178,11 @@ abstract class AbstractDatabase
         $xcol = [];
         $xval = [];
         foreach ($xcol_all as $k) {
-            if (key_exists($k, $save_data)) {
+            if (isset($save_data[$k])) {
+                /** @var string $v */
+                $v = $save_data[$k];
                 $xcol[] = $k;
-                $xval[] = $save_data[$k];
+                $xval[] = $v;
             }
         }
 
@@ -193,7 +197,7 @@ abstract class AbstractDatabase
      * to indicate this.
      *
      * @param string $abookid Database ID of the addressbook the group shall be inserted to
-     * @param array  $save_data  associative array containing at least name and cuid (card UID)
+     * @param SaveData $save_data associative array containing at least name and cuid (card UID)
      * @param ?string $dbid optionally, database id of the group if the store operation is an update
      * @param ?string $etag of the VCard in the given version on the CardDAV server
      * @param ?string $uri path to the VCard on the CardDAV server
@@ -223,7 +227,7 @@ abstract class AbstractDatabase
      * @param ?string $etag The ETag value of the CardDAV-server address object that this object is created from.
      * @param ?string $uri  The URI of the CardDAV-server address object that this object is created from.
      * @param ?string $vcfstr The VCard string of the CardDAV-server address object that this object is created from.
-     * @param string[] $save_data The Roundcube representation of the address object.
+     * @param SaveData $save_data The Roundcube representation of the address object.
      * @param ?string $dbid If an existing object is updated, this specifies its database id.
      * @param list<string> $xcol Database column names of attributes to insert.
      * @param DbInsRow $xval The values to insert into the column specified by $xcol at the corresponding index.
@@ -241,7 +245,9 @@ abstract class AbstractDatabase
         array $xval = []
     ): string {
         $xcol[] = 'name';
-        $xval[] = $save_data['name'];
+        /** @var string $name */
+        $name = $save_data['name'];
+        $xval[] = $name;
 
         if (isset($etag)) {
             $xcol[] = 'etag';
@@ -265,7 +271,9 @@ abstract class AbstractDatabase
             }
             if (isset($save_data['cuid'])) {
                 $xcol[] = 'cuid';
-                $xval[] = $save_data['cuid'];
+                /** @var string $cuid */
+                $cuid = $save_data["cuid"];
+                $xval[] = $cuid;
             }
 
             $dbid = $this->insert($table, $xcol, [$xval]);
@@ -295,12 +303,12 @@ abstract class AbstractDatabase
             $cond = [ new DbAndCondition(new DbOrCondition("id", $conditions)) ];
         } elseif (empty($conditions)) {
             $cond = [];
-        } elseif (($conditions[0] ?? null) instanceof DbAndCondition) {
-            /** @var DbAndCondition[] */
+        } elseif (isset($conditions[0]) && $conditions[0] instanceof DbAndCondition) {
+            /** @var list<DbAndCondition> */
             $cond = $conditions;
         } else {
             $cond = [];
-            /** @var ?string|string[] $valueSpec */
+            /** @var array<string, null|string|string[]> $conditions */
             foreach ($conditions as $fieldSpec => $valueSpec) {
                 $cond[] = new DbAndCondition(new DbOrCondition($fieldSpec, $valueSpec));
             }
