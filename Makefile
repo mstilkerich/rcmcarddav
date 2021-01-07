@@ -3,6 +3,10 @@ DBTYPES=postgres sqlite3 mysql
 SQLITE_TESTDB=testreports/test.db
 CD_TABLES=$(foreach tbl,addressbooks contacts groups group_user xsubtypes migrations,carddav_$(tbl))
 DOCDIR := doc/api/
+PSALM_GOODFILES := src/DataConversion.php src/Db/DbAndCondition.php src/Db/DbOrCondition.php \
+	tests/TestInfrastructure.php tests/TestLogger.php tests/autoload.php tests/autoload_defs.php \
+	tests/dbinterop/DatabaseAccounts.php tests/dbinterop/DatabaseTest.php tests/dbinterop/autoload.php \
+	tests/unit/CarddavTest.php tests/unit/autoload.php
 
 # This environment variable is set on github actions
 # If not defined, it is expected that the root user can authenticate via unix socket auth
@@ -39,7 +43,8 @@ phpcompatcheck:
 	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/ tests/
 
 psalmanalysis: tests/dbinterop/DatabaseAccounts.php
-	vendor/bin/psalm --no-cache --shepherd
+	vendor/bin/psalm --no-cache --shepherd --report=testreports/psalm.txt --report-show-info=true --no-progress
+	@$(foreach srcfile,$(PSALM_GOODFILES),if grep $(srcfile) testreports/psalm.txt; then echo "Error: $(srcfile) previously had full type inference"; exit 1; fi;)
 
 .PHONY: tarball
 tarball:
