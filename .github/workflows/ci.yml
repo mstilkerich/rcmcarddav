@@ -95,8 +95,7 @@ jobs:
           COVERALLS_FLAG_NAME: dbinterop
         run: |
           vendor/bin/php-coveralls -x testreports/dbinterop-sqlite3/clover.xml -x testreports/dbinterop-mysql/clover.xml -x testreports/dbinterop-postgres/clover.xml -o testreports/coveralls-dbinterop-upload.json -v
-          echo RUN ID: ${GITHUB_RUN_ID}
-          curl "https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN" -d "payload[build_num]=$GITHUB_RUN_ID&payload[status]=done"
+          curl "https://www.mike2k.de/webhook?repo_token=$COVERALLS_REPO_TOKEN" -d "payload[build_num]=$GITHUB_RUN_ID&payload[status]=done"
       - name: Upload unit test coverage reports to codecov.io
         uses: codecov/codecov-action@v1
         with:
