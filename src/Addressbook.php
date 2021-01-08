@@ -61,7 +61,7 @@ class Addressbook extends rcube_addressbook
     /** @var string $id database ID of the addressbook */
     private $id;
 
-    /** @var DbAndCondition[] An additional filter to limit contact searches */
+    /** @var list<DbAndCondition> An additional filter to limit contact searches */
     private $filter = [];
 
     /** @var string[] $requiredProps A list of addressobject fields that must not be empty, otherwise the addressobject
@@ -1195,16 +1195,23 @@ class Addressbook extends rcube_addressbook
         }
 
         $this->logger->debug("listRecordsReadDB $dbattr [$firstrow, $numrows] ORD($sort_column)");
-        /** @var list<array{id: numeric-string, name: string, vcard?: string} & array<string,?string>> $contacts */
-        $contacts = $this->db->get(
-            $this->currentFilterConditions(),
-            "id,name,$dbattr",
-            'contacts',
-            [
-                'limit' => [ $firstrow, $numrows ],
-                'order' => [ $sort_column ]
-            ]
-        );
+
+        $conditions = $this->currentFilterConditions();
+
+        if (isset($conditions)) {
+            /** @var list<array{id: numeric-string, name: string, vcard?: string} & array<string,?string>> $contacts */
+            $contacts = $this->db->get(
+                $conditions,
+                "id,name,$dbattr",
+                'contacts',
+                [
+                    'limit' => [ $firstrow, $numrows ],
+                    'order' => [ $sort_column ]
+                ]
+            );
+        } else {
+            $contacts = [];
+        }
 
         // FIXME ORDER BY (CASE WHEN showas='COMPANY' THEN organization ELSE " . $sort_column . " END)
 
@@ -1355,14 +1362,14 @@ class Addressbook extends rcube_addressbook
     private function doCount(): int
     {
         if ($this->total_cards < 0) {
-            [$result] = $this->db->get(
-                $this->currentFilterConditions(),
-                '*',
-                'contacts',
-                [ 'count' => true ]
-            );
+            $conditions = $this->currentFilterConditions();
 
-            $this->total_cards = intval($result['*']);
+            if (isset($conditions)) {
+                [$result] = $this->db->get($conditions, '*', 'contacts', [ 'count' => true ]);
+                $this->total_cards = intval($result['*']);
+            } else {
+                $this->total_cards = 0;
+            }
         }
 
         return $this->total_cards;
@@ -1504,9 +1511,9 @@ class Addressbook extends rcube_addressbook
      *   - A search filter set by roundcube ($this->filter)
      *   - A currenty selected group ($this->group_id)
      *
-     * @return DbAndCondition[]
+     * @return ?list<DbAndCondition> Null if the current filter conditions result in an empty contact result.
      */
-    private function currentFilterConditions(): array
+    private function currentFilterConditions(): ?array
     {
         $conditions = $this->filter;
         $conditions[] = new DbAndCondition(new DbOrCondition("abook_id", $this->id));
@@ -1522,7 +1529,12 @@ class Addressbook extends rcube_addressbook
                 $this->db->get(['group_id' => (string) $this->group_id], 'contact_id', 'group_user'),
                 'contact_id'
             );
-            $conditions[] = new DbAndCondition(new DbOrCondition("id", $contactsInGroup));
+
+            if (empty($contactsInGroup)) {
+                $conditions = null;
+            } else {
+                $conditions[] = new DbAndCondition(new DbOrCondition("id", $contactsInGroup));
+            }
         }
 
         return $conditions;
