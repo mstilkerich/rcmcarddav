@@ -10,11 +10,18 @@ namespace MStilkerich\CardDavAddressbook4Roundcube;
 
 use Psr\Log\LoggerInterface;
 use Sabre\VObject\Component\VCard;
+use Sabre\VObject;
 use MStilkerich\CardDavClient\AddressbookCollection;
 use MStilkerich\CardDavClient\Services\SyncHandler;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use carddav;
 
+/**
+ * @psalm-type ContactDbInfo = array{id: string, etag: string, uri: string, cuid: string} DB data on a contact
+ * @psalm-type GroupDbInfo = array{id: string, uri: ?string, etag: ?string} DB data on a group
+ * @psalm-type CardGroupDbInfo = array{id: string, uri: string, etag: string} DB data on a VCard-type group
+ * @psalm-type ReceivedGroupInfo = array{vcard: VCard, etag: string, uri: string} Data of a retrieved group card
+ */
 class SyncHandlerRoundcube implements SyncHandler
 {
     /** @var bool hadErrors If true, errors that did not cause the sync to be aborted occurred. */
@@ -23,25 +30,26 @@ class SyncHandlerRoundcube implements SyncHandler
     /** @var Addressbook Object of the addressbook that is being synchronized */
     private $rcAbook;
 
-    /** @var array Maps UIDs of locally available contact cards to (database) id */
+    /** @var array<string,string> Maps UIDs of locally available contact cards to (database) id */
     private $localCardsByUID = [];
 
-    /** @var array Maps URIs to an associative array containing etag and (database) id */
+    /** @var array<string, ContactDbInfo>  Maps URIs to the contact info */
     private $localCards = [];
 
-    /** @var array Maps URIs of KIND=group cards to an associative array containing etag and (database) id */
+    /** @var array<string, CardGroupDbInfo> Maps URIs of KIND=group cards to the group info */
     private $localGrpCards = [];
 
-    /** @var string[] List of DB ids of CATEGORIES-type groups at the time the sync is started.
-     *                Note: If a contact's existing memberships to such groups are determined, this is sufficient and
-     *                      we do not have to add new CATEGORIES-type groups created during the sync to this list.
+    /** @var list<string> List of DB ids of CATEGORIES-type groups at the time the sync is started.
+     *                            Note: If a contact's existing memberships to such groups are determined, this is
+     *                            sufficient and we do not have to add new CATEGORIES-type groups created during the
+     *                            sync to this list.
      */
     private $localCatGrpIds = [];
 
-    /** @var array records VCard-type groups that need to be updated (array of arrays with keys etag, uri, vcard) */
+    /** @var list<ReceivedGroupInfo> records VCard-type groups that need to be updated */
     private $grpCardsToUpdate = [];
 
-    /** @var string[] a list of group IDs that may be cleared from the DB if empty and CATEGORIES-type */
+    /** @var list<string> a list of group IDs that may be cleared from the DB if empty and CATEGORIES-type */
     private $clearGroupCandidates = [];
 
     /** @var DataConversion $dataConverter to convert between VCard and roundcube's representation of contacts. */
@@ -73,7 +81,7 @@ class SyncHandlerRoundcube implements SyncHandler
 
         /**
          *  determine existing local contact URIs and ETAGs
-         *  @var list<array{id: numeric-string, etag: string, uri: string, cuid: string}> $contacts
+         *  @var list<ContactDbInfo> $contacts
          */
         $contacts = $db->get(['abook_id' => $abookId], 'id,etag,uri,cuid', 'contacts');
         foreach ($contacts as $contact) {
@@ -83,11 +91,12 @@ class SyncHandlerRoundcube implements SyncHandler
 
         /**
          * determine existing local group URIs and ETAGs
-         * @var list<array{id: numeric-string, uri: ?string, etag: ?string}> $groups
+         * @var list<GroupDbInfo> $groups
          */
         $groups = $db->get(['abook_id' => $abookId], 'id,uri,etag', 'groups');
         foreach ($groups as $group) {
             if (isset($group['uri'])) { // these are groups defined by a KIND=group VCard
+                /** @var CardGroupDbInfo $group */
                 $this->localGrpCards[$group['uri']] = $group;
             } else { // these are groups derived from CATEGORIES in the contact VCards
                 $this->localCatGrpIds[] = $group['id'];
@@ -156,6 +165,7 @@ class SyncHandlerRoundcube implements SyncHandler
             // CATEGORIES-type groups may become empty as a user is deleted and should then be deleted as well. Record
             // what groups the user belonged to.
             if (!empty($this->localCatGrpIds)) {
+                /** @var list<numeric-string> */
                 $group_ids = array_column(
                     $db->get(["contact_id" => $dbid, "group_id" => $this->localCatGrpIds], "group_id", "group_user"),
                     "group_id"
@@ -245,7 +255,7 @@ class SyncHandlerRoundcube implements SyncHandler
      * given VCard belongs to. Groups are created if needed.
      *
      * @param VCard $card The VCard that describes the individual, including the CATEGORIES attribute
-     * @return string[] An array of DB ids of the CATEGORIES-type groups the user belongs to.
+     * @return list<string> An array of DB ids of the CATEGORIES-type groups the user belongs to.
      */
     private function getCategoryTypeGroupsForUser(VCard $card): array
     {
@@ -254,6 +264,7 @@ class SyncHandlerRoundcube implements SyncHandler
         // Determine CATEGORIES-type group ID (and create if needed) of the user
         $categories = [];
         if (isset($card->CATEGORIES)) {
+            /** @var list<string> */
             $categories = $card->CATEGORIES->getParts();
             // remove all whitespace categories
             Addressbook::stringsAddRemove($categories);
@@ -266,6 +277,7 @@ class SyncHandlerRoundcube implements SyncHandler
         $db = $this->db;
         try {
             $db->startTransaction(false);
+            /** @var array<string,numeric-string> $group_ids_by_name */
             $group_ids_by_name = array_column(
                 $db->get(["abook_id" => $abookId, "uri" => null, "name" => $categories], "id,name", "groups"),
                 "id",
@@ -310,9 +322,6 @@ class SyncHandlerRoundcube implements SyncHandler
         $this->logger->info("Changed Individual $uri");
 
         $dbid = $this->localCards[$uri]["id"] ?? null;
-        if (isset($dbid)) {
-            $dbid = (string) $dbid;
-        }
 
         try {
             $db->startTransaction(false);
@@ -334,6 +343,7 @@ class SyncHandlerRoundcube implements SyncHandler
             $db->startTransaction(false);
 
             // Update membership to CATEGORIES-type groups
+            /** @var list<numeric-string> $old_group_ids */
             $old_group_ids = empty($this->localCatGrpIds)
                 ? []
                 : array_column(
@@ -350,7 +360,7 @@ class SyncHandlerRoundcube implements SyncHandler
             }
 
             // add contact to CATEGORIES-type groups he newly belongs to
-            $add_group_ids = array_diff($cur_group_ids, $old_group_ids);
+            $add_group_ids = array_values(array_diff($cur_group_ids, $old_group_ids));
             if (!empty($add_group_ids)) {
                 $db->insert(
                     "group_user",
@@ -387,10 +397,6 @@ class SyncHandlerRoundcube implements SyncHandler
         $save_data = $this->dataConverter->toRoundcube($card, $this->davAbook);
 
         $dbid = $this->localGrpCards[$uri]["id"] ?? null;
-        if (isset($dbid)) {
-            $dbid = (string) $dbid;
-        }
-
         $this->logger->info("Changed Group $uri " . $save_data['name']);
 
         // X-ADDRESSBOOKSERVER-MEMBER:urn:uuid:51A7211B-358B-4996-90AD-016D25E77A6E
@@ -398,6 +404,7 @@ class SyncHandlerRoundcube implements SyncHandler
         $memberIds = [];
 
         $this->logger->debug("Group $uri has " . count($members) . " members");
+        /** @var VObject\Property $mbr */
         foreach ($members as $mbr) {
             $mbrc = explode(':', (string) $mbr);
             if (count($mbrc) != 3 || $mbrc[0] !== 'urn' || $mbrc[1] !== 'uuid') {
