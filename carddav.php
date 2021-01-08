@@ -234,6 +234,7 @@ class carddav extends rcube_plugin
             // Group the addressbooks by their preset
             $existing_presets = [];
             foreach ($existing_abooks as $abookrow) {
+                /** @var string $pn Not null because filtered by getAddressbooks() */
                 $pn = $abookrow['presetname'];
                 if (!key_exists($pn, $existing_presets)) {
                     $existing_presets[$pn] = [];
@@ -1213,6 +1214,7 @@ class carddav extends rcube_plugin
      *
      * @param $activeOnly If true, only the active addressbooks of the user are returned.
      * @param $presetsOnly If true, only the addressbooks created from an admin preset are returned.
+     * @return array<string, FullAbookRow>
      */
     private function getAddressbooks(bool $activeOnly = true, bool $presetsOnly = false): array
     {

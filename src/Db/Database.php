@@ -385,7 +385,7 @@ class Database extends AbstractDatabase
 
         $row = [];
         foreach ($ret as $k => $v) {
-            $row[$k] = (string) $v;
+            $row[$k] = isset($v) ? (string) $v : null;
         }
 
         return $row;

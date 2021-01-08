@@ -34,6 +34,9 @@ use MStilkerich\CardDavClient\Services\{Discovery, Sync};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
 use carddav;
 
+/**
+ * @psalm-import-type FullAbookRow from AbstractDatabase
+ */
 class Addressbook extends rcube_addressbook
 {
     /** @var string SEPARATOR Separator character used by roundcube to encode multiple values in a single string. */
@@ -68,7 +71,7 @@ class Addressbook extends rcube_addressbook
     /** @var ?rcube_result_set $result */
     private $result = null;
 
-    /** @var string[] configuration of the addressbook */
+    /** @var FullAbookRow configuration of the addressbook */
     private $config;
 
     /** @var int total number of contacts in address book. Negative if not computed yet. */
@@ -81,7 +84,7 @@ class Addressbook extends rcube_addressbook
     private $table_cols = ['id', 'name', 'email', 'firstname', 'surname', 'organization'];
 
     /**
-     * @param string[] $config
+     * @param FullAbookRow $config
      * @param list<string> $requiredProps
      */
     public function __construct(
