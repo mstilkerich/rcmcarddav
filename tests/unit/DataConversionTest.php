@@ -293,6 +293,7 @@ final class DataConversionTest extends TestCase
 
         $dc = new DataConversion("42", $db, $cache, $logger);
         $saveData = $dc->toRoundcube($vcard, $abook);
+        $this->assertTrue(isset($saveData['photo']));
         $this->comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
 
         $this->assertPhotoDownloadWarning($logger, $basename);
@@ -339,6 +340,7 @@ final class DataConversionTest extends TestCase
         $dc = new DataConversion("42", $db, $cache, $logger);
         $saveData = $dc->toRoundcube($vcard, $abook);
 
+        $this->assertTrue(isset($saveData['photo']));
         if ($getExp) {
             $this->comparePhoto($cachedPhotoData, (string) $saveData["photo"]);
         } else {
@@ -408,6 +410,7 @@ final class DataConversionTest extends TestCase
 
         $dc = new DataConversion("42", $db, $cache, $logger);
         $saveData = $dc->toRoundcube($vcard, $abook);
+        $this->assertTrue(isset($saveData['photo']));
         $this->comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
 
         $this->assertPhotoDownloadWarning($logger, $basename);

@@ -36,6 +36,7 @@ use carddav;
 
 /**
  * @psalm-import-type FullAbookRow from AbstractDatabase
+ * @psalm-import-type SaveData from DataConversion
  */
 class Addressbook extends rcube_addressbook
 {
@@ -138,6 +139,7 @@ class Addressbook extends rcube_addressbook
     public function set_search_set($filter): void
     {
         if (is_array($filter) && (empty($filter) || $filter[0] instanceof DbAndCondition)) {
+            /** @var list<DbAndCondition> $filter */
             $this->filter = $filter;
         } else {
             throw new \Exception(__METHOD__ . " requires a DbAndCondition[] type filter");
@@ -358,12 +360,13 @@ class Addressbook extends rcube_addressbook
      * @param mixed  $id    Record identifier(s)
      * @param bool $assoc True to return record as associative array, otherwise a result set is returned
      *
-     * @return rcube_result_set|array Result object with all record fields
+     * @return rcube_result_set|SaveData Result object with all record fields
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_record($id, $assoc = false)
     {
         try {
+            $id = (string) $id;
             $this->logger->debug("get_record($id, $assoc)");
             $db = $this->db;
 
@@ -381,7 +384,13 @@ class Addressbook extends rcube_addressbook
         } catch (\Exception $e) {
             $this->logger->error("Could not get contact $id: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
-            return $assoc ? [] : new rcube_result_set();
+            if ($assoc) {
+                /** @var SaveData $ret Psalm does not consider the empty array a subtype */
+                $ret = [];
+                return $ret;
+            } else {
+                return new rcube_result_set();
+            }
         }
     }
 
@@ -1193,7 +1202,7 @@ class Addressbook extends rcube_addressbook
      * correct property of the VCard contained the value. Thus, if such search fields are queried, the DB result needs
      * to be post-filtered with a check for these particular fields against the VCard properties.
      *
-     * This function returns two values in an associative array with entries:
+     * This function returns an associative array with entries:
      *   "filter": An array of DbAndCondition for use with the AbstractDatabase::get() function.
      *   "postSearchMode": true if all conditions must match ("AND"), false if a single match is sufficient ("OR")
      *   "postSearchFilter": An array of two-element arrays, each with: [ column name, lower-cased search value ]
@@ -1201,10 +1210,10 @@ class Addressbook extends rcube_addressbook
      * @param string|string[] $fields Field names to search in
      * @param string|string[] $value Search value, or array of values, one for each field in $fields
      * @param int $mode Matching mode, see Addressbook::search() for extended description.
+     * @return array{filter: list<DbAndCondition>, postSearchMode: bool, postSearchFilter: list<array{string,string}>}
      */
     private function buildDatabaseSearchFilter($fields, $value, int $mode): array
     {
-        /** @var DbAndCondition[] */
         $conditions = [];
         $postSearchMode = false;
         $postSearchFilter = [];

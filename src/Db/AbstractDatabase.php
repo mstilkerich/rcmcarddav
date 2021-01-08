@@ -23,7 +23,7 @@ use Psr\Log\LoggerInterface;
  *     presetname: ?string
  * }
  *
- * @psalm-import-type SaveData from \MStilkerich\CardDavAddressbook4Roundcube\DataConversion
+ * @psalm-import-type SaveDataFromDC from \MStilkerich\CardDavAddressbook4Roundcube\DataConversion
  */
 abstract class AbstractDatabase
 {
@@ -152,7 +152,7 @@ abstract class AbstractDatabase
      * @param string $etag of the VCard in the given version on the CardDAV server
      * @param string $uri path to the VCard on the CardDAV server
      * @param string $vcfstr string representation of the VCard
-     * @param SaveData $save_data associative array containing the roundcube save data for the contact
+     * @param SaveDataFromDC $save_data associative array containing the roundcube save data for the contact
      * @param ?string $dbid optionally, database id of the contact if the store operation is an update
      *
      * @return string The database id of the created or updated card.
@@ -197,7 +197,7 @@ abstract class AbstractDatabase
      * to indicate this.
      *
      * @param string $abookid Database ID of the addressbook the group shall be inserted to
-     * @param SaveData $save_data associative array containing at least name and cuid (card UID)
+     * @param SaveDataFromDC $save_data associative array containing at least name and cuid (card UID)
      * @param ?string $dbid optionally, database id of the group if the store operation is an update
      * @param ?string $etag of the VCard in the given version on the CardDAV server
      * @param ?string $uri path to the VCard on the CardDAV server
@@ -227,7 +227,7 @@ abstract class AbstractDatabase
      * @param ?string $etag The ETag value of the CardDAV-server address object that this object is created from.
      * @param ?string $uri  The URI of the CardDAV-server address object that this object is created from.
      * @param ?string $vcfstr The VCard string of the CardDAV-server address object that this object is created from.
-     * @param SaveData $save_data The Roundcube representation of the address object.
+     * @param SaveDataFromDC $save_data The Roundcube representation of the address object.
      * @param ?string $dbid If an existing object is updated, this specifies its database id.
      * @param list<string> $xcol Database column names of attributes to insert.
      * @param DbInsRow $xval The values to insert into the column specified by $xcol at the corresponding index.
@@ -245,7 +245,6 @@ abstract class AbstractDatabase
         array $xval = []
     ): string {
         $xcol[] = 'name';
-        /** @var string $name */
         $name = $save_data['name'];
         $xval[] = $name;
 
@@ -271,7 +270,6 @@ abstract class AbstractDatabase
             }
             if (isset($save_data['cuid'])) {
                 $xcol[] = 'cuid';
-                /** @var string $cuid */
                 $cuid = $save_data["cuid"];
                 $xval[] = $cuid;
             }

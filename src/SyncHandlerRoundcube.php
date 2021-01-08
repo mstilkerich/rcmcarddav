@@ -275,7 +275,7 @@ class SyncHandlerRoundcube implements SyncHandler
             foreach ($categories as $category) {
                 if (!isset($group_ids_by_name[$category])) {
                     $gsave_data = [
-                        'name' => $category,
+                        'name' => (string) $category,
                         'kind' => 'group'
                     ];
                     $dbid = $db->storeGroup($abookId, $gsave_data);
@@ -307,7 +307,7 @@ class SyncHandlerRoundcube implements SyncHandler
         $db = $this->db;
 
         $save_data = $this->dataConverter->toRoundcube($card, $this->davAbook);
-        $this->logger->info("Changed Individual $uri " . $save_data['name']);
+        $this->logger->info("Changed Individual $uri");
 
         $dbid = $this->localCards[$uri]["id"] ?? null;
         if (isset($dbid)) {
@@ -320,6 +320,10 @@ class SyncHandlerRoundcube implements SyncHandler
             $db->endTransaction();
 
             // remember in the local cache - might be needed in finalizeSync to map UID to DB ID without DB query
+            if (!isset($save_data["cuid"])) {
+                throw new \Exception("VCard $uri has not UID property");
+            }
+
             if (!isset($this->localCardsByUID[$save_data["cuid"]])) {
                 $this->localCardsByUID[$save_data["cuid"]] = $dbid;
             }

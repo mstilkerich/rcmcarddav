@@ -11,10 +11,49 @@ use carddav;
 use rcube_utils;
 
 /**
- * @psalm-type SaveDataSimpleField = string
  * @psalm-type SaveDataMultiField = list<string>
  * @psalm-type SaveDataAddressField = array<string,string>
- * @psalm-type SaveData = array<string, SaveDataSimpleField|SaveDataMultiField|SaveDataAddressField>
+ * @psalm-type SaveData = array{
+ *     name?: string,
+ *     cuid?: string,
+ *     kind?: string,
+ *     ID?: string,
+ *     birthday?: string,
+ *     nickname?: string,
+ *     notes?: string,
+ *     photo?: string | DelayedPhotoLoader,
+ *     jobtitle?: string,
+ *     showas?: string,
+ *     anniversary?: string,
+ *     assistant?: string,
+ *     gender?: string,
+ *     manager?: string,
+ *     spouse?: string,
+ *     maidenname?: string,
+ *     organization?: string,
+ *     department?: string
+ * } & array<string, SaveDataMultiField|SaveDataAddressField>
+ *
+ * @psalm-type SaveDataFromDC = array{
+ *     name: string,
+ *     kind: string,
+ *     cuid?: string,
+ *     ID?: string,
+ *     birthday?: string,
+ *     nickname?: string,
+ *     notes?: string,
+ *     photo?: string | DelayedPhotoLoader,
+ *     jobtitle?: string,
+ *     showas?: string,
+ *     anniversary?: string,
+ *     assistant?: string,
+ *     gender?: string,
+ *     manager?: string,
+ *     spouse?: string,
+ *     maidenname?: string,
+ *     organization?: string,
+ *     department?: string
+ * } & array<string, SaveDataMultiField|SaveDataAddressField>
  */
 class DataConversion
 {
@@ -221,7 +260,7 @@ class DataConversion
      *
      * @param  VCard $vcard Sabre VCard object
      *
-     * @return array Roundcube representation of the VCard
+     * @return SaveDataFromDC Roundcube representation of the VCard
      */
     public function toRoundcube(VCard $vcard, AddressbookCollection $davAbook): array
     {
@@ -352,7 +391,7 @@ class DataConversion
     /**
      * Creates a new or updates an existing vcard from save data.
      *
-     * @param array<string,string|string[]> $save_data The roundcube representation of the contact / group
+     * @param SaveData $save_data The roundcube representation of the contact / group
      * @param ?VCard $vcard The original VCard from that the address data was originally passed to roundcube. If a new
      *                      VCard should be created, this parameter must be null.
      * @return VCard Returns the created / updated VCard. If a VCard was passed in the $vcard parameter, it is updated
@@ -381,13 +420,13 @@ class DataConversion
         if ($isGroup) {
             $vcard->N = [$save_data['name'],"","","",""];
         } else {
-            $vcard->N = [
-                $save_data['surname'] ?? "",
-                $save_data['firstname'] ?? "",
-                $save_data['middlename'] ?? "",
-                $save_data['prefix'] ?? "",
-                $save_data['suffix'] ?? ""
-            ];
+            $nAttr = array_fill(0, 5, "");
+            foreach (['surname', 'firstname', 'middlename', 'prefix', 'suffix'] as $idx => $nameKey) {
+                if (isset($save_data[$nameKey])) {
+                    $nAttr[$idx] = $save_data[$nameKey];
+                }
+            }
+            $vcard->N = $nAttr;
         }
 
         $this->setOrgProperty($save_data, $vcard);
@@ -420,7 +459,7 @@ class DataConversion
      *
      * If neither organization nor department are given (or empty), the ORG property is deleted from the VCard.
      *
-     * @param array<string,string|string[]> $save_data The roundcube representation of the contact
+     * @param SaveData $save_data The roundcube representation of the contact
      * @param VCard $vcard The VCard to set the ORG property for.
      */
     private function setOrgProperty(array $save_data, VCard $vcard): void
@@ -430,7 +469,7 @@ class DataConversion
             $orgParts[] = $save_data['organization'];
         }
 
-        if (!empty($save_data['department']) && is_string($save_data['department'])) {
+        if (!empty($save_data['department'])) {
             // the first element of ORG corresponds to organization, if that field is not filled but organization is
             // we need to store an empty value explicitly (otherwise, department would become organization when reading
             // back the VCard).
@@ -456,7 +495,7 @@ class DataConversion
      *   - Special case photo: It is only set if it was edited. If it is deleted, it is set to an empty string. If it
      *                         was not changed, no photo key is present in save_data.
      *
-     * @param array $save_data The roundcube representation of the contact
+     * @param SaveData $save_data The roundcube representation of the contact
      * @param VCard $vcard The VCard to set the ORG property for.
      */
     private function setSingleValueProperties(array $save_data, VCard $vcard): void
@@ -492,7 +531,7 @@ class DataConversion
      *     a colon (e.g. "email:home"). The value of each setting is an array. These arrays may include empty members if
      *     the field was part of the edit mask but not filled.
      *
-     * @param array<string,string|string[]> $save_data The roundcube representation of the contact
+     * @param SaveData $save_data The roundcube representation of the contact
      * @param VCard $vcard The VCard to set the ORG property for.
      */
     private function setMultiValueProperties(array $save_data, VCard $vcard): void
@@ -520,7 +559,9 @@ class DataConversion
             }
 
             foreach ($subtypes as $subtype) {
-                foreach ((array) $save_data["$rckey:$subtype"] as $value) {
+                /** @var SaveDataMultiField $values */
+                $values = (array) $save_data["$rckey:$subtype"];
+                foreach ($values as $value) {
                     $prop = null;
 
                     $mkey = str_replace("-", "_", strtoupper($vkey));
@@ -928,7 +969,7 @@ class DataConversion
      * If an existing ShowAs=COMPANY setting is given, but the organization field is empty, the setting will be reset to
      * INDIVIDUAL.
      *
-     * @param array<string,string|string[]> $save_data The address data as roundcube's internal format, as entered by
+     * @param SaveData $save_data The address data as roundcube's internal format, as entered by
      *                                                 the user. For update of an existing contact, the showas key must
      *                                                 be populated with the previous value.
      * @return string INDIVIDUAL or COMPANY
@@ -936,7 +977,6 @@ class DataConversion
     private function determineShowAs(array $save_data): string
     {
         $showAs = $save_data['showas'] ?? "";
-        assert(is_string($showAs), "showAs must be string");
 
         if (empty($showAs)) { // new contact
             if (empty($save_data['surname']) && empty($save_data['firstname']) && !empty($save_data['organization'])) {
@@ -967,16 +1007,14 @@ class DataConversion
      * From a VCard, the FN is mandatory. However, we may be served non-compliant VCards, or VCards with an empty FN
      * value. In those cases, we will set the display name, otherwise we will take the value provided in the VCard.
      *
-     * @param array<string,string|string[]> $save_data The address data as roundcube's internal format.
+     * @param SaveData $save_data The address data as roundcube's internal format.
      * @return string The composed displayname
      */
     private static function composeDisplayname(array $save_data): string
     {
         $showAs = $save_data['showas'] ?? "";
-        assert(is_string($showAs), "showAs must be string");
 
         if (strcasecmp($showAs, 'COMPANY') == 0 && !empty($save_data['organization'])) {
-            assert(is_string($save_data['organization']), "organization is a string attribute");
             return $save_data['organization'];
         }
 
@@ -984,7 +1022,6 @@ class DataConversion
         $dname = [];
         foreach (["firstname", "surname"] as $attr) {
             if (!empty($save_data[$attr])) {
-                assert(is_string($save_data[$attr]), "$attr is a string attribute");
                 $dname[] = $save_data[$attr];
             }
         }
@@ -997,8 +1034,9 @@ class DataConversion
         $epKeys = preg_grep(";^(email|phone):;", array_keys($save_data));
         sort($epKeys, SORT_STRING);
         foreach ($epKeys as $epKey) {
-            assert(is_array($save_data[$epKey]), "$attr is a multi-value attribute");
-            foreach ($save_data[$epKey] as $epVal) {
+            /** @var SaveDataMultiField */
+            $epVals = $save_data[$epKey];
+            foreach ($epVals as $epVal) {
                 if (!empty($epVal)) {
                     return $epVal;
                 }
