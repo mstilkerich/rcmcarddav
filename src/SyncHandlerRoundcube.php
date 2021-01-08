@@ -275,7 +275,7 @@ class SyncHandlerRoundcube implements SyncHandler
             foreach ($categories as $category) {
                 if (!isset($group_ids_by_name[$category])) {
                     $gsave_data = [
-                        'name' => (string) $category,
+                        'name' => $category,
                         'kind' => 'group'
                     ];
                     $dbid = $db->storeGroup($abookId, $gsave_data);

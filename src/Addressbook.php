@@ -180,6 +180,7 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function list_records($cols = null, $subset = 0, $nocount = false)
     {
+        /** @var ?list<string> $cols */
         if ($nocount) {
             $this->result = new rcube_result_set();
         } else {
@@ -292,10 +293,11 @@ class Addressbook extends rcube_addressbook
             $result = $this->list_records();
 
             while (
-                /** @var ?string[] $save_data */
+                /** @var ?SaveData $save_data */
                 $save_data = $result->next()
             ) {
                 if ($this->checkPostSearchFilter($save_data, $required, $allMustMatch, $postSearchFilter, $mode)) {
+                    /** @var array{ID: string} $save_data */
                     $ids[] = $save_data["ID"];
                 }
             }
@@ -420,12 +422,13 @@ class Addressbook extends rcube_addressbook
      *  Values: Field value. Can be either a string or an array of strings for multiple values
      * @param bool $check True to check for duplicates first
      *
-     * @return string|bool The created record ID on success, False on error
+     * @return string|false The created record ID on success, false on error
      */
     public function insert($save_data, $check = false)
     {
+        /** @var SaveData $save_data */
         try {
-            $this->logger->info("insert(" . $save_data["name"] . ", $check)");
+            $this->logger->info("insert(" . ($save_data["name"] ?? "no name") . ", $check)");
             $db = $this->db;
 
             $vcard = $this->dataConverter->fromRoundcube($save_data);
@@ -463,10 +466,12 @@ class Addressbook extends rcube_addressbook
      *  Keys:   Field name with optional section in the form FIELD:SECTION
      *  Values: Field value. Can be either a string or an array of strings for multiple values
      *
-     * @return mixed On success if ID has been changed returns ID, otherwise True, False on error
+     * @return string|bool On success if ID has been changed returns ID, otherwise True, False on error
      */
     public function update($id, $save_cols)
     {
+        $id = (string) $id;
+        /** @var SaveData $save_cols */
         try {
             $db = $this->db;
 
@@ -504,6 +509,7 @@ class Addressbook extends rcube_addressbook
      */
     public function delete($ids, $force = true): int
     {
+        /** @var list<string> $ids */
         $deleted = 0;
         $this->logger->info("delete([" . implode(",", $ids) . "])");
         $db = $this->db;
@@ -519,7 +525,10 @@ class Addressbook extends rcube_addressbook
             $ids = array_column($contacts, "id");
             $contact_cuids = array_column($contacts, "cuid");
 
-            // remove contacts from VCard based groups - get groups that the contacts are members of
+            /**
+             * remove contacts from VCard based groups - get groups that the contacts are members of
+             * @var list<string> $groupids
+             */
             $groupids = array_column($db->get(['contact_id' => $ids], 'group_id', 'group_user'), "group_id");
 
             if (!empty($groupids)) {
@@ -528,6 +537,7 @@ class Addressbook extends rcube_addressbook
 
                 foreach ($groups as $group) {
                     if (isset($group["vcard"])) {
+                        /** @var array{id: numeric-string, uri: string, etag: string, vcard: string} $group */
                         $this->removeContactsFromVCardBasedGroup($contact_cuids, $group);
                     }
                 }
@@ -651,6 +661,7 @@ class Addressbook extends rcube_addressbook
                 }
             }
 
+            /** @var list<array{id: string, name: string}> $groups */
             $groups = $db->get($conditions, "id,name", "groups");
 
             foreach ($groups as &$group) {
@@ -659,6 +670,10 @@ class Addressbook extends rcube_addressbook
 
             usort(
                 $groups,
+                /**
+                 * @param array{name: string} $g1
+                 * @param array{name: string} $g2
+                 */
                 function (array $g1, array $g2): int {
                     return strcasecmp($g1["name"], $g2["name"]);
                 }
@@ -750,6 +765,7 @@ class Addressbook extends rcube_addressbook
             $davAbook = $this->getCardDavObj();
 
             $db->startTransaction(false);
+            /** @var array{name: string, uri: ?string} $group */
             $group = $db->lookup(["id" => $group_id, "abook_id" => $this->id], 'name,uri', 'groups');
 
             if (isset($group["uri"])) { // KIND=group VCard-based group
@@ -764,6 +780,7 @@ class Addressbook extends rcube_addressbook
                 } else {
                     $this->adjustContactCategories(
                         $contact_ids,
+                        /** @param list<string> $groups */
                         function (array &$groups, string $_contact_id) use ($groupname): bool {
                             return self::stringsAddRemove($groups, [], [$groupname]);
                         }
@@ -821,6 +838,7 @@ class Addressbook extends rcube_addressbook
                 } else {
                     $this->adjustContactCategories(
                         $contact_ids,
+                        /** @param list<string> $groups */
                         function (array &$groups, string $_contact_id) use ($oldname, $newname): bool {
                             return self::stringsAddRemove($groups, [ $newname ], [ $oldname ]);
                         }
@@ -850,6 +868,7 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function add_to_group($group_id, $ids): int
     {
+        /** @var list<string>|string $ids */
         $added = 0;
         $db = $this->db;
 
@@ -897,7 +916,9 @@ class Addressbook extends rcube_addressbook
 
                 $this->adjustContactCategories(
                     $ids, // unfiltered ids allowed in adjustContactCategories()
+                    /** @param list<string> $groups */
                     function (array &$groups, string $contact_id) use ($groupname, &$added): bool {
+                        /** @var int $added */
                         if (self::stringsAddRemove($groups, [ $groupname ])) {
                             $this->logger->debug("Adding contact $contact_id to category $groupname");
                             ++$added;
@@ -908,6 +929,7 @@ class Addressbook extends rcube_addressbook
                         return false;
                     }
                 );
+                /** @var int $added Reference from the closure appears to confuse psalm */
             }
 
             $this->resync();
@@ -932,6 +954,7 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function remove_from_group($group_id, $ids): int
     {
+        /** @var list<string>|string $ids */
         $deleted = 0;
         $db = $this->db;
 
@@ -943,13 +966,19 @@ class Addressbook extends rcube_addressbook
 
             $db->startTransaction();
 
-            // get current DB data
+            /**
+             * get current DB data
+             * @var array{name: string, uri: ?string} $group
+             */
             $group = $db->lookup(["id" => $group_id, "abook_id" => $this->id], 'name,uri,etag,vcard', 'groups');
 
             // if vcard is set, this group is based on a KIND=group VCard
             if (isset($group['vcard'])) {
+                /** @var list<array{id: numeric-string, cuid: string}> $contacts */
                 $contacts = $db->get(["id" => $ids, "abook_id" => $this->id], "id, cuid", "contacts");
                 $db->endTransaction();
+
+                /** @var array{name: string, uri: string, etag: string, vcard: string} $group */
                 $deleted = $this->removeContactsFromVCardBasedGroup(array_column($contacts, "cuid"), $group);
 
             // if vcard is not set, this group comes from the CATEGORIES property of the contacts it comprises
@@ -959,7 +988,9 @@ class Addressbook extends rcube_addressbook
 
                 $this->adjustContactCategories(
                     $ids, // unfiltered ids allowed in adjustContactCategories()
+                    /** @param list<string> $groups */
                     function (array &$groups, string $contact_id) use ($groupname, &$deleted): bool {
+                        /** @var int $deleted */
                         if (self::stringsAddRemove($groups, [], [$groupname])) {
                             $this->logger->debug("Removing contact $contact_id from category $groupname");
                             ++$deleted;
@@ -970,6 +1001,7 @@ class Addressbook extends rcube_addressbook
                         return false;
                     }
                 );
+                /** @var int $deleted Reference from the closure appears to confuse psalm */
             }
 
             $this->resync();
@@ -988,18 +1020,21 @@ class Addressbook extends rcube_addressbook
      *
      * @param mixed $id Record identifier
      *
-     * @return array List of assigned groups as ID=>Name pairs
+     * @return array<numeric-string, string> List of assigned groups as ID=>Name pairs
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_record_groups($id): array
     {
+        $id = (string) $id;
         try {
             $this->logger->debug("get_record_groups($id)");
             $db = $this->db;
+            /** @var list<string> $groupIds */
             $groupIds = array_column($db->get(['contact_id' => $id], 'group_id', 'group_user'), 'group_id');
             if (empty($groupIds)) {
                 $groups = [];
             } else {
+                /** @var array<numeric-string, string> $groups */
                 $groups = array_column(
                     $db->get(['id' => $groupIds, 'abook_id' => $this->id], 'id,name', 'groups'),
                     'name',
@@ -1051,7 +1086,7 @@ class Addressbook extends rcube_addressbook
             $synchandler = new SyncHandlerRoundcube($this, $db, $this->logger, $this->dataConverter, $davAbook);
             $syncmgr = new Sync();
 
-            $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token'] ?? "");
+            $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token']);
             $this->config['sync_token'] = $sync_token;
             $this->config["last_updated"] = (string) time();
             $db->update(
@@ -1090,6 +1125,17 @@ class Addressbook extends rcube_addressbook
         return $ts_diff;
     }
 
+    /**
+     * Adds/removes strings from an array.
+     *
+     * The function removes all whitespace-only strings plus the strings in $rm from $in.
+     * It then adds all the strings in $add to $in, except if they are already contained in $in.
+     *
+     * @param list<string> $in  The array to modify (passed by reference)
+     * @param list<string> $add The list of strings to add to $in
+     * @param list<string> $rm  The list of strings to remove from $in
+     * @return bool True if changes were made to $in.
+     */
     public static function stringsAddRemove(array &$in, array $add = [], array $rm = []): bool
     {
         $changes = false;
@@ -1122,6 +1168,9 @@ class Addressbook extends rcube_addressbook
      *                            PRIVATE FUNCTIONS
      ***********************************************************************/
 
+    /**
+     * @param ?list<string> $cols List of contact fields to provide, null means all.
+     */
     private function listRecordsReadDB(?array $cols, int $subset, rcube_result_set $result): int
     {
         // determine result subset needed
@@ -1146,7 +1195,7 @@ class Addressbook extends rcube_addressbook
         }
 
         $this->logger->debug("listRecordsReadDB $dbattr [$firstrow, $numrows] ORD($sort_column)");
-        /** @var list<array{id: numeric-string, name: string}> $contacts */
+        /** @var list<array{id: numeric-string, name: string, vcard?: string} & array<string,?string>> $contacts */
         $contacts = $this->db->get(
             $this->currentFilterConditions(),
             "id,name,$dbattr",
@@ -1163,26 +1212,30 @@ class Addressbook extends rcube_addressbook
         $resultCount = 0;
         foreach ($contacts as $contact) {
             if (isset($contact['vcard'])) {
+                $vcf = $contact['vcard'];
                 try {
-                    $vcf = $this->parseVCard($contact['vcard']);
+                    $vcard = $this->parseVCard($vcf);
                     $davAbook = $this->getCardDavObj();
-                    $save_data = $dc->toRoundcube($vcf, $davAbook);
+                    $save_data = $dc->toRoundcube($vcard, $davAbook);
                 } catch (\Exception $e) {
-                    $this->logger->warning("Couldn't parse vcard " . $contact['vcard']);
+                    $this->logger->warning("Couldn't parse vcard $vcf");
                     continue;
                 }
             } elseif (isset($cols)) { // NOTE always true at this point, but difficult to know for psalm
                 $save_data = [];
-                foreach (array_keys($contact) as $col) {
-                    if ($dc->isMultivalueProperty($col)) {
-                        $save_data[$col] = explode(AbstractDatabase::MULTIVAL_SEP, $contact[$col]);
-                    } else {
-                        $save_data[$col] = $contact[$col];
+                foreach ($cols as $col) {
+                    if (isset($contact[$col])) {
+                        if ($dc->isMultivalueProperty($col)) {
+                            $save_data[$col] = explode(AbstractDatabase::MULTIVAL_SEP, $contact[$col]);
+                        } else {
+                            $save_data[$col] = $contact[$col];
+                        }
                     }
                 }
             }
 
-            if (isset($save_data)) {
+            if (!empty($save_data)) {
+                /** @var SaveData $save_data */
                 $save_data['ID'] = $contact['id'];
                 ++$resultCount;
                 $result->add($save_data);
@@ -1331,9 +1384,8 @@ class Addressbook extends rcube_addressbook
      * An update of the card on the server will only be performed if members have actually been removed from the VCard,
      * i. e. the function returns a value greater than 0.
      *
-     * @param string[] $contact_cuids The VCard UIDs of the contacts to remove from the group.
-     * @param array    $group         Array with keys etag, uri and vcard containing the corresponding fields of the
-     *                                group, where vcard is the serialized string form of the VCard.
+     * @param list<string> $contact_cuids The VCard UIDs of the contacts to remove from the group.
+     * @param array{etag: string, uri: string, vcard: string} $group Save data for the group.
      *
      * @return int The number of members actually removed from the group.
      */
@@ -1347,6 +1399,7 @@ class Addressbook extends rcube_addressbook
         foreach ($contact_cuids as $cuid) {
             $search_for = "urn:uuid:$cuid";
             $found = false;
+            /** @var VObject\Property $member */
             foreach (($vcard->{'X-ADDRESSBOOKSERVER-MEMBER'} ?? []) as $member) {
                 if ($member == $search_for) {
                     $vcard->remove($member);
@@ -1391,11 +1444,12 @@ class Addressbook extends rcube_addressbook
      *
      * @param string $groupid The database ID of the group whose contacts shall be queried.
      *
-     * @return string[] An array of the group's contacts' database IDs.
+     * @return list<numeric-string> An array of the group's contacts' database IDs.
      */
     private function getContactIdsForGroup(string $groupid): array
     {
         $db = $this->db;
+        /** @var list<array{contact_id: numeric-string}> */
         $records = $db->get(['group_id' => $groupid], 'contact_id', 'group_user');
         return array_column($records, "contact_id");
     }
@@ -1404,8 +1458,9 @@ class Addressbook extends rcube_addressbook
      * Adjusts the CATEGORIES property of a list of contacts using a given callback function and, if changed, stores the
      * changed VCard to the server.
      *
-     * @param string[] $contact_ids A list of contact database IDs for that CATEGORIES should be adapted
-     * @param callable $callback A callback function, that performs the adjustment of the CATEGORIES values. It is
+     * @param list<string> $contact_ids A list of contact database IDs for that CATEGORIES should be adapted
+     * @param callable(list<string>, string) $callback
+     *                           A callback function, that performs the adjustment of the CATEGORIES values. It is
      *                           called for each contact with two parameters: The first is an array of the values of the
      *                           CATEGORIES property, which should be taken by reference and modified in place. The
      *                           second is the database id of the contact the callback is called for. The callback shall
@@ -1425,7 +1480,8 @@ class Addressbook extends rcube_addressbook
             $vcard = $this->parseVCard($contact['vcard']);
             $groups = [];
             if (isset($vcard->{"CATEGORIES"})) {
-                $groups =  $vcard->CATEGORIES->getParts();
+                /** @var list<string> */
+                $groups = $vcard->CATEGORIES->getParts();
             }
 
             if ($callback($groups, $contact["id"]) !== false) {
@@ -1461,6 +1517,7 @@ class Addressbook extends rcube_addressbook
 
         // TODO Better if we could handle this without a separate SQL query here, but requires join or subquery
         if ($this->group_id) {
+            /** @var list<numeric-string> $contactsInGroup */
             $contactsInGroup = array_column(
                 $this->db->get(['group_id' => (string) $this->group_id], 'contact_id', 'group_user'),
                 'contact_id'
@@ -1483,10 +1540,11 @@ class Addressbook extends rcube_addressbook
      * This function checks these post filter condition on a single contact that was provided by the database after
      * pre-filtering using the database query.
      *
-     * @param string[] $save_data The contact data to check
+     * @param SaveData $save_data The contact data to check
      * @param string[] $required A list of contact attributes that must not be empty
      * @param bool $allMustMatch Indicates if all post filter conditions must match, or if a single match is sufficient.
-     * @param string[][] $postSearchFilter The post filter conditions as pairs of attribute name and match value
+     * @param list<array{string,string}> $postSearchFilter The post filter conditions as pairs of attribute name and
+     *                                                     match value
      * @param int $mode The roundcube search mode.
      *
      * @see search()
@@ -1527,13 +1585,15 @@ class Addressbook extends rcube_addressbook
 
             if ($col == '*') { // any contact attribute must match $val
                 foreach ($save_data as $k => $v) {
+                    $v = is_array($v) ? $v : (string) $v;
                     if ($this->compare_search_value($k, $v, $val, $mode)) {
                         $psFilterMatched = true;
                         break;
                     }
                 }
             } else {
-                $psFilterMatched = $this->compare_search_value($col, $save_data[$col], $val, $mode);
+                $sdVal = is_array($save_data[$col]) ? $save_data[$col] : (string) $save_data[$col];
+                $psFilterMatched = $this->compare_search_value($col, $sdVal, $val, $mode);
             }
 
             if (!$allMustMatch && $psFilterMatched) {

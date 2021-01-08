@@ -19,7 +19,7 @@ use Psr\Log\LoggerInterface;
  *     id: numeric-string, user_id: numeric-string, name: string,
  *     username: string, password: string, url: string,
  *     active: numeric-string, use_categories: numeric-string,
- *     last_updated: numeric-string, refresh_time: numeric-string, sync-token: string,
+ *     last_updated: numeric-string, refresh_time: numeric-string, sync_token: string,
  *     presetname: ?string
  * }
  *
