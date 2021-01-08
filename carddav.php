@@ -148,12 +148,12 @@ class carddav extends rcube_plugin
             $prefs = $this->getAdminSettings();
 
             if ($logger instanceof RoundcubeLogger) {
-                if (isset($prefs['_GLOBAL']['loglevel'])) {
+                if (isset($prefs['_GLOBAL']['loglevel']) && is_string($prefs['_GLOBAL']['loglevel'])) {
                     $logger->setLogLevel($prefs['_GLOBAL']['loglevel']);
                 }
             }
             if ($this->httpLogger instanceof RoundcubeLogger) {
-                if (isset($prefs['_GLOBAL']['loglevel_http'])) {
+                if (isset($prefs['_GLOBAL']['loglevel_http']) && is_string($prefs['_GLOBAL']['loglevel_http'])) {
                     $this->httpLogger->setLogLevel($prefs['_GLOBAL']['loglevel_http']);
                 }
             }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
-use Psr\Log\{AbstractLogger,LogLevel};
+use Psr\Log\{AbstractLogger,LogLevel,InvalidArgumentException};
 
 class RoundcubeLogger extends AbstractLogger
 {
@@ -76,17 +76,21 @@ class RoundcubeLogger extends AbstractLogger
      */
     public function log($level, $message, array $context = array())
     {
-        if (isset(self::LOGLEVELS[$level]) && self::LOGLEVELS[$level] >= $this->loglevel) {
-            $ctx = empty($context) ? "" : json_encode($context);
-            $message = "$message $ctx";
-            if ($this->redact) {
-                $message = $this->redactMessage($message);
-            }
+        if (is_string($level) && isset(self::LOGLEVELS[$level])) {
+            if (self::LOGLEVELS[$level] >= $this->loglevel) {
+                $ctx = empty($context) ? "" : json_encode($context);
+                $message = "$message $ctx";
+                if ($this->redact) {
+                    $message = $this->redactMessage($message);
+                }
 
-            $levelNumeric = self::LOGLEVELS[$level];
-            $levelShort = self::LOGLEVELS_SHORT[$level];
-            $message = "[$levelNumeric $levelShort] $message";
-            \rcube::write_log($this->logfile, $message);
+                $levelNumeric = self::LOGLEVELS[$level];
+                $levelShort = self::LOGLEVELS_SHORT[$level];
+                $message = "[$levelNumeric $levelShort] $message";
+                \rcube::write_log($this->logfile, $message);
+            }
+        } else {
+            throw new InvalidArgumentException("Unknown loglevel " . print_r($level, true));
         }
     }
 

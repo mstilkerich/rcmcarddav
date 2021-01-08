@@ -3,8 +3,8 @@ DBTYPES=postgres sqlite3 mysql
 SQLITE_TESTDB=testreports/test.db
 CD_TABLES=$(foreach tbl,addressbooks contacts groups group_user xsubtypes migrations,carddav_$(tbl))
 DOCDIR := doc/api/
-PSALM_GOODFILES := src/DataConversion.php \
-	src/Db/AbstractDatabase.php src/Db/DbAndCondition.php src/Db/DbOrCondition.php \
+PSALM_GOODFILES := src/DataConversion.php src/DelayedPhotoLoader.php \
+	$(wildcard src/Db/*.php) \
 	tests/TestInfrastructure.php tests/TestLogger.php tests/autoload.php tests/autoload_defs.php \
 	tests/dbinterop/DatabaseSyncTest.php \
 	tests/dbinterop/DatabaseAccounts.php tests/dbinterop/DatabaseTest.php tests/dbinterop/autoload.php \

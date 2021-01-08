@@ -18,6 +18,7 @@ use Psr\Log\LoggerInterface;
  *
  * @psalm-import-type DbConditions from AbstractDatabase
  * @psalm-import-type DbGetOptions from AbstractDatabase
+ * @psalm-import-type DbGetResult from AbstractDatabase
  */
 class Database extends AbstractDatabase
 {
@@ -348,11 +349,10 @@ class Database extends AbstractDatabase
 
     public function get($conditions, string $cols = '*', string $table = 'contacts', array $options = []): array
     {
-        $dbh = $this->dbHandle;
         $sql_result = $this->internalGet($conditions, $cols, $table, $options);
 
         $ret = [];
-        while ($row = $dbh->fetch_assoc($sql_result)) {
+        while ($row = $this->retrieveRow($sql_result)) {
             $ret[] = $row;
         }
         return $ret;
@@ -360,14 +360,35 @@ class Database extends AbstractDatabase
 
     public function lookup($conditions, string $cols = '*', string $table = 'contacts'): array
     {
-        $dbh = $this->dbHandle;
         $sql_result = $this->internalGet($conditions, $cols, $table);
 
-        $ret = $dbh->fetch_assoc($sql_result);
-        if ($ret === false) {
+        $ret = $this->retrieveRow($sql_result);
+        if (!isset($ret)) {
             throw new \Exception("Single-row query ({$sql_result->queryString}) without result/with error");
         }
         return $ret;
+    }
+
+    /**
+     * Transforms a row returned by rcube_db::fetch_assoc() to have ?string values only.
+     * @return ?DbGetResult
+     */
+    private function retrieveRow(PDOStatement $sql_result): ?array
+    {
+        $dbh = $this->dbHandle;
+
+        /** @var false|array<string,?scalar> $ret */
+        $ret = $dbh->fetch_assoc($sql_result);
+        if ($ret === false) {
+            return null;
+        }
+
+        $row = [];
+        foreach ($ret as $k => $v) {
+            $row[$k] = (string) $v;
+        }
+
+        return $row;
     }
 
     /**
