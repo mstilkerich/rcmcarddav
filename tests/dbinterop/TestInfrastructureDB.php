@@ -6,6 +6,7 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database,AbstractDatabase};
+use PHPUnit\Framework\TestCase;
 use rcube_db;
 
 final class TestInfrastructureDB
@@ -29,6 +30,7 @@ final class TestInfrastructureDB
     /** @return list<string> */
     public static function dbSettings(): array
     {
+        TestCase::assertIsString($GLOBALS["TEST_DBTYPE"]);
         return DatabaseAccounts::ACCOUNTS[$GLOBALS["TEST_DBTYPE"]];
     }
 

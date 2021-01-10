@@ -41,12 +41,13 @@ final class CarddavTest extends TestCase
 
     public function testProvidesCorrectListOfAddressbooks(): void
     {
-        $res = self::$plugin->listAddressbooks(["sources" => ["foobar" => []] ]);
+        $pseudoAbook = [ "id" => "foo", "name" => "foo", "groups" => true, "autocomplete" => true, "readonly" => true ];
+        $res = self::$plugin->listAddressbooks(["sources" => ["foobar" => $pseudoAbook] ]);
 
         $this->assertArrayHasKey("foobar", $res["sources"], "Other addressbooks not preserved in list");
 
         foreach (TestData::$data["carddav_addressbooks"] as $abookrow) {
-            $this->assertArrayHasKey("id", $abookrow);
+            $this->assertTrue(isset($abookrow["id"]));
             $id = "carddav_" . $abookrow["id"];
             $this->assertArrayHasKey($id, $res["sources"]);
 

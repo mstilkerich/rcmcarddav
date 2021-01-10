@@ -5,8 +5,7 @@ CD_TABLES=$(foreach tbl,addressbooks contacts groups group_user xsubtypes migrat
 DOCDIR := doc/api/
 PSALM_GOODFILES := carddav.php $(wildcard src/*.php src/**/*.php dbmigrations/**/*.php) \
 	tests/TestInfrastructure.php tests/TestLogger.php tests/autoload.php tests/autoload_defs.php \
-	tests/dbinterop/DatabaseSyncTest.php \
-	tests/dbinterop/DatabaseAccounts.php tests/dbinterop/DatabaseTest.php tests/dbinterop/autoload.php \
+	$(wildcard tests/*.php tests/dbinterop/*.php) \
 	tests/unit/CarddavTest.php tests/unit/autoload.php
 
 # This environment variable is set on github actions

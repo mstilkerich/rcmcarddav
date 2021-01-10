@@ -8,6 +8,10 @@ use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
+/**
+ * @psalm-import-type TestDataTableDef from TestData
+ * @psalm-import-type TestDataRowWithKeyRef from TestData
+ */
 final class DatabaseCollationsTest extends TestCase
 {
     /** @var AbstractDatabase */
@@ -32,6 +36,9 @@ final class DatabaseCollationsTest extends TestCase
         TestInfrastructure::logger()->reset();
     }
 
+    /**
+     * @return array<string, array{string, TestDataTableDef, list<TestDataRowWithKeyRef>}>
+     */
     public function uniqueDataProviderDiffcase(): array
     {
         return [
@@ -122,6 +129,10 @@ final class DatabaseCollationsTest extends TestCase
     /**
      * Tests that our UNIQUE constraints in the database use case-insensitive semantics on the included key components.
      *
+     * @param string $tbl Name of the table
+     * @param TestDataTableDef $cols List of column names of the table
+     * @param list<TestDataRowWithKeyRef> $datarows List of data rows matching the columns in $cols
+     *
      * @dataProvider uniqueDataProviderDiffcase
      */
     public function testUniqueConstraintCaseSensitive(string $tbl, array $cols, array $datarows): void
@@ -137,6 +148,9 @@ final class DatabaseCollationsTest extends TestCase
         }
     }
 
+    /**
+     * @return array<string, array{string, TestDataTableDef, TestDataRowWithKeyRef, list<positive-int>}>
+     */
     public function equalsDataProviderDiffcase(): array
     {
         return [
@@ -164,6 +178,11 @@ final class DatabaseCollationsTest extends TestCase
     /**
      * Tests that Database::get value match select criterion works case sensitive.
      *
+     * @param string $tbl Name of the table
+     * @param TestDataTableDef $cols List of column names of the table
+     * @param TestDataRowWithKeyRef $row The data row
+     * @param list<positive-int> $uccols List of column indexes to uppercase in 2nd record
+     *
      * @dataProvider equalsDataProviderDiffcase
      */
     public function testEqualsOperatorIsCaseSensitive(string $tbl, array $cols, array $row, array $uccols): void
@@ -178,6 +197,7 @@ final class DatabaseCollationsTest extends TestCase
         // insert row with specified columns uppercased
         $rowuc = $row;
         foreach ($uccols as $idx) {
+            $this->assertIsString($rowuc[$idx]);
             $rowuc[$idx] = strtoupper($rowuc[$idx]);
         }
         $rowucId = TestData::insertRow($tbl, $cols, $rowuc);
@@ -190,6 +210,9 @@ final class DatabaseCollationsTest extends TestCase
     }
 
 
+    /**
+     * @return array<string, array{string, TestDataTableDef, TestDataRowWithKeyRef, array<positive-int,?string>}>
+     */
     public function ilikeDataProviderDiffcase(): array
     {
         return [
@@ -218,6 +241,12 @@ final class DatabaseCollationsTest extends TestCase
     /**
      * Tests that the Database::get ILIKE selector works case insensitive.
      *
+     * @param string $tbl Name of the table
+     * @param TestDataTableDef $cols List of column names of the table
+     * @param TestDataRowWithKeyRef $row The data row
+     * @param array<positive-int,?string> $uccols indexes of columns to uppercase in 2nd record and ILIKE patterns (null
+     *                                            to only uppercase)
+     *
      * @dataProvider ilikeDataProviderDiffcase
      */
     public function testIlikeSelectorIsCaseInsensitive(string $tbl, array $cols, array $row, array $uccols): void
@@ -232,6 +261,7 @@ final class DatabaseCollationsTest extends TestCase
         // insert row with specified columns uppercased
         $rowuc = $row;
         foreach ($uccols as $idx => $pattern) {
+            $this->assertIsString($rowuc[$idx]);
             if (isset($pattern)) {
                 $rowuc[$idx] = strtoupper($rowuc[$idx]);
             } else {

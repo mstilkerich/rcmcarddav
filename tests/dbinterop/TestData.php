@@ -7,29 +7,36 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @psalm-type TestDataKeyRef = array{string, int}
+ * @psalm-type TestDataRowWithKeyRef = array<int, null|string|TestDataKeyRef>
+ * @psalm-type TestDataRowWithId = array{id?: string} & array<int, null|string>
+ * @psalm-type TestDataRow = array<int, null|string>
+ * @psalm-type TestDataTableDef = list<string>
+ */
 final class TestData
 {
-    /** @var array Column names of the users table */
+    /** @var TestDataTableDef Column names of the users table */
     public const USERS_COLUMNS = [ "username", "mail_host" ];
 
-    /** @var array Column names of the carddav_addressbooks table */
+    /** @var TestDataTableDef Column names of the carddav_addressbooks table */
     public const ADDRESSBOOKS_COLUMNS = [ "name", "username", "password", "url", "user_id" ];
 
-    /** @var array Column names of the carddav_xsubtypes table */
+    /** @var TestDataTableDef Column names of the carddav_xsubtypes table */
     public const XSUBTYPES_COLUMNS = [ "typename", "subtype", "abook_id" ];
 
-    /** @var array Column names of the carddav_contacts table */
+    /** @var TestDataTableDef Column names of the carddav_contacts table */
     public const CONTACTS_COLUMNS = [
         "abook_id", "name", "email", "firstname", "surname", "organization", "showas", "vcard", "etag", "uri", "cuid"
     ];
 
-    /** @var array Column names of the carddav_groups table */
+    /** @var TestDataTableDef Column names of the carddav_groups table */
     public const GROUPS_COLUMNS = [ "abook_id", "name", "vcard", "etag", "uri", "cuid" ];
 
-    /** @var array Column names of the carddav_migrations table */
+    /** @var TestDataTableDef Column names of the carddav_migrations table */
     public const MIGRATIONS_COLUMNS = [ "filename" ];
 
-    /** @var array Data to initialize the tables with.
+    /** @var array<string, list<TestDataRowWithKeyRef>> Data to initialize the tables with.
      *             Keys are table names, values are arrays of value arrays, each of which contains the data for one row.
      *             The value arrays must match the column descriptions in self::$tables.
      *             To reference the primary key of a record in a different table, insert an array as value where the
@@ -96,11 +103,11 @@ final class TestData
         ],
     ];
 
-    /** @var array */
+    /** @var array<string, list<TestDataRowWithId>> Data to initialize the tables with. */
     public static $data;
 
-    /** @var array List of tables to initialize and their columns.
-     *             Tables will be initialized in the order given here. Initialization data is taken from self::$data.
+    /** @var list<array{string, TestDataTableDef}> List of tables to initialize and their columns.
+     *             Tables will be initialized in the order given here. Initialization data is taken from self::INITDATA.
      */
     private static $tables = [
         // table name,            table columns to insert
@@ -120,7 +127,6 @@ final class TestData
      */
     public static function initDatabase(): void
     {
-        self::$data = self::INITDATA;
         $dbh = TestInfrastructureDB::getDbHandle();
 
         foreach (array_column(array_reverse(self::$tables), 0) as $tbl) {
@@ -128,16 +134,26 @@ final class TestData
             TestCase::assertNull($dbh->is_error(), "Error clearing table $tbl " . $dbh->is_error());
         }
 
+        self::$data = [];
         foreach (self::$tables as $tbldesc) {
             [ $tbl, $cols ] = $tbldesc;
-            TestCase::assertArrayHasKey($tbl, self::$data, "No init data for table $tbl");
+            TestCase::assertArrayHasKey($tbl, self::INITDATA, "No init data for table $tbl");
 
-            foreach (self::$data[$tbl] as &$row) {
-                $row["id"] = self::insertRow($tbl, $cols, $row);
+            self::$data[$tbl] = [];
+            foreach (self::INITDATA[$tbl] as $row) {
+                $id = self::insertRow($tbl, $cols, $row);
+                $row["id"] = $id;
+                self::$data[$tbl][] = $row;
             }
         }
     }
 
+    /**
+     * @param TestDataTableDef $cols
+     * @param TestDataRowWithKeyRef $row
+     * @param-out TestDataRow $row
+     * @return string ID of the inserted row
+     */
     public static function insertRow(string $tbl, array $cols, array &$row): string
     {
         $dbh = TestInfrastructureDB::getDbHandle();
@@ -148,21 +164,26 @@ final class TestData
             . " (" . implode(",", $cols) . ") "
             . "VALUES (" . implode(",", array_fill(0, count($cols), "?")) . ")";
 
-        foreach ($row as &$val) {
+        $newrow = [];
+        foreach ($row as $val) {
             if (is_array($val)) {
                 [ $dt, $di ] = $val;
-                TestCase::assertArrayHasKey(
-                    "id",
-                    self::$data[$dt][$di],
+                TestCase::assertTrue(
+                    isset(self::$data[$dt][$di]["id"]),
                     "Reference to $dt[$di] cannot be resolved"
                 );
                 $val = self::$data[$dt][$di]["id"];
             }
+            $newrow[] = $val;
         }
+        $row = $newrow;
 
         $dbh->query($sql, $row);
         TestCase::assertNull($dbh->is_error(), "Error inserting row to $tbl: " . $dbh->is_error());
-        return $dbh->insert_id($tbl);
+        $id = $dbh->insert_id($tbl);
+        TestCase::assertIsString($id, "Error acquiring ID for last inserted row on $tbl: " . $dbh->is_error());
+
+        return $id;
     }
 }
 

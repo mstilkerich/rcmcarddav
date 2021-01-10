@@ -336,7 +336,9 @@ class carddav extends rcube_plugin
     /**
      * Adds the user's CardDAV addressbooks to Roundcube's addressbook list.
      *
-     * @psalm-param array{sources: array} $p
+     * @psalm-type RcAddressbookInfo = array{id: string, name: string, groups: bool, autocomplete: bool, readonly: bool}
+     * @psalm-param array{sources: array<string, RcAddressbookInfo>} $p
+     * @return array{sources: array<string, RcAddressbookInfo>}
      */
     public function listAddressbooks(array $p): array
     {
