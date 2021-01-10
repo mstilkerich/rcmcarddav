@@ -16,7 +16,7 @@ use Psr\Log\LoggerInterface;
  * @psalm-type DbGetOptions = array{limit?: array{int,int}, order?: list<string>, count?: true}
  *
  * @psalm-type FullAbookRow = array{
- *     id: numeric-string, user_id: numeric-string, name: string,
+ *     id: string, user_id: string, name: string,
  *     username: string, password: string, url: string,
  *     active: numeric-string, use_categories: numeric-string,
  *     last_updated: numeric-string, refresh_time: numeric-string, sync_token: string,
