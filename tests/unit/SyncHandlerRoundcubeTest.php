@@ -130,6 +130,9 @@ final class SyncHandlerRoundcubeTest extends TestCase
         $this->initialSyncTestHelper($vcfFiles);
     }
 
+    /**
+     * @param list<string> $vcfFiles
+     */
     private function initialSyncTestHelper(array $vcfFiles): void
     {
         $db = new JsonDatabase(['tests/unit/data/syncHandlerTest/initialdb.json']);

@@ -54,6 +54,9 @@ use rcube_utils;
  *     organization?: string,
  *     department?: string
  * } & array<string, SaveDataMultiField|SaveDataAddressField>
+ *
+ * @psalm-type ColTypeDef = array{subtypes?: list<string>, subtypealias?: array<string,string>}
+ * @psalm-type ColTypeDefs = array<string,ColTypeDef>
  */
 class DataConversion
 {
@@ -116,7 +119,7 @@ class DataConversion
     ];
 
     /**
-     * @var array<string,array{subtypes?: list<string>, subtypealias?: array<string,string>}> $coltypes
+     * @var ColTypeDefs $coltypes
      *      Descriptions on the different attributes of address objects for roundcube
      */
     private $coltypes = [
@@ -228,6 +231,9 @@ class DataConversion
         $this->addextrasubtypes();
     }
 
+    /**
+     * @return ColTypeDefs
+     */
     public function getColtypes(): array
     {
         return $this->coltypes;

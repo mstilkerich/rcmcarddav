@@ -13,7 +13,16 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition
  *
  * It emulates the DB operations based on an initial dataset read from a Json file.
  *
- * @psalm-type JsonDbRow = array<string,?string>
+ * @psalm-type JsonDbSchema = array<string,string> Maps column names to a column definition
+ * @psalm-type JsonDbRow = array<string,?string> Maps column names to column value; all data is represented as string
+ * @psalm-type JsonDbColDef = array{
+ *     nullable: bool,
+ *     type: 'string'|'int'|'key',
+ *     fktable: string, fkcolumn: string,
+ *     hasdefault: bool, defaultval: ?string
+ * }
+ *
+ *
  * @psalm-import-type DbConditions from AbstractDatabase
  */
 class JsonDatabase extends AbstractDatabase
@@ -21,11 +30,11 @@ class JsonDatabase extends AbstractDatabase
     /** @var bool $inTransaction Indicates whether we are currently inside a transaction */
     private $inTransaction = false;
 
-    /** @var array The definition of DB tables and their columns */
+    /** @var array<string,JsonDbSchema> Maps DB table names to their schema definition */
     private $schema;
 
-    /** @var array The data of all the tables */
-    private $data;
+    /** @var array<string,list<JsonDbRow>> Maps DB table names to an array of their data rows */
+    private $data = [];
 
     /**
      * Initializes a JsonDatabase instance.
@@ -37,8 +46,10 @@ class JsonDatabase extends AbstractDatabase
         array $jsonDbData = [],
         string $jsonDbSchema = "tests/unit/data/jsonDb/schema.json"
     ) {
-        $this->schema = TestInfrastructure::readJsonArray($jsonDbSchema);
-        $this->validateSchema();
+        $schema = TestInfrastructure::readJsonArray($jsonDbSchema);
+        $this->validateSchema($schema);
+        $this->schema = $schema;
+
         foreach (array_keys($this->schema) as $table) {
             $this->data[$table] = [];
         }
@@ -52,19 +63,28 @@ class JsonDatabase extends AbstractDatabase
      * Validates the loaded database schema.
      *
      * It performs the following checks:
+     *   - Schema has the expected structure / types
      *   - Foreign key references point to existing key columns
+     *
+     * @psalm-assert array<string,JsonDbSchema> $schema
      */
-    private function validateSchema(): void
+    private function validateSchema(array $schema): void
     {
-        foreach ($this->schema as $table => $tcols) {
-            foreach ($tcols as $col => $coldef) {
-                $coldef = $this->parseColumnDef($coldef);
+        foreach ($schema as $table => $tcols) {
+            TestCase::assertIsString($table, "Indexes of schema must be table names");
+            TestCase::assertIsArray($tcols, "Table schema must be array of column definitions");
+
+            foreach (array_keys($tcols) as $col) {
+                TestCase::assertIsString($col, "Indexes of column definitions must be column names");
+                TestCase::assertIsString($tcols[$col], "A column definitions must be a string");
+                $coldef = $this->parseColumnDef($tcols[$col]);
                 if (!empty($coldef["fktable"])) {
                     $fktable = $coldef["fktable"];
                     $fkcol = $coldef["fkcolumn"];
-                    if (($this->schema[$fktable][$fkcol] ?? "") !== "key") {
-                        throw new \Exception("Invalid foreign key ref $table.$col -> $fktable.$fkcol");
-                    }
+                    TestCase::assertTrue(
+                        ($schema[$fktable][$fkcol] ?? "") == "key",
+                        "Invalid foreign key ref $table.$col -> $fktable.$fkcol"
+                    );
                 }
             }
         }
@@ -73,7 +93,7 @@ class JsonDatabase extends AbstractDatabase
     /**
      * Imports the data rows contained in the given JSON file to the corresponding tables.
      *
-     * Data can be important from external sources (currently from an external file) if the data item of a cell is not a
+     * Data can be imported from external sources (currently from an external file) if the data item of a cell is not a
      * string value but an array. The array has two members: A type (currently only "file") and a parameter (the
      * filename, relative to the JSON file).
      *
@@ -87,14 +107,22 @@ class JsonDatabase extends AbstractDatabase
         $data = TestInfrastructure::readJsonArray($dataFile);
 
         foreach ($data as $table => $rows) {
-            foreach ($rows as $row) {
-                $cols = array_keys($row);
+            TestCase::assertIsString($table, "Indexes of import data must be table names");
+            TestCase::assertIsArray($rows, "Table data must be array of rows");
+
+            foreach (array_keys($rows) as $rowidx) {
+                TestCase::assertIsArray($rows[$rowidx], "Row data must be an array");
+                $row = $rows[$rowidx];
+                $cols = [];
                 $vals = [];
-                foreach ($cols as $col) {
+                foreach (array_keys($row) as $col) {
+                    TestCase::assertIsString($col, "Column name must be string");
+                    $cols[] = $col;
                     if (isset($row[$col])) {
                         if (is_array($row[$col])) {
                             [ $type, $param ] = $row[$col];
                             if ($type === "file") {
+                                TestCase::assertIsString($param, "Parameter to file reference must be filename");
                                 $vals[] = TestInfrastructure::readFileRelative($param, $dataFile);
                             } else {
                                 throw new \Exception("Unknown data input type $type with param $param");
@@ -153,15 +181,7 @@ class JsonDatabase extends AbstractDatabase
             } elseif ($coldef["type"] === "key") {
                 $result = 0;
             } else {
-                if (isset($row1[$col]) && isset($row2[$col])) {
-                    $result = strcmp($row1[$col], $row2[$col]);
-                } elseif (isset($row1[$col])) {
-                    $result = 1;
-                } elseif (isset($row2[$col])) {
-                    $result = -1;
-                } else {
-                    $result = 0;
-                }
+                $result = self::strcmpNullable($row1[$col], $row2[$col]);
             }
 
             if ($result !== 0) {
@@ -191,9 +211,17 @@ class JsonDatabase extends AbstractDatabase
         TestCase::assertArrayHasKey($table, $otherDb->data, "compareTables of unknown table $table");
 
         $compareFn1 = function (array $row1, array $row2) use ($table): int {
+            /**
+             * @var JsonDbRow $row1
+             * @var JsonDbRow $row2
+             */
             return $this->compareRows($table, $this, $row1, $row2);
         };
         $compareFn2 = function (array $row1, array $row2) use ($table, $otherDb): int {
+            /**
+             * @var JsonDbRow $row1
+             * @var JsonDbRow $row2
+             */
             return $otherDb->compareRows($table, $otherDb, $row1, $row2);
         };
 
@@ -249,7 +277,6 @@ class JsonDatabase extends AbstractDatabase
             throw new \Exception(__METHOD__ . " on $table called without rows to insert");
         }
 
-        $dbid = "";
         // insert rows
         foreach ($rows as $row) {
             if (count($row) != $numCols) {
@@ -270,6 +297,7 @@ class JsonDatabase extends AbstractDatabase
             $dbid = $record["id"] ?? "";
         }
 
+        TestCase::assertIsString($dbid);
         return $dbid;
     }
 
@@ -317,6 +345,10 @@ class JsonDatabase extends AbstractDatabase
         return $rowsAffected;
     }
 
+    /**
+     * @param JsonDbRow $record
+     * @return JsonDbRow $record
+     */
     private function validateRecord(string $table, array $record): array
     {
         foreach (array_keys($this->schema[$table]) as $col) {
@@ -353,13 +385,13 @@ class JsonDatabase extends AbstractDatabase
     /**
      * Parses a column definition.
      *
-     * Returns an associative array with indexes:
-     * nullable: true if nullable, false otherwise
-     * type: Type of the column (string, int, key)
-     * fktable: For a foreign key reference, table of the foreign key, empty string otherwise
-     * fkcolumn: For a foreign key reference, column name of the foreign key, empty string otherwise
-     * hasdefault: true if default value defined, false otherwise
-     * defaultval: Default value; only valid if hasdefault is true
+     * @return JsonDbColDef Associative array with the column properties:
+     *         nullable: true if nullable, false otherwise
+     *         type: Type of the column (string, int, key)
+     *         fktable: For a foreign key reference, table of the foreign key, empty string otherwise
+     *         fkcolumn: For a foreign key reference, column name of the foreign key, empty string otherwise
+     *         hasdefault: true if default value defined, false otherwise
+     *         defaultval: Default value; only valid if hasdefault is true
      */
     private function parseColumnDef(string $coldef): array
     {
@@ -409,8 +441,9 @@ class JsonDatabase extends AbstractDatabase
         if (!empty($coldef["fktable"])) {
             throw new \Exception("Default value for foreign key references not supported ($table.$col)");
         } elseif ($coldef["type"] === "key") {
+            /** @psalm-var list<string> $usedKeys */
             $usedKeys = array_column($this->data[$table], $col);
-            $defaultValue = (string) (empty($usedKeys) ? 1 : (max($usedKeys) + 1));
+            $defaultValue = (string) (empty($usedKeys) ? 1 : (intval(max($usedKeys)) + 1));
         } else {
             if ($coldef["hasdefault"]) {
                 $defaultValue = $coldef["defaultval"];
@@ -467,10 +500,14 @@ class JsonDatabase extends AbstractDatabase
                 usort(
                     $filteredRows,
                     function (array $a, array $b) use ($orderDef): int {
+                        /**
+                         * @var JsonDbRow $a
+                         * @var JsonDbRow $b
+                         */
                         $res = 0;
                         foreach ($orderDef as $od) {
                             [ $col, $orderAsc ] = $od;
-                            $res = strcmp($a[$col], $b[$col]) * $orderAsc;
+                            $res = self::strcmpNullable($a[$col], $b[$col]) * $orderAsc;
                             if ($res !== 0) {
                                 break;
                             }
@@ -488,7 +525,7 @@ class JsonDatabase extends AbstractDatabase
 
             foreach ($cntcols as $col) {
                 if ($col === '*') {
-                    $result['*'] = count($filteredRows);
+                    $result['*'] = (string) count($filteredRows);
                 } else {
                     $nonNull = array_filter(
                         array_column($filteredRows, $col),
@@ -496,7 +533,7 @@ class JsonDatabase extends AbstractDatabase
                             return isset($v);
                         }
                     );
-                    $result[$col] = count($nonNull);
+                    $result[$col] = (string) count($nonNull);
                 }
             }
 
@@ -610,6 +647,20 @@ class JsonDatabase extends AbstractDatabase
         }
 
         return true;
+    }
+
+    private static function strcmpNullable(?string $s1, ?string $s2): int
+    {
+        if (isset($s1) && isset($s2)) {
+            $result = strcmp($s1, $s2);
+        } elseif (isset($s1)) {
+            $result = 1;
+        } elseif (isset($s2)) {
+            $result = -1;
+        } else {
+            $result = 0;
+        }
+        return $result;
     }
 }
 
