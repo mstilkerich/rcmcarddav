@@ -552,7 +552,6 @@ final class DataConversionTest extends TestCase
 
         // compare
         foreach ($propsExp as $name => $props) {
-            $this->assertNotNull($propsRC[$name], "Property $name not available in created data");
             $this->compareNodeList("Property $name", $props, $propsRC[$name]);
 
             for ($i = 0; $i < count($props); ++$i) {
@@ -564,7 +563,6 @@ final class DataConversionTest extends TestCase
                 $paramRC = $propsRC[$name][$i]->parameters();
                 $paramRC = $this->groupNodesByName($paramRC);
                 foreach ($paramExp as $pname => $params) {
-                    $this->assertNotNull($paramRC[$pname], "Parameter $name/$pname not available in created data");
                     $this->compareNodeList("Parameter $name/$pname", $params, $paramRC[$pname]);
                     unset($paramRC[$pname]);
                 }

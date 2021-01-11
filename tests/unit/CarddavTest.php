@@ -24,6 +24,9 @@ final class CarddavTest extends TestCase
         TestInfrastructure::logger()->reset();
     }
 
+    /**
+     * @return list<array{string,?int}>
+     */
     public function timeStringProvider(): array
     {
         return [

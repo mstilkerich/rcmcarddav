@@ -297,7 +297,6 @@ class JsonDatabase extends AbstractDatabase
             $dbid = $record["id"] ?? "";
         }
 
-        TestCase::assertIsString($dbid);
         return $dbid;
     }
 
@@ -543,19 +542,10 @@ class JsonDatabase extends AbstractDatabase
         // LIMIT
         if (isset($options['limit'])) {
             $l = $options['limit'];
-            $err = false;
-            if (is_array($l) && count($l) == 2) {
-                [ $offset, $limit ] = $l;
-                if (is_int($offset) && is_int($limit) && $offset >= 0 && $limit > 0) {
-                    $filteredRows = array_slice($filteredRows, $offset, $limit);
-                } else {
-                    $err = true;
-                }
+            [ $offset, $limit ] = $l;
+            if ($offset >= 0 && $limit > 0) {
+                $filteredRows = array_slice($filteredRows, $offset, $limit);
             } else {
-                $err = true;
-            }
-
-            if ($err) {
                 $msg = "The limit option needs an array parameter of two unsigned integers [offset,limit]; got: ";
                 $msg .= print_r($l, true);
                 throw new \Exception($msg);

@@ -32,7 +32,8 @@
         "wa72/simplelogger": "^1.1",
         "dealerdirect/phpcodesniffer-composer-installer": ">= 0.7.0",
         "aodto/phasher": "dev-master",
-		"php-coveralls/php-coveralls": "^2.4"
+        "php-coveralls/php-coveralls": "^2.4",
+        "psalm/plugin-phpunit": "^0.15.0"
     },
     "extra": {
         "roundcube": {

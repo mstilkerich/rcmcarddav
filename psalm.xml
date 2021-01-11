@@ -13,28 +13,14 @@
     findUnusedCode="true"
 -->
     <projectFiles>
-        <directory name="src/" />
-        <directory name="dbmigrations/" />
-        <directory name="tests/" />
-        <file name ="carddav.php" />
+        <directory name="src/"/>
+        <directory name="dbmigrations/"/>
+        <directory name="tests/"/>
+        <file name="carddav.php"/>
     </projectFiles>
 
     <extraFiles>
-        <directory name="roundcubemail/program/" />
+        <directory name="roundcubemail/program/"/>
     </extraFiles>
-
-    <issueHandlers>
-        <RedundantConditionGivenDocblockType>
-            <errorLevel type="suppress">
-                <directory name="tests" /> <!-- all RedundantConditionGivenDocblockType issues in this directory are suppressed -->
-            </errorLevel>
-        </RedundantConditionGivenDocblockType>
-        <PropertyNotSetInConstructor>
-            <errorLevel type="suppress">
-                <directory name="tests" /> <!-- all PropertyNotSetInConstructor issues in this directory are suppressed -->
-            </errorLevel>
-        </PropertyNotSetInConstructor>
-    </issueHandlers>
-</psalm>
-
+<plugins><pluginClass class="Psalm\PhpUnitPlugin\Plugin"/></plugins></psalm>
 <!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->
