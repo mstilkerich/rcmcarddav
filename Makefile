@@ -104,7 +104,6 @@ tests-$(1): tests/dbinterop/phpunit-$(1).xml tests/dbinterop/DatabaseAccounts.ph
 	$$(call CREATEDB_$(1))
 	$$(call EXECDBSCRIPT_$(1),dbmigrations/INIT-currentschema/$(1).sql)
 	vendor/bin/phpunit -c tests/dbinterop/phpunit-$(1).xml
-	vendor/bin/phpcov merge --clover testreports/dbinterop-$(1)/clover.xml testreports/dbinterop-$(1)
 
 .PHONY: testreports/$(1)-mig.sql testreports/$(1)-init.sql
 .INTERMEDIATE: testreports/$(1)-mig.sql testreports/$(1)-init.sql
@@ -142,7 +141,6 @@ unittests: tests/unit/phpunit.xml
 	@echo  ==========================================================
 	@echo
 	vendor/bin/phpunit -c tests/unit/phpunit.xml
-	vendor/bin/phpcov merge --clover testreports/unit/clover.xml testreports/unit
 
 .PHONY: checktestspecs
 checktestspecs:

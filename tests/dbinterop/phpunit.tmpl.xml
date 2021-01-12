@@ -11,14 +11,19 @@
         </testsuite>
     </testsuites>
 
-    <coverage processUncoveredFiles="false" pathCoverage="true">
+    <coverage processUncoveredFiles="true" pathCoverage="true">
         <include>
             <file>../../carddav.php</file>
             <directory suffix=".php">../../src</directory>
         </include>
 
+        <exclude>
+            <directory suffix=".php">../../roundcubemail</directory>
+        </exclude>
+
         <report>
             <php outputFile="../../testreports/dbinterop-%TEST_DBTYPE%/coverage.cov"/>
+            <clover outputFile="../../testreports/dbinterop-%TEST_DBTYPE%/clover.xml"/>
         </report>
     </coverage>
 

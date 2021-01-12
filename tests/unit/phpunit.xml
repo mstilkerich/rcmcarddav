@@ -11,7 +11,7 @@
         </testsuite>
     </testsuites>
 
-    <coverage processUncoveredFiles="false" pathCoverage="true">
+    <coverage processUncoveredFiles="true" pathCoverage="true">
         <include>
             <file>../../carddav.php</file>
             <directory suffix=".php">../../src</directory>
@@ -19,6 +19,7 @@
 
         <report>
             <php outputFile="../../testreports/unit/coverage.cov"/>
+            <clover outputFile="../../testreports/unit/clover.xml"/>
         </report>
     </coverage>
 
