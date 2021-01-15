@@ -1,0 +1,33 @@
+{
+	"cuid": "B92B8FDB-E918-481F-AD6F-9713D5324AC5",
+	"name": "0",
+	"nickname": "0",
+	"organization": "0",
+	"firstname": "0",
+	"surname": "Mustermann",
+	"im:ICQ": [
+		"0"
+	],
+	"im:Skype": [
+		"0"
+	],
+	"kind": "individual",
+	"address:home": [
+		{
+			"street": "0",
+			"locality": "0",
+			"region": "0",
+			"zipcode": "0",
+			"country": "0"
+		}
+	],
+	"phone:home": [
+		"0"
+	],
+	"email:0": [
+		"0"
+	],
+	"website:other": [
+		"0"
+	]
+}

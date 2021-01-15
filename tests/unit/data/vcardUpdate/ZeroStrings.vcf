@@ -1,0 +1,15 @@
+BEGIN:VCARD
+VERSION:3.0
+PRODID:-//Apple Inc.//iCloud Web Address Book 2018B71//EN
+UID:B92B8FDB-E918-481F-AD6F-9713D5324AC5
+REV:2020-10-03T10:30:20Z
+FN:Max Mustermann
+NICKNAME:Maxi
+ORG:Muster Firma
+N:Mustermann;Max;;;
+IMPP;TYPE=ICQ;X-SERVICE-TYPE=ICQ:icq:1234
+X-ICQ:1234
+X-ADDRESSBOOKSERVER-KIND:individual
+ADR;TYPE=home:;;Musterstrasse 12;Musterhausen;Musterstaat;12345;Musterland
+TEL;TYPE=home:123456
+END:VCARD

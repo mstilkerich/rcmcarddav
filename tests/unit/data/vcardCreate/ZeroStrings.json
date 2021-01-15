@@ -1,0 +1,29 @@
+{
+	"name": "0",
+	"nickname": "0",
+	"organization": "0",
+	"firstname": "0",
+	"surname": "Mustermann",
+	"im:ICQ": [
+		"0"
+	],
+	"kind": "individual",
+	"address:home": [
+		{
+			"street": "0",
+			"locality": "0",
+			"region": "0",
+			"zipcode": "0",
+			"country": "0"
+		}
+	],
+	"phone:home": [
+		"0"
+	],
+	"phone:0": [
+		"567"
+	],
+	"website:0": [
+		"0"
+	]
+}

@@ -33,3 +33,5 @@ There are a few specifics to be tested during the creation:
   available. Must reset showas to individual and compose displayname from name attributes.
 - Group: A KIND=group VCard
 - InstantMessaging: Contains data for all supported instant messaging services and custom ones.
+- ZeroStrings: Contains "0" values from some data fields, which are considered empty() by PHPs empty() function. These
+  properties must be properly set to 0 in the created VCard, not omitted.

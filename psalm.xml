@@ -22,5 +22,8 @@
     <extraFiles>
         <directory name="roundcubemail/program/"/>
     </extraFiles>
-<plugins><pluginClass class="Psalm\PhpUnitPlugin\Plugin"/></plugins></psalm>
+    <plugins>
+        <pluginClass class="Psalm\PhpUnitPlugin\Plugin"/>
+    </plugins>
+</psalm>
 <!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->

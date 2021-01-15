@@ -473,6 +473,7 @@ class Addressbook extends rcube_addressbook
         $id = (string) $id;
         /** @var SaveData $save_cols */
         try {
+            $this->logger->info("update(" . ($save_cols["name"] ?? "no name") . ", ID=$id)");
             $db = $this->db;
 
             /**

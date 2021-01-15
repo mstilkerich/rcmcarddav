@@ -187,13 +187,46 @@ final class DataConversionTest extends TestCase
                 $this->equalTo('typename,subtype'),
                 $this->equalTo('xsubtypes')
             )
-            ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
+            ->will($this->returnValue([
+                ["typename" => "email", "subtype" => "SpecialLabel"],
+                ["typename" => "phone", "subtype" => "0"],
+                ["typename" => "website", "subtype" => "0"]
+            ]));
         $dc = new DataConversion("42", $db, $cache, $logger);
         $vcardExpected = TestInfrastructure::readVCard($vcfFile);
         $saveData = $this->readSaveDataFromJson($jsonFile);
         $result = $dc->fromRoundcube($saveData);
 
-        $this->compareVCards($vcardExpected, $result);
+        $this->compareVCards($vcardExpected, $result, true);
+    }
+
+    /**
+     * Tests that errors in the save data are properly reported and handled.
+     *
+     * The offending parts of the save data should be dropped and an error message logged.
+     */
+    public function testErroneousAttributesInSaveDataAreIgnored(): void
+    {
+        $logger = TestInfrastructure::logger();
+        [ $db, $cache ] = $this->initStubs();
+
+        $db->expects($this->once())
+            ->method("get")
+            ->with(
+                $this->equalTo(["abook_id" => "42"]),
+                $this->equalTo('typename,subtype'),
+                $this->equalTo('xsubtypes')
+            )
+            ->will($this->returnValue([]));
+        $dc = new DataConversion("42", $db, $cache, $logger);
+        $vcardExpected = TestInfrastructure::readVCard('tests/unit/data/singleTest/Errors.vcf');
+        $saveData = $this->readSaveDataFromJson('tests/unit/data/singleTest/Errors.json');
+        $result = $dc->fromRoundcube($saveData);
+
+        $this->compareVCards($vcardExpected, $result, true);
+
+        // check emitted warnings
+        $logger->expectMessage("error", "save data nickname must be string");
     }
 
     /**
@@ -232,7 +265,7 @@ final class DataConversionTest extends TestCase
         $saveData = $this->readSaveDataFromJson($jsonFile);
 
         $result = $dc->fromRoundcube($saveData, $vcardOriginal);
-        $this->compareVCards($vcardExpected, $result);
+        $this->compareVCards($vcardExpected, $result, false);
     }
 
     /**
@@ -533,11 +566,16 @@ final class DataConversionTest extends TestCase
         return $phpArray;
     }
 
-    private function compareVCards(VCard $vcardExpected, VCard $vcardRoundcube): void
+    private function compareVCards(VCard $vcardExpected, VCard $vcardRoundcube, bool $isNew): void
     {
-        // These attributes are dynamically created / updated and therefore must not be compared with the static
-        // expected card
-        $noCompare = [ 'REV', 'UID', 'PRODID' ];
+        // These attributes are dynamically created / updated and therefore cannot be statically compared
+        $noCompare = [ 'REV', 'PRODID' ];
+
+        if ($isNew) {
+            // new VCard will have UID assigned by carddavclient lib on store
+            $noCompare[] = 'UID';
+        }
+
         foreach ($noCompare as $property) {
             unset($vcardExpected->{$property});
             unset($vcardRoundcube->{$property});
@@ -552,6 +590,7 @@ final class DataConversionTest extends TestCase
 
         // compare
         foreach ($propsExp as $name => $props) {
+            $this->assertArrayHasKey($name, $propsRC, "Expected property $name missing from test vcard");
             $this->compareNodeList("Property $name", $props, $propsRC[$name]);
 
             for ($i = 0; $i < count($props); ++$i) {

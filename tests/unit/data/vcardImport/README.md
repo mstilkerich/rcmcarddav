@@ -20,6 +20,8 @@ There are a few specifics to be tested during the import:
 ## Short description of each data set
 
 - AllAttr: This is a simple VCard that contains all supported attributes
+- EmptyAttrs: This test is intended to test empty property values, mostly with the reaction that they should not be
+  imported.
 - EmptyFN: Contains an empty display name (`FN`) property. RCMCardDav should compose a displayname from the `N`
   property.
 - EmptyFNCompany: Like EmptyFN, but with empty `N` property and a set `ORG` property.
@@ -52,3 +54,6 @@ There are a few specifics to be tested during the import:
 - IM-KAddressbook: A VCard containing instant messaging attributes produced by KAddressbook
 - IM-Nextcloud: A VCard containing instant messaging attributes produced by nextcloud
 - IM-Owncloud: A VCard containing instant messaging attributes produced by owncloud
+- ZeroStrings: Tests "0" strings in various places of the VCard, which are considered "empty" by php's empty function.
+  This must not cause these properties to be discarded during the import like properties with no value.
+

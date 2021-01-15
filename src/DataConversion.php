@@ -278,8 +278,12 @@ class DataConversion
         foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
             /** @var ?VObject\Property */
             $property = $vcard->{$vkey};
-            if (!empty($property)) {
-                $save_data[$rckey] = (string) $property;
+            if (isset($property)) {
+                $property = (string) $property;
+
+                if (strlen($property) > 0) {
+                    $save_data[$rckey] = $property;
+                }
             }
         }
 
@@ -294,7 +298,7 @@ class DataConversion
             /** @var list<string> */
             $N = $property->getParts();
             for ($i = 0; $i < min(count($N), count($attrs)); $i++) {
-                if (!empty($N[$i])) {
+                if (strlen($N[$i]) > 0) {
                     $save_data[$attrs[$i]] = $N[$i];
                 }
             }
@@ -304,13 +308,19 @@ class DataConversion
         if (isset($property)) {
             /** @var list<string> */
             $ORG = $property->getParts();
-            $organization = $ORG[0];
-            if (!empty($organization)) {
-                $save_data['organization'] = $organization;
-            }
-            $department = implode("; ", array_slice($ORG, 1));
-            if (!empty($department)) {
-                $save_data['department'] = $department;
+
+            if (count($ORG) > 0) {
+                $organization = $ORG[0];
+                if (strlen($organization) > 0) {
+                    $save_data['organization'] = $organization;
+                }
+
+                if (count($ORG) > 1) {
+                    $department = implode("; ", array_slice($ORG, 1));
+                    if (strlen($department) > 0) {
+                        $save_data['department'] = $department;
+                    }
+                }
             }
         }
 
@@ -326,15 +336,21 @@ class DataConversion
                     $label = (count($rckeyComp) < 2) ? $this->getAttrLabel($vcard, $prop, $rckey) : $rckeyComp[1];
 
                     if (method_exists($this, "toRoundcube$vkey")) {
-                        /** @var string|string[] special handler for structured property */
+                        /** @var null|string|SaveDataAddressField special handler for structured property */
                         $propValue = call_user_func([$this, "toRoundcube$vkey"], $prop);
+                        if (!isset($propValue)) {
+                            continue;
+                        }
                     } else {
                         $propValue = (string) $prop;
+                        if (strlen($propValue) == 0) {
+                            continue;
+                        }
                     }
 
-                    /** @var string[] */
+                    /** @var list<string> */
                     $existingValues = $save_data["$rckey:$label"] ?? [];
-                    if (!empty($propValue) && !in_array($propValue, $existingValues)) {
+                    if (!in_array($propValue, $existingValues)) {
                         $save_data["$rckey:$label"][] = $propValue;
                     }
                 }
@@ -342,7 +358,7 @@ class DataConversion
         }
 
         // set displayname if not set from VCard
-        if (empty($save_data["name"])) {
+        if (!isset($save_data["name"]) || strlen((string) $save_data["name"]) == 0) {
             $save_data["name"] = self::composeDisplayname($save_data);
         }
 
@@ -354,9 +370,9 @@ class DataConversion
      * Creates roundcube address data from an ADR VCard property.
      *
      * @param VObject\Property The ADR property to use as input.
-     * @return string[] The roundcube address data created from the property.
+     * @return ?SaveDataAddressField The roundcube address data created from the property.
      */
-    private function toRoundcubeADR(VObject\Property $prop): array
+    private function toRoundcubeADR(VObject\Property $prop): ?array
     {
         $attrs = [
             'pobox',    // post office box
@@ -371,27 +387,32 @@ class DataConversion
         $p = $prop->getParts();
         $addr = [];
         for ($i = 0; $i < min(count($p), count($attrs)); $i++) {
-            if (!empty($p[$i])) {
+            if (strlen($p[$i]) > 0) {
                 $addr[$attrs[$i]] = $p[$i];
             }
         }
-        return $addr;
+
+        return empty($addr) ? null : $addr;
     }
 
     /**
      * Creates roundcube instant messaging data
      *
      * @param VObject\Property The IMPP property to use as input.
-     * @return string The roundcube data created from the property.
+     * @return ?string The roundcube data created from the property.
      */
-    private function toRoundcubeIMPP(VObject\Property $prop): string
+    private function toRoundcubeIMPP(VObject\Property $prop): ?string
     {
         // Examples:
         // From iCloud Web Addressbook: IMPP;X-SERVICE-TYPE=aim;TYPE=HOME;TYPE=pref:aim:jdoe@example.com
         // From Nextcloud: IMPP;TYPE=SKYPE:jdoe@example.com
         // Note: the nextcloud example does not have an URI value, thus it's not compliant with RFC 4770
         $comp = explode(":", (string) $prop, 2);
-        return count($comp) == 2 ? $comp[1] : $comp[0];
+        $ret = $comp[count($comp) == 2 ? 1 : 0];
+        if (strlen($ret) == 0) {
+            return null;
+        }
+        return $ret;
     }
 
     /**
@@ -407,7 +428,7 @@ class DataConversion
     {
         $isGroup = (($save_data['kind'] ?? "") === "group");
 
-        if (empty($save_data["name"])) {
+        if (!isset($save_data["name"]) || strlen($save_data["name"]) == 0) {
             if (!$isGroup) {
                 $save_data["showas"] = $this->determineShowAs($save_data);
             }
@@ -471,11 +492,11 @@ class DataConversion
     private function setOrgProperty(array $save_data, VCard $vcard): void
     {
         $orgParts = [];
-        if (!empty($save_data['organization'])) {
+        if (isset($save_data['organization']) && strlen($save_data['organization']) > 0) {
             $orgParts[] = $save_data['organization'];
         }
 
-        if (!empty($save_data['department'])) {
+        if (isset($save_data['department']) && strlen($save_data['department']) > 0) {
             // the first element of ORG corresponds to organization, if that field is not filled but organization is
             // we need to store an empty value explicitly (otherwise, department would become organization when reading
             // back the VCard).
@@ -498,6 +519,8 @@ class DataConversion
      * About the contents of save_data:
      *   - Empty / deleted fields in roundcube either are missing from save_data or contain an empty string as value.
      *     It is not really clear under what circumstances a field is present empty and when it's missing entirely.
+     *   - Fields that are not shown to the user (most importantly: UID) will never be provided in roundcube save_data
+     *     -> Those are retained from the original vcard (we can check coltypes for the attributes roundcube knows of)
      *   - Special case photo: It is only set if it was edited. If it is deleted, it is set to an empty string. If it
      *                         was not changed, no photo key is present in save_data.
      *
@@ -507,19 +530,29 @@ class DataConversion
     private function setSingleValueProperties(array $save_data, VCard $vcard): void
     {
         foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
-            if (empty($save_data[$rckey])) {
-                // not set or empty value -> delete EXCEPT PHOTO, which is only deleted if value is set to empty string
-                if ($rckey !== "photo" || isset($save_data["photo"])) {
-                    unset($vcard->{$vkey});
-                } // else keep a possibly existing old property
-            } else {
-                $vcard->{$vkey} = $save_data[$rckey];
+            if (isset($save_data[$rckey])) {
+                if (!is_string($save_data[$rckey])) {
+                    $this->logger->error("save data $rckey must be string" . print_r($save_data[$rckey], true));
+                    continue;
+                }
 
-                // Special handling for PHOTO
-                // If PHOTO is set from roundcube data, set the parameters properly
-                if ($rckey === "photo" && isset($vcard->PHOTO)) {
-                    $vcard->PHOTO['ENCODING'] = 'b';
-                    $vcard->PHOTO['VALUE'] = 'binary';
+                if (strlen($save_data[$rckey]) == 0) {
+                    unset($vcard->{$vkey});
+                } else {
+                    $vcard->{$vkey} = $save_data[$rckey];
+
+                    // Special handling for PHOTO
+                    // If PHOTO is set from roundcube data, set the parameters properly
+                    if ($rckey === "photo" && isset($vcard->PHOTO)) {
+                        $vcard->PHOTO['ENCODING'] = 'b';
+                        $vcard->PHOTO['VALUE'] = 'binary';
+                    }
+                }
+            } else {
+                // If existing, preserve properties not known to roundcube (e.g. UID)
+                // If photo is not set, it was not changed in roundcube -> preserve too if exists
+                if (isset($this->coltypes[$rckey]) && $rckey != "photo") {
+                    unset($vcard->{$vkey});
                 }
             }
         }
@@ -575,14 +608,14 @@ class DataConversion
                         /** @var ?VObject\Property special handler for structured property */
                         $prop = call_user_func([$this, "fromRoundcube$mkey"], $value, $vcard, $subtype);
                     } else {
-                        if (!empty($value)) {
+                        if (strlen($value) > 0) {
                             $prop = $vcard->createProperty($vkey, $value);
                             $vcard->add($prop);
                         }
                     }
 
                     // in case $rclabel is set, the property is implicitly assigned a subtype (e.g. X-SKYPE)
-                    if (isset($prop) && empty($rclabel)) {
+                    if (isset($prop) && !isset($rclabel)) {
                         $this->setAttrLabel($vcard, $prop, $rckey, $subtype);
                     }
                 }
@@ -596,7 +629,7 @@ class DataConversion
      * This function is passed an address array as provided by roundcube and from it creates a property if at least one
      * of the address fields is set to a non empty value. Otherwise, null is returned.
      *
-     * @param array $address The address array as provided by roundcube
+     * @param SaveDataAddressField $address The address array as provided by roundcube
      * @param VCard $vcard The VCard to add the property to.
      * @param string $_subtype The subtype/label assigned by roundcube
      * @return ?VObject\Property The created property, null if no property was created.
@@ -604,23 +637,17 @@ class DataConversion
     private function fromRoundcubeADR(array $address, VCard $vcard, string $_subtype): ?VObject\Property
     {
         $prop = null;
+        $adrValue = [ "" /* PO box */, "" /* extended address */ ];
+        $haveNonEmptyField = false;
 
-        if (
-            !empty($address['street'])
-            || !empty($address['locality'])
-            || !empty($address['region'])
-            || !empty($address['zipcode'])
-            || !empty($address['country'])
-        ) {
-            $prop = $vcard->createProperty('ADR', [
-                '', // post office box
-                '', // extended address
-                $address['street'] ?? "",
-                $address['locality'] ?? "",
-                $address['region'] ?? "",
-                $address['zipcode'] ?? "",
-                $address['country'] ?? "",
-            ]);
+        foreach (['street', 'locality', 'region', 'zipcode', 'country'] as $adrAttr) {
+            $val = $address[$adrAttr] ?? "";
+            $haveNonEmptyField = $haveNonEmptyField || (strlen($val) > 0);
+            $adrValue[] = $val;
+        }
+
+        if ($haveNonEmptyField) {
+            $prop = $vcard->createProperty('ADR', $adrValue);
             $vcard->add($prop);
         }
 
@@ -641,7 +668,7 @@ class DataConversion
     {
         $prop = null;
 
-        if (!empty($url)) {
+        if (strlen($url) > 0) {
             $prop = $vcard->createProperty('URL', $url, [ "VALUE" => "URI" ]);
             $vcard->add($prop);
         }
@@ -663,7 +690,7 @@ class DataConversion
     {
         $prop = null;
 
-        if (!empty($address)) {
+        if (strlen($address) > 0) {
             $scheme = $this->determineUriSchemeForIM($subtype);
 
             $prop = $vcard->createProperty(
@@ -823,8 +850,9 @@ class DataConversion
         }
 
         // 2. check for a custom label using Apple's X-ABLabel extension
+        /** @psalm-var ?string $group */
         $group = $vprop->group;
-        if ($group) {
+        if (isset($group)) {
             /** @var ?VObject\Property */
             $xlabel = $vcard->{"$group.X-ABLabel"};
             if (!empty($xlabel)) {
