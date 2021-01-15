@@ -81,22 +81,6 @@ jobs:
         run: make checktestspecs
       - name: Run unit tests
         run: make unittests
-      - name: Upload unit test coverage reports to coveralls.io
-        env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COVERALLS_PARALLEL: true
-          COVERALLS_FLAG_NAME: unittests
-        run: |
-          vendor/bin/php-coveralls -x testreports/unit/clover.xml -o testreports/coveralls-unittests-upload.json -v
-      - name: Upload DB interoperability test coverage reports to coveralls.io
-        env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COVERALLS_REPO_TOKEN_REAL: ${{ secrets.COVERALLS_REPO_TOKEN }}
-          COVERALLS_PARALLEL: true
-          COVERALLS_FLAG_NAME: dbinterop
-        run: |
-          vendor/bin/php-coveralls -x testreports/dbinterop-sqlite3/clover.xml -x testreports/dbinterop-mysql/clover.xml -x testreports/dbinterop-postgres/clover.xml -o testreports/coveralls-dbinterop-upload.json -v
-          curl "https://coveralls.io/webhook?repo_token=$COVERALLS_REPO_TOKEN_REAL" -d "payload[build_num]=$GITHUB_RUN_ID&payload[status]=done"
       - name: Upload unit test coverage reports to codecov.io
         uses: codecov/codecov-action@v1
         with:
