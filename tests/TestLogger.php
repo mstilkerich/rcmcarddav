@@ -94,11 +94,15 @@ class TestLogger extends AbstractLogger
      */
     public function reset(): void
     {
-        foreach ($this->logBuffer as $recMsg) {
+        $buffer = $this->logBuffer;
+
+        // reset before doing the assertions - if there is a failure, it won't affect the following tests
+        $this->logBuffer = [];
+
+        foreach ($buffer as $recMsg) {
             [ $level, $msg, $checked ] = $recMsg;
             TestCase::assertSame('CHECKED', $checked, "Unchecked log message of level $level: $msg");
         }
-        $this->logBuffer = [];
     }
 
     /**
