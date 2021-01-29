@@ -16,7 +16,7 @@ $labels = Array(
 	'cd_disabled' => '已禁用',
 	'cd_lastupdate_time'=>'最後更新時間',
 	'cd_resync' => "強制與服務器立即同步",
-	'cd_msg_synchronized' => 'CardDAV地址簿$ name同步（花費 $duration秒）',
+	'cd_msg_synchronized' => 'CardDAV地址簿$name同步（花費 $duration秒）',
 	'cd_msg_syncfailed' => '同步CardDAV地址簿 $name失敗：$errormsg',
 	'cd_frompreset' => ' (從預設 _PRESETNAME_)',
 );
