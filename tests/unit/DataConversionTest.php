@@ -81,7 +81,7 @@ final class DataConversionTest extends TestCase
         $vcard = TestInfrastructure::readVCard($vcfFile);
         $saveDataExp = $this->readSaveDataFromJson($jsonFile);
         $saveData = $dc->toRoundcube($vcard, $abook);
-        $this->compareSaveData($saveDataExp, $saveData, "Converted VCard does not result in expected roundcube data");
+        self::compareSaveData($saveDataExp, $saveData, "Converted VCard does not result in expected roundcube data");
         $this->assertPhotoDownloadWarning($logger, $vcfFile);
     }
 
@@ -316,7 +316,7 @@ final class DataConversionTest extends TestCase
                 $this->assertSame(md5($vcard->PHOTO->serialize()), $cacheObj['photoPropMd5']);
                 $this->assertTrue(isset($saveDataExpected["photo"]));
                 $this->assertIsString($saveDataExpected["photo"]);
-                $this->comparePhoto($saveDataExpected["photo"], $cacheObj['photo']);
+                self::comparePhoto($saveDataExpected["photo"], $cacheObj['photo']);
                 return true;
             };
             $cache->expects($this->once())
@@ -335,7 +335,7 @@ final class DataConversionTest extends TestCase
         $this->assertTrue(isset($saveData['photo']));
         $this->assertTrue(isset($saveDataExpected["photo"]));
         $this->assertIsString($saveDataExpected["photo"]);
-        $this->comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
+        self::comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
 
         $this->assertPhotoDownloadWarning($logger, $basename);
     }
@@ -383,11 +383,11 @@ final class DataConversionTest extends TestCase
 
         $this->assertTrue(isset($saveData['photo']));
         if ($getExp) {
-            $this->comparePhoto($cachedPhotoData, (string) $saveData["photo"]);
+            self::comparePhoto($cachedPhotoData, (string) $saveData["photo"]);
         } else {
             $this->assertTrue(isset($saveDataExpected["photo"]));
             $this->assertIsString($saveDataExpected["photo"]);
-            $this->comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
+            self::comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
         }
     }
 
@@ -440,7 +440,7 @@ final class DataConversionTest extends TestCase
                 $this->assertSame(md5($vcard->PHOTO->serialize()), $cacheObj['photoPropMd5']);
                 $this->assertTrue(isset($saveDataExpected["photo"]));
                 $this->assertIsString($saveDataExpected["photo"]);
-                $this->comparePhoto($saveDataExpected["photo"], $cacheObj['photo']);
+                self::comparePhoto($saveDataExpected["photo"], $cacheObj['photo']);
                 return true;
             };
             $cache->expects($this->once())
@@ -459,7 +459,7 @@ final class DataConversionTest extends TestCase
         $this->assertTrue(isset($saveData['photo']));
         $this->assertTrue(isset($saveDataExpected["photo"]));
         $this->assertIsString($saveDataExpected["photo"]);
-        $this->comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
+        self::comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
 
         $this->assertPhotoDownloadWarning($logger, $basename);
     }
@@ -583,34 +583,38 @@ final class DataConversionTest extends TestCase
 
         /** @var VObject\Property[] */
         $propsExp = $vcardExpected->children();
-        $propsExp = $this->groupNodesByName($propsExp);
+        $propsExp = self::groupNodesByName($propsExp);
         /** @var VObject\Property[] */
         $propsRC = $vcardRoundcube->children();
-        $propsRC = $this->groupNodesByName($propsRC);
+        $propsRC = self::groupNodesByName($propsRC);
 
         // compare
         foreach ($propsExp as $name => $props) {
-            $this->assertArrayHasKey($name, $propsRC, "Expected property $name missing from test vcard");
-            $this->compareNodeList("Property $name", $props, $propsRC[$name]);
+            TestCase::assertArrayHasKey($name, $propsRC, "Expected property $name missing from test vcard");
+            self::compareNodeList("Property $name", $props, $propsRC[$name]);
 
             for ($i = 0; $i < count($props); ++$i) {
-                $this->assertSame($props[$i]->group, $propsRC[$name][$i]->group, "Property group name differs");
+                TestCase::assertEqualsIgnoringCase(
+                    $props[$i]->group,
+                    $propsRC[$name][$i]->group,
+                    "Property group name differs"
+                );
                 /** @psalm-var VObject\Parameter[] */
                 $paramExp = $props[$i]->parameters();
-                $paramExp = $this->groupNodesByName($paramExp);
+                $paramExp = self::groupNodesByName($paramExp);
                 /** @psalm-var VObject\Parameter[] */
                 $paramRC = $propsRC[$name][$i]->parameters();
-                $paramRC = $this->groupNodesByName($paramRC);
+                $paramRC = self::groupNodesByName($paramRC);
                 foreach ($paramExp as $pname => $params) {
-                    $this->compareNodeList("Parameter $name/$pname", $params, $paramRC[$pname]);
+                    self::compareNodeList("Parameter $name/$pname", $params, $paramRC[$pname]);
                     unset($paramRC[$pname]);
                 }
-                $this->assertEmpty($paramRC, "Prop $name has extra parameters: " . implode(", ", array_keys($paramRC)));
+                TestCase::assertEmpty($paramRC, "Prop $name has extra params: " . implode(", ", array_keys($paramRC)));
             }
             unset($propsRC[$name]);
         }
 
-        $this->assertEmpty($propsRC, "VCard has extra properties: " . implode(", ", array_keys($propsRC)));
+        TestCase::assertEmpty($propsRC, "VCard has extra properties: " . implode(", ", array_keys($propsRC)));
     }
 
     /**
@@ -621,7 +625,7 @@ final class DataConversionTest extends TestCase
      * @param T[] $nodes
      * @return array<string, list<T>> Array with node names as keys, and arrays of nodes by that name as values.
      */
-    private function groupNodesByName(array $nodes): array
+    private static function groupNodesByName(array $nodes): array
     {
         $res = [];
         foreach ($nodes as $n) {
@@ -640,15 +644,15 @@ final class DataConversionTest extends TestCase
      * @param VObject\Property[]|VObject\Parameter[] $exp Expected list of nodes
      * @param VObject\Property[]|VObject\Parameter[] $rc  List of nodes in the VCard produces by rcmcarddav
      */
-    private function compareNodeList(string $dbgid, array $exp, array $rc): void
+    private static function compareNodeList(string $dbgid, array $exp, array $rc): void
     {
-        $this->assertCount(count($exp), $rc, "Different amount of $dbgid");
+        TestCase::assertCount(count($exp), $rc, "Different amount of $dbgid");
 
         for ($i = 0; $i < count($exp); ++$i) {
             if ($dbgid == "Property PHOTO") {
-                $this->comparePhoto((string) $exp[$i]->getValue(), (string) $rc[$i]->getValue());
+                self::comparePhoto((string) $exp[$i]->getValue(), (string) $rc[$i]->getValue());
             } else {
-                $this->assertEquals($exp[$i]->getValue(), $rc[$i]->getValue(), "Nodes $dbgid differ");
+                TestCase::assertEquals($exp[$i]->getValue(), $rc[$i]->getValue(), "Nodes $dbgid differ");
             }
         }
     }
@@ -656,17 +660,17 @@ final class DataConversionTest extends TestCase
     /**
      * Compares two roundcube save data arrays with special handling of photo.
      */
-    private function compareSaveData(array $saveDataExp, array $saveDataRc, string $msg): void
+    private static function compareSaveData(array $saveDataExp, array $saveDataRc, string $msg): void
     {
-        $this->assertSame(isset($saveDataExp['photo']), isset($saveDataRc['photo']));
+        TestCase::assertSame(isset($saveDataExp['photo']), isset($saveDataRc['photo']));
         if (isset($saveDataExp['photo'])) {
-            $this->assertTrue(isset($saveDataExp["photo"]));
-            $this->assertIsString($saveDataExp["photo"]);
-            $this->comparePhoto($saveDataExp['photo'], (string) $saveDataRc['photo']);
+            TestCase::assertTrue(isset($saveDataExp["photo"]));
+            TestCase::assertIsString($saveDataExp["photo"]);
+            self::comparePhoto($saveDataExp['photo'], (string) $saveDataRc['photo']);
             unset($saveDataExp['photo']);
             unset($saveDataRc['photo']);
         }
-        $this->assertEquals($saveDataExp, $saveDataRc, $msg);
+        TestCase::assertEquals($saveDataExp, $saveDataRc, $msg);
     }
 
     /**
@@ -675,41 +679,41 @@ final class DataConversionTest extends TestCase
      * @param string $pExpStr The expected photo data
      * @param string $pRcStr The photo data produced by the test object
      */
-    private function comparePhoto(string $pExpStr, string $pRcStr): void
+    private static function comparePhoto(string $pExpStr, string $pRcStr): void
     {
-        $this->assertTrue(function_exists('gd_info'), "php-gd required");
+        TestCase::assertTrue(function_exists('gd_info'), "php-gd required");
 
         // shortcut that also covers URI - if identical strings, save the comparison
         if (empty($pExpStr) || empty($pRcStr) || str_contains($pExpStr, "http")) {
-            $this->assertSame($pExpStr, $pRcStr, "PHOTO comparison on URI value failed");
+            TestCase::assertSame($pExpStr, $pRcStr, "PHOTO comparison on URI value failed");
             return;
         }
 
         // dimensions must be the same
         /** @psalm-var false|array{int,int,int} */
         $pExp = getimagesizefromstring($pExpStr);
-        $this->assertNotFalse($pExp, "Exp Image could not be identified");
+        TestCase::assertNotFalse($pExp, "Exp Image could not be identified");
         /** @psalm-var false|array{int,int,int} */
         $pRc = getimagesizefromstring($pRcStr);
-        $this->assertNotFalse($pRc, "RC Image could not be identified");
+        TestCase::assertNotFalse($pRc, "RC Image could not be identified");
 
-        $this->assertSame($pExp[0], $pRc[0], "X dimension of PHOTO differs");
-        $this->assertSame($pExp[1], $pRc[1], "Y dimension of PHOTO differs");
-        $this->assertSame($pExp[2], $pRc[2], "Image type of PHOTO differs");
+        TestCase::assertSame($pExp[0], $pRc[0], "X dimension of PHOTO differs");
+        TestCase::assertSame($pExp[1], $pRc[1], "Y dimension of PHOTO differs");
+        TestCase::assertSame($pExp[2], $pRc[2], "Image type of PHOTO differs");
 
         // store to temporary files for comparison
         $expFile = tempnam("testreports", "imgcomp_") . image_type_to_extension($pExp[2]);
         $rcFile = tempnam("testreports", "imgcomp_") . image_type_to_extension($pRc[2]);
 
-        $this->assertNotFalse(file_put_contents($expFile, $pExpStr), "Cannot write $expFile");
-        $this->assertNotFalse(file_put_contents($rcFile, $pRcStr), "Cannot write $rcFile");
+        TestCase::assertNotFalse(file_put_contents($expFile, $pExpStr), "Cannot write $expFile");
+        TestCase::assertNotFalse(file_put_contents($rcFile, $pRcStr), "Cannot write $rcFile");
 
         // compare
         /** @psalm-var PHasher $phasher */
         $phasher = PHasher::Instance();
         // similarity is returned as percentage
         $compResult = intval($phasher->Compare($expFile, $rcFile));
-        $this->assertSame(100, $compResult, "Image comparison returned too little similarity $compResult%");
+        TestCase::assertSame(100, $compResult, "Image comparison returned too little similarity $compResult%");
     }
 
     /**
