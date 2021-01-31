@@ -80,8 +80,8 @@ class SyncHandlerRoundcube implements SyncHandler
         $abookId = $this->rcAbook->getId();
 
         /**
-         *  determine existing local contact URIs and ETAGs
-         *  @var list<ContactDbInfo> $contacts
+         * determine existing local contact URIs and ETAGs
+         * @var list<ContactDbInfo> $contacts
          */
         $contacts = $db->get(['abook_id' => $abookId], 'id,etag,uri,cuid', 'contacts');
         foreach ($contacts as $contact) {
@@ -198,7 +198,7 @@ class SyncHandlerRoundcube implements SyncHandler
      * This is only requested by the Sync service in case it has to fall back to PROPFIND-based synchronization,
      * i.e. if sync-collection REPORT is not supported by the server or did not work.
      *
-     * @return string[] Maps card URIs to ETags
+     * @return array<string,string> Maps card URIs to ETags
      */
     public function getExistingVCardETags(): array
     {
