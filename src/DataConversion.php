@@ -594,12 +594,18 @@ class DataConversion
                 $subtypes = isset($save_data["$rckey:$rclabel"]) ? [ $rclabel ] : [];
             } else {
                 $rclabel = null;
-                $subtypes = preg_filter("/^$rckey:/", '', array_keys($save_data), 1);
+                $subtypes = preg_filter("/^$rckey:?/", '', array_keys($save_data), 1);
             }
 
             foreach ($subtypes as $subtype) {
+                // In some cases, roundcube passes a multi-value attribute without subtype (e.g. "email"), e.g. "add
+                // contact to addressbook" from mail view
+                $sdkey = strlen($subtype) > 0 ? "$rckey:$subtype" : $rckey;
+
+                // Cast to array - roundcube passes simple string in some cases, e.g. "add contact to addressbook" from
+                // mail view
                 /** @var SaveDataMultiField $values */
-                $values = (array) $save_data["$rckey:$subtype"];
+                $values = (array) $save_data[$sdkey];
                 foreach ($values as $value) {
                     $prop = null;
 
@@ -783,13 +789,15 @@ class DataConversion
     }
 
     /**
-     * This function assigned a label (subtype) to a VCard multi-value property.
+     * This function assigns a label (subtype) to a VCard multi-value property.
      *
      * Typical multi-value properties are EMAIL, TEL and ADR.
      *
      * Note that roundcube/rcmcarddav only supports a single subtype per property, whereas VCard allows to have more
      * than one. As an effect, when a card is updated only the subtype selected in roundcube will be preserved, possible
      * extra subtypes will be lost.
+     *
+     * If the given label is empty, not TYPE parameter is assigned.
      *
      * If the given label is one of the known standard labels, it will be assigned as a TYPE parameter of the property,
      * otherwise it will be assigned using the X-ABLabel extension.
@@ -804,6 +812,11 @@ class DataConversion
      */
     private function setAttrLabel(VCard $vcard, VObject\Property $vprop, string $attrname, string $newlabel): void
     {
+        // Don't set a type parameter if there is no label
+        if (strlen($newlabel) == 0) {
+            return;
+        }
+
         // X-ABLabel?
         if (in_array($newlabel, $this->xlabels[$attrname])) {
             $usedGroups = $this->getAllPropertyGroups($vcard);

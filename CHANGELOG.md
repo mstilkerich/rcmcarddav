@@ -10,6 +10,8 @@
 - Fix #325: Roundcube setting for contact sorting field was not used
 - Fix #279: More specific error message when syntactically wrong URL is entered for new addressbook
 - Fix #328: Contact search with MySQL might not have returned all results
+- Fix #332: When adding a new contact via "add to addressbook" from mail view, the email address was missing in the new
+  card
 - New: Download externally referenced photos on demand, drastically speeding up sync with when photos are stored
   separately from the VCard (e.g. iCloud). For details see #247.
 - New: Support for instant messaging data fields and maiden name (resolves #46). Interoperability with other
@@ -89,3 +91,5 @@ detailed changelog within the next weeks.
 - The CardDAV interaction is moved to a [library](https://github.com/mstilkerich/carddavclient). It is essentially a
   complete rewrite of the code communicating with the CardDAV servers and includes interoperability tests with many
   common servers, see [here](https://github.com/mstilkerich/carddavclient).
+
+<!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->

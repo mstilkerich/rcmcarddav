@@ -1,0 +1,17 @@
+{
+	"name": "Chairman Wesker",
+	"firstname": "Albert",
+	"surname": "Wesker",
+	"email": "albert@wesker.example.com",
+	"phone": "12345",
+	"website": "https://wesker.example.com",
+	"address": [
+	{
+		"street": "239 Umbrella Ave",
+		"locality": "Tokyo",
+		"region": "Kanto",
+		"zipcode": "99887",
+		"country": "Japan"
+	}
+	]
+}

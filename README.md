@@ -39,3 +39,4 @@ There is no supported upgrade path from the 2.0.x version. You need to manually 
 
 There is no upgrade path from the 1.0 version. You need to manually remove RCMCardDAV 1.0, drop its tables from your database and start with a fresh installation.
 
+<!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->

@@ -31,7 +31,11 @@ There are a few specifics to be tested during the creation:
   to show as company and use organization as displayname.
 - EmptyDisplaynameResetShowAs: Like EmptyDisplayname, but set to show as company when no organization attribute is
   available. Must reset showas to individual and compose displayname from name attributes.
+- EmptyLabel: Roundcube data uses keys for multi-value properties without a label, plus it passes in a single value as
+  a string, not the usual array. This happens when using "add to addressbook" from the mail view.
 - Group: A KIND=group VCard
 - InstantMessaging: Contains data for all supported instant messaging services and custom ones.
 - ZeroStrings: Contains "0" values from some data fields, which are considered empty() by PHPs empty() function. These
   properties must be properly set to 0 in the created VCard, not omitted.
+
+<!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->
