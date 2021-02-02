@@ -1,9 +1,7 @@
-# RCMCardDAV
+# RCMCardDAV - CardDAV addressbook for Roundcube Webmail
 ![Unit tests](https://github.com/mstilkerich/rcmcarddav/workflows/CI%20Build/badge.svg)
 [![codecov](https://codecov.io/gh/mstilkerich/rcmcarddav/graph/badge.svg)](https://codecov.io/gh/mstilkerich/rcmcarddav)
 [![Type Coverage](https://shepherd.dev/github/mstilkerich/rcmcarddav/coverage.svg)](https://shepherd.dev/github/mstilkerich/rcmcarddav)
-
-CardDAV plugin for the RoundCube Webmailer
 
 ## Requirements
 
