@@ -15,13 +15,17 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 final class DatabaseTest extends TestCase
 {
     /** @var list<string> COMPARE_COLS The list of columns in the test data sets to set and compare */
-    private const COMPARE_COLS = [ 'abook_id', 'name', 'firstname', 'surname', 'vcard', 'etag', 'uri', 'cuid' ];
+    private const COMPARE_COLS = ['name', 'email', 'firstname', 'surname', 'vcard', 'etag', 'uri', 'cuid', 'abook_id'];
 
     /** @var AbstractDatabase */
     private static $db;
 
-    /** @var array */
-    private static $rows;
+    /** @var list<list<?string>> Test data, abook_id is auto-appended */
+    private static $rows = [
+        [ "Max Mustermann", "max@muster.de", "Max", "Mustermann", "vcard", "123", "uri1", "1" ],
+        [ "John Doe", "john@doe.com", null, "Doe", "vcard", "123", "uri2", "2" ],
+        [ "Jane Doe", "jane@doe.com", null, null, "vcard", "123", "uri3", "3" ],
+    ];
 
     /** @var int */
     private static $cnt;
@@ -38,42 +42,16 @@ final class DatabaseTest extends TestCase
         $dbsettings = TestInfrastructureDB::dbSettings();
         $db_dsnw = $dbsettings[0];
         self::$db = TestInfrastructureDB::initDatabase($db_dsnw);
-        TestData::initDatabase();
+        TestData::initDatabase(true);
 
-        // insert rows for testing ordering, limit and count operations
-        // We use the name, firstname, surname columns, the rest contains dummy data where needed
-        // We generate data records with ABC, BCD, CDE etc. for surname
-        // For each of those we have 3x variants with BCD, CDE etc. in firstname, 2x CDE, DEF etc. plus NULL in surname
-        // The same rows are additionally generated in a lower case for name
-        $mainstr = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
+        // insert test data rows
         $abookRow = [ "Test", "u1", "p1", "https://contacts.example.com/u1/empty/", [ "users", 0 ] ];
         self::$abookId = TestData::insertRow('carddav_addressbooks', TestData::ADDRESSBOOKS_COLUMNS, $abookRow);
 
-        for ($nIdx = 0; $nIdx < 10; ++$nIdx) { // 5..9 are for lowercase
-            $name = substr($mainstr, $nIdx % 5, 3);
-            if ($nIdx >= 5) {
-                $name = strtolower($name);
-            }
-
-            for ($fnIdx = 3; $fnIdx > 0; --$fnIdx) {
-                $firstname = substr($mainstr, $fnIdx, 3);
-                for ($snIdx = 2; $snIdx < 4; ++$snIdx) {
-                    $surname = substr($mainstr, $snIdx, 3);
-                    self::insertRow($name, $firstname, $surname);
-                }
-                self::insertRow($name, $firstname, null);
-            }
+        foreach (self::$rows as &$row) {
+            $row[] = self::$abookId;
+            TestData::insertRow('carddav_contacts', self::COMPARE_COLS, $row);
         }
-    }
-
-    private static function insertRow(string $name, string $firstname, ?string $surname): void
-    {
-        $cnt = self::$cnt;
-        ++self::$cnt;
-
-        $row = array_merge([ self::$abookId, $name, $firstname, $surname ], array_fill(0, 4, "dummy$cnt"));
-        TestData::insertRow('carddav_contacts', self::COMPARE_COLS, $row);
     }
 
     public function setUp(): void
@@ -86,13 +64,54 @@ final class DatabaseTest extends TestCase
     }
 
     /**
-     * Tests get()
+     * Most basic test for get - check it contains all rows of the table, incl. all fields.
      */
     public function testDatabaseGet(): void
     {
         $db = self::$db;
-        $records = $db->get(['abook_id' => self::$abookId], '*');
-        $_records = TestInfrastructure::xformDatabaseResultToRowList(self::COMPARE_COLS, $records, false);
+        $records = $db->get([]);
+        $records = TestInfrastructure::xformDatabaseResultToRowList(self::COMPARE_COLS, $records, false);
+        $records = TestInfrastructure::sortRowList($records);
+
+        $expRecords = TestInfrastructure::sortRowList(self::$rows);
+        $this->assertEquals($expRecords, $records);
+    }
+
+    /**
+     * Tests that the count options of get works as expected, for individual fields as well as all rows.
+     */
+    public function testDatabaseCountOperator(): void
+    {
+        $db = self::$db;
+        $records = $db->get([], '*,name,firstname,surname', 'contacts', ['count' => true]);
+        $this->assertCount(1, $records);
+        $row = $records[0];
+
+        $this->assertSame((string) count(self::$rows), $row['*']);
+        $this->assertSame((string) self::countNonNullRows('name'), $row['name']);
+        $this->assertSame((string) self::countNonNullRows('firstname'), $row['firstname']);
+        $this->assertSame((string) self::countNonNullRows('surname'), $row['surname']);
+
+        // this is to check that the test on specific column count has some null values
+        $this->assertLessThan(count(self::$rows), self::countNonNullRows('firstname'));
+    }
+
+    /**
+     * Counts the number of rows in self::$rows that have a non-null value in the given field.
+     */
+    private static function countNonNullRows(string $field): int
+    {
+        $fieldidx = array_search($field, self::COMPARE_COLS);
+        TestCase::assertIsInt($fieldidx, "Field must be in COMPARE_COLS");
+
+        $cnt = 0;
+        foreach (self::$rows as $row) {
+            if (isset($row[$fieldidx])) {
+                ++$cnt;
+            }
+        }
+
+        return $cnt;
     }
 }
 

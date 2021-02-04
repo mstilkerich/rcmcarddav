@@ -100,13 +100,46 @@ final class TestInfrastructure
     }
 
     /**
-     * Compares two database rows.
+     * Sorts a list of rows, where each row is a list of nullable strings.
      *
-     * One row is given in the format as returned by AbstractDatabase::get() (associative array).
-     * The other is given as separate arrays for columns and associated data.
+     * Fields are sorted alphabetically, in order of columns.
+     *
+     * @param list<list<?string>> $rowlist
+     * @return list<list<?string>>
      */
-    public static function compareRow(): void
+    public static function sortRowList(array $rowlist): array
     {
+        TestCase::assertTrue(usort($rowlist, [self::class, 'compareRows']));
+        return $rowlist;
+    }
+
+    /**
+     * Compare functions for two rows to use for sorting.
+     *
+     * @param list<?string> $r1
+     * @param list<?string> $r2
+     * @return int smaller/equal/greater 0 if $r1 is less/equal/greater than $r2
+     *
+     */
+    public static function compareRows(array $r1, array $r2): int
+    {
+        $res = 0;
+
+        TestCase::assertCount(count($r1), $r2, "compareRows requires rows of equal length");
+        for ($i = 0; $res == 0 && $i < count($r1); ++$i) {
+            $v1 = $r1[$i];
+            $v2 = $r2[$i];
+
+            if (isset($v1) && isset($v2)) {
+                $res = strcmp($v1, $v2);
+            } elseif (isset($v2)) {
+                $res = -1;
+            } elseif (isset($v1)) {
+                $res = 1;
+            }
+        }
+
+        return $res;
     }
 }
 

@@ -124,8 +124,10 @@ final class TestData
      *
      * It initializes all tables listed in self::$tables in the given order. Table data is cleared in reverse order
      * listed before inserting of data is started.
+     *
+     * @param bool $skipInitData If true, only the users table is populated, the carddav tables are left empty.
      */
-    public static function initDatabase(): void
+    public static function initDatabase(bool $skipInitData = false): void
     {
         $dbh = TestInfrastructureDB::getDbHandle();
 
@@ -138,6 +140,10 @@ final class TestData
         foreach (self::$tables as $tbldesc) {
             [ $tbl, $cols ] = $tbldesc;
             TestCase::assertArrayHasKey($tbl, self::INITDATA, "No init data for table $tbl");
+
+            if ($skipInitData && $tbl != "users") {
+                continue;
+            }
 
             self::$data[$tbl] = [];
             foreach (self::INITDATA[$tbl] as $row) {
