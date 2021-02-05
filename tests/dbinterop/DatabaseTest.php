@@ -121,7 +121,7 @@ final class DatabaseTest extends TestCase
         } catch (DatabaseException $e) {
             $exception = $e;
         }
-        
+
         $this->assertNotNull($exception);
         TestInfrastructure::logger()->expectMessage('error', 'carddav_migrations');
 
