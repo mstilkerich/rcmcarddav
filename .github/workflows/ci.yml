@@ -65,12 +65,6 @@ jobs:
         run: make phpcompatcheck
       - name: Run psalm static analysis
         run: make psalmanalysis
-      - name: Check that DB schema resulting from migrations matches initial schema for SQLite
-        run: make schematest-sqlite3
-      - name: Check that DB schema resulting from migrations matches initial schema for MySQL
-        run: make schematest-mysql
-      - name: Check that DB schema resulting from migrations matches initial schema for Postgres
-        run: make schematest-postgres
       - name: Database interoperability tests for SQLite3
         run: make tests-sqlite3
       - name: Database interoperability tests for MySQL

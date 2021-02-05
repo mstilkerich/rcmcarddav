@@ -7,6 +7,7 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\DatabaseException;
 
 /**
  * @psalm-import-type DbGetResults from AbstractDatabase
@@ -19,6 +20,9 @@ final class DatabaseTest extends TestCase
 
     /** @var AbstractDatabase */
     private static $db;
+
+    /** @var AbstractDatabase Database used for the schema migration test */
+    private static $migtestdb;
 
     /** @var list<list<?string>> Test data, abook_id is auto-appended */
     private static $rows = [
@@ -40,7 +44,10 @@ final class DatabaseTest extends TestCase
         TestInfrastructure::init();
 
         $dbsettings = TestInfrastructureDB::dbSettings();
-        $db_dsnw = $dbsettings[0];
+        [$db_dsnw, $migdb_dsnw] = $dbsettings;
+
+        self::$migtestdb = TestInfrastructureDB::initDatabase($migdb_dsnw);
+
         self::$db = TestInfrastructureDB::initDatabase($db_dsnw);
         TestData::initDatabase(true);
 
@@ -94,6 +101,40 @@ final class DatabaseTest extends TestCase
 
         // this is to check that the test on specific column count has some null values
         $this->assertLessThan(count(self::$rows), self::countNonNullRows('firstname'));
+    }
+
+    /**
+     * Tests the schema migration.
+     *
+     * Note that the actual schema comparison is performed outside PHP unit by the surrounding make recipe.
+     */
+    public function testSchemaMigrationYieldsCurrentSchema(): void
+    {
+        $db = self::$migtestdb;
+        $scriptdir = __DIR__ . "/../../dbmigrations";
+
+        // Preconditions
+        $this->assertDirectoryExists("$scriptdir/INIT-currentschema");
+        $exception = null;
+        try {
+            $db->get([], '*', 'migrations');
+        } catch (DatabaseException $e) {
+            $exception = $e;
+        }
+        
+        $this->assertNotNull($exception);
+        TestInfrastructure::logger()->expectMessage('error', 'carddav_migrations');
+
+        // Perform the migrations - will trigger the error message about missing table again
+        $db->checkMigrations("", $scriptdir);
+        TestInfrastructure::logger()->expectMessage('error', 'carddav_migrations');
+
+        $rows = $db->get([], '*', 'migrations');
+        $migsdone = array_column($rows, 'filename');
+        sort($migsdone);
+
+        $migsavail = array_map('basename', glob("$scriptdir/0???-*"));
+        $this->assertSame($migsavail, $migsdone);
     }
 
     /**
