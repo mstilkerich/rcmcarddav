@@ -193,10 +193,10 @@ class Database extends AbstractDatabase
             /** @var list<array{filename: string}> $migrations */
             $migrationsDone = $this->get([], 'filename', 'migrations');
             $migrationsDone = array_column($migrationsDone, 'filename');
-            $dbh->set_option('ignore_key_errors', null);
         } catch (DatabaseException $e) {
             $migrationsDone = [];
         }
+        $dbh->set_option('ignore_key_errors', null);
 
         // (3) Execute the migration scripts that have not been executed before
         foreach ($migrationsAvailable as $migration) {
