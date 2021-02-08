@@ -44,11 +44,10 @@ final class DatabaseTest extends TestCase
         TestInfrastructure::init();
 
         $dbsettings = TestInfrastructureDB::dbSettings();
-        [$db_dsnw, $migdb_dsnw] = $dbsettings;
-
+        [, $migdb_dsnw] = $dbsettings;
         self::$migtestdb = TestInfrastructureDB::initDatabase($migdb_dsnw);
+        self::setDbHandle();
 
-        self::$db = TestInfrastructureDB::initDatabase($db_dsnw);
         TestData::initDatabase(true);
 
         // insert test data rows
@@ -63,11 +62,20 @@ final class DatabaseTest extends TestCase
 
     public function setUp(): void
     {
+        // set a fresh DB handle to ensure we have no open transactions from a previous test
+        self::setDbHandle();
     }
 
     public function tearDown(): void
     {
+        self::$db->rollbackTransaction(); // in case transaction left open by a test
         TestInfrastructure::logger()->reset();
+    }
+
+    private static function setDbHandle(): void
+    {
+        $dbsettings = TestInfrastructureDB::dbSettings();
+        self::$db = TestInfrastructureDB::initDatabase($dbsettings[0]);
     }
 
     /**
@@ -135,6 +143,84 @@ final class DatabaseTest extends TestCase
 
         $migsavail = array_map('basename', glob("$scriptdir/0???-*"));
         $this->assertSame($migsavail, $migsdone);
+    }
+
+    /**
+     * Tests that rollback of a transaction undos the changes of the transaction.
+     */
+    public function testTransactionRollbackWorks(): void
+    {
+        $db = self::$db;
+        $recsOrig = array_column($db->get([], 'id', 'contacts'), 'id');
+        sort($recsOrig);
+
+        $db->startTransaction(false);
+        $testrow = array_merge(
+            ['TransactionRollbackTest'],
+            array_fill(0, count(self::COMPARE_COLS) - 2, ''),
+            [ self::$abookId ]
+        );
+        $newid = TestData::insertRow('carddav_contacts', self::COMPARE_COLS, $testrow);
+        $recsInside = array_column($db->get([], 'id', 'contacts'), 'id');
+        sort($recsInside);
+
+        $recsInsideExp = array_merge($recsOrig, [$newid]);
+        sort($recsInsideExp);
+
+        TestCase::assertEquals(
+            $recsInsideExp,
+            $recsInside,
+            "Rows inside transaction do not contain original plus new inserted row"
+        );
+        $db->rollbackTransaction();
+
+        /** @var list<string> */
+        $recsAfter = array_column($db->get([], 'id', 'contacts'), 'id');
+        sort($recsAfter);
+        TestCase::assertEquals($recsOrig, $recsAfter, "Rows after rollback differ from original ones");
+    }
+
+    public function testExceptionOnNestedTransactionBegin(): void
+    {
+        $db = self::$db;
+        $db->startTransaction(false);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("Cannot start nested transaction");
+        $db->startTransaction(false);
+    }
+
+    public function testExceptionOnCommitOutsideTransaction(): void
+    {
+        $db = self::$db;
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("Attempt to commit a transaction while not within a transaction");
+        $db->endTransaction();
+    }
+
+    public function testExceptionOnInsertDuringReadonlyTransaction(): void
+    {
+        TestCase::assertIsString($GLOBALS["TEST_DBTYPE"]);
+        if ($GLOBALS["TEST_DBTYPE"] == "sqlite3") {
+            $this->markTestSkipped("SQLite does not support readonly transactions");
+        }
+
+        $expErrMsg = $GLOBALS["TEST_DBTYPE"] == "postgres" ? 'read-only' : 'READ ONLY' /* mysql */;
+
+        $db = self::$db;
+
+        $db->startTransaction();
+        $testrow = array_fill(0, count(self::COMPARE_COLS) - 1, '');
+        $testrow[] = self::$abookId;
+
+        try {
+            $ret = $db->insert('contacts', self::COMPARE_COLS, [$testrow]);
+            $this->assertFalse(true, "Exception expected to be thrown - $ret");
+        } catch (DatabaseException $e) {
+            $this->assertStringContainsString($expErrMsg, $e->getMessage());
+        }
+
+        TestInfrastructure::logger()->expectMessage('error', $expErrMsg);
     }
 
     /**
