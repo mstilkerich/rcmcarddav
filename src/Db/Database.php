@@ -303,10 +303,10 @@ class Database extends AbstractDatabase
             'VALUES ' .
             implode(', ', array_fill(0, count($rows), $sqlRowPlaceholders));
 
-        $dbh->query($sql, call_user_func_array('array_merge', $rows));
+        $ret = $dbh->query($sql, call_user_func_array('array_merge', $rows));
 
         // return ID of last inserted row
-        if (in_array($table, self::DBTABLES_WITHOUT_ID)) {
+        if ($ret === false || in_array($table, self::DBTABLES_WITHOUT_ID)) {
             $dbid = "";
         } else {
             /** @var string|false $dbid */
@@ -314,7 +314,7 @@ class Database extends AbstractDatabase
         }
         $logger->debug("INSERT $table ($sql) -> $dbid");
 
-        if ($dbid === false) {
+        if ($ret === false || $dbid === false) {
             $logger->error("Database::insert ($sql) ERROR: " . $dbh->is_error());
             throw new DatabaseException($dbh->is_error());
         }
