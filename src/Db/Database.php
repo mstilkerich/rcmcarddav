@@ -435,7 +435,8 @@ class Database extends AbstractDatabase
                     $order = 'DESC';
                 }
 
-                $orderClauses[] = $dbh->quote_identifier($col) . " $order";
+                $quotedOrderCol = "UPPER(" . $dbh->quote_identifier($col) . ")";
+                $orderClauses[] = "$quotedOrderCol $order";
             }
 
             if (!empty($orderClauses)) {
