@@ -26,9 +26,11 @@ final class DatabaseTest extends TestCase
 
     /** @var list<list<?string>> Test data, abook_id is auto-appended */
     private static $rows = [
-        [ "Max Mustermann", "max@muster.de", "Max", "Mustermann", "vcard", "123", "uri1", "1" ],
+        [ "Max Mustermann", "max1@muster.de", "Max", "Mustermann", "vcard", "123", "uri1", "1" ],
         [ "John Doe", "john@doe.com", null, "Doe", "vcard", "123", "uri2", "2" ],
         [ "Jane Doe", "jane@doe.com", null, null, "vcard", "123", "uri3", "3" ],
+        [ "max mustermann", "max2@muster.de", "Max", "Mustermann", "vcard", "123", "uri4", "4" ],
+        [ "Max Mustermann", "max0@muster.de", "Max", "Mustermann", "vcard", "123", "uri5", "5" ],
     ];
 
     /** @var int */
@@ -109,6 +111,96 @@ final class DatabaseTest extends TestCase
 
         // this is to check that the test on specific column count has some null values
         $this->assertLessThan(count(self::$rows), self::countNonNullRows('firstname'));
+    }
+
+    /**
+     * Provides datasets for order tests.
+     *
+     * Each data set consists of a setting for the Database::get() order option, and a list of row cuids of the test
+     * data rows that gives the expected order of the resulting records.
+     *
+     * @return array<string, array{list<string>, list<string>}>
+     */
+    public function orderTestDataProvider(): array
+    {
+        return [
+            // order cols,      expected row cuid values from self::$rows
+            'Ascending' => [ ['name', 'email'], ["3", "2", "5", "1", "4"] ],
+            'Descending' => [ ['!name', '!email'], ["4", "1", "5", "2", "3"] ],
+            'Mixed' => [ ['name', '!email'], ["3", "2", "4", "1", "5"] ],
+        ];
+    }
+
+    /**
+     * Tests that row ordering works, case-insensitive.
+     *
+     * @param list<string> $orderSetting
+     * @param list<string> $expOrder
+     *
+     * @dataProvider orderTestDataProvider
+     */
+    public function testDatabaseOrderOperator(array $orderSetting, array $expOrder): void
+    {
+        $db = self::$db;
+        $records = array_column($db->get([], 'cuid', 'contacts', ['order' => $orderSetting]), 'cuid');
+        $this->assertCount(count(self::$rows), $records);
+        $this->assertSame($expOrder, $records);
+    }
+
+    /**
+     * Provides datasets for order tests.
+     *
+     * Each data set consists of a setting for the Database::get() order option, and a list of row cuids of the test
+     * data rows that gives the expected order of the resulting records.
+     *
+     * @return array<string, array{list<string>, array{int,int}, ?list<string>}>
+     */
+    public function limitTestDataProvider(): array
+    {
+        return [
+            // order cols,      expected row cuid values from self::$rows
+            'FirstRow' => [ ['name', 'email'], [0,1], ["3"] ],
+            'First3Rows' => [ ['name', 'email'], [0,3], ["3", "2", "5"] ],
+            'Middle2Rows' => [ ['name', 'email'], [2,2], ["5", "1"] ],
+            'BeyondEnd' => [ ['name', 'email'], [4,2], ["4"] ],
+            'NegativeLimit' => [ ['name', 'email'], [4,-1], null ],
+            'ZeroLimit' => [ ['name', 'email'], [4,0], null ],
+            'NegativeOffset' => [ ['name', 'email'], [-1,1], null ],
+        ];
+    }
+
+    /**
+     * Tests that row ordering works, case-insensitive.
+     *
+     * @param list<string> $orderSetting
+     * @param array{int,int} $limitSetting
+     * @param ?list<string> $expOrder
+     *
+     * @dataProvider limitTestDataProvider
+     */
+    public function testDatabaseLimitOperator(array $orderSetting, array $limitSetting, ?array $expOrder): void
+    {
+        $db = self::$db;
+
+        if (!isset($expOrder)) {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage(
+                "The limit option needs an array parameter of two unsigned integers [offset,limit]"
+            );
+        }
+
+        $records = array_column(
+            $db->get([], 'cuid', 'contacts', ['order' => $orderSetting, 'limit' => $limitSetting]),
+            'cuid'
+        );
+
+        $this->assertNotNull($expOrder);
+        [ $offset, $numrows ] = $limitSetting;
+
+        $expCount = min(count(self::$rows) - $offset, $numrows);
+
+        $this->assertCount($expCount, $records);
+        $this->assertSame($expOrder, $records);
     }
 
     /**
