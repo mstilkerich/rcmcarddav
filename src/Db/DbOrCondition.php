@@ -25,6 +25,9 @@ class DbOrCondition
      *   - null: Assert that the field is NULL (or not NULL if inverted)
      *   - string: Assert that the field value matches $value (or does not match value, if inverted)
      *   - string[]: Assert that the field matches one of the strings in the array (or none, if inverted)
+     *
+     *  The text comparisons are case sensitive. If case insensitive behavior is required, ILIKE match must be used.
+     *
      * @var ?string|string[] Value specifier of the condition
      * @readonly
      * @psalm-allow-private-mutation
