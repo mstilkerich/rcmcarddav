@@ -16,10 +16,10 @@ when exchanging character data with the DBMS.
 ## Requirements of RCMCardDAV
 
 RCMCardDAV avoids relying on the DBMS for sorting data because of the differences in available collations and operators.
-There is currently on exception mostly for legacy reasons. We should consider extending the Database class by an
-operation that enables ordering by the DBMS, which is especially useful in combination with a query with limited size of
-the result set. In this case, case insensitive sorting would be preferable for all fields that ordering would be
-performed on.
+However, when result limiting is applied (paging through the addressbook), it can only be used with DB-side filtering
+unless the limit is also performed inside RCMCardDAV, which means more and possibly a lot of data is uselessly
+transferred from the database. Case-insensitive sorting is preferable for all current use cases, so the order option of
+`Database::get()` is defined to sort ignoring case.
 
 More important is the impact on comparisons, which firstly affect the retrieval of data (for example, what records are
 presented to the user, and which are not), and `UNIQUE` constraints in the database that is affected by whether to
@@ -30,7 +30,7 @@ DBMS.
 
 1. The Database class of RCMCardDAV provides an `ilike()` operation which is expected to select data in a
    case-insensitive way. `ILIKE` is not a standard SQL operator and needs to be implemented in a DBMS-specific way.
-   This operation is also used by the corresponding selection criterion provided by Database::get.
+   This operation is also used by the corresponding selection criterion provided by `Database::get()`.
 2. `UNIQUE` constraints including character data attributes:
   - Unique `uri` for contacts entry in the `carddav_contacts` table: These URIs are generally case sensitive. In a URL,
     the domain and scheme parts would in principal be considered case insensitive, but all servers observered so far
@@ -50,6 +50,8 @@ DBMS.
 
 ## DBMS-specific behavior and implementation
 
+For sorting, `Database::get()` will ask the DBMS to order on the uppercased field values to achieve case insensitive
+sorting.
 
 ### MySQL
 
@@ -67,10 +69,11 @@ create a case-insensitive index for a column using a case-sensitive collation, b
 
 ### PostgreSQL
 
-PostgreSQL by default uses case-sensitive collation behavior. It provides an ILIKE operator as a case-insensitive variant
-of LIKE.
+PostgreSQL by default uses case-sensitive collation behavior. It provides an ILIKE operator as a case-insensitive
+variant of LIKE.
 
 ### SQLite 3
 
-SQLite 3 per default uses binary collation behavior (i.e. case sensitive) on indexes and comparisons, but case insensitive
-behavior in LIKE (only concerning ASCII characters, but this is all SQLite 3 supports concerning case sensitivity.
+SQLite 3 per default uses binary collation behavior (i.e. case sensitive) on indexes and comparisons, but case
+insensitive behavior in LIKE (only concerning ASCII characters, but this is all SQLite 3 supports concerning case
+sensitivity.
