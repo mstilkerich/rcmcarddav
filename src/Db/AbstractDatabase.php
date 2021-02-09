@@ -299,8 +299,6 @@ abstract class AbstractDatabase
     {
         if (is_string($conditions)) {
             $cond = [ new DbAndCondition(new DbOrCondition("id", $conditions)) ];
-        } elseif (empty($conditions)) {
-            $cond = [];
         } elseif (isset($conditions[0]) && $conditions[0] instanceof DbAndCondition) {
             /** @var list<DbAndCondition> */
             $cond = $conditions;
