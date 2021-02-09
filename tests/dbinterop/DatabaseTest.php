@@ -8,8 +8,11 @@ use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\DatabaseException;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\DbAndCondition;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\DbOrCondition;
 
 /**
+ * @psalm-import-type DbConditions from AbstractDatabase
  * @psalm-import-type DbGetResults from AbstractDatabase
  * @psalm-import-type FullAbookRow from AbstractDatabase
  */
@@ -81,17 +84,130 @@ final class DatabaseTest extends TestCase
     }
 
     /**
-     * Most basic test for get - check it contains all rows of the table, incl. all fields.
+     * @return array<string, array{DbConditions, list<string>}>
      */
-    public function testDatabaseGet(): void
+    public function getConditionsProvider(): array
+    {
+        return [
+            // 0: Filter conditions, 1: Expected result rows given by cuid from self::$rows
+            'NoFilter' => [ [], ["1", "2", "3", "4", "5"] ],
+            'SingleFieldExactMatchCaseSensitive' => [ ['name' => 'Max Mustermann'], ["1", "5"] ],
+            'SingleFieldExactMatchCaseInsensitive' => [ ['%name' => 'max mustermann'], ["1", "4", "5"] ],
+            'SingleFieldExactMatchFromSet' => [ ['name' => ['Max Mustermann', 'John Doe']], ["1", "2", "5"] ],
+            'InvSingleFieldExactMatchCaseSensitive' => [ ['!name' => 'Max Mustermann'], ["2", "3", "4"] ],
+            'InvSingleFieldExactMatchCaseInsensitive' => [ ['!%name' => 'Max Mustermann'], ["2", "3"] ],
+            'InvSingleFieldExactMatchFromSet' => [ ['!name' => ['Max Mustermann', 'John Doe']], ["3", "4"] ],
+            'SingleFieldMatchNull' => [ ['firstname' => null], ["2", "3"] ],
+            'SingleFieldMatchNotNull' => [ ['!firstname' => null], ["1", "4", "5"] ],
+            // 0 is not a valid ID, but it should result in an empty result set, not all rows
+            'SimpleIDMatch' => [ '0', [] ],
+            'StartsWithMatch' => [ [ '%name' => 'JANE%' ], ["3"] ],
+            'ContainsMatch' => [ [ '%email' => '%@doe.%' ], ["2", "3"] ],
+            'EndsWithMatch' => [ [ '%email' => '%.com' ], ["2", "3"] ],
+            'TwoFieldMatch' => [ [ '%name' => '%doe', '!surname' => null, 'uri' => 'uri2' ], ["2"] ],
+        ];
+    }
+
+    /**
+     * Tests get() operation with various conditions.
+     *
+     * @param DbConditions $conditions
+     * @param list<string> $expCuids
+     *
+     * @dataProvider getConditionsProvider
+     */
+    public function testDatabaseGetSelectReturnsExpectedRows($conditions, array $expCuids): void
     {
         $db = self::$db;
-        $records = $db->get([]);
+        $records = $db->get($conditions);
         $records = TestInfrastructure::xformDatabaseResultToRowList(self::COMPARE_COLS, $records, false);
         $records = TestInfrastructure::sortRowList($records);
 
-        $expRecords = TestInfrastructure::sortRowList(self::$rows);
-        $this->assertEquals($expRecords, $records);
+        $expRows = self::selectRows($expCuids);
+        $this->assertEquals($expRows, $records);
+    }
+
+    /**
+     * @return array<string, array{DbConditions, string}>
+     */
+    public function invalidConditionsProvider(): array
+    {
+        return [
+            // IN query with empty value set
+            'InNoValues' => [ [ 'name' => []], 'empty values array' ],
+            // NOT IN query with empty value set
+            'NotInNoValues' => [ [ '!name' => []], 'empty values array' ],
+            // IN query with ILIKE match
+            'InLikeMatch' => [ [ '%name' => ["foo"]], 'ILIKE match only supported for single pattern' ],
+        ];
+    }
+
+    /**
+     * Tests get() with various invalid conditions parameters.
+     *
+     * An exception is expected for these cases.
+     *
+     * @param DbConditions $conditions
+     * @param string $expExMsg Part of the expected exception message
+     *
+     * @dataProvider invalidConditionsProvider
+     */
+    public function testDatabaseGetExceptionOnInvalidConditions($conditions, string $expExMsg): void
+    {
+        $db = self::$db;
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage($expExMsg);
+
+        $db->get($conditions);
+    }
+
+    /**
+     * Tests a get() operation with two alternative (OR) conditions.
+     */
+    public function testDatabaseGetWithTwoOrConditionsReturnsExpectedRows(): void
+    {
+        $db = self::$db;
+        // Two OR conditions
+        $johnOrJane = new DbAndCondition();
+        $johnOrJane->add('%name', 'jane%');
+        $johnOrJane->add('%name', 'john%');
+
+        $records = $db->get([$johnOrJane]);
+        $records = TestInfrastructure::xformDatabaseResultToRowList(self::COMPARE_COLS, $records, false);
+        $records = TestInfrastructure::sortRowList($records);
+
+        $expRows = self::selectRows(["2", "3"]);
+        $this->assertEquals($expRows, $records);
+    }
+
+    /**
+     * Tests a get() operation with a list of two AndConditions already constructed by the caller.
+     *
+     * It also tests the functions of DbAndCondition related to adding conditions to an existing DbAndCondition.
+     */
+    public function testDatabaseGetWithTwoAndConditionsReturnsExpectedRows(): void
+    {
+        $db = self::$db;
+
+        // Two OR conditions
+        $johnOrJane = new DbAndCondition();
+        $johnOrJane->add('%name', 'jane%');
+        $johnOrJane->add('%name', 'john%');
+
+        // Check that append filters duplicates
+        $johnOrCond = new DbOrCondition('%name', 'john%');
+        $john = new DbAndCondition($johnOrCond);
+        $john->add('uri', 'uri2');
+        $johnOrJane->append($john);
+        $this->assertCount(3, $johnOrJane->orConditions, "Equal OrCondition appended again");
+
+        $records = $db->get([$johnOrJane, $john]);
+        $records = TestInfrastructure::xformDatabaseResultToRowList(self::COMPARE_COLS, $records, false);
+        $records = TestInfrastructure::sortRowList($records);
+
+        $expRows = self::selectRows(["2"]);
+        $this->assertEquals($expRows, $records);
     }
 
     /**
@@ -313,6 +429,27 @@ final class DatabaseTest extends TestCase
         }
 
         TestInfrastructure::logger()->expectMessage('error', $expErrMsg);
+    }
+
+    /**
+     * Select a subset of rows from self::$rows selected by cuid.
+     *
+     * @param list<string> $rowCuids A list of cuid fields to select the rows by.
+     * @return list<list<?string>> The rows, alphabetically sorted.
+     */
+    private static function selectRows(array $rowCuids): array
+    {
+        $cuidIdx = array_search('cuid', self::COMPARE_COLS);
+        TestCase::assertIsInt($cuidIdx);
+
+        $rows = [];
+        foreach (self::$rows as $r) {
+            if (in_array($r[$cuidIdx], $rowCuids)) {
+                $rows[] = $r;
+            }
+        }
+        TestCase::assertCount(count($rowCuids), $rows, "rowCuids references unknown cuids: " . join(",", $rowCuids));
+        return TestInfrastructure::sortRowList($rows);
     }
 
     /**
