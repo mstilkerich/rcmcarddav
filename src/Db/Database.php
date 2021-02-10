@@ -366,6 +366,11 @@ class Database extends AbstractDatabase
         if (!isset($ret)) {
             throw new \Exception("Single-row query ({$sql_result->queryString}) without result/with error");
         }
+
+        if ($this->retrieveRow($sql_result)) {
+            throw new \Exception("Single-row query ({$sql_result->queryString}) with multiple results");
+        }
+
         return $ret;
     }
 
