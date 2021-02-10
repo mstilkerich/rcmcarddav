@@ -114,7 +114,7 @@ class Database extends AbstractDatabase
             $this->inTransaction = false;
             if ($dbh->rollbackTransaction() === false) {
                 $logger->error("Database::rollbackTransaction ERROR: " . $dbh->is_error());
-                throw new \Exception($dbh->is_error());
+                throw new DatabaseException($dbh->is_error());
             }
 
             $this->resetTransactionSettings();
