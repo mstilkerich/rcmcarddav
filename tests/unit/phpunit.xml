@@ -11,7 +11,7 @@
         </testsuite>
     </testsuites>
 
-    <coverage processUncoveredFiles="true" pathCoverage="true">
+    <coverage processUncoveredFiles="true" pathCoverage="false">
         <include>
             <file>../../carddav.php</file>
             <directory suffix=".php">../../src</directory>
