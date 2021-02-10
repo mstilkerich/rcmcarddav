@@ -685,7 +685,7 @@ class carddav extends rcube_plugin
                 if (is_bool($v)) {
                     $qv[] = $v ? '1' : '0';
                 } else {
-                    $qv[] = (string) $pa[$f];
+                    $qv[] = (string) $v;
                 }
             }
         }
