@@ -57,6 +57,7 @@ class Database extends AbstractDatabase
             // the SET TRANSACTION command.
             $level = $readonly ? 'REPEATABLE READ' : 'SERIALIZABLE';
             $mode  = $readonly ? "READ ONLY" : "READ WRITE";
+            $afterStartQuery = null;
 
             switch ($dbh->db_provider) {
                 case "mysql":
@@ -67,6 +68,9 @@ class Database extends AbstractDatabase
                     break;
                 case "postgres":
                     $ret = $dbh->query("SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL $level, $mode");
+                    // reset to default transaction settings after starting the transaction for future transactions
+                    $afterStartQuery =
+                        "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE";
                     break;
                 default:
                     $logger->critical("Unsupported database backend: " . $dbh->db_provider);
@@ -75,6 +79,10 @@ class Database extends AbstractDatabase
 
             if ($ret !== false) {
                 $ret = $dbh->startTransaction();
+            }
+
+            if ($ret !== false && isset($afterStartQuery)) {
+                $ret = $dbh->query($afterStartQuery);
             }
 
             if ($ret === false) {
@@ -98,8 +106,6 @@ class Database extends AbstractDatabase
                 $logger->error("Database::endTransaction ERROR: " . $dbh->is_error());
                 throw new DatabaseException($dbh->is_error());
             }
-
-            $this->resetTransactionSettings();
         } else {
             throw new \Exception("Attempt to commit a transaction while not within a transaction");
         }
@@ -116,36 +122,11 @@ class Database extends AbstractDatabase
                 $logger->error("Database::rollbackTransaction ERROR: " . $dbh->is_error());
                 throw new DatabaseException($dbh->is_error());
             }
-
-            $this->resetTransactionSettings();
         } else {
             // not throwing an exception here facilitates usage of the interface at caller side. The caller
             // can issue rollback without having to keep track whether an error occurred before/after a
             // transaction was started/ended.
             $logger->notice("Ignored request to rollback a transaction while not within a transaction");
-        }
-    }
-
-    /**
-     * Resets database transaction settings to defaults that should apply to autocommit transactions.
-     */
-    private function resetTransactionSettings(): void
-    {
-        $logger = $this->logger;
-        $dbh = $this->dbHandle;
-        switch ($dbh->db_provider) {
-            case "postgres":
-                $ret = $dbh->query(
-                    "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE"
-                );
-                break;
-            default:
-                return;
-        }
-
-        // reset default session characteristics to read/write for autocommit single-statement transactions
-        if ($ret === false) {
-            $logger->warning(__METHOD__ . " ERROR: " . $dbh->is_error());
         }
     }
 
