@@ -7,6 +7,7 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\DatabaseException;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\DbAndCondition;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\DbOrCondition;
@@ -123,6 +124,35 @@ final class DatabaseTest extends TestCase
         $records = TestInfrastructure::xformDatabaseResultToRowList(self::COMPARE_COLS, $records, false);
         $records = TestInfrastructure::sortRowList($records);
 
+        $expRows = self::selectRows($expCuids);
+        $this->assertEquals($expRows, $records);
+    }
+
+    /**
+     * Tests lookup() operation.
+     *
+     * @param DbConditions $conditions
+     * @param list<string> $expCuids
+     *
+     * @dataProvider getConditionsProvider
+     */
+    public function testDatabaseLookupReturnsExpectedRowOrError($conditions, array $expCuids): void
+    {
+        $db = self::$db;
+
+        if (count($expCuids) != 1) {
+            $this->expectException(\Exception::class);
+
+            if (count($expCuids) == 0) {
+                $this->expectExceptionMessage("without result/with error");
+            } else {
+                $this->expectExceptionMessage("with multiple results");
+            }
+        }
+
+        $row = $db->lookup($conditions);
+        $this->assertCount(1, $expCuids);
+        $records = TestInfrastructure::xformDatabaseResultToRowList(self::COMPARE_COLS, [$row], false);
         $expRows = self::selectRows($expCuids);
         $this->assertEquals($expRows, $records);
     }
@@ -388,6 +418,9 @@ final class DatabaseTest extends TestCase
         TestCase::assertEquals($recsOrig, $recsAfter, "Rows after rollback differ from original ones");
     }
 
+    /**
+     * Tests that an exception is thrown on attempt to start a nested transaction.
+     */
     public function testExceptionOnNestedTransactionBegin(): void
     {
         $db = self::$db;
@@ -398,6 +431,143 @@ final class DatabaseTest extends TestCase
         $db->startTransaction(false);
     }
 
+    /**
+     * Tests that an exception is thrown on attempt to start a nested transaction.
+    public function testExceptionOnNestedTransactionBeginDirect(): void
+    {
+        $dbh = TestInfrastructureDB::getDbHandle();
+        $dbh->startTransaction();
+
+        // now try to start another transaction
+        $this->expectException(DatabaseException::class);
+        $dbh->startTransaction();
+    }
+     */
+
+    public static function errStartTransaction(Database $db): void
+    {
+        $db->startTransaction();
+    }
+
+    public static function errEndTransaction(Database $db): void
+    {
+        $inTaProp = new \ReflectionProperty(Database::class, 'inTransaction');
+        $inTaProp->setAccessible(true);
+        $inTaProp->setValue($db, true);
+        $db->endTransaction();
+    }
+
+    public static function errRollbackTransaction(Database $db): void
+    {
+        $inTaProp = new \ReflectionProperty(Database::class, 'inTransaction');
+        $inTaProp->setAccessible(true);
+        $inTaProp->setValue($db, true);
+        $db->rollbackTransaction();
+    }
+
+    public static function errDelete(Database $db): void
+    {
+        $db->delete('notexist', 'notexist');
+    }
+
+    public static function errUpdate(Database $db): void
+    {
+        $db->update('notexist', ['notexist'], ['notexist'], 'notexist');
+    }
+
+    public static function errInsert(Database $db): void
+    {
+        $db->insert('notexist', ['notexist'], [['notexist']]);
+    }
+
+    /**
+     * @return array<string, array{callable(Database):void}>
+     */
+    public function connectToDbErrFuncProvider(): array
+    {
+        $tests = [
+            'StartTransaction' => [ [self::class, 'errStartTransaction'] ],
+            'EndTransaction' => [ [self::class, 'errEndTransaction'] ],
+            'RollbackTransaction' => [ [self::class, 'errRollbackTransaction'] ],
+            'Insert' => [ [self::class, 'errInsert'] ],
+            'Update' => [ [self::class, 'errUpdate'] ],
+            'Delete' => [ [self::class, 'errDelete'] ],
+        ];
+
+        return $tests;
+    }
+
+    /**
+     * @param callable(Database):void $errFunc
+     * @dataProvider connectToDbErrFuncProvider
+     */
+    public function testExceptionOnFailureToConnectToDb($errFunc): void
+    {
+        if ($GLOBALS["TEST_DBTYPE"] == "sqlite3") {
+            $dbh = \rcube_db::factory("sqlite:///" . __DIR__ . "/../../testreports/does/not/doesNotExist.db");
+            $expErrMsg = 'doesNotExist.db';
+        } elseif ($GLOBALS["TEST_DBTYPE"] == "postgres") {
+            $dbh = \rcube_db::factory("pgsql://a@unix(" . __DIR__ . "/../../testreports/does/not/doesNotExist)/db");
+            $expErrMsg = 'doesNotExist';
+        } elseif ($GLOBALS["TEST_DBTYPE"] == "mysql") {
+            $dbh = \rcube_db::factory("mysql://a@unix(" . __DIR__ . "/../../testreports/does/not/doesNotExist)/db");
+            $expErrMsg = 'No such file or directory';
+        } else {
+            $this->fail("unsupported DB");
+        }
+
+        $db = new Database(TestInfrastructure::logger(), $dbh);
+
+        try {
+            call_user_func($errFunc, $db);
+            $this->assertFalse(true, "Exception expected to be thrown");
+        } catch (DatabaseException $e) {
+            $this->assertStringContainsString($expErrMsg, $e->getMessage());
+        }
+        TestInfrastructure::logger()->expectMessage('error', $expErrMsg);
+    }
+
+    /**
+     * @return array<string, array{callable(Database):void}>
+     */
+    public function connectToDbUnsuppDbProvider(): array
+    {
+        $tests = [
+            'StartTransaction' => [ [self::class, 'errStartTransaction'] ],
+            'CheckMigrations' => [ [self::class, 'unsuppDbCheckMigrations'] ],
+        ];
+
+        return $tests;
+    }
+
+    public static function unsuppDbCheckMigrations(Database $db): void
+    {
+        $scriptdir = __DIR__ . "/../../dbmigrations";
+        $db->checkMigrations("", $scriptdir);
+    }
+
+    /**
+     * Tests that an error message is logged when using an unsupported DBMS.
+     *
+     * We only support MySQL, Postgres and SQLite3. For most operations, this does not matter, but some require
+     * DBMS-specific SQL. These operations are expected log log an error message, which is verified by this test.
+     *
+     * @param callable(Database):void $errFunc
+     * @dataProvider connectToDbUnsuppDbProvider
+     */
+    public function testErrorMessageOnUnsupportedDbProvider($errFunc): void
+    {
+        //$dbh = \rcube_db::factory("oracle://scott/tiger@//localhost:59999/oracle");
+        $dbh = \rcube_db::factory("oracle://a@unix(" . __DIR__ . "/../../testreports/does/not/doesNotExist)/db");
+        $db = new Database(TestInfrastructure::logger(), $dbh);
+
+        call_user_func($errFunc, $db);
+        TestInfrastructure::logger()->expectMessage('critical', 'Unsupported database backend');
+    }
+
+    /**
+     * Tests that an exception is thrown on attempt to commit while no transaction was started.
+     */
     public function testExceptionOnCommitOutsideTransaction(): void
     {
         $db = self::$db;
@@ -406,6 +576,10 @@ final class DatabaseTest extends TestCase
         $db->endTransaction();
     }
 
+    /**
+     * For DBMS supporting read-only transactions, test that an exception is thrown when attempting to modify data
+     * during a read-only transaction.
+     */
     public function testExceptionOnInsertDuringReadonlyTransaction(): void
     {
         TestCase::assertIsString($GLOBALS["TEST_DBTYPE"]);
