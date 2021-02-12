@@ -129,6 +129,30 @@ final class DatabaseTest extends TestCase
     }
 
     /**
+     * Tests that Database::get() returns the selected columns (only).
+     */
+    public function testDatabaseGetSelectReturnsExpectedColumns(): void
+    {
+        $db = self::$db;
+
+        // special case '*' - all columns
+        $records = $db->get([], '*');
+        $records = TestInfrastructure::xformDatabaseResultToRowList(self::COMPARE_COLS, $records, false);
+        $records = TestInfrastructure::sortRowList($records);
+        $this->assertEquals($records, TestInfrastructure::sortRowList(self::$rows));
+
+        // selection of columns
+        $records = $db->get([], 'name, firstname, email');
+        $records = TestInfrastructure::xformDatabaseResultToRowList(['name', 'firstname', 'email'], $records, true);
+        $records = TestInfrastructure::sortRowList($records);
+
+        $expRows = TestInfrastructure::arrayColumns(self::COMPARE_COLS, ['name', 'firstname', 'email'], self::$rows);
+        $expRows = TestInfrastructure::sortRowList($expRows);
+
+        $this->assertEquals($expRows, $records);
+    }
+
+    /**
      * Tests lookup() operation.
      *
      * @param DbConditions $conditions

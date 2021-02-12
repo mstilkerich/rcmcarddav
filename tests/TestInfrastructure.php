@@ -73,7 +73,7 @@ final class TestInfrastructure
      *
      * @param list<string> $cols The list of columns that defines fields and their order in the result rows.
      * @param list<array<string,?string>> $assocRows The associative row set where column names are keys.
-     * @param bool $extraIsError If true, an assertion is done on that the associative rows contain now extra fields
+     * @param bool $extraIsError If true, an assertion is done on that the associative rows contain no extra fields
      *                           that are not listed in $cols. If false, such fields will be discarded.
      * @return list<list<?string>>
      */
@@ -94,6 +94,35 @@ final class TestInfrastructure
             if ($extraIsError) {
                 TestCase::assertEmpty($aRow, "Associative row has fields not listed in cols");
             }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Extracts specific columns from a set of data rows.
+     *
+     * @param list<string> $cols Gives the columns of each row in $rows by name. Indexes correspond to row indexes.
+     * @param list<string> $neededCols Gives the columns names to extract. Resulting rows will have the columns at
+     *     matching indexes.
+     * @param list<list<?string>> $rows The data rows
+     * @return list<list<?string>> The data rows with only the extracted columns
+     */
+    public static function arrayColumns(array $cols, array $neededCols, array $rows): array
+    {
+        $col2Index = array_flip($cols);
+
+        $result = [];
+        foreach ($rows as $row) {
+            TestCase::assertCount(count($cols), $row, "Input data row has mismatching columns to input columns");
+            $resultRow = [];
+
+            foreach ($neededCols as $col) {
+                TestCase::assertArrayHasKey($col, $col2Index);
+                $resultRow[] = $row[$col2Index[$col]];
+            }
+
+            $result[] = $resultRow;
         }
 
         return $result;
