@@ -78,7 +78,7 @@ class carddav extends rcube_plugin
         'vendor' => 'Michael Stilkerich, Benjamin Schieder',
         'version' => self::PLUGIN_VERSION,
         'license' => 'GPL-2.0',
-        'uri' => 'https://github.com/blind-coder/rcmcarddav/'
+        'uri' => 'https://github.com/mstilkerich/rcmcarddav/'
     ];
 
     /** @var list<PasswordStoreScheme> List of supported password store schemes */
