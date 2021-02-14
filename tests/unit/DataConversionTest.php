@@ -6,27 +6,52 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
 
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
+use PHasher;
+use rcube_cache;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\{TestInfrastructure,TestLogger};
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 use MStilkerich\CardDavClient\{Account,AddressbookCollection};
 use MStilkerich\CardDavAddressbook4Roundcube\{DataConversion,DelayedPhotoLoader};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
-use PHasher;
 
 /**
  * @psalm-import-type SaveData from DataConversion
  */
 final class DataConversionTest extends TestCase
 {
+    /** @var rcube_cache & MockObject */
+    private $cache;
+
+    /** @var Database & MockObject */
+    private $db;
+
+    /** @var AddressbookCollection */
+    private $abook;
+
     public static function setUpBeforeClass(): void
     {
-        TestInfrastructure::init();
         $_SESSION['user_id'] = 105;
     }
 
     public function setUp(): void
     {
+        $abook = $this->createStub(AddressbookCollection::class);
+        $abook->method('downloadResource')->will($this->returnCallback(function (string $uri): array {
+            if (preg_match(',^http://localhost/(.+),', $uri, $matches) && isset($matches[1])) {
+                $filename = "tests/unit/data/srv/$matches[1]";
+                $this->assertFileIsReadable($filename);
+                return [ 'body' => file_get_contents($filename) ];
+            }
+            throw new \Exception("URI $uri not known to stub");
+        }));
+        $this->abook = $abook;
+
+        $this->db = $this->createMock(Database::class);
+        $this->cache = $this->createMock(\rcube_cache::class);
+
+        TestInfrastructure::init($this->db);
+        TestInfrastructure::$infra->setCache($this->cache);
     }
 
     public function tearDown(): void
@@ -75,12 +100,10 @@ final class DataConversionTest extends TestCase
     public function testCorrectConversionOfVcardToRoundcube(string $vcfFile, string $jsonFile): void
     {
         $logger = TestInfrastructure::logger();
-        [ $db, $cache, $abook ] = $this->initStubs();
-
-        $dc = new DataConversion("42", $db, $cache, $logger);
+        $dc = new DataConversion("42");
         $vcard = TestInfrastructure::readVCard($vcfFile);
         $saveDataExp = $this->readSaveDataFromJson($jsonFile);
-        $saveData = $dc->toRoundcube($vcard, $abook);
+        $saveData = $dc->toRoundcube($vcard, $this->abook);
         self::compareSaveData($saveDataExp, $saveData, "Converted VCard does not result in expected roundcube data");
         $this->assertPhotoDownloadWarning($logger, $vcfFile);
     }
@@ -90,8 +113,7 @@ final class DataConversionTest extends TestCase
      */
     public function testNewCustomLabelIsInsertedToDatabase(): void
     {
-        $logger = TestInfrastructure::logger();
-        [ $db, $cache, $abook ] = $this->initStubs();
+        $db = $this->db;
 
         $db->expects($this->once())
             ->method("get")
@@ -110,9 +132,9 @@ final class DataConversionTest extends TestCase
             )
             ->will($this->returnValue("49"));
 
-        $dc = new DataConversion("42", $db, $cache, $logger);
+        $dc = new DataConversion("42");
         $vcard = TestInfrastructure::readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
-        $dc->toRoundcube($vcard, $abook);
+        $dc->toRoundcube($vcard, $this->abook);
     }
 
     /**
@@ -120,9 +142,7 @@ final class DataConversionTest extends TestCase
      */
     public function testKnownCustomLabelPresentedToRoundcube(): void
     {
-        $logger = TestInfrastructure::logger();
-        [ $db, $cache ] = $this->initStubs();
-
+        $db = $this->db;
         $db->expects($this->once())
             ->method("get")
             ->with(
@@ -132,7 +152,7 @@ final class DataConversionTest extends TestCase
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
 
-        $dc = new DataConversion("42", $db, $cache, $logger);
+        $dc = new DataConversion("42");
         $coltypes = $dc->getColtypes();
         $this->assertTrue(isset($coltypes["email"]["subtypes"]));
         $this->assertContains("SpecialLabel", $coltypes["email"]["subtypes"], "SpecialLabel not contained in coltypes");
@@ -143,8 +163,7 @@ final class DataConversionTest extends TestCase
      */
     public function testKnownCustomLabelIsNotInsertedToDatabase(): void
     {
-        $logger = TestInfrastructure::logger();
-        [ $db, $cache, $abook ] = $this->initStubs();
+        $db = $this->db;
 
         $db->expects($this->once())
             ->method("get")
@@ -157,9 +176,9 @@ final class DataConversionTest extends TestCase
         $db->expects($this->never())
             ->method("insert");
 
-        $dc = new DataConversion("42", $db, $cache, $logger);
+        $dc = new DataConversion("42");
         $vcard = TestInfrastructure::readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
-        $dc->toRoundcube($vcard, $abook);
+        $dc->toRoundcube($vcard, $this->abook);
     }
 
     /**
@@ -177,9 +196,7 @@ final class DataConversionTest extends TestCase
      */
     public function testCorrectCreationOfVcardFromRoundcube(string $vcfFile, string $jsonFile): void
     {
-        $logger = TestInfrastructure::logger();
-        [ $db, $cache ] = $this->initStubs();
-
+        $db = $this->db;
         $db->expects($this->once())
             ->method("get")
             ->with(
@@ -192,7 +209,7 @@ final class DataConversionTest extends TestCase
                 ["typename" => "phone", "subtype" => "0"],
                 ["typename" => "website", "subtype" => "0"]
             ]));
-        $dc = new DataConversion("42", $db, $cache, $logger);
+        $dc = new DataConversion("42");
         $vcardExpected = TestInfrastructure::readVCard($vcfFile);
         $saveData = $this->readSaveDataFromJson($jsonFile);
         $result = $dc->fromRoundcube($saveData);
@@ -208,8 +225,7 @@ final class DataConversionTest extends TestCase
     public function testErroneousAttributesInSaveDataAreIgnored(): void
     {
         $logger = TestInfrastructure::logger();
-        [ $db, $cache ] = $this->initStubs();
-
+        $db = $this->db;
         $db->expects($this->once())
             ->method("get")
             ->with(
@@ -218,7 +234,7 @@ final class DataConversionTest extends TestCase
                 $this->equalTo('xsubtypes')
             )
             ->will($this->returnValue([]));
-        $dc = new DataConversion("42", $db, $cache, $logger);
+        $dc = new DataConversion("42");
         $vcardExpected = TestInfrastructure::readVCard('tests/unit/data/singleTest/Errors.vcf');
         $saveData = $this->readSaveDataFromJson('tests/unit/data/singleTest/Errors.json');
         $result = $dc->fromRoundcube($saveData);
@@ -244,9 +260,7 @@ final class DataConversionTest extends TestCase
      */
     public function testCorrectUpdateOfVcardFromRoundcube(string $vcfFile, string $jsonFile): void
     {
-        $logger = TestInfrastructure::logger();
-        [ $db, $cache ] = $this->initStubs();
-
+        $db = $this->db;
         $db->expects($this->once())
             ->method("get")
             ->with(
@@ -259,7 +273,7 @@ final class DataConversionTest extends TestCase
                 ["typename" => "email", "subtype" => "SpecialLabel2"]
             ]));
 
-        $dc = new DataConversion("42", $db, $cache, $logger);
+        $dc = new DataConversion("42");
         $vcardOriginal = TestInfrastructure::readVCard($vcfFile);
         $vcardExpected = TestInfrastructure::readVCard("$vcfFile.new");
         $saveData = $this->readSaveDataFromJson($jsonFile);
@@ -289,7 +303,7 @@ final class DataConversionTest extends TestCase
     public function testNewPhotoIsStoredToCacheIfNeeded(string $basename, bool $getExp, bool $storeExp): void
     {
         $logger = TestInfrastructure::logger();
-        [ $db, $cache, $abook ] = $this->initStubs();
+        $cache = $this->cache;
 
         $vcard = TestInfrastructure::readVCard("$basename.vcf");
         $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
@@ -330,8 +344,8 @@ final class DataConversionTest extends TestCase
             $cache->expects($this->never())->method("set");
         }
 
-        $dc = new DataConversion("42", $db, $cache, $logger);
-        $saveData = $dc->toRoundcube($vcard, $abook);
+        $dc = new DataConversion("42");
+        $saveData = $dc->toRoundcube($vcard, $this->abook);
         $this->assertTrue(isset($saveData['photo']));
         $this->assertTrue(isset($saveDataExpected["photo"]));
         $this->assertIsString($saveDataExpected["photo"]);
@@ -347,8 +361,7 @@ final class DataConversionTest extends TestCase
      */
     public function testPhotoIsUsedFromCacheIfAvailable(string $basename, bool $getExp, bool $storeExp): void
     {
-        $logger = TestInfrastructure::logger();
-        [ $db, $cache, $abook ] = $this->initStubs();
+        $cache = $this->cache;
 
         // we use this file as some placeholder for cached data that is not used in any of the vcards photos
         $cachedPhotoData = file_get_contents("tests/unit/data/srv/pixel.jpg");
@@ -378,8 +391,8 @@ final class DataConversionTest extends TestCase
         // no cache update expected
         $cache->expects($this->never())->method("set");
 
-        $dc = new DataConversion("42", $db, $cache, $logger);
-        $saveData = $dc->toRoundcube($vcard, $abook);
+        $dc = new DataConversion("42");
+        $saveData = $dc->toRoundcube($vcard, $this->abook);
 
         $this->assertTrue(isset($saveData['photo']));
         if ($getExp) {
@@ -399,7 +412,7 @@ final class DataConversionTest extends TestCase
     public function testOutdatedPhotoIsReplacedInCache(string $basename, bool $getExp, bool $storeExp): void
     {
         $logger = TestInfrastructure::logger();
-        [ $db, $cache, $abook ] = $this->initStubs();
+        $cache = $this->cache;
 
         // we use this file as some placeholder for cached data that is not used in any of the vcards photos
         $cachedPhotoData = file_get_contents("tests/unit/data/srv/pixel.jpg");
@@ -454,8 +467,8 @@ final class DataConversionTest extends TestCase
             $cache->expects($this->never())->method("set");
         }
 
-        $dc = new DataConversion("42", $db, $cache, $logger);
-        $saveData = $dc->toRoundcube($vcard, $abook);
+        $dc = new DataConversion("42");
+        $saveData = $dc->toRoundcube($vcard, $this->abook);
         $this->assertTrue(isset($saveData['photo']));
         $this->assertTrue(isset($saveDataExpected["photo"]));
         $this->assertIsString($saveDataExpected["photo"]);
@@ -469,13 +482,10 @@ final class DataConversionTest extends TestCase
      */
     public function testPhotoloaderHandlesVcardWithoutPhotoProperty(): void
     {
-        $logger = TestInfrastructure::logger();
-        [ , $cache, $abook ] = $this->initStubs();
-
         $vcard = TestInfrastructure::readVCard("tests/unit/data/vcardImport/AllAttr.vcf");
         $this->assertNull($vcard->PHOTO);
 
-        $proxy = new DelayedPhotoLoader($vcard, $abook, $cache, $logger);
+        $proxy = new DelayedPhotoLoader($vcard, $this->abook);
         $this->assertEquals("", $proxy);
     }
 
@@ -484,9 +494,7 @@ final class DataConversionTest extends TestCase
      */
     public function testSinglevalueAttributesReportedAsSuch(): void
     {
-        $logger = TestInfrastructure::logger();
-        [ $db, $cache, $_abook ] = $this->initStubs();
-        $dc = new DataConversion("42", $db, $cache, $logger);
+        $dc = new DataConversion("42");
 
         $knownSingle  = ['name', 'firstname', 'surname', 'middlename', 'prefix', 'suffix', 'nickname', 'jobtitle',
             'organization', 'department', 'assistant', 'manager', 'gender', 'maidenname', 'spouse', 'birthday',
@@ -502,9 +510,7 @@ final class DataConversionTest extends TestCase
      */
     public function testMultivalueAttributesReportedAsSuch(): void
     {
-        $logger = TestInfrastructure::logger();
-        [ $db, $cache, $_abook ] = $this->initStubs();
-        $dc = new DataConversion("42", $db, $cache, $logger);
+        $dc = new DataConversion("42");
 
         $knownMulti  = ['email', 'phone', 'address', 'website', 'im'];
 
@@ -518,32 +524,10 @@ final class DataConversionTest extends TestCase
      */
     public function testExceptionWhenAskedForTypeOfUnknownAttribute(): void
     {
-        $logger = TestInfrastructure::logger();
-        [ $db, $cache, $_abook ] = $this->initStubs();
-        $dc = new DataConversion("42", $db, $cache, $logger);
+        $dc = new DataConversion("42");
 
         $this->expectExceptionMessage('not a known roundcube contact property');
         $dc->isMultivalueProperty("unknown");
-    }
-
-    /**
-     * @return array{0: Database & MockObject, 1: \rcube_cache & MockObject, 2: AddressbookCollection}
-     */
-    private function initStubs(): array
-    {
-        $abook = $this->createStub(AddressbookCollection::class);
-        $abook->method('downloadResource')->will($this->returnCallback(function (string $uri): array {
-            if (preg_match(',^http://localhost/(.+),', $uri, $matches) && isset($matches[1])) {
-                $filename = "tests/unit/data/srv/$matches[1]";
-                $this->assertFileIsReadable($filename);
-                return [ 'body' => file_get_contents($filename) ];
-            }
-            throw new \Exception("URI $uri not known to stub");
-        }));
-        $db = $this->createMock(Database::class);
-        $cache = $this->createMock(\rcube_cache::class);
-
-        return [ $db, $cache, $abook ];
     }
 
     /**

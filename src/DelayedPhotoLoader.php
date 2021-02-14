@@ -42,23 +42,14 @@ class DelayedPhotoLoader
     /** @var AddressbookCollection $davAbook Access to the CardDAV addressbook */
     private $davAbook;
 
-    /** @var \rcube_cache $cache */
-    private $cache;
-
-    /** @var LoggerInterface $logger */
-    private $logger;
-
     public function __construct(
         VCard $vcard,
-        AddressbookCollection $davAbook,
-        \rcube_cache $cache,
-        LoggerInterface $logger
+        AddressbookCollection $davAbook
     ) {
         $this->vcard = $vcard;
         $this->davAbook = $davAbook;
-        $this->cache = $cache;
-        $this->logger = $logger;
 
+        $logger = Config::inst()->logger();
         $logger->debug("Wrapping photo");
     }
 
@@ -70,7 +61,8 @@ class DelayedPhotoLoader
      */
     public function __toString(): string
     {
-        $this->logger->debug("Unwrapping photo");
+        $logger = Config::inst()->logger();
+        $logger->debug("Unwrapping photo");
         return $this->computePhotoFromProperty();
     }
 
@@ -89,7 +81,8 @@ class DelayedPhotoLoader
             return "";
         }
 
-        $this->logger->debug("Creating photo data from PHOTO property");
+        $logger = Config::inst()->logger();
+        $logger->debug("Creating photo data from PHOTO property");
 
         // First we determine whether the photo needs processing (download/crop)
         $cropProp = $photoProp['X-ABCROP-RECTANGLE'];
@@ -136,12 +129,13 @@ class DelayedPhotoLoader
 
     private function downloadPhoto(string $uri): ?string
     {
+        $logger = Config::inst()->logger();
         try {
-            $this->logger->debug("downloadPhoto: Attempt to download photo from $uri");
+            $logger->debug("downloadPhoto: Attempt to download photo from $uri");
             $response = $this->davAbook->downloadResource($uri);
             return $response['body'];
         } catch (\Exception $e) {
-            $this->logger->warning("downloadPhoto: Attempt to download photo from $uri failed: $e");
+            $logger->warning("downloadPhoto: Attempt to download photo from $uri failed: $e");
         }
 
         return null;
@@ -157,22 +151,26 @@ class DelayedPhotoLoader
      */
     private function fetchFromRoundcubeCache(VObject\Property $photoProp): ?string
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $cache = $infra->cache();
+
         $key = $this->determineCacheKey();
         /** @var ?PhotoCacheObject $cacheObject */
-        $cacheObject = $this->cache->get($key);
+        $cacheObject = $cache->get($key);
 
         if (!isset($cacheObject)) {
-            $this->logger->debug("Roundcube cache miss $key");
+            $logger->debug("Roundcube cache miss $key");
             return null;
         }
 
         if (md5($photoProp->serialize()) !== $cacheObject["photoPropMd5"]) {
-            $this->logger->debug("Roundcube cached photo outdated - removing $key");
-            $this->cache->remove($key);
+            $logger->debug("Roundcube cached photo outdated - removing $key");
+            $cache->remove($key);
             return null;
         }
 
-        $this->logger->debug("Roundcube cache hit $key");
+        $logger->debug("Roundcube cache hit $key");
         return $cacheObject["photo"];
     }
 
@@ -184,6 +182,10 @@ class DelayedPhotoLoader
      */
     private function storeToRoundcubeCache(string $photoData, VObject\Property $photoProp): void
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $cache = $infra->cache();
+
         $photoPropMd5 = md5($photoProp->serialize());
         $cacheObject = [
             'photoPropMd5' => $photoPropMd5,
@@ -191,8 +193,8 @@ class DelayedPhotoLoader
         ];
 
         $key = $this->determineCacheKey();
-        $this->logger->debug("Storing to roundcube cache $key");
-        $this->cache->set($key, $cacheObject);
+        $logger->debug("Storing to roundcube cache $key");
+        $cache->set($key, $cacheObject);
     }
 
     /**

@@ -7,24 +7,29 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube;
 use PHPUnit\Framework\TestCase;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 final class TestInfrastructure
 {
-    /** @var ?TestLogger Logger object used to store log messages produced during the tests */
+    /** @var Config */
+    public static $infra;
+
+    /** @var ?TestLogger */
     private static $logger;
 
-    public static function init(): void
+    public static function init(AbstractDatabase $db): void
     {
-        if (!isset(self::$logger)) {
-            self::$logger = new TestLogger();
-        }
+        self::$infra = new Config($db, self::logger());
+        \MStilkerich\CardDavAddressbook4Roundcube\Config::$inst = self::$infra;
     }
 
     public static function logger(): TestLogger
     {
-        $logger = self::$logger;
-        TestCase::assertNotNull($logger, "Call init() before asking for logger");
-        return $logger;
+        if (!isset(self::$logger)) {
+            self::$logger = new TestLogger();
+        }
+
+        return self::$logger;
     }
 
     public static function readJsonArray(string $jsonFile): array

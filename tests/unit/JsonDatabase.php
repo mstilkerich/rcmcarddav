@@ -102,7 +102,7 @@ class JsonDatabase extends AbstractDatabase
      *
      * @param string $dataFile Path to a JSON file containing the row definitions.
      */
-    private function importData(string $dataFile): void
+    public function importData(string $dataFile): void
     {
         $data = TestInfrastructure::readJsonArray($dataFile);
 

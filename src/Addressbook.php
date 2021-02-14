@@ -43,15 +43,6 @@ class Addressbook extends rcube_addressbook
     /** @var string SEPARATOR Separator character used by roundcube to encode multiple values in a single string. */
     private const SEPARATOR = ',';
 
-    /** @var AbstractDatabase $db Database access object */
-    private $db;
-
-    /** @var \rcube_cache $cache */
-    private $cache;
-
-    /** @var LoggerInterface $logger Log object */
-    private $logger;
-
     /** @var ?AddressbookCollection $davAbook the DAV AddressbookCollection Object */
     private $davAbook = null;
 
@@ -90,18 +81,11 @@ class Addressbook extends rcube_addressbook
      */
     public function __construct(
         string $dbid,
-        AbstractDatabase $db,
-        \rcube_cache $cache,
-        LoggerInterface $logger,
         array $config,
         bool $readonly,
         array $requiredProps
     ) {
-        $this->logger = $logger;
         $this->config = $config;
-        $this->db = $db;
-        $this->cache = $cache;
-
         $this->primary_key = 'id';
         $this->groups   = true;
         $this->readonly = $readonly;
@@ -109,7 +93,7 @@ class Addressbook extends rcube_addressbook
         $this->requiredProps = $requiredProps;
         $this->id       = $dbid;
 
-        $this->dataConverter = new DataConversion($dbid, $db, $cache, $logger);
+        $this->dataConverter = new DataConversion($dbid);
         $this->coltypes = $this->dataConverter->getColtypes();
 
         $this->ready = true;
@@ -200,7 +184,8 @@ class Addressbook extends rcube_addressbook
                 }
             }
         } catch (\Exception $e) {
-            $this->logger->error(__METHOD__ . " exception: " . $e->getMessage());
+            $logger = Config::inst()->logger();
+            $logger->error(__METHOD__ . " exception: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
         }
 
@@ -253,13 +238,14 @@ class Addressbook extends rcube_addressbook
      */
     public function search($fields, $value, $mode = 0, $select = true, $nocount = false, $required = [])
     {
+        $logger = Config::inst()->logger();
         $mode = intval($mode);
 
         if (!is_array($required)) {
             $required = empty($required) ? [] : [$required];
         }
 
-        $this->logger->debug(
+        $logger->debug(
             "search("
             . "FIELDS=[" . (is_array($fields) ? implode(", ", $fields) : $fields) . "], "
             . "VAL=" . (is_array($value) ? "[" . implode(", ", $value) . "]" : $value) . ", "
@@ -331,15 +317,17 @@ class Addressbook extends rcube_addressbook
      */
     public function count(): rcube_result_set
     {
+        $logger = Config::inst()->logger();
+
         try {
             if ($this->total_cards < 0) {
                 $this->doCount();
             }
 
-            $this->logger->debug("count() => {$this->total_cards}");
+            $logger->debug("count() => {$this->total_cards}");
             return new rcube_result_set($this->total_cards, ($this->list_page - 1) * $this->page_size);
         } catch (\Exception $e) {
-            $this->logger->error(__METHOD__ . " exception: " . $e->getMessage());
+            $logger->error(__METHOD__ . " exception: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
             return new rcube_result_set(0, 0);
         }
@@ -367,10 +355,13 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_record($id, $assoc = false)
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+
         try {
+            $db = $infra->db();
             $id = (string) $id;
-            $this->logger->debug("get_record($id, $assoc)");
-            $db = $this->db;
+            $logger->debug("get_record($id, $assoc)");
 
             $davAbook = $this->getCardDavObj();
             /** @var array{vcard: string} $contact */
@@ -384,7 +375,7 @@ class Addressbook extends rcube_addressbook
 
             return $assoc ? $save_data : $this->result;
         } catch (\Exception $e) {
-            $this->logger->error("Could not get contact $id: " . $e->getMessage());
+            $logger->error("Could not get contact $id: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
             if ($assoc) {
                 /** @var SaveData $ret Psalm does not consider the empty array a subtype */
@@ -426,10 +417,13 @@ class Addressbook extends rcube_addressbook
      */
     public function insert($save_data, $check = false)
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+
         /** @var SaveData $save_data */
         try {
-            $this->logger->info("insert(" . ($save_data["name"] ?? "no name") . ", $check)");
-            $db = $this->db;
+            $logger->info("insert(" . ($save_data["name"] ?? "no name") . ", $check)");
+            $db = $infra->db();
 
             $vcard = $this->dataConverter->fromRoundcube($save_data);
 
@@ -470,11 +464,14 @@ class Addressbook extends rcube_addressbook
      */
     public function update($id, $save_cols)
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+
         $id = (string) $id;
         /** @var SaveData $save_cols */
         try {
-            $this->logger->info("update(" . ($save_cols["name"] ?? "no name") . ", ID=$id)");
-            $db = $this->db;
+            $logger->info("update(" . ($save_cols["name"] ?? "no name") . ", ID=$id)");
+            $db = $infra->db();
 
             /**
              * get current DB data
@@ -495,7 +492,7 @@ class Addressbook extends rcube_addressbook
             return true;
         } catch (\Exception $e) {
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
-            $this->logger->error("Failed to update contact $id: " . $e->getMessage());
+            $logger->error("Failed to update contact $id: " . $e->getMessage());
             return false;
         }
     }
@@ -510,10 +507,13 @@ class Addressbook extends rcube_addressbook
      */
     public function delete($ids, $force = true): int
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
+
         /** @var list<string> $ids */
         $deleted = 0;
-        $this->logger->info("delete([" . implode(",", $ids) . "])");
-        $db = $this->db;
+        $logger->info("delete([" . implode(",", $ids) . "])");
 
         try {
             $davAbook = $this->getCardDavObj();
@@ -555,7 +555,7 @@ class Addressbook extends rcube_addressbook
             $this->resync();
         } catch (\Exception $e) {
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
-            $this->logger->error("Failed to delete contacts [" . implode(",", $ids) . "]:" . $e->getMessage());
+            $logger->error("Failed to delete contacts [" . implode(",", $ids) . "]:" . $e->getMessage());
             $db->rollbackTransaction();
         }
 
@@ -570,9 +570,12 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function delete_all($with_groups = false): void
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+
         try {
-            $this->logger->info("delete_all($with_groups)");
-            $db = $this->db;
+            $db = $infra->db();
+            $logger->info("delete_all($with_groups)");
             $davAbook = $this->getCardDavObj();
             $abook_id = $this->id;
 
@@ -608,7 +611,7 @@ class Addressbook extends rcube_addressbook
             // CATEGORIES-type groups are still inside the DB - remove if requested
             $db->delete(["abook_id" => $abook_id], "groups");
         } catch (\Exception $e) {
-            $this->logger->error("delete_all: " . $e->getMessage());
+            $logger->error("delete_all: " . $e->getMessage());
             $this->set_error(self::ERROR_SAVING, $e->getMessage());
         }
     }
@@ -621,18 +624,21 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function set_group($gid): void
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+
         try {
-            $this->logger->debug("set_group($gid)");
+            $logger->debug("set_group($gid)");
 
             if ($gid) {
-                $db = $this->db;
+                $db = $infra->db();
                 // check for valid ID with the database - this throws an exception if the group cannot be found
                 $db->lookup(["id" => $gid, "abook_id" => $this->id], "id", "groups");
             }
 
             $this->group_id = $gid;
         } catch (\Exception $e) {
-            $this->logger->error("set_group($gid): " . $e->getMessage());
+            $logger->error("set_group($gid): " . $e->getMessage());
         }
     }
 
@@ -647,9 +653,12 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function list_groups($search = null, $mode = 0): array
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+
         try {
-            $this->logger->debug("list_groups(" . ($search ?? 'null') . ", $mode)");
-            $db = $this->db;
+            $logger->debug("list_groups(" . ($search ?? 'null') . ", $mode)");
+            $db = $infra->db();
 
             $conditions = ["abook_id" => $this->id];
             if ($search !== null) {
@@ -682,7 +691,7 @@ class Addressbook extends rcube_addressbook
 
             return $groups;
         } catch (\Exception $e) {
-            $this->logger->error(__METHOD__ . "(" . ($search ?? 'null') . ", $mode) exception: " . $e->getMessage());
+            $logger->error(__METHOD__ . "(" . ($search ?? 'null') . ", $mode) exception: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
             return [];
         }
@@ -698,16 +707,19 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_group($group_id): array
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+
         try {
-            $this->logger->debug("get_group($group_id)");
-            $db = $this->db;
+            $logger->debug("get_group($group_id)");
+            $db = $infra->db();
 
             // As of 1.4.6, roundcube is interested in name and email properties of a group,
             // i. e. if the group as a distribution list had an email address of its own. Otherwise, it will fall back
             // to getting the individual members' addresses
             $result = $db->lookup(["id" => $group_id, "abook_id" => $this->id], 'id,name', 'groups');
         } catch (\Exception $e) {
-            $this->logger->error("get_group($group_id): " . $e->getMessage());
+            $logger->error("get_group($group_id): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
             return [];
         }
@@ -725,9 +737,13 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function create_group($name)
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+
         try {
-            $this->logger->info("create_group($name)");
-            $db = $this->db;
+            $logger->info("create_group($name)");
+            $db = $infra->db();
+
             $save_data = [ 'name' => $name, 'kind' => 'group' ];
 
             if ($this->config['use_categories']) {
@@ -743,7 +759,7 @@ class Addressbook extends rcube_addressbook
                 return $db->lookup(['cuid' => (string) $vcard->UID], 'id,name', 'groups');
             }
         } catch (\Exception $e) {
-            $this->logger->error("create_group($name): " . $e->getMessage());
+            $logger->error("create_group($name): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
         }
 
@@ -760,9 +776,12 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function delete_group($group_id): bool
     {
-        $db = $this->db;
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
+
         try {
-            $this->logger->info("delete_group($group_id)");
+            $logger->info("delete_group($group_id)");
             $davAbook = $this->getCardDavObj();
 
             $db->startTransaction(false);
@@ -794,7 +813,7 @@ class Addressbook extends rcube_addressbook
 
             return true;
         } catch (\Exception $e) {
-            $this->logger->error("delete_group($group_id): " . $e->getMessage());
+            $logger->error("delete_group($group_id): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
 
             $db->rollbackTransaction();
@@ -815,9 +834,12 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function rename_group($group_id, $newname, &$newid)
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+
         try {
-            $this->logger->info("rename_group($group_id, $newname)");
-            $db = $this->db;
+            $logger->info("rename_group($group_id, $newname)");
+            $db = $infra->db();
             $davAbook = $this->getCardDavObj();
             /** @var array{uri: ?string, name: string, etag: ?string, vcard: ?string} $group */
             $group = $db->lookup(["id" => $group_id, "abook_id" => $this->id], 'uri,name,etag,vcard', 'groups');
@@ -851,7 +873,7 @@ class Addressbook extends rcube_addressbook
             $this->resync();
             return $newname;
         } catch (\Exception $e) {
-            $this->logger->error("rename_group($group_id, $newname): " . $e->getMessage());
+            $logger->error("rename_group($group_id, $newname): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
         }
 
@@ -871,7 +893,10 @@ class Addressbook extends rcube_addressbook
     {
         /** @var list<string>|string $ids */
         $added = 0;
-        $db = $this->db;
+
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
 
         try {
             $davAbook = $this->getCardDavObj();
@@ -904,7 +929,7 @@ class Addressbook extends rcube_addressbook
                         $vcard->add('X-ADDRESSBOOKSERVER-MEMBER', "urn:uuid:" . $contact['cuid']);
                         ++$added;
                     } catch (\Exception $e) {
-                        $this->logger->warning("add_to_group: Contact with ID {$contact['cuid']} not found in DB");
+                        $logger->warning("add_to_group: Contact with ID {$contact['cuid']} not found in DB");
                     }
                 }
 
@@ -918,14 +943,14 @@ class Addressbook extends rcube_addressbook
                 $this->adjustContactCategories(
                     $ids, // unfiltered ids allowed in adjustContactCategories()
                     /** @param list<string> $groups */
-                    function (array &$groups, string $contact_id) use ($groupname, &$added): bool {
+                    function (array &$groups, string $contact_id) use ($logger, $groupname, &$added): bool {
                         /** @var int $added */
                         if (self::stringsAddRemove($groups, [ $groupname ])) {
-                            $this->logger->debug("Adding contact $contact_id to category $groupname");
+                            $logger->debug("Adding contact $contact_id to category $groupname");
                             ++$added;
                             return true;
                         } else {
-                            $this->logger->debug("Contact $contact_id already belongs to category $groupname");
+                            $logger->debug("Contact $contact_id already belongs to category $groupname");
                         }
                         return false;
                     }
@@ -935,7 +960,7 @@ class Addressbook extends rcube_addressbook
 
             $this->resync();
         } catch (\Exception $e) {
-            $this->logger->error("add_to_group: " . $e->getMessage());
+            $logger->error("add_to_group: " . $e->getMessage());
             $this->set_error(self::ERROR_SAVING, $e->getMessage());
 
             $db->rollbackTransaction();
@@ -957,13 +982,15 @@ class Addressbook extends rcube_addressbook
     {
         /** @var list<string>|string $ids */
         $deleted = 0;
-        $db = $this->db;
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
 
         try {
             if (!is_array($ids)) {
                 $ids = explode(self::SEPARATOR, $ids);
             }
-            $this->logger->info("remove_from_group($group_id, [" . implode(",", $ids) . "])");
+            $logger->info("remove_from_group($group_id, [" . implode(",", $ids) . "])");
 
             $db->startTransaction();
 
@@ -990,14 +1017,14 @@ class Addressbook extends rcube_addressbook
                 $this->adjustContactCategories(
                     $ids, // unfiltered ids allowed in adjustContactCategories()
                     /** @param list<string> $groups */
-                    function (array &$groups, string $contact_id) use ($groupname, &$deleted): bool {
+                    function (array &$groups, string $contact_id) use ($logger, $groupname, &$deleted): bool {
                         /** @var int $deleted */
                         if (self::stringsAddRemove($groups, [], [$groupname])) {
-                            $this->logger->debug("Removing contact $contact_id from category $groupname");
+                            $logger->debug("Removing contact $contact_id from category $groupname");
                             ++$deleted;
                             return true;
                         } else {
-                            $this->logger->debug("Contact $contact_id not a member category $groupname - skipped");
+                            $logger->debug("Contact $contact_id not a member category $groupname - skipped");
                         }
                         return false;
                     }
@@ -1007,7 +1034,7 @@ class Addressbook extends rcube_addressbook
 
             $this->resync();
         } catch (\Exception $e) {
-            $this->logger->error("remove_from_group: " . $e->getMessage());
+            $logger->error("remove_from_group: " . $e->getMessage());
             $this->set_error(self::ERROR_SAVING, $e->getMessage());
 
             $db->rollbackTransaction();
@@ -1027,9 +1054,12 @@ class Addressbook extends rcube_addressbook
     public function get_record_groups($id): array
     {
         $id = (string) $id;
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
+
         try {
-            $this->logger->debug("get_record_groups($id)");
-            $db = $this->db;
+            $logger->debug("get_record_groups($id)");
             /** @var list<string> $groupIds */
             $groupIds = array_column($db->get(['contact_id' => $id], 'group_id', 'group_user'), 'group_id');
             if (empty($groupIds)) {
@@ -1045,7 +1075,7 @@ class Addressbook extends rcube_addressbook
 
             return $groups;
         } catch (\Exception $e) {
-            $this->logger->error("get_record_groups($id): " . $e->getMessage());
+            $logger->error("get_record_groups($id): " . $e->getMessage());
             $this->set_error(self::ERROR_SEARCH, $e->getMessage());
             return [];
         }
@@ -1078,13 +1108,15 @@ class Addressbook extends rcube_addressbook
      */
     public function resync(): int
     {
-        $db = $this->db;
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
         $duration = -1;
 
         try {
             $start_refresh = time();
             $davAbook = $this->getCardDavObj();
-            $synchandler = new SyncHandlerRoundcube($this, $db, $this->logger, $this->dataConverter, $davAbook);
+            $synchandler = new SyncHandlerRoundcube($this, $this->dataConverter, $davAbook);
             $syncmgr = new Sync();
 
             $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token']);
@@ -1098,13 +1130,13 @@ class Addressbook extends rcube_addressbook
             );
 
             $duration = time() - $start_refresh;
-            $this->logger->info("sync of addressbook {$this->id} ({$this->get_name()}) took $duration seconds");
+            $logger->info("sync of addressbook {$this->id} ({$this->get_name()}) took $duration seconds");
 
             if ($synchandler->hadErrors) {
                 $this->set_error(rcube_addressbook::ERROR_SAVING, "Non-fatal errors occurred during sync");
             }
         } catch (\Exception $e) {
-            $this->logger->error("Errors occurred during the refresh of addressbook " . $this->id . ": $e");
+            $logger->error("Errors occurred during the refresh of addressbook " . $this->id . ": $e");
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
 
             $db->rollbackTransaction();
@@ -1174,6 +1206,10 @@ class Addressbook extends rcube_addressbook
      */
     private function listRecordsReadDB(?array $cols, int $subset, rcube_result_set $result): int
     {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
+
         // determine result subset needed
         $firstrow = ($subset >= 0) ?
             $result->first : ($result->first + $this->page_size + $subset);
@@ -1195,13 +1231,13 @@ class Addressbook extends rcube_addressbook
             $sort_column = "!$sort_column";
         }
 
-        $this->logger->debug("listRecordsReadDB $dbattr [$firstrow, $numrows] ORD($sort_column)");
+        $logger->debug("listRecordsReadDB $dbattr [$firstrow, $numrows] ORD($sort_column)");
 
         $conditions = $this->currentFilterConditions();
 
         if (isset($conditions)) {
             /** @var list<array{id: numeric-string, name: string, vcard?: string} & array<string,?string>> $contacts */
-            $contacts = $this->db->get(
+            $contacts = $db->get(
                 $conditions,
                 "id,name,$dbattr",
                 'contacts',
@@ -1226,7 +1262,7 @@ class Addressbook extends rcube_addressbook
                     $davAbook = $this->getCardDavObj();
                     $save_data = $dc->toRoundcube($vcard, $davAbook);
                 } catch (\Exception $e) {
-                    $this->logger->warning("Couldn't parse vcard $vcf");
+                    $logger->warning("Couldn't parse vcard $vcf");
                     continue;
                 }
             } elseif (isset($cols)) { // NOTE always true at this point, but difficult to know for psalm
@@ -1366,7 +1402,8 @@ class Addressbook extends rcube_addressbook
             $conditions = $this->currentFilterConditions();
 
             if (isset($conditions)) {
-                [$result] = $this->db->get($conditions, '*', 'contacts', [ 'count' => true ]);
+                $db = Config::inst()->db();
+                [$result] = $db->get($conditions, '*', 'contacts', [ 'count' => true ]);
                 $this->total_cards = intval($result['*']);
             } else {
                 $this->total_cards = 0;
@@ -1456,7 +1493,8 @@ class Addressbook extends rcube_addressbook
      */
     private function getContactIdsForGroup(string $groupid): array
     {
-        $db = $this->db;
+        $infra = Config::inst();
+        $db = $infra->db();
         /** @var list<array{contact_id: numeric-string}> */
         $records = $db->get(['group_id' => $groupid], 'contact_id', 'group_user');
         return array_column($records, "contact_id");
@@ -1479,7 +1517,8 @@ class Addressbook extends rcube_addressbook
     private function adjustContactCategories(array $contact_ids, callable $callback): void
     {
         $davAbook = $this->getCardDavObj();
-        $db = $this->db;
+        $infra = Config::inst();
+        $db = $infra->db();
 
         /** @var list<array{id: numeric-string, etag: string, uri: string, vcard: string}> $contacts */
         $contacts = $db->get(["id" => $contact_ids, "abook_id" => $this->id], "id,etag,uri,vcard", "contacts");
@@ -1525,9 +1564,11 @@ class Addressbook extends rcube_addressbook
 
         // TODO Better if we could handle this without a separate SQL query here, but requires join or subquery
         if ($this->group_id) {
+            $infra = Config::inst();
+            $db = $infra->db();
             /** @var list<numeric-string> $contactsInGroup */
             $contactsInGroup = array_column(
-                $this->db->get(['group_id' => (string) $this->group_id], 'contact_id', 'group_user'),
+                $db->get(['group_id' => (string) $this->group_id], 'contact_id', 'group_user'),
                 'contact_id'
             );
 

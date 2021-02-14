@@ -197,15 +197,6 @@ class DataConversion
     /** @var string $abookId Database ID of the Addressbook this converter is associated with */
     private $abookId;
 
-    /** @var LoggerInterface $logger */
-    private $logger;
-
-    /** @var AbstractDatabase The database object to use for DB access */
-    private $db;
-
-    /** @var \rcube_cache $cache */
-    private $cache;
-
     /**
      * Constructs a data conversion instance.
      *
@@ -217,16 +208,10 @@ class DataConversion
      * dependencies are injected with the constructor to allow for testing of this class using stub versions.
      *
      * @param string $abookId The database ID of the addressbook the data conversion object is bound to.
-     * @param AbstractDatabase $db The database object.
-     * @param \rcube_cache $cache The roundcube cache object.
-     * @param LoggerInterface $logger The logger object.
      */
-    public function __construct(string $abookId, AbstractDatabase $db, \rcube_cache $cache, LoggerInterface $logger)
+    public function __construct(string $abookId)
     {
         $this->abookId = $abookId;
-        $this->db = $db;
-        $this->cache = $cache;
-        $this->logger = $logger;
 
         $this->addextrasubtypes();
     }
@@ -289,7 +274,7 @@ class DataConversion
 
         // Set a proxy for photo computation / retrieval on demand
         if (key_exists('photo', $save_data) && isset($vcard->PHOTO)) {
-            $save_data["photo"] = new DelayedPhotoLoader($vcard, $davAbook, $this->cache, $this->logger);
+            $save_data["photo"] = new DelayedPhotoLoader($vcard, $davAbook);
         }
 
         $property = $vcard->N;
@@ -529,10 +514,12 @@ class DataConversion
      */
     private function setSingleValueProperties(array $save_data, VCard $vcard): void
     {
+        $logger = Config::inst()->logger();
+
         foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
             if (isset($save_data[$rckey])) {
                 if (!is_string($save_data[$rckey])) {
-                    $this->logger->error("save data $rckey must be string" . print_r($save_data[$rckey], true));
+                    $logger->error("save data $rckey must be string" . print_r($save_data[$rckey], true));
                     continue;
                 }
 
@@ -966,7 +953,8 @@ class DataConversion
      */
     private function storeextrasubtype(string $typename, string $subtype): void
     {
-        $this->db->insert("xsubtypes", ["typename", "subtype", "abook_id"], [[$typename, $subtype, $this->abookId]]);
+        $db = Config::inst()->db();
+        $db->insert("xsubtypes", ["typename", "subtype", "abook_id"], [[$typename, $subtype, $this->abookId]]);
         $this->coltypes[$typename]['subtypes'][] = $subtype;
         $this->xlabels[$typename][] = $subtype;
     }
@@ -980,6 +968,7 @@ class DataConversion
      */
     private function addextrasubtypes(): void
     {
+        $db = Config::inst()->db();
         $this->xlabels = [];
 
         foreach ($this->coltypes as $attr => $v) {
@@ -989,7 +978,7 @@ class DataConversion
         }
 
         /** @var list<array{typename: string, subtype: string}> read extra subtypes */
-        $xtypes = $this->db->get(['abook_id' => $this->abookId], 'typename,subtype', 'xsubtypes');
+        $xtypes = $db->get(['abook_id' => $this->abookId], 'typename,subtype', 'xsubtypes');
 
         foreach ($xtypes as $row) {
             [ "typename" => $attr, "subtype" => $subtype ] = $row;

@@ -43,14 +43,18 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  */
 final class SyncHandlerRoundcubeTest extends TestCase
 {
+    /** @var JsonDatabase */
+    private $db;
+
     public static function setUpBeforeClass(): void
     {
-        TestInfrastructure::init();
         $_SESSION['user_id'] = 105;
     }
 
     public function setUp(): void
     {
+        $this->db = new JsonDatabase();
+        TestInfrastructure::init($this->db);
     }
 
     public function tearDown(): void
@@ -63,11 +67,9 @@ final class SyncHandlerRoundcubeTest extends TestCase
      */
     public function testSyncHandlerProvidesExistingCacheStateEmpty(): void
     {
-        $db = new JsonDatabase();
-        $logger = TestInfrastructure::logger();
-        [ $dc, $abook, $rcAbook ] = $this->initStubs($db);
+        [ $dc, $abook, $rcAbook ] = $this->initStubs();
 
-        $synch = new SyncHandlerRoundcube($rcAbook, $db, $logger, $dc, $abook);
+        $synch = new SyncHandlerRoundcube($rcAbook, $dc, $abook);
 
         $cache = $synch->getExistingVCardETags();
         $this->assertCount(0, $cache);
@@ -78,11 +80,12 @@ final class SyncHandlerRoundcubeTest extends TestCase
      */
     public function testSyncHandlerProvidesExistingCacheState(): void
     {
-        $db = new JsonDatabase(['tests/unit/data/syncHandlerTest/initial/db.json']);
-        $logger = TestInfrastructure::logger();
-        [ $dc, $abook, $rcAbook ] = $this->initStubs($db);
+        $db = $this->db;
+        $db->importData('tests/unit/data/syncHandlerTest/initial/db.json');
 
-        $synch = new SyncHandlerRoundcube($rcAbook, $db, $logger, $dc, $abook);
+        [ $dc, $abook, $rcAbook ] = $this->initStubs();
+
+        $synch = new SyncHandlerRoundcube($rcAbook, $dc, $abook);
 
         $cache = $synch->getExistingVCardETags();
 
@@ -135,11 +138,12 @@ final class SyncHandlerRoundcubeTest extends TestCase
      */
     private function initialSyncTestHelper(array $vcfFiles): void
     {
-        $db = new JsonDatabase(['tests/unit/data/syncHandlerTest/initialdb.json']);
+        $db = $this->db;
+        $db->importData('tests/unit/data/syncHandlerTest/initialdb.json');
         $logger = TestInfrastructure::logger();
-        [ $dc, $abook, $rcAbook ] = $this->initStubs($db);
+        [ $dc, $abook, $rcAbook ] = $this->initStubs();
 
-        $synch = new SyncHandlerRoundcube($rcAbook, $db, $logger, $dc, $abook);
+        $synch = new SyncHandlerRoundcube($rcAbook, $dc, $abook);
 
         // Report all VCards of the test DB as changed
         foreach ($vcfFiles as $vcfFile) {
@@ -178,9 +182,9 @@ final class SyncHandlerRoundcubeTest extends TestCase
      */
     public function testFollowupSync1(): void
     {
-        $db = new JsonDatabase(['tests/unit/data/syncHandlerTest/initial/db.json']);
-        $logger = TestInfrastructure::logger();
-        [ $dc, $abook, $rcAbook ] = $this->initStubs($db);
+        $db = $this->db;
+        $db->importData('tests/unit/data/syncHandlerTest/initial/db.json');
+        [ $dc, $abook, $rcAbook ] = $this->initStubs();
 
         $vcfFiles = (glob("tests/unit/data/syncHandlerTest/increment1/*.vcf"));
         $this->assertIsArray($vcfFiles);
@@ -192,7 +196,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
         );
         $this->assertIsArray($deleted);
 
-        $synch = new SyncHandlerRoundcube($rcAbook, $db, $logger, $dc, $abook);
+        $synch = new SyncHandlerRoundcube($rcAbook, $dc, $abook);
 
         foreach ($deleted as $deletedCard) {
             $synch->addressObjectDeleted("/book42/$deletedCard");
@@ -230,16 +234,17 @@ final class SyncHandlerRoundcubeTest extends TestCase
     /**
      * @return array{0: DataConversion, 1: AddressbookCollection, 2: Addressbook}
      */
-    private function initStubs(AbstractDatabase $db): array
+    private function initStubs(): array
     {
-        $logger = TestInfrastructure::logger();
         $rcAbook = $this->createStub(Addressbook::class);
         $rcAbook->method('getId')->will($this->returnValue("42"));
 
         $abook = $this->createStub(AddressbookCollection::class);
-        $cache = $this->createMock(\rcube_cache::class);
 
-        $dc = new DataConversion("42", $db, $cache, $logger);
+        $cache = $this->createMock(\rcube_cache::class);
+        TestInfrastructure::$infra->setCache($cache);
+
+        $dc = new DataConversion("42");
         return [ $dc, $abook, $rcAbook ];
     }
 }

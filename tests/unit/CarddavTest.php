@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
 
+use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use carddav;
@@ -12,11 +13,12 @@ final class CarddavTest extends TestCase
 {
     public static function setUpBeforeClass(): void
     {
-        TestInfrastructure::init();
     }
 
     public function setUp(): void
     {
+        $db = $this->createMock(Database::class);
+        TestInfrastructure::init($db);
     }
 
     public function tearDown(): void

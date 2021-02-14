@@ -20,11 +20,10 @@ final class DatabaseSyncTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        TestInfrastructure::init();
-
         $dbsettings = TestInfrastructureDB::dbSettings();
         $db_dsnw = $dbsettings[0];
         self::$db = TestInfrastructureDB::initDatabase($db_dsnw);
+        TestInfrastructure::init(self::$db);
     }
 
     public function setUp(): void

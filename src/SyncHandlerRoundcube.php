@@ -58,24 +58,15 @@ class SyncHandlerRoundcube implements SyncHandler
     /** @var AddressbookCollection $davAbook */
     private $davAbook;
 
-    /** @var AbstractDatabase $db Database access object */
-    private $db;
-
-    /** @var LoggerInterface $logger Log object */
-    private $logger;
-
     public function __construct(
         Addressbook $rcAbook,
-        AbstractDatabase $db,
-        LoggerInterface $logger,
         DataConversion $dataConverter,
         AddressbookCollection $davAbook
     ) {
-        $this->logger = $logger;
-        $this->db = $db;
         $this->rcAbook = $rcAbook;
         $this->dataConverter = $dataConverter;
         $this->davAbook = $davAbook;
+        $db = Config::inst()->db();
 
         $abookId = $this->rcAbook->getId();
 
@@ -117,10 +108,12 @@ class SyncHandlerRoundcube implements SyncHandler
      */
     public function addressObjectChanged(string $uri, string $etag, ?VCard $card): void
     {
+        $logger = Config::inst()->logger();
+
         // in case a card has an error, we continue syncing the rest
         if (!isset($card)) {
             $this->hadErrors = true;
-            $this->logger->error("Card $uri changed, but error in retrieving address data (card ignored)");
+            $logger->error("Card $uri changed, but error in retrieving address data (card ignored)");
             return;
         }
 
@@ -154,8 +147,11 @@ class SyncHandlerRoundcube implements SyncHandler
      */
     public function addressObjectDeleted(string $uri): void
     {
-        $this->logger->info("Deleted card $uri");
-        $db = $this->db;
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
+
+        $logger->info("Deleted card $uri");
 
         if (isset($this->localCards[$uri]["id"])) {
             // delete contact
@@ -188,7 +184,7 @@ class SyncHandlerRoundcube implements SyncHandler
             // important: URI may be reported as deleted and then reused for new card.
             unset($this->localGrpCards[$uri]);
         } else {
-            $this->logger->notice("Server reported deleted card $uri for that no DB entry exists");
+            $logger->notice("Server reported deleted card $uri for that no DB entry exists");
         }
     }
 
@@ -218,7 +214,9 @@ class SyncHandlerRoundcube implements SyncHandler
      */
     public function finalizeSync(): void
     {
-        $db = $this->db;
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
         $abookId = $this->rcAbook->getId();
 
         // Now process all KIND=group type VCards that the server reported as changed
@@ -238,13 +236,13 @@ class SyncHandlerRoundcube implements SyncHandler
 
                 $group_ids_empty = array_diff($group_ids, $group_ids_nonempty);
                 if (!empty($group_ids_empty)) {
-                    $this->logger->info("Delete empty CATEGORIES-type groups: " . implode(",", $group_ids_empty));
+                    $logger->info("Delete empty CATEGORIES-type groups: " . implode(",", $group_ids_empty));
                     $db->delete(["id" => $group_ids_empty, "uri" => null, "abook_id" => $abookId], "groups");
                 }
                 $db->endTransaction();
             } catch (\Exception $e) {
                 $this->hadErrors = true;
-                $this->logger->error("Failed to delete emptied CATEGORIES-type groups: " . $e->getMessage());
+                $logger->error("Failed to delete emptied CATEGORIES-type groups: " . $e->getMessage());
                 $db->rollbackTransaction();
             }
         }
@@ -260,6 +258,9 @@ class SyncHandlerRoundcube implements SyncHandler
     private function getCategoryTypeGroupsForUser(VCard $card): array
     {
         $abookId = $this->rcAbook->getId();
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
 
         // Determine CATEGORIES-type group ID (and create if needed) of the user
         $categories = [];
@@ -274,7 +275,6 @@ class SyncHandlerRoundcube implements SyncHandler
             return [];
         }
 
-        $db = $this->db;
         try {
             $db->startTransaction(false);
             /** @var array<string,numeric-string> $group_ids_by_name */
@@ -299,7 +299,7 @@ class SyncHandlerRoundcube implements SyncHandler
             return array_values($group_ids_by_name);
         } catch (\Exception $e) {
             $this->hadErrors = true;
-            $this->logger->error("Failed to determine CATEGORIES-type groups for contact: " . $e->getMessage());
+            $logger->error("Failed to determine CATEGORIES-type groups for contact: " . $e->getMessage());
             $db->rollbackTransaction();
         }
 
@@ -316,10 +316,12 @@ class SyncHandlerRoundcube implements SyncHandler
     private function updateContactCard(string $uri, string $etag, VCard $card): void
     {
         $abookId = $this->rcAbook->getId();
-        $db = $this->db;
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
 
         $save_data = $this->dataConverter->toRoundcube($card, $this->davAbook);
-        $this->logger->info("Changed Individual $uri");
+        $logger->info("Changed Individual $uri");
 
         $dbid = $this->localCards[$uri]["id"] ?? null;
 
@@ -377,7 +379,7 @@ class SyncHandlerRoundcube implements SyncHandler
             $db->endTransaction();
         } catch (\Exception $e) {
             $this->hadErrors = true;
-            $this->logger->error("Failed to process changed card $uri: " . $e->getMessage());
+            $logger->error("Failed to process changed card $uri: " . $e->getMessage());
             $db->rollbackTransaction();
         }
     }
@@ -391,30 +393,32 @@ class SyncHandlerRoundcube implements SyncHandler
      */
     private function updateGroupCard(string $uri, string $etag, VCard $card): void
     {
-        $db = $this->db;
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
         $abookId = $this->rcAbook->getId();
 
         $save_data = $this->dataConverter->toRoundcube($card, $this->davAbook);
 
         $dbid = $this->localGrpCards[$uri]["id"] ?? null;
-        $this->logger->info("Changed Group $uri " . $save_data['name']);
+        $logger->info("Changed Group $uri " . $save_data['name']);
 
         // X-ADDRESSBOOKSERVER-MEMBER:urn:uuid:51A7211B-358B-4996-90AD-016D25E77A6E
         $members = $card->{'X-ADDRESSBOOKSERVER-MEMBER'} ?? [];
         $memberIds = [];
 
-        $this->logger->debug("Group $uri has " . count($members) . " members");
+        $logger->debug("Group $uri has " . count($members) . " members");
         /** @var VObject\Property $mbr */
         foreach ($members as $mbr) {
             $mbrc = explode(':', (string) $mbr);
             if (count($mbrc) != 3 || $mbrc[0] !== 'urn' || $mbrc[1] !== 'uuid') {
-                $this->logger->warning("don't know how to interpret group membership: $mbr");
+                $logger->warning("don't know how to interpret group membership: $mbr");
             } else {
                 $memberId = $this->localCardsByUID[$mbrc[2]] ?? null;
                 if (isset($memberId)) {
                     $memberIds[] = $memberId;
                 } else {
-                    $this->logger->warning("cannot find DB ID for group member: $mbrc[2]");
+                    $logger->warning("cannot find DB ID for group member: $mbrc[2]");
                 }
             }
         }
@@ -440,12 +444,12 @@ class SyncHandlerRoundcube implements SyncHandler
                     )
                 );
 
-                $this->logger->debug("Added " . count($memberIds) . " contacts to group $dbid");
+                $logger->debug("Added " . count($memberIds) . " contacts to group $dbid");
             }
             $db->endTransaction();
         } catch (\Exception $e) {
             $this->hadErrors = true;
-            $this->logger->error("Failed to update group $dbid: " . $e->getMessage());
+            $logger->error("Failed to update group $dbid: " . $e->getMessage());
             $db->rollbackTransaction();
         }
     }

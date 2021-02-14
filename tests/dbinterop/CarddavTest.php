@@ -15,18 +15,13 @@ final class CarddavTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        TestInfrastructure::init();
-
         $dbsettings = TestInfrastructureDB::dbSettings();
         $db_dsnw = $dbsettings[0];
         $db = TestInfrastructureDB::initDatabase($db_dsnw);
+        TestInfrastructure::init($db);
 
         TestData::initDatabase();
-        $logger = TestInfrastructure::logger();
-        self::$plugin = new carddav(
-            \rcube_plugin_api::get_instance(),
-            [ "logger" => $logger, "logger_http" => $logger, "db" => $db ]
-        );
+        self::$plugin = new carddav(\rcube_plugin_api::get_instance());
         self::$plugin->init();
     }
 

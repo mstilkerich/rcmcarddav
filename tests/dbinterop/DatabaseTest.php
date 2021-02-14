@@ -47,12 +47,12 @@ final class DatabaseTest extends TestCase
     {
         self::$cnt = 0;
 
-        TestInfrastructure::init();
-
         $dbsettings = TestInfrastructureDB::dbSettings();
         [, $migdb_dsnw] = $dbsettings;
         self::$migtestdb = TestInfrastructureDB::initDatabase($migdb_dsnw);
-        self::setDbHandle();
+
+        self::$db = self::setDbHandle();
+        TestInfrastructure::init(self::$db);
 
         TestData::initDatabase(true);
 
@@ -69,7 +69,8 @@ final class DatabaseTest extends TestCase
     public function setUp(): void
     {
         // set a fresh DB handle to ensure we have no open transactions from a previous test
-        self::setDbHandle();
+        self::$db = self::setDbHandle();
+        TestInfrastructure::$infra->setDb(self::$db);
     }
 
     public function tearDown(): void
@@ -78,10 +79,10 @@ final class DatabaseTest extends TestCase
         TestInfrastructure::logger()->reset();
     }
 
-    private static function setDbHandle(): void
+    private static function setDbHandle(): AbstractDatabase
     {
         $dbsettings = TestInfrastructureDB::dbSettings();
-        self::$db = TestInfrastructureDB::initDatabase($dbsettings[0]);
+        return TestInfrastructureDB::initDatabase($dbsettings[0]);
     }
 
     /**

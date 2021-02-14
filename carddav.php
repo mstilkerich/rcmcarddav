@@ -20,18 +20,13 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-use MStilkerich\CardDavClient\{Account, Config};
+use MStilkerich\CardDavClient\Account;
 use MStilkerich\CardDavClient\Services\Discovery;
 use Psr\Log\LoggerInterface;
-use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, RoundcubeLogger};
+use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config, RoundcubeLogger};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
 
 /**
- * @psalm-type CarddavOptions = array{
- *     logger?: LoggerInterface, logger_http?: LoggerInterface,
- *     db?: AbstractDatabase,
- *     cache?: rcube_cache
- * }
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
  * @psalm-type ConfigurablePresetAttribute = 'name'|'url'|'username'|'password'|'active'|'refresh_time'
  * @psalm-type Preset = array{
@@ -124,18 +119,6 @@ class carddav extends rcube_plugin
     /** @var array<string, Preset> Presets from config.inc.php */
     private $presets = [];
 
-    /** @var LoggerInterface */
-    private $logger;
-
-    /** @var LoggerInterface */
-    private $httpLogger;
-
-    /** @var AbstractDatabase */
-    private $db;
-
-    /** @var ?rcube_cache */
-    private $cache;
-
     public $task = 'addressbook|login|mail|settings';
 
     /** @var ?array<string, FullAbookRow> $abooksDb Cache of the user's addressbook DB entries.
@@ -165,7 +148,6 @@ class carddav extends rcube_plugin
      * Default constructor.
      *
      * @param rcube_plugin_api $api Plugin API
-     * @param CarddavOptions $options
      */
     public function __construct($api, array $options = [])
     {
@@ -180,28 +162,18 @@ class carddav extends rcube_plugin
         // we do not currently use the roundcube mechanism to save preferences
         // but store preferences to custom database tables
         $this->allowed_prefs = [];
-
-        $this->logger = $options["logger"] ?? new RoundcubeLogger("carddav", \Psr\Log\LogLevel::ERROR);
-        $this->httpLogger = $options["logger_http"] ?? new RoundcubeLogger("carddav_http", \Psr\Log\LogLevel::ERROR);
-
-        $rcube = \rcube::get_instance();
-        $this->db = $options["db"] ?? new Database($this->logger, $rcube->db);
-
-        if (isset($options["cache"])) {
-            $this->cache = $options["cache"];
-            // the roundcube cache object cannot be retrieved at this point
-        }
     }
 
     public function init(): void
     {
-        $logger = $this->logger;
+        $infra = Config::inst();
+        $logger = $infra->logger();
 
         try {
             $this->readAdminSettings();
 
             // initialize carddavclient library
-            Config::init($logger, $this->httpLogger);
+            MStilkerich\CardDavClient\Config::init($logger, $infra->httpLogger());
 
             $this->add_texts('localization/', false);
 
@@ -248,7 +220,9 @@ class carddav extends rcube_plugin
 
     public function checkMigrations(): void
     {
-        $logger = $this->logger;
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
 
         try {
             $logger->debug(__METHOD__);
@@ -256,7 +230,7 @@ class carddav extends rcube_plugin
             $scriptDir = dirname(__FILE__) . "/dbmigrations/";
             $config = rcube::get_instance()->config;
             $dbprefix = (string) $config->get('db_prefix', "");
-            $this->db->checkMigrations($dbprefix, $scriptDir);
+            $db->checkMigrations($dbprefix, $scriptDir);
         } catch (\Exception $e) {
             $logger->error("Error execution DB schema migrations: " . $e->getMessage());
         }
@@ -264,7 +238,7 @@ class carddav extends rcube_plugin
 
     public function initPresets(): void
     {
-        $logger = $this->logger;
+        $logger = Config::inst()->logger();
 
         try {
             $logger->debug(__METHOD__);
@@ -342,7 +316,7 @@ class carddav extends rcube_plugin
      */
     public function listAddressbooks(array $p): array
     {
-        $logger = $this->logger;
+        $logger = Config::inst()->logger();
 
         try {
             $logger->debug(__METHOD__);
@@ -378,7 +352,8 @@ class carddav extends rcube_plugin
      */
     public function getAddressbook(array $p): array
     {
-        $logger = $this->logger;
+        $infra = Config::inst();
+        $logger = $infra->logger();
 
         try {
             $logger->debug(__METHOD__ . "({$p['id']})");
@@ -402,9 +377,6 @@ class carddav extends rcube_plugin
 
                     $abook = new Addressbook(
                         $abookId,
-                        $this->db,
-                        $this->getRoundcubeCache(),
-                        $logger,
                         $config,
                         $readonly,
                         $requiredProps
@@ -435,7 +407,7 @@ class carddav extends rcube_plugin
      */
     public function buildPreferencesPage(array $args): array
     {
-        $logger = $this->logger;
+        $logger = Config::inst()->logger();
 
         try {
             $logger->debug(__METHOD__);
@@ -502,7 +474,7 @@ class carddav extends rcube_plugin
      */
     public function addPreferencesSection(array $args): array
     {
-        $logger = $this->logger;
+        $logger = Config::inst()->logger();
 
         try {
             $logger->debug(__METHOD__);
@@ -525,7 +497,7 @@ class carddav extends rcube_plugin
      */
     public function savePreferences(array $args): array
     {
-        $logger = $this->logger;
+        $logger = Config::inst()->logger();
 
         try {
             $logger->debug(__METHOD__);
@@ -691,7 +663,8 @@ class carddav extends rcube_plugin
         }
 
         if (!empty($qf)) {
-            $this->db->update($abookId, $qf, $qv, "addressbooks");
+            $db = Config::inst()->db();
+            $db->update($abookId, $qf, $qv, "addressbooks");
             $this->abooksDb = null;
         }
     }
@@ -742,7 +715,7 @@ class carddav extends rcube_plugin
 
     private function decryptPassword(string $crypt): string
     {
-        $logger = $this->logger;
+        $logger = Config::inst()->logger();
 
         if (strpos($crypt, '{ENCRYPTED}') === 0) {
             // return empty password if decruption key not available
@@ -1055,9 +1028,9 @@ class carddav extends rcube_plugin
 
     private function deleteAddressbook(string $abookId): void
     {
-        $logger = $this->logger;
-
-        $db = $this->db;
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
 
         try {
             $db->startTransaction(false);
@@ -1094,6 +1067,8 @@ class carddav extends rcube_plugin
      */
     private function insertAddressbook(array $pa): void
     {
+        $db = Config::inst()->db();
+
         // check parameters
         if (isset($pa['password'])) {
             $pa['password'] = $this->encryptPassword($pa['password']);
@@ -1131,7 +1106,7 @@ class carddav extends rcube_plugin
             }
         }
 
-        $this->db->insert("addressbooks", $qf, [$qv]);
+        $db->insert("addressbooks", $qf, [$qv]);
         $this->abooksDb = null;
     }
 
@@ -1143,6 +1118,8 @@ class carddav extends rcube_plugin
      */
     private function readAdminSettings(): void
     {
+        $logger = Config::inst()->logger();
+        $httpLogger = Config::inst()->httpLogger();
         $prefs = [];
         $configfile = dirname(__FILE__) . "/config.inc.php";
         if (file_exists($configfile)) {
@@ -1162,7 +1139,7 @@ class carddav extends rcube_plugin
         $this->forbidCustomAddressbooks = ($prefs['_GLOBAL']['fixed'] ?? false) ? true : false;
         $this->hidePreferences = ($prefs['_GLOBAL']['hide_preferences'] ?? false) ? true : false;
 
-        foreach (['loglevel' => $this->logger, 'loglevel_http' => $this->httpLogger] as $setting => $logger) {
+        foreach (['loglevel' => $logger, 'loglevel_http' => $httpLogger] as $setting => $logger) {
             if (isset($prefs['_GLOBAL'][$setting]) && is_string($prefs['_GLOBAL'][$setting])) {
                 if ($logger instanceof RoundcubeLogger) {
                     $logger->setLogLevel($prefs['_GLOBAL'][$setting]);
@@ -1178,12 +1155,12 @@ class carddav extends rcube_plugin
             }
 
             if (!is_string($presetname) || empty($presetname)) {
-                $this->logger->error("A preset key must be a non-empty string - ignoring preset!");
+                $logger->error("A preset key must be a non-empty string - ignoring preset!");
                 continue;
             }
 
             if (!is_array($preset)) {
-                $this->logger->error("A preset definition must be an array of settings - ignoring preset $presetname!");
+                $logger->error("A preset definition must be an array of settings - ignoring preset $presetname!");
                 continue;
             }
 
@@ -1196,6 +1173,8 @@ class carddav extends rcube_plugin
      */
     private function addPreset(string $presetname, array $preset): void
     {
+        $logger = Config::inst()->logger();
+
         // Resulting preset initialized with defaults
         $result = self::PRESET_TEMPLATE;
 
@@ -1207,7 +1186,7 @@ class carddav extends rcube_plugin
                         if (is_string($preset["refresh_time"])) {
                             $result["refresh_time"] = self::parseTimeParameter($preset["refresh_time"]);
                         } else {
-                            $this->logger->error("Preset $presetname: setting $attr must be time string like 01:00:00");
+                            $logger->error("Preset $presetname: setting $attr must be time string like 01:00:00");
                         }
                     }
                 } elseif (is_bool($result[$attr])) {
@@ -1215,7 +1194,7 @@ class carddav extends rcube_plugin
                         if (is_bool($preset[$attr])) {
                             $result[$attr] = $preset[$attr];
                         } else {
-                            $this->logger->error("Preset $presetname: setting $attr must be boolean");
+                            $logger->error("Preset $presetname: setting $attr must be boolean");
                         }
                     }
                 } elseif (is_array($result[$attr])) {
@@ -1233,28 +1212,8 @@ class carddav extends rcube_plugin
                 }
             }
         } catch (\Exception $e) {
-            self::$logger->error("Error in preset $presetname: " . $e->getMessage());
+            $logger->error("Error in preset $presetname: " . $e->getMessage());
         }
-    }
-
-    /**
-     * Returns a handle to the roundcube cache for the user.
-     *
-     * Note: this must be called at a time where the user is already logged on, specifically it must not be called
-     * during the constructor of this plugin.
-     */
-    private function getRoundcubeCache(): rcube_cache
-    {
-        if (!isset($this->cache)) {
-            // TODO make TTL and cache type configurable
-            $this->cache = rcube::get_instance()->get_cache("carddav", "db", "1w");
-        }
-
-        if (!isset($this->cache)) {
-            throw new \Exception("Attempt to request cache where not available yet");
-        }
-
-        return $this->cache;
     }
 
     // password helpers
@@ -1278,7 +1237,7 @@ class carddav extends rcube_plugin
     private function getAddressbooks(bool $activeOnly = true, bool $presetsOnly = false): array
     {
         if (!isset($this->abooksDb)) {
-            $db = $this->db;
+            $db = Config::inst()->db();
 
             $this->abooksDb = [];
             /** @var FullAbookRow $abookrow */
@@ -1315,7 +1274,8 @@ class carddav extends rcube_plugin
             // To avoid unneccessary work followed by roll back with other time-triggered refreshes, we temporarily
             // set the last_updated time such that the next due time will be five minutes from now
             $ts_delay = time() + 300 - $abook->getRefreshTime();
-            $this->db->update($abook->getId(), ["last_updated"], [(string) $ts_delay], "addressbooks");
+            $db = Config::inst()->db();
+            $db->update($abook->getId(), ["last_updated"], [(string) $ts_delay], "addressbooks");
             $duration = $abook->resync();
 
             $rcube = \rcube::get_instance();
@@ -1329,7 +1289,8 @@ class carddav extends rcube_plugin
                 ])
             );
         } catch (\Exception $e) {
-            $this->logger->error("Failed to sync addressbook: " . $e->getMessage());
+            $logger = Config::inst()->logger();
+            $logger->error("Failed to sync addressbook: " . $e->getMessage());
         }
     }
 }

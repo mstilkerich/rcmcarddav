@@ -19,11 +19,10 @@ final class DatabaseCollationsTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        TestInfrastructure::init();
-
         $dbsettings = TestInfrastructureDB::dbSettings();
         $db_dsnw = $dbsettings[0];
         self::$db = TestInfrastructureDB::initDatabase($db_dsnw);
+        TestInfrastructure::init(self::$db);
         TestData::initDatabase();
     }
 
