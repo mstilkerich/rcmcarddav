@@ -6,7 +6,6 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
 
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
-use PHasher;
 use rcube_cache;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\{TestInfrastructure,TestLogger};
 use PHPUnit\Framework\TestCase;
@@ -15,9 +14,6 @@ use MStilkerich\CardDavClient\{Account,AddressbookCollection};
 use MStilkerich\CardDavAddressbook4Roundcube\{DataConversion,DelayedPhotoLoader};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
 
-/**
- * @psalm-import-type SaveData from DataConversion
- */
 final class DataConversionTest extends TestCase
 {
     /** @var rcube_cache & MockObject */
@@ -37,14 +33,7 @@ final class DataConversionTest extends TestCase
     public function setUp(): void
     {
         $abook = $this->createStub(AddressbookCollection::class);
-        $abook->method('downloadResource')->will($this->returnCallback(function (string $uri): array {
-            if (preg_match(',^http://localhost/(.+),', $uri, $matches) && isset($matches[1])) {
-                $filename = "tests/unit/data/srv/$matches[1]";
-                $this->assertFileIsReadable($filename);
-                return [ 'body' => file_get_contents($filename) ];
-            }
-            throw new \Exception("URI $uri not known to stub");
-        }));
+        $abook->method('downloadResource')->will($this->returnCallback([Utils::class, 'downloadResource']));
         $this->abook = $abook;
 
         $this->db = $this->createMock(Database::class);
@@ -56,14 +45,7 @@ final class DataConversionTest extends TestCase
 
     public function tearDown(): void
     {
-        // delete temporary files from image comparison
-        $tmpimgs = glob("testreports/imgcomp_*");
-        if (!empty($tmpimgs)) {
-            foreach ($tmpimgs as $tmpimg) {
-                unlink($tmpimg);
-            }
-        }
-
+        Utils::cleanupTempImages();
         TestInfrastructure::logger()->reset();
     }
 
@@ -102,9 +84,9 @@ final class DataConversionTest extends TestCase
         $logger = TestInfrastructure::logger();
         $dc = new DataConversion("42");
         $vcard = TestInfrastructure::readVCard($vcfFile);
-        $saveDataExp = $this->readSaveDataFromJson($jsonFile);
+        $saveDataExp = Utils::readSaveDataFromJson($jsonFile);
         $saveData = $dc->toRoundcube($vcard, $this->abook);
-        self::compareSaveData($saveDataExp, $saveData, "Converted VCard does not result in expected roundcube data");
+        Utils::compareSaveData($saveDataExp, $saveData, "Converted VCard does not result in expected roundcube data");
         $this->assertPhotoDownloadWarning($logger, $vcfFile);
     }
 
@@ -211,7 +193,7 @@ final class DataConversionTest extends TestCase
             ]));
         $dc = new DataConversion("42");
         $vcardExpected = TestInfrastructure::readVCard($vcfFile);
-        $saveData = $this->readSaveDataFromJson($jsonFile);
+        $saveData = Utils::readSaveDataFromJson($jsonFile);
         $result = $dc->fromRoundcube($saveData);
 
         $this->compareVCards($vcardExpected, $result, true);
@@ -236,7 +218,7 @@ final class DataConversionTest extends TestCase
             ->will($this->returnValue([]));
         $dc = new DataConversion("42");
         $vcardExpected = TestInfrastructure::readVCard('tests/unit/data/singleTest/Errors.vcf');
-        $saveData = $this->readSaveDataFromJson('tests/unit/data/singleTest/Errors.json');
+        $saveData = Utils::readSaveDataFromJson('tests/unit/data/singleTest/Errors.json');
         $result = $dc->fromRoundcube($saveData);
 
         $this->compareVCards($vcardExpected, $result, true);
@@ -276,7 +258,7 @@ final class DataConversionTest extends TestCase
         $dc = new DataConversion("42");
         $vcardOriginal = TestInfrastructure::readVCard($vcfFile);
         $vcardExpected = TestInfrastructure::readVCard("$vcfFile.new");
-        $saveData = $this->readSaveDataFromJson($jsonFile);
+        $saveData = Utils::readSaveDataFromJson($jsonFile);
 
         $result = $dc->fromRoundcube($saveData, $vcardOriginal);
         $this->compareVCards($vcardExpected, $result, false);
@@ -309,7 +291,7 @@ final class DataConversionTest extends TestCase
         $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
 
         $key = "photo_105_" . md5((string) $vcard->UID);
-        $saveDataExpected = $this->readSaveDataFromJson("$basename.json");
+        $saveDataExpected = Utils::readSaveDataFromJson("$basename.json");
 
         // photo should be stored to cache if not already stored in vcard in the final form
         if ($getExp) {
@@ -330,7 +312,7 @@ final class DataConversionTest extends TestCase
                 $this->assertSame(md5($vcard->PHOTO->serialize()), $cacheObj['photoPropMd5']);
                 $this->assertTrue(isset($saveDataExpected["photo"]));
                 $this->assertIsString($saveDataExpected["photo"]);
-                self::comparePhoto($saveDataExpected["photo"], $cacheObj['photo']);
+                Utils::comparePhoto($saveDataExpected["photo"], $cacheObj['photo']);
                 return true;
             };
             $cache->expects($this->once())
@@ -349,7 +331,7 @@ final class DataConversionTest extends TestCase
         $this->assertTrue(isset($saveData['photo']));
         $this->assertTrue(isset($saveDataExpected["photo"]));
         $this->assertIsString($saveDataExpected["photo"]);
-        self::comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
+        Utils::comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
 
         $this->assertPhotoDownloadWarning($logger, $basename);
     }
@@ -371,7 +353,7 @@ final class DataConversionTest extends TestCase
         $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
 
         $key = "photo_105_" . md5((string) $vcard->UID);
-        $saveDataExpected = $this->readSaveDataFromJson("$basename.json");
+        $saveDataExpected = Utils::readSaveDataFromJson("$basename.json");
 
         if ($getExp) {
             // simulate cache hit
@@ -396,11 +378,11 @@ final class DataConversionTest extends TestCase
 
         $this->assertTrue(isset($saveData['photo']));
         if ($getExp) {
-            self::comparePhoto($cachedPhotoData, (string) $saveData["photo"]);
+            Utils::comparePhoto($cachedPhotoData, (string) $saveData["photo"]);
         } else {
             $this->assertTrue(isset($saveDataExpected["photo"]));
             $this->assertIsString($saveDataExpected["photo"]);
-            self::comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
+            Utils::comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
         }
     }
 
@@ -422,7 +404,7 @@ final class DataConversionTest extends TestCase
         $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
 
         $key = "photo_105_" . md5((string) $vcard->UID);
-        $saveDataExpected = $this->readSaveDataFromJson("$basename.json");
+        $saveDataExpected = Utils::readSaveDataFromJson("$basename.json");
 
         if ($getExp) {
             // simulate cache hit with non-matching md5sum
@@ -453,7 +435,7 @@ final class DataConversionTest extends TestCase
                 $this->assertSame(md5($vcard->PHOTO->serialize()), $cacheObj['photoPropMd5']);
                 $this->assertTrue(isset($saveDataExpected["photo"]));
                 $this->assertIsString($saveDataExpected["photo"]);
-                self::comparePhoto($saveDataExpected["photo"], $cacheObj['photo']);
+                Utils::comparePhoto($saveDataExpected["photo"], $cacheObj['photo']);
                 return true;
             };
             $cache->expects($this->once())
@@ -472,7 +454,7 @@ final class DataConversionTest extends TestCase
         $this->assertTrue(isset($saveData['photo']));
         $this->assertTrue(isset($saveDataExpected["photo"]));
         $this->assertIsString($saveDataExpected["photo"]);
-        self::comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
+        Utils::comparePhoto($saveDataExpected["photo"], (string) $saveData["photo"]);
 
         $this->assertPhotoDownloadWarning($logger, $basename);
     }
@@ -528,26 +510,6 @@ final class DataConversionTest extends TestCase
 
         $this->expectExceptionMessage('not a known roundcube contact property');
         $dc->isMultivalueProperty("unknown");
-    }
-
-    /**
-     * @return SaveData
-     */
-    private function readSaveDataFromJson(string $jsonFile): array
-    {
-        /** @var SaveData Assume our test samples are valid */
-        $phpArray = TestInfrastructure::readJsonArray($jsonFile);
-
-        // special handling for photo as we cannot encode binary data in json
-        if (isset($phpArray['photo'])) {
-            $this->assertIsString($phpArray['photo']);
-            $photoFile = $phpArray['photo'];
-            if (!empty($photoFile) && $photoFile[0] == '@') {
-                $photoFile = substr($photoFile, 1);
-                $phpArray['photo'] = TestInfrastructure::readFileRelative($photoFile, $jsonFile);
-            }
-        }
-        return $phpArray;
     }
 
     private function compareVCards(VCard $vcardExpected, VCard $vcardRoundcube, bool $isNew): void
@@ -634,70 +596,11 @@ final class DataConversionTest extends TestCase
 
         for ($i = 0; $i < count($exp); ++$i) {
             if ($dbgid == "Property PHOTO") {
-                self::comparePhoto((string) $exp[$i]->getValue(), (string) $rc[$i]->getValue());
+                Utils::comparePhoto((string) $exp[$i]->getValue(), (string) $rc[$i]->getValue());
             } else {
                 TestCase::assertEquals($exp[$i]->getValue(), $rc[$i]->getValue(), "Nodes $dbgid differ");
             }
         }
-    }
-
-    /**
-     * Compares two roundcube save data arrays with special handling of photo.
-     */
-    private static function compareSaveData(array $saveDataExp, array $saveDataRc, string $msg): void
-    {
-        TestCase::assertSame(isset($saveDataExp['photo']), isset($saveDataRc['photo']));
-        if (isset($saveDataExp['photo'])) {
-            TestCase::assertTrue(isset($saveDataExp["photo"]));
-            TestCase::assertIsString($saveDataExp["photo"]);
-            self::comparePhoto($saveDataExp['photo'], (string) $saveDataRc['photo']);
-            unset($saveDataExp['photo']);
-            unset($saveDataRc['photo']);
-        }
-        TestCase::assertEquals($saveDataExp, $saveDataRc, $msg);
-    }
-
-    /**
-     * Compares two photos given as binary strings.
-     *
-     * @param string $pExpStr The expected photo data
-     * @param string $pRcStr The photo data produced by the test object
-     */
-    private static function comparePhoto(string $pExpStr, string $pRcStr): void
-    {
-        TestCase::assertTrue(function_exists('gd_info'), "php-gd required");
-
-        // shortcut that also covers URI - if identical strings, save the comparison
-        if (empty($pExpStr) || empty($pRcStr) || str_contains($pExpStr, "http")) {
-            TestCase::assertSame($pExpStr, $pRcStr, "PHOTO comparison on URI value failed");
-            return;
-        }
-
-        // dimensions must be the same
-        /** @psalm-var false|array{int,int,int} */
-        $pExp = getimagesizefromstring($pExpStr);
-        TestCase::assertNotFalse($pExp, "Exp Image could not be identified");
-        /** @psalm-var false|array{int,int,int} */
-        $pRc = getimagesizefromstring($pRcStr);
-        TestCase::assertNotFalse($pRc, "RC Image could not be identified");
-
-        TestCase::assertSame($pExp[0], $pRc[0], "X dimension of PHOTO differs");
-        TestCase::assertSame($pExp[1], $pRc[1], "Y dimension of PHOTO differs");
-        TestCase::assertSame($pExp[2], $pRc[2], "Image type of PHOTO differs");
-
-        // store to temporary files for comparison
-        $expFile = tempnam("testreports", "imgcomp_") . image_type_to_extension($pExp[2]);
-        $rcFile = tempnam("testreports", "imgcomp_") . image_type_to_extension($pRc[2]);
-
-        TestCase::assertNotFalse(file_put_contents($expFile, $pExpStr), "Cannot write $expFile");
-        TestCase::assertNotFalse(file_put_contents($rcFile, $pRcStr), "Cannot write $rcFile");
-
-        // compare
-        /** @psalm-var PHasher $phasher */
-        $phasher = PHasher::Instance();
-        // similarity is returned as percentage
-        $compResult = intval($phasher->Compare($expFile, $rcFile));
-        TestCase::assertSame(100, $compResult, "Image comparison returned too little similarity $compResult%");
     }
 
     /**

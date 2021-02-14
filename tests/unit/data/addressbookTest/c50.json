@@ -1,0 +1,14 @@
+{
+	"ID": "50",
+	"cuid": "736dc919-1cce-4d9f-95ea-12a2e5322efe",
+	"name": "Eddard Stark",
+	"firstname": "Eddard",
+	"surname": "Stark",
+	"organization": "The North",
+	"department": "Winterfell",
+	"email:home": [ "ned@stark.example.com" ],
+	"email:work": [ "warden_of_the_north@stark.example.com" ],
+	"jobtitle": "Warden of the North",
+	"photo": "",
+	"kind": "individual"
+}

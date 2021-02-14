@@ -476,17 +476,13 @@ final class DatabaseTest extends TestCase
 
     public static function errEndTransaction(Database $db): void
     {
-        $inTaProp = new \ReflectionProperty(Database::class, 'inTransaction');
-        $inTaProp->setAccessible(true);
-        $inTaProp->setValue($db, true);
+        TestInfrastructure::setPrivateProperty($db, 'inTransaction', true);
         $db->endTransaction();
     }
 
     public static function errRollbackTransaction(Database $db): void
     {
-        $inTaProp = new \ReflectionProperty(Database::class, 'inTransaction');
-        $inTaProp->setAccessible(true);
-        $inTaProp->setValue($db, true);
+        TestInfrastructure::setPrivateProperty($db, 'inTransaction', true);
         $db->rollbackTransaction();
     }
 

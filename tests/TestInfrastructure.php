@@ -36,9 +36,9 @@ final class TestInfrastructure
     {
         TestCase::assertFileIsReadable($jsonFile);
         $json = file_get_contents($jsonFile);
-        TestCase::assertNotFalse($json);
+        TestCase::assertNotFalse($json, "File read error on $jsonFile");
         $phpArray = json_decode($json, true);
-        TestCase::assertTrue(is_array($phpArray));
+        TestCase::assertTrue(is_array($phpArray), "JSON parse error on $jsonFile");
 
         return $phpArray;
     }
@@ -174,6 +174,18 @@ final class TestInfrastructure
         }
 
         return $res;
+    }
+
+    /**
+     * @param object $obj
+     * @param mixed $value
+     */
+    public static function setPrivateProperty($obj, string $propName, $value): void
+    {
+        $class = get_class($obj);
+        $prop = new \ReflectionProperty($class, $propName);
+        $prop->setAccessible(true);
+        $prop->setValue($obj, $value);
     }
 }
 
