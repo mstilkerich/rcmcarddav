@@ -88,29 +88,60 @@ final class AddressbookTest extends TestCase
     }
 
     /**
+     * @return list<array{int,string,?string,int,int,list<string>}>
+     */
+    public function listRecordsDataProvider(): array
+    {
+        return [
+            // subset, sort_col, sort_order, page, pagesize, expRecords
+            [ 0, 'name', 'ASC', 1, 10, [ "56", "51", "50", "52", "53", "54" ] ],
+            [ 0, 'name', 'DESC', 1, 10, [ "54", "53", "52", "50", "51", "56" ] ],
+            [ 0, 'firstname', null, 1, 10, [ "51", "52", "53", "56", "50", "54" ] ],
+        ];
+    }
+
+    /**
      * Tests list records
      *
      * Inputs besides params: page_size, list_page, filter, group_id, sort_col, sort_order
+     *
+     * @dataProvider listRecordsDataProvider
+     * @param list<string> $expRecords
      */
-    public function testListRecordsFullAddressbook(): void
-    {
+    public function testListRecordsWithAllColumns(
+        int $subset,
+        string $sortCol,
+        ?string $sortOrder,
+        int $page,
+        int $pagesize,
+        array $expRecords
+    ): void {
         $abook = $this->createAbook();
-        $expRecords = [ "56", "51", "50", "52", "53", "54" ];
+        $abook->set_page($page);
+        $this->assertSame($page, $abook->list_page);
+        $abook->set_pagesize($pagesize);
+        $this->assertSame($pagesize, $abook->page_size);
+        $abook->set_sort_order($sortCol, $sortOrder);
+        $this->assertSame($sortCol, $abook->sort_col);
+        $this->assertSame($sortOrder ?? 'ASC', $abook->sort_order);
 
-        $rset = $abook->list_records();
+        $rset = $abook->list_records(null, $subset);
+        $this->assertNull($abook->get_error());
         $this->assertSame(0, $rset->first);
         $this->assertFalse($rset->searchonly);
         $this->assertSame(count($expRecords), $rset->count);
         $this->assertCount(count($expRecords), $rset->records);
         $this->assertCount(count($expRecords), $rset->records);
 
+        $lrOrder = array_column($rset->records, 'ID');
+        $this->assertSame($expRecords, $lrOrder, "Card order mismatch");
         for ($i = 0; $i < count($expRecords); ++$i) {
             $id = $expRecords[$i];
             $fn = "tests/unit/data/addressbookTest/c{$id}.json";
             $saveDataExp = Utils::readSaveDataFromJson($fn);
             /** @var array $saveDataRc */
             $saveDataRc = $rset->records[$i];
-            Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data");
+            Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
 
             if (isset($saveDataExp['photo']) && empty($saveDataExp['photo'])) {
                 $this->assertPhotoDownloadWarning();

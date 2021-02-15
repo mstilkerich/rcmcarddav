@@ -55,9 +55,8 @@ class Utils
      */
     public static function compareSaveData(array $saveDataExp, array $saveDataRc, string $msg): void
     {
-        TestCase::assertSame(isset($saveDataExp['photo']), isset($saveDataRc['photo']));
+        TestCase::assertSame(isset($saveDataExp['photo']), isset($saveDataRc['photo']), $msg);
         if (isset($saveDataExp['photo'])) {
-            TestCase::assertTrue(isset($saveDataExp["photo"]));
             TestCase::assertIsString($saveDataExp["photo"]);
             self::comparePhoto($saveDataExp['photo'], (string) $saveDataRc['photo']);
             unset($saveDataExp['photo']);

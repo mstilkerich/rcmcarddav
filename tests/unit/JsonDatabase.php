@@ -480,7 +480,8 @@ class JsonDatabase extends AbstractDatabase
         $columns = array_flip($columns);
         foreach ($this->data[$table] as $row) {
             if ($this->checkRowMatch($conditions, $row)) {
-                $filteredRows[] = array_intersect_key($row, $columns);
+                // append the full row to enable ordering on non-selected columns
+                $filteredRows[] = $row;
             }
         }
 
@@ -515,6 +516,11 @@ class JsonDatabase extends AbstractDatabase
                     }
                 );
             }
+        }
+
+        // Restrict to selected columns
+        foreach ($filteredRows as &$row) {
+            $row = array_intersect_key($row, $columns);
         }
 
         // COUNT
