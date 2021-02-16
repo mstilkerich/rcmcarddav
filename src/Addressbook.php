@@ -619,7 +619,7 @@ class Addressbook extends rcube_addressbook
     /**
      * Setter for the current group
      *
-     * @param string $gid Database identifier of the group. 0 to reset the group filter.
+     * @param null|0|string $gid Database identifier of the group. 0/"0"/null to reset the group filter.
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function set_group($gid): void
@@ -634,9 +634,10 @@ class Addressbook extends rcube_addressbook
                 $db = $infra->db();
                 // check for valid ID with the database - this throws an exception if the group cannot be found
                 $db->lookup(["id" => $gid, "abook_id" => $this->id], "id", "groups");
+                $this->group_id = $gid;
+            } else {
+                $this->group_id = null;
             }
-
-            $this->group_id = $gid;
         } catch (\Exception $e) {
             $logger->error("set_group($gid): " . $e->getMessage());
         }
