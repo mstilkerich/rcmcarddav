@@ -40,30 +40,28 @@ use carddav;
  */
 class Addressbook extends rcube_addressbook
 {
-    /** @var string SEPARATOR Separator character used by roundcube to encode multiple values in a single string. */
+    /** @var string Separator character used by roundcube to encode multiple values in a single string. */
     private const SEPARATOR = ',';
 
-    /** @var ?AddressbookCollection $davAbook the DAV AddressbookCollection Object */
+    /** @var ?AddressbookCollection The DAV AddressbookCollection object */
     private $davAbook = null;
 
-    /** @var DataConversion $dataConverter to convert between VCard and roundcube's representation of contacts. */
+    /** @var DataConversion Converter between VCard and roundcube's representation of contacts. */
     private $dataConverter;
 
-    /** @var string $id database ID of the addressbook */
+    /** @var string Database ID of the addressbook */
     private $id;
 
     /** @var list<DbAndCondition> An additional filter to limit contact searches */
     private $filter = [];
 
-    /** @var string[] $requiredProps A list of addressobject fields that must not be empty, otherwise the addressobject
-     *                               will be hidden.
-     */
+    /** @var list<string> A list of contact fields that must not be empty, otherwise the contact will be hidden. */
     private $requiredProps;
 
-    /** @var ?rcube_result_set $result */
+    /** @var ?rcube_result_set The result of the last count(), list_records() or search() operation */
     private $result = null;
 
-    /** @var FullAbookRow configuration of the addressbook */
+    /** @var FullAbookRow Database row of the addressbook containing its configuration */
     private $config;
 
     /** @var int total number of contacts in address book. Negative if not computed yet. */
@@ -76,8 +74,13 @@ class Addressbook extends rcube_addressbook
     private $table_cols = ['id', 'name', 'email', 'firstname', 'surname', 'organization'];
 
     /**
-     * @param FullAbookRow $config
-     * @param list<string> $requiredProps
+     * Constructs an addressbook object.
+     *
+     * @param string $dbid The addressbook's database ID
+     * @param FullAbookRow $config The database row of the addressbook
+     * @param bool $readonly If true, the addressbook is readonly and change operations are disabled.
+     * @param list<string> $requiredProps A list of address object columns that must not be empty. If any of the fields
+     *                                    is empty, the contact will be hidden.
      */
     public function __construct(
         string $dbid,
@@ -115,7 +118,14 @@ class Addressbook extends rcube_addressbook
     }
 
     /**
-     * Save a search string for future listings
+     * Sets a search filter.
+     *
+     * This affects the contact set considered when using the count() and list_records() operations to those
+     * contacts that match the filter conditions. If no search filter is set, all contacts in the addressbook are
+     * considered.
+     *
+     * This filter mechanism is applied in addition to other filter mechanisms, see the description of the count()
+     * operation.
      *
      * @param mixed $filter Search params to use in listing method, obtained by get_search_set()
      */
@@ -132,7 +142,7 @@ class Addressbook extends rcube_addressbook
     }
 
     /**
-     * Getter for saved search properties
+     * Returns the current search filter.
      *
      * @return mixed Search properties used by this class
      */
@@ -153,10 +163,27 @@ class Addressbook extends rcube_addressbook
     }
 
     /**
-     * List the current set of contact records
+     * Lists the current set of contact records.
      *
-     * @param ?array $cols   List of cols to show (null means all)
-     * @param int    $subset Only return this number of records, use negative values for tail
+     * See the description of count() for the criteria determining which contacts are considered for the listing.
+     *
+     * The actual records returned may be fewer, as only the records for the current page are returned. The returned
+     * records may be further limited by the $subset parameter, which means that only the first or last $subset records
+     * of the page are returned, depending on whether $subset is positive or negative. If $subset is 0, all records of
+     * the page are returned. The returned records are found in the $records property of the returned result set.
+     *
+     * Finally, the $first property of the returned result set contains the index into the total set of filtered records
+     * (i.e. not considering the segmentation into pages) of the first returned record.
+     *
+     * The $nocount parameter is an internal optimization that allows to skip querying the total amount of records of
+     * the filtered set, if the caller is only interested in the records. In this case, the $count property of the
+     * returned result set will simply contain the number of returned records, but the filtered set may contain more
+     * records than this.
+     *
+     * The result of the operation is internally cached for later retrieval using get_result().
+     *
+     * @param ?array $cols   List of columns to include in the returned records (null means all)
+     * @param int    $subset Only return this number of records of the current page, use negative values for tail
      * @param bool   $nocount True to skip the count query (select only)
      *
      * @return rcube_result_set Indexed list of contact records, each a hash array
@@ -192,7 +219,6 @@ class Addressbook extends rcube_addressbook
         return $this->result;
     }
 
-
     /**
      * Search contacts
      *
@@ -216,8 +242,9 @@ class Addressbook extends rcube_addressbook
      *
      * All matching is done case insensitive.
      *
-     * The search settings are remembered until reset using the reset() function. They can be retrieved using
-     * get_search_set(). The remembered search settings must be considered by list_records() and count().
+     * The search settings are remembered (see set_search_set()) until reset using the reset() function. They can be
+     * retrieved using get_search_set(). The remembered search settings must be considered by list_records() and
+     * count().
      *
      * The search mode can be set by the admin via the config.inc.php setting addressbook_search_mode, which defaults to
      * 0. It is used as a bit mask, but the search modes are mostly exclusive; from the roundcube code, I take the
@@ -227,10 +254,21 @@ class Addressbook extends rcube_addressbook
      *   bits [1..0] = 0b10: Prefix search (abc*)
      * The purpose of SEARCH_GROUPS is not clear to me and not considered.
      *
+     * When records are requested in the returned rcube_result_set ($select is true), the results will only include the
+     * contacts of the current page (see list_page, page_size). The behavior is as described with the list_records
+     * function, and search() can be thought of as a sequence of set_search_set() and list_records() under that filter.
+     *
+     * If $nocount is true, the count property of the returned rcube_result_set will contain the amount of records
+     * contained within that set. Calling search() with $select=false and $nocount=true is not a meaningful use case and
+     * will result in an empty result set without records and a count property of 0, which gives no indication on the
+     * actual record set matching the given filter.
+     *
+     * The result of the operation is internally cached for later retrieval using get_result().
+     *
      * @param string|string[] $fields Field names to search in
      * @param string|string[] $value Search value, or array of values, one for each field in $fields
      * @param int $mode     Search mode. Sum of rcube_addressbook::SEARCH_*.
-     * @param bool $select   True if results are requested, false if count only
+     * @param bool $select   True if records are requested in the result, false if count only
      * @param bool $nocount  True to skip the count query (select only)
      * @param string|string[] $required Field or list of fields that cannot be empty
      *
@@ -311,7 +349,12 @@ class Addressbook extends rcube_addressbook
     }
 
     /**
-     * Count number of available contacts in database
+     * Count the number of contacts in the database matching the current filter criteria.
+     *
+     * The current filter criteria are defined by the search filter (see search()/set_search_set()), the currently
+     * active group (see set_group()), and the required contact properties (see $requiredProps), if applicable.
+     *
+     * The result of the operation is internally cached for later retrieval using get_result().
      *
      * @return rcube_result_set Result set with values for 'count' and 'first'
      */
@@ -617,7 +660,14 @@ class Addressbook extends rcube_addressbook
     }
 
     /**
-     * Setter for the current group
+     * Sets/clears the current group.
+     *
+     * This affects the contact set considered when using the count(), list_records() and search() operations to those
+     * contacts that belong to the given group. If no current group is set, all contacts in the addressbook are
+     * considered.
+     *
+     * This filter mechanism is applied in addition to other filter mechanisms, see the description of the count()
+     * operation.
      *
      * @param null|0|string $gid Database identifier of the group. 0/"0"/null to reset the group filter.
      */
