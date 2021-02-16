@@ -1211,6 +1211,12 @@ class Addressbook extends rcube_addressbook
         $logger = $infra->logger();
         $db = $infra->db();
 
+        // Subset is a further narrows the records contained within the active page. It must therefore not exceed the
+        // page size; it should not happen, but just in case it does we limit subset to the page size here
+        if (abs($subset) > $this->page_size) {
+            $subset = ($subset < 0) ? -$this->page_size : $this->page_size;
+        }
+
         // determine result subset needed
         $firstrow = ($subset >= 0) ?
             $result->first : ($result->first + $this->page_size + $subset);
