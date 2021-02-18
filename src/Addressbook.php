@@ -1337,12 +1337,10 @@ class Addressbook extends rcube_addressbook
                 }
             }
 
-            if (!empty($save_data)) {
-                /** @var SaveData $save_data */
-                $save_data['ID'] = $contact['id'];
-                ++$resultCount;
-                $result->add($save_data);
-            }
+            /** @var SaveData $save_data */
+            $save_data['ID'] = $contact['id'];
+            ++$resultCount;
+            $result->add($save_data);
         }
 
         return $resultCount;
