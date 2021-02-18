@@ -6,13 +6,14 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
 
 use PHPUnit\Framework\TestCase;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
-use MStilkerich\CardDavAddressbook4Roundcube\Addressbook;
+use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook,DataConversion};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
 use MStilkerich\CardDavClient\AddressbookCollection;
 
 /**
  * @psalm-import-type FullAbookRow from AbstractDatabase
+ * @psalm-import-type SaveData from DataConversion
  */
 final class AddressbookTest extends TestCase
 {
@@ -38,7 +39,10 @@ final class AddressbookTest extends TestCase
         TestInfrastructure::logger()->reset();
     }
 
-    private function createAbook(): Addressbook
+    /**
+     * @param list<string> $reqCols
+     */
+    private function createAbook(array $reqCols = []): Addressbook
     {
         $db = $this->db;
         $db->importData('tests/unit/data/syncHandlerTest/initial/db.json');
@@ -46,7 +50,7 @@ final class AddressbookTest extends TestCase
         /** @var FullAbookRow */
         $abookcfg = $db->lookup("42", '*', 'addressbooks');
 
-        $abook = new Addressbook("42", $abookcfg, false, []);
+        $abook = new Addressbook("42", $abookcfg, false, $reqCols);
         $davobj = $this->createStub(AddressbookCollection::class);
         $davobj->method('downloadResource')->will($this->returnCallback([Utils::class, 'downloadResource']));
         TestInfrastructure::setPrivateProperty($abook, 'davAbook', $davobj);
@@ -73,6 +77,7 @@ final class AddressbookTest extends TestCase
         $this->assertSame('name', $abook->sort_col);
         $this->assertSame('ASC', $abook->sort_order);
         $this->assertSame(['birthday', 'anniversary'], $abook->date_cols);
+        $this->assertNull($abook->group_id);
 
         $this->assertIsArray($abook->coltypes['email']);
         $this->assertIsArray($abook->coltypes['email']['subtypes']);
@@ -88,15 +93,31 @@ final class AddressbookTest extends TestCase
     }
 
     /**
-     * @return list<array{int,string,?string,int,int,list<string>}>
+     * @return list<array{int,string,?string,int,int,null|0|string,?list<string>,list<string>,int,list<string>}>
      */
     public function listRecordsDataProvider(): array
     {
         return [
-            // subset, sort_col, sort_order, page, pagesize, expRecords
-            [ 0, 'name', 'ASC', 1, 10, [ "56", "51", "50", "52", "53", "54" ] ],
-            [ 0, 'name', 'DESC', 1, 10, [ "54", "53", "52", "50", "51", "56" ] ],
-            [ 0, 'firstname', null, 1, 10, [ "51", "52", "53", "56", "50", "54" ] ],
+            // subset, sort_col, sort_order, page, pagesize, group, cols, expCount, expRecords
+            [ 0, 'name', 'ASC', 1, 10, 0, null, [], 6, ["56", "51", "50", "52", "53", "54"] ],
+            [ 0, 'name', 'DESC', 1, 10, "0", null, [], 6, ["54", "53", "52", "50", "51", "56"] ],
+            [ 0, 'firstname', null, 1, 10, null, null, [], 6, ["51", "52", "53", "56", "50", "54"] ],
+            [ 0, 'name', 'ASC', 1, 4, 0, null, [], 6, ["56", "51", "50", "52"] ],
+            [ 0, 'name', 'ASC', 2, 4, 0, null, [], 6, ["53", "54"] ],
+            [ 0, 'name', 'DESC', 3, 2, 0, null, [], 6, ["51", "56"] ],
+            [ 1, 'name', 'DESC', 2, 2, 0, null, [], 6, ["52"] ],
+            [ 2, 'name', 'DESC', 2, 2, 0, null, [], 6, ["52", "50"] ],
+            [ 3, 'name', 'DESC', 2, 2, 0, null, [], 6, ["52", "50"] ],
+            [ -1, 'name', 'DESC', 2, 2, 0, null, [], 6, ["50"] ],
+            [ -2, 'name', 'DESC', 2, 2, 0, null, [], 6, ["52", "50"] ],
+            [ -3, 'name', 'DESC', 2, 2, 0, null, [], 6, ["52", "50"] ],
+            [ 0, 'name', 'ASC', 1, 10, "500", null, [], 2, ["56", "50"] ],
+            [ 0, 'name', 'ASC', 1, 10, 0, ['name','email'], [], 6, ["56", "51", "50", "52", "53", "54"] ],
+            [ 0, 'name', 'ASC', 1, 10, 0, ['organization', 'firstname'], [], 6, ["56", "51", "50", "52", "53", "54"] ],
+            [ 0, 'name', 'ASC', 1, 10, 0, null, ['email'], 5, ["51", "50", "52", "53", "54"] ],
+            [ 0, 'name', 'ASC', 1, 10, 0, null, ['email', 'surname'], 2, ["50", "54"] ],
+            [ 0, 'name', 'ASC', 2, 2, 0, null, ['email'], 5, ["52", "53"] ],
+//            [ 0, 'name', 'ASC', 1, 10, 0, null, ['jobtitle'], 1, ["50"] ],
         ];
     }
 
@@ -107,6 +128,9 @@ final class AddressbookTest extends TestCase
      *
      * @dataProvider listRecordsDataProvider
      * @param list<string> $expRecords
+     * @param null|0|string $gid
+     * @param ?list<string> $cols
+     * @param list<string> $reqCols
      */
     public function testListRecordsWithAllColumns(
         int $subset,
@@ -114,9 +138,13 @@ final class AddressbookTest extends TestCase
         ?string $sortOrder,
         int $page,
         int $pagesize,
+        $gid,
+        ?array $cols,
+        array $reqCols,
+        int $expCount,
         array $expRecords
     ): void {
-        $abook = $this->createAbook();
+        $abook = $this->createAbook($reqCols);
         $abook->set_page($page);
         $this->assertSame($page, $abook->list_page);
         $abook->set_pagesize($pagesize);
@@ -125,12 +153,18 @@ final class AddressbookTest extends TestCase
         $this->assertSame($sortCol, $abook->sort_col);
         $this->assertSame($sortOrder ?? 'ASC', $abook->sort_order);
 
-        $rset = $abook->list_records(null, $subset);
+        $abook->set_group($gid);
+        if ($gid) {
+            $this->assertSame($gid, $abook->group_id);
+        } else {
+            $this->assertNull($abook->group_id);
+        }
+        $rset = $abook->list_records($cols, $subset);
         $this->assertNull($abook->get_error());
-        $this->assertSame(0, $rset->first);
+        $this->assertSame($rset, $abook->get_result(), "Get result does not return last result set");
+        $this->assertSame(($page - 1) * $pagesize, $rset->first);
         $this->assertFalse($rset->searchonly);
-        $this->assertSame(count($expRecords), $rset->count);
-        $this->assertCount(count($expRecords), $rset->records);
+        $this->assertSame($expCount, $rset->count);
         $this->assertCount(count($expRecords), $rset->records);
 
         $lrOrder = array_column($rset->records, 'ID');
@@ -139,6 +173,9 @@ final class AddressbookTest extends TestCase
             $id = $expRecords[$i];
             $fn = "tests/unit/data/addressbookTest/c{$id}.json";
             $saveDataExp = Utils::readSaveDataFromJson($fn);
+            if (isset($cols)) {
+                $saveDataExp = $this->stripSaveDataToDbColumns($saveDataExp, $cols);
+            }
             /** @var array $saveDataRc */
             $saveDataRc = $rset->records[$i];
             Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
@@ -147,6 +184,18 @@ final class AddressbookTest extends TestCase
                 $this->assertPhotoDownloadWarning();
             }
         }
+    }
+
+    /**
+     * Tests that set_group() ignores an invalid group id and logs an error.
+     */
+    public function testSetInvalidGroupIgnored(): void
+    {
+        $abook = $this->createAbook();
+        $abook->set_group("12345");
+        $this->assertNull($abook->group_id, "Group ID changed after set_group with invalid ID");
+        $logger = TestInfrastructure::logger();
+        $logger->expectMessage('error', 'set_group(12345)');
     }
 
     /**
@@ -160,6 +209,38 @@ final class AddressbookTest extends TestCase
             'warning',
             'downloadPhoto: Attempt to download photo from http://localhost/doesNotExist.jpg failed'
         );
+    }
+
+    /**
+     * Given a full save_data array, it constrains/converts the data such that it only contains fields
+     * that are present in the given columns.
+     *
+     * @param SaveData $saveData
+     * @param list<string> $cols
+     * @return SaveData
+     */
+    private function stripSaveDataToDbColumns(array $saveData, array $cols): array
+    {
+        $cols[] = 'ID'; // always keep ID in the result
+
+        foreach ($saveData as $k => $v) {
+            // strip subtype from multi-value objects
+            $kgen = preg_replace('/:.*/', '', $k);
+            if (in_array($kgen, $cols)) {
+                if ($kgen != $k) {
+                    /** @var list<string> $oldv */
+                    $oldv = $saveData[$kgen] ?? [];
+                    /** @var list<string> $v */
+                    $saveData[$kgen] = array_merge($oldv, $v);
+                    unset($saveData[$k]);
+                }
+            } else {
+                unset($saveData[$k]);
+            }
+        }
+
+        /** @var SaveData $saveData */
+        return $saveData;
     }
 }
 
