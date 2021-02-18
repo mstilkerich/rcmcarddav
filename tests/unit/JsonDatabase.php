@@ -592,7 +592,7 @@ class JsonDatabase extends AbstractDatabase
 
         if (!isset($value)) {
             // match NULL / NOT NULL
-            return isset($row[$field]) === $invertCondition;
+            return isset($row[$field]) == $invertCondition;
         } elseif (is_array($value)) {
             if (count($value) > 0) {
                 if ($ilike) {
@@ -606,7 +606,8 @@ class JsonDatabase extends AbstractDatabase
         } else {
             if ($ilike) {
                 $matchPattern = str_replace('%', '.*', $value);
-                return preg_match("/^$matchPattern$/i", $value) !== $invertCondition;
+                $match = preg_match("/^$matchPattern$/i", $row[$field]);
+                return $match != $invertCondition;
             } else {
                 $equals = $row[$field] == $value;
                 return $equals != $invertCondition;
