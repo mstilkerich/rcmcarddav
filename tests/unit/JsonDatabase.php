@@ -605,9 +605,13 @@ class JsonDatabase extends AbstractDatabase
             }
         } else {
             if ($ilike) {
-                $matchPattern = str_replace('%', '.*', $value);
-                $match = preg_match("/^$matchPattern$/i", $row[$field]);
-                return $match != $invertCondition;
+                if (isset($row[$field])) {
+                    $matchPattern = str_replace('%', '.*', $value);
+                    $match = preg_match("/^$matchPattern$/i", $row[$field]);
+                    return $match != $invertCondition;
+                } else {
+                    return false;
+                }
             } else {
                 $equals = $row[$field] == $value;
                 return $equals != $invertCondition;

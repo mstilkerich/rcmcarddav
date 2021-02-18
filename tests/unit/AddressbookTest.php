@@ -10,6 +10,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook,DataConversion};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
 use MStilkerich\CardDavClient\AddressbookCollection;
+use rcube_addressbook;
 
 /**
  * @psalm-import-type FullAbookRow from AbstractDatabase
@@ -64,7 +65,6 @@ final class AddressbookTest extends TestCase
     public function testAddressbookHasExpectedPublicPropertyValues(): void
     {
         $db = $this->db;
-
         $abook = $this->createAbook();
 
         $this->assertSame('id', $abook->primary_key);
@@ -142,21 +142,8 @@ final class AddressbookTest extends TestCase
         int $expCount,
         array $expRecords
     ): void {
-        $abook = $this->createAbook($reqCols);
-        $abook->set_page($page);
-        $this->assertSame($page, $abook->list_page);
-        $abook->set_pagesize($pagesize);
-        $this->assertSame($pagesize, $abook->page_size);
-        $abook->set_sort_order($sortCol, $sortOrder);
-        $this->assertSame($sortCol, $abook->sort_col);
-        $this->assertSame($sortOrder ?? 'ASC', $abook->sort_order);
+        $abook = $this->createAbookForSearchTest($sortCol, $sortOrder, $page, $pagesize, $gid, $reqCols);
 
-        $abook->set_group($gid);
-        if ($gid) {
-            $this->assertSame($gid, $abook->group_id);
-        } else {
-            $this->assertNull($abook->group_id);
-        }
         $rset = $abook->list_records($cols, $subset);
         $this->assertNull($abook->get_error());
         $this->assertSame($rset, $abook->get_result(), "Get result does not return last result set");
@@ -185,6 +172,39 @@ final class AddressbookTest extends TestCase
     }
 
     /**
+     * Initializes an addressbook for the tests of list_records(), count() and search().
+     *
+     * @param null|0|string $gid
+     * @param list<string> $reqCols
+     */
+    private function createAbookForSearchTest(
+        string $sortCol,
+        ?string $sortOrder,
+        int $page,
+        int $pagesize,
+        $gid,
+        array $reqCols
+    ): Addressbook {
+        $abook = $this->createAbook($reqCols);
+        $abook->set_page($page);
+        $this->assertSame($page, $abook->list_page);
+        $abook->set_pagesize($pagesize);
+        $this->assertSame($pagesize, $abook->page_size);
+        $abook->set_sort_order($sortCol, $sortOrder);
+        $this->assertSame($sortCol, $abook->sort_col);
+        $this->assertSame($sortOrder ?? 'ASC', $abook->sort_order);
+
+        $abook->set_group($gid);
+        if ($gid) {
+            $this->assertSame($gid, $abook->group_id);
+        } else {
+            $this->assertNull($abook->group_id);
+        }
+
+        return $abook;
+    }
+
+    /**
      * Tests count()
      *
      * @dataProvider listRecordsDataProvider
@@ -205,27 +225,122 @@ final class AddressbookTest extends TestCase
         int $expCount,
         array $expRecords
     ): void {
-        $abook = $this->createAbook($reqCols);
-        $abook->set_page($page);
-        $this->assertSame($page, $abook->list_page);
-        $abook->set_pagesize($pagesize);
-        $this->assertSame($pagesize, $abook->page_size);
-        $abook->set_sort_order($sortCol, $sortOrder);
-        $this->assertSame($sortCol, $abook->sort_col);
-        $this->assertSame($sortOrder ?? 'ASC', $abook->sort_order);
-
-        $abook->set_group($gid);
-        if ($gid) {
-            $this->assertSame($gid, $abook->group_id);
-        } else {
-            $this->assertNull($abook->group_id);
-        }
+        $abook = $this->createAbookForSearchTest($sortCol, $sortOrder, $page, $pagesize, $gid, $reqCols);
         $rset = $abook->count();
         $this->assertNull($abook->get_error());
         $this->assertSame(($page - 1) * $pagesize, $rset->first);
         $this->assertFalse($rset->searchonly);
         $this->assertSame($expCount, $rset->count);
         $this->assertCount(0, $rset->records);
+    }
+
+    /**
+     * @return array<string, array{
+     *     string|string[], string|string[], int, bool, bool,
+     *     string,?string,int,int,
+     *     null|0|string,
+     *     list<string>,
+     *     string|string[],
+     *     int,list<string>
+     * }>
+     */
+    public function searchDataProvider(): array
+    {
+        return [
+            'Direct ID search single id' => [
+                'ID', "50", 0, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                1, ["50"]
+            ],
+            'Direct ID search with key property from addressbook' => [
+                'id', "50", 0, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                1, ["50"]
+            ],
+            'Direct ID search multiple id as string' => [
+                'ID', "50,56,52", 0, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                3, ["56", "50", "52"]
+            ],
+            'Direct ID search multiple id as array' => [
+                'ID', ["50", "56", "52"], 0, true, false,
+                'name', 'DESC', 1, 10,
+                0,
+                [], [],
+                3, ["52", "50", "56"]
+            ],
+            'Single DB field search with prefix search' => [
+                ['name'], ["ROB"], rcube_addressbook::SEARCH_PREFIX, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                1, ["53"]
+            ],
+        ];
+    }
+
+    /**
+     * Tests the search() function
+     *
+     * @dataProvider searchDataProvider
+     * @param string|string[] $fields
+     * @param string|string[] $value
+     * @param null|0|string $gid
+     * @param list<string> $reqColsBk Required columns for the addressbook
+     * @param string|string[] $reqColsCl Required columns search() parameter
+     * @param list<string> $expRecords
+     */
+    public function testSearchReturnsExpectedRecords(
+        $fields,
+        $value,
+        int $mode,
+        bool $select,
+        bool $nocount,
+        string $sortCol,
+        ?string $sortOrder,
+        int $page,
+        int $pagesize,
+        $gid,
+        array $reqColsBk,
+        $reqColsCl,
+        int $expCount,
+        array $expRecords
+    ): void {
+        $abook = $this->createAbookForSearchTest($sortCol, $sortOrder, $page, $pagesize, $gid, $reqColsBk);
+
+        $rset = $abook->search($fields, $value, $mode, $select, $nocount, $reqColsCl);
+        $this->assertNull($abook->get_error());
+        $this->assertSame($rset, $abook->get_result(), "Search does not return last result set");
+        $this->assertSame(($page - 1) * $pagesize, $rset->first);
+        $this->assertFalse($rset->searchonly);
+
+        if ($nocount) {
+            $this->assertSame(count($rset->records), $rset->count);
+        } else {
+            $this->assertSame($expCount, $rset->count);
+        }
+        $this->assertCount(count($expRecords), $rset->records);
+
+        $lrOrder = array_column($rset->records, 'ID');
+        $this->assertSame($expRecords, $lrOrder, "Card order mismatch");
+        for ($i = 0; $i < count($expRecords); ++$i) {
+            $id = $expRecords[$i];
+            $fn = "tests/unit/data/addressbookTest/c{$id}.json";
+            $saveDataExp = Utils::readSaveDataFromJson($fn);
+            /** @var array $saveDataRc */
+            $saveDataRc = $rset->records[$i];
+            Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
+
+            if (isset($saveDataExp['photo']) && empty($saveDataExp['photo'])) {
+                $this->assertPhotoDownloadWarning();
+            }
+        }
     }
 
     /**
