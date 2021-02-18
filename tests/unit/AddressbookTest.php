@@ -122,9 +122,7 @@ final class AddressbookTest extends TestCase
     }
 
     /**
-     * Tests list records
-     *
-     * Inputs besides params: page_size, list_page, filter, group_id, sort_col, sort_order
+     * Tests list_records()
      *
      * @dataProvider listRecordsDataProvider
      * @param list<string> $expRecords
@@ -132,7 +130,7 @@ final class AddressbookTest extends TestCase
      * @param ?list<string> $cols
      * @param list<string> $reqCols
      */
-    public function testListRecordsWithAllColumns(
+    public function testListRecordsReturnsExpectedRecords(
         int $subset,
         string $sortCol,
         ?string $sortOrder,
@@ -184,6 +182,50 @@ final class AddressbookTest extends TestCase
                 $this->assertPhotoDownloadWarning();
             }
         }
+    }
+
+    /**
+     * Tests count()
+     *
+     * @dataProvider listRecordsDataProvider
+     * @param list<string> $expRecords
+     * @param null|0|string $gid
+     * @param ?list<string> $cols
+     * @param list<string> $reqCols
+     */
+    public function testCountProvidesExpectedNumberOfRecords(
+        int $subset,
+        string $sortCol,
+        ?string $sortOrder,
+        int $page,
+        int $pagesize,
+        $gid,
+        ?array $cols,
+        array $reqCols,
+        int $expCount,
+        array $expRecords
+    ): void {
+        $abook = $this->createAbook($reqCols);
+        $abook->set_page($page);
+        $this->assertSame($page, $abook->list_page);
+        $abook->set_pagesize($pagesize);
+        $this->assertSame($pagesize, $abook->page_size);
+        $abook->set_sort_order($sortCol, $sortOrder);
+        $this->assertSame($sortCol, $abook->sort_col);
+        $this->assertSame($sortOrder ?? 'ASC', $abook->sort_order);
+
+        $abook->set_group($gid);
+        if ($gid) {
+            $this->assertSame($gid, $abook->group_id);
+        } else {
+            $this->assertNull($abook->group_id);
+        }
+        $rset = $abook->count();
+        $this->assertNull($abook->get_error());
+        $this->assertSame(($page - 1) * $pagesize, $rset->first);
+        $this->assertFalse($rset->searchonly);
+        $this->assertSame($expCount, $rset->count);
+        $this->assertCount(0, $rset->records);
     }
 
     /**
