@@ -1312,6 +1312,8 @@ class Addressbook extends rcube_addressbook
         $dc = $this->dataConverter;
         $resultCount = 0;
         foreach ($contacts as $contact) {
+            $save_data = [];
+
             if (isset($contact['vcard'])) {
                 $vcf = $contact['vcard'];
                 try {
@@ -1323,13 +1325,13 @@ class Addressbook extends rcube_addressbook
                     continue;
                 }
             } elseif (isset($cols)) { // NOTE always true at this point, but difficult to know for psalm
-                $save_data = [];
                 foreach ($cols as $col) {
-                    if (isset($contact[$col])) {
+                    $colval = $contact[$col] ?? "";
+                    if (strlen($colval) > 0) {
                         if ($dc->isMultivalueProperty($col)) {
-                            $save_data[$col] = explode(AbstractDatabase::MULTIVAL_SEP, $contact[$col]);
+                            $save_data[$col] = explode(AbstractDatabase::MULTIVAL_SEP, $colval);
                         } else {
-                            $save_data[$col] = $contact[$col];
+                            $save_data[$col] = $colval;
                         }
                     }
                 }
