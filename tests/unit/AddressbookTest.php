@@ -117,7 +117,6 @@ final class AddressbookTest extends TestCase
             [ 0, 'name', 'ASC', 1, 10, 0, null, ['email'], 5, ["51", "50", "52", "53", "54"] ],
             [ 0, 'name', 'ASC', 1, 10, 0, null, ['email', 'surname'], 2, ["50", "54"] ],
             [ 0, 'name', 'ASC', 2, 2, 0, null, ['email'], 5, ["52", "53"] ],
-//            [ 0, 'name', 'ASC', 1, 10, 0, null, ['jobtitle'], 1, ["50"] ],
         ];
     }
 
