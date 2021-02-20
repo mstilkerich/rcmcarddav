@@ -144,7 +144,7 @@ class Addressbook extends rcube_addressbook
     /**
      * Returns the current search filter.
      *
-     * @return mixed Search properties used by this class
+     * @return list<DbAndCondition> Search properties used by this class
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_search_set()
