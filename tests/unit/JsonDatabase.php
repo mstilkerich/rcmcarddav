@@ -607,7 +607,7 @@ class JsonDatabase extends AbstractDatabase
             if ($ilike) {
                 if (isset($row[$field])) {
                     $matchPattern = str_replace('%', '.*', $value);
-                    $match = preg_match("/^$matchPattern$/i", $row[$field]);
+                    $match = preg_match("/^$matchPattern$/im", $row[$field]);
                     return $match != $invertCondition;
                 } else {
                     return false;

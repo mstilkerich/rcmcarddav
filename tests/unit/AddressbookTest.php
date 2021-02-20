@@ -261,7 +261,7 @@ final class AddressbookTest extends TestCase
                 1, ["50"]
             ],
             'Direct ID search multiple id as string' => [
-                'ID', "50,56,52", 0, true, false,
+                'ID', "50,56,52,70", 0, true, false, // 70 belongs to a different addressbook and must not be returned
                 'name', 'ASC', 1, 10,
                 0,
                 [], [],
@@ -280,6 +280,49 @@ final class AddressbookTest extends TestCase
                 0,
                 [], [],
                 1, ["53"]
+            ],
+            'Multi DB field search with contains search' => [
+                ['name', 'email'], ["Lannister", "@example"], rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                1, ["51"]
+            ],
+            'Multi DB/vcard field search with contains search' => [
+                ['name', 'jobtitle'], ["Stark", "Warden"], rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                1, ["50"]
+            ],
+            'Vcard field search with post-search drop' => [ // vcard as a whole matches, but not the asked for field
+                ['assistant'], ["Wesker"], rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                0, []
+            ],
+            'Vcard field search with exact match' => [
+                ['assistant'], ["Dr. Alexander Isaacs"], rcube_addressbook::SEARCH_STRICT, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                1, ["60"]
+            ],
+            'Vcard field search with exact match (no match)' => [
+                ['assistant'], ["Dr. Alexander Isaac"], rcube_addressbook::SEARCH_STRICT, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                0, []
+            ],
+            'Multi Vcard field search with exact match' => [
+                ['assistant', 'manager'], ["dr. alex", "no "],
+                rcube_addressbook::SEARCH_PREFIX, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                1, ["60"]
             ],
         ];
     }
@@ -312,32 +355,50 @@ final class AddressbookTest extends TestCase
         array $expRecords
     ): void {
         $abook = $this->createAbookForSearchTest($sortCol, $sortOrder, $page, $pagesize, $gid, $reqColsBk);
+        $db = $this->db;
+        $db->importData('tests/unit/data/addressbookTest/db2.json');
 
-        $rset = $abook->search($fields, $value, $mode, $select, $nocount, $reqColsCl);
-        $this->assertNull($abook->get_error());
-        $this->assertSame($rset, $abook->get_result(), "Search does not return last result set");
-        $this->assertSame(($page - 1) * $pagesize, $rset->first);
-        $this->assertFalse($rset->searchonly);
+        // Try with search() and a second time with set_search_set() + list_records()
+        for ($run = 0; $run < 2; ++$run) {
+            if ($run == 0) {
+                $rset = $abook->search($fields, $value, $mode, $select, $nocount, $reqColsCl);
+            } else {
+                // After the search, the search filter should be installed
+                $filter = $abook->get_search_set();
+                $this->assertNotEmpty($filter);
+                $abook->reset();
+                $this->assertEmpty($abook->get_search_set());
+                $this->assertNull($abook->get_result());
 
-        if ($nocount) {
-            $this->assertSame(count($rset->records), $rset->count);
-        } else {
-            $this->assertSame($expCount, $rset->count);
-        }
-        $this->assertCount(count($expRecords), $rset->records);
+                $abook->set_search_set($filter);
+                $rset = $abook->list_records(null, 0, $nocount);
+            }
 
-        $lrOrder = array_column($rset->records, 'ID');
-        $this->assertSame($expRecords, $lrOrder, "Card order mismatch");
-        for ($i = 0; $i < count($expRecords); ++$i) {
-            $id = $expRecords[$i];
-            $fn = "tests/unit/data/addressbookTest/c{$id}.json";
-            $saveDataExp = Utils::readSaveDataFromJson($fn);
-            /** @var array $saveDataRc */
-            $saveDataRc = $rset->records[$i];
-            Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
+            $this->assertNull($abook->get_error());
+            $this->assertSame($rset, $abook->get_result(), "Search does not return last result set");
+            $this->assertSame(($page - 1) * $pagesize, $rset->first);
+            $this->assertFalse($rset->searchonly);
 
-            if (isset($saveDataExp['photo']) && empty($saveDataExp['photo'])) {
-                $this->assertPhotoDownloadWarning();
+            if ($nocount) {
+                $this->assertSame(count($rset->records), $rset->count);
+            } else {
+                $this->assertSame($expCount, $rset->count);
+            }
+            $this->assertCount(count($expRecords), $rset->records);
+
+            $lrOrder = array_column($rset->records, 'ID');
+            $this->assertSame($expRecords, $lrOrder, "Card order mismatch");
+            for ($i = 0; $i < count($expRecords); ++$i) {
+                $id = $expRecords[$i];
+                $fn = "tests/unit/data/addressbookTest/c{$id}.json";
+                $saveDataExp = Utils::readSaveDataFromJson($fn);
+                /** @var array $saveDataRc */
+                $saveDataRc = $rset->records[$i];
+                Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
+
+                if (isset($saveDataExp['photo']) && empty($saveDataExp['photo'])) {
+                    $this->assertPhotoDownloadWarning();
+                }
             }
         }
     }

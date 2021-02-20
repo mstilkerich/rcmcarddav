@@ -1,0 +1,9 @@
+{
+	"ID": "70",
+	"cuid": "07f2313b-423e-4c40-a01a-f69dc7b9a9c2",
+	"name": "John Doe",
+	"firstname": "John",
+	"surname": "Doe",
+	"email:home": [ "john@doe.com" ],
+	"kind": "individual"
+}

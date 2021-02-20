@@ -1,0 +1,48 @@
+{
+	"addressbooks": [
+		{
+			"id": 404,
+			"name": "Other Addressbook",
+			"username": "theUser",
+			"password": "thePassword",
+			"url": "https://carddav.example.com/book404",
+			"active": 1,
+			"user_id": "1000",
+			"last_updated": 12345,
+			"refresh_time": 3600,
+			"sync_token": "sync@3600",
+			"presetname": null,
+			"use_categories": 1
+		}
+	],
+	"contacts": [
+		{
+			"id": 70,
+			"abook_id": 404,
+			"name": "John Doe",
+			"email": "john@doe.com",
+			"firstname": "John",
+			"surname": "Doe",
+			"organization": null,
+			"showas": "",
+			"vcard": ["file", "c70.vcf"],
+			"etag": "etag@c70_1",
+			"uri": "/book404/c70.vcf",
+			"cuid": "07f2313b-423e-4c40-a01a-f69dc7b9a9c2"
+		},
+		{
+			"id": 60,
+			"abook_id": 42,
+			"name": "Chairman Wesker",
+			"email": "albert@wesker.example.com, wesker@umbrella.example.com",
+			"firstname": "Albert",
+			"surname": "Wesker",
+			"organization": "Umbrella Corp",
+			"showas": "",
+			"vcard": ["file", "c60.vcf"],
+			"etag": "etag@AllAttr_1",
+			"uri": "/book42/c60.vcf",
+			"cuid": "sabre-vobject-005e805f-0bc1-4333-8be2-97889fb45b7a"
+		}
+	]
+}
