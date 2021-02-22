@@ -311,11 +311,22 @@ class Addressbook extends rcube_addressbook
         // Post-searching in vCard data fields
         // we will search in all records and then build a where clause for their IDs
         if (!empty($postSearchFilter) || !empty($required)) {
-            $ids = [ "0" ]; // 0 is never a valid ID
-            // use initial filter to limit records number if possible
-            $this->set_search_set($filter);
+            $ids = [ "0" ]; // 0 is never a valid ID - this is used to make sure the match values are a non-empty set
 
-            $result = $this->list_records();
+            // make sure we get all records - disable page constraint for list_records
+            $pageBackup = $this->list_page;
+            $pageSizeBackup = $this->page_size;
+
+            try {
+                $this->set_page(1);
+                $this->set_pagesize(99999);
+                // use initial filter to limit records number if possible
+                $this->set_search_set($filter);
+                $result = $this->list_records();
+            } finally {
+                $this->list_page = $pageBackup;
+                $this->page_size = $pageSizeBackup;
+            }
 
             while (
                 /** @var ?SaveData $save_data */
