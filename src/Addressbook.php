@@ -1711,7 +1711,7 @@ class Addressbook extends rcube_addressbook
                         }
                     }
                 }
-            } else {
+            } elseif (isset($save_data[$col])) {
                 $sdVal = is_array($save_data[$col]) ? $save_data[$col] : (string) $save_data[$col];
                 $psFilterMatched = $this->compare_search_value($col, $sdVal, $val, $mode);
             }
