@@ -1400,6 +1400,8 @@ class Addressbook extends rcube_addressbook
                 }
 
                 if (in_array($col, $this->table_cols)) { // table column
+                    // Note: we don't need to add this columns to the post match filter, because it is already
+                    // determined by the database search that the condition is fulfilled
                     $conditions[] = $this->rcSearchCondition($mode, $col, $fValue);
                 } else { // vCard field
                     $conditions[] = $this->rcSearchCondition(rcube_addressbook::SEARCH_ALL, 'vcard', $fValue);
@@ -1419,8 +1421,12 @@ class Addressbook extends rcube_addressbook
                     $andCond->append($this->rcSearchCondition($mode, $col, $value));
                 } else { // vCard field
                     $andCond->append($this->rcSearchCondition(rcube_addressbook::SEARCH_ALL, 'vcard', $value));
-                    $postSearchFilter[] = [$col, mb_strtolower($value)];
                 }
+
+                // Note: because a match against any column is sufficient, we must add all columns to the post search
+                // filter. Otherwise, cards that match at DB columns but none of the vcard columns would be discarded by
+                // the post search filter
+                $postSearchFilter[] = [$col, mb_strtolower($value)];
             }
 
             $conditions[] = $andCond;
@@ -1695,7 +1701,7 @@ class Addressbook extends rcube_addressbook
             }
         }
 
-        $contactMatches = true;
+        $filterMatches = 0;
         foreach ($postSearchFilter as $psfilter) {
             [ $col, $val ] = $psfilter;
             $psFilterMatched = false;
@@ -1716,15 +1722,18 @@ class Addressbook extends rcube_addressbook
                 $psFilterMatched = $this->compare_search_value($col, $sdVal, $val, $mode);
             }
 
+            if ($psFilterMatched) {
+                ++$filterMatches;
+            }
+
             if (!$allMustMatch && $psFilterMatched) {
-                break; // single post filter match is sufficient -> done
+                return true;
             } elseif ($allMustMatch && !$psFilterMatched) {
-                $contactMatches = false; // single post filter match failure suffices -> abort
-                break;
+                return false;
             }
         }
 
-        return $contactMatches;
+        return $filterMatches > 0;
     }
 }
 
