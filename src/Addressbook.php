@@ -1622,13 +1622,7 @@ class Addressbook extends rcube_addressbook
 
         // TODO Better if we could handle this without a separate SQL query here, but requires join or subquery
         if ($this->group_id) {
-            $infra = Config::inst();
-            $db = $infra->db();
-            /** @var list<numeric-string> $contactsInGroup */
-            $contactsInGroup = array_column(
-                $db->get(['group_id' => (string) $this->group_id], 'contact_id', 'group_user'),
-                'contact_id'
-            );
+            $contactsInGroup = $this->getContactIdsForGroup((string) $this->group_id);
 
             if (empty($contactsInGroup)) {
                 $conditions = null;
