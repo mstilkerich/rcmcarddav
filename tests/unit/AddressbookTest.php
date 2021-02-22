@@ -281,6 +281,20 @@ final class AddressbookTest extends TestCase
                 [], [],
                 1, ["53"]
             ],
+            'Single Multivalue DB field search with contains search' => [
+                ['email'], ["north@7kingdoms.com"], rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                2, ["60", "50"]
+            ],
+            'Single Multivalue DB field search with strict search' => [
+                ['email'], ["north@7kingdoms.com"], rcube_addressbook::SEARCH_STRICT, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                1, ["60"]
+            ],
             'Multi DB field search with contains search' => [
                 ['name', 'email'], ["Lannister", "@example"], rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
@@ -324,11 +338,107 @@ final class AddressbookTest extends TestCase
                 [], [],
                 1, ["60"]
             ],
+            'All fields search' => [
+                '*', 'Birkin',
+                rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                1, ["60"]
+            ],
+            'Two fields OR search' => [
+                ['organization', 'name'], 'the',
+                rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                3, ["50", "53", "54"]
+            ],
+            'Mixed DB/vcard fields OR search' => [
+                ['notes', 'organization', 'name'], 'the',
+                rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], [],
+                4, ["60", "50", "53", "54"]
+            ],
+            'Results for 2nd page only' => [
+                '*', 'example',
+                rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 2, 2,
+                0,
+                [], [],
+                6, ["50", "52"]
+            ],
+            'Results for 2nd page only (select only)' => [
+                '*', 'example',
+                rcube_addressbook::SEARCH_ALL, true, true,
+                'name', 'ASC', 2, 2,
+                0,
+                [], [],
+                2, ["50", "52"]
+            ],
+            'Results for 2nd page only (count only)' => [
+                '*', 'example',
+                rcube_addressbook::SEARCH_ALL, false, false,
+                'name', 'ASC', 2, 2,
+                0,
+                [], [],
+                6, []
+            ],
+            'With required DB field' => [
+                '*', 'example',
+                rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], ['organization'],
+                3, ["60", "50", "54"]
+            ],
+            'With required DB field (plus required abook field)' => [
+                '*', 'example',
+                rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                ['firstname'], ['organization'],
+                2, ["50", "54"]
+            ],
+            'With required VCard field' => [
+                '*', 'example',
+                rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], ['jobtitle'],
+                2, ["60", "50"]
+            ],
+            'With required VCard field (as string)' => [
+                '*', 'example',
+                rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                [], 'jobtitle',
+                2, ["60", "50"]
+            ],
+            'With required VCard field and group filter' => [
+                '*', 'example',
+                rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                "500",
+                [], 'jobtitle',
+                1, ["50"]
+            ],
+            'With required VCard field and group filter for empty group' => [
+                '*', 'example',
+                rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                "504",
+                [], 'jobtitle',
+                0, []
+            ],
         ];
     }
 
     /**
-     * Tests the search() function
+     * Tests the search() function.
      *
      * @dataProvider searchDataProvider
      * @param string|string[] $fields
@@ -384,20 +494,23 @@ final class AddressbookTest extends TestCase
             } else {
                 $this->assertSame($expCount, $rset->count);
             }
-            $this->assertCount(count($expRecords), $rset->records);
 
-            $lrOrder = array_column($rset->records, 'ID');
-            $this->assertSame($expRecords, $lrOrder, "Card order mismatch");
-            for ($i = 0; $i < count($expRecords); ++$i) {
-                $id = $expRecords[$i];
-                $fn = "tests/unit/data/addressbookTest/c{$id}.json";
-                $saveDataExp = Utils::readSaveDataFromJson($fn);
-                /** @var array $saveDataRc */
-                $saveDataRc = $rset->records[$i];
-                Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
+            if ($run == 0 || $select) { // select=false can only be tested with search() (run 0)
+                $this->assertCount(count($expRecords), $rset->records);
 
-                if (isset($saveDataExp['photo']) && empty($saveDataExp['photo'])) {
-                    $this->assertPhotoDownloadWarning();
+                $lrOrder = array_column($rset->records, 'ID');
+                $this->assertSame($expRecords, $lrOrder, "Card order mismatch (run $run)");
+                for ($i = 0; $i < count($expRecords); ++$i) {
+                    $id = $expRecords[$i];
+                    $fn = "tests/unit/data/addressbookTest/c{$id}.json";
+                    $saveDataExp = Utils::readSaveDataFromJson($fn);
+                    /** @var array $saveDataRc */
+                    $saveDataRc = $rset->records[$i];
+                    Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
+
+                    if (isset($saveDataExp['photo']) && empty($saveDataExp['photo'])) {
+                        $this->assertPhotoDownloadWarning();
+                    }
                 }
             }
         }

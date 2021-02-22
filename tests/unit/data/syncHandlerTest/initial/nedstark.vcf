@@ -7,7 +7,7 @@ N:Stark;Eddard;;;
 ORG:The North;Winterfell
 ADR;TYPE=HOME:;;;;;;
 EMAIL;TYPE=HOME:ned@stark.example.com
-EMAIL;TYPE=WORK:warden_of_the_north@stark.example.com
+EMAIL;TYPE=WORK:warden_of_the_north@7kingdoms.com
 TITLE:Warden of the North
 CATEGORIES:House Stark
 REV;VALUE=DATE-AND-OR-TIME:20201227T103400Z
