@@ -193,7 +193,8 @@ class Addressbook extends rcube_addressbook
     {
         /** @var ?list<string> $cols */
         if ($nocount) {
-            $this->result = new rcube_result_set();
+            $first = ($this->list_page - 1) * $this->page_size;
+            $this->result = new rcube_result_set(0, $first);
         } else {
             $this->result = $this->count();
         }
