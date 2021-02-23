@@ -64,9 +64,6 @@ class Addressbook extends rcube_addressbook
     /** @var FullAbookRow Database row of the addressbook containing its configuration */
     private $config;
 
-    /** @var int total number of contacts in address book. Negative if not computed yet. */
-    private $total_cards = -1;
-
     /** @var array $table_cols
      * attributes that are redundantly stored in the contact table and need
      * not be parsed from the vcard
@@ -138,7 +135,6 @@ class Addressbook extends rcube_addressbook
         } else {
             throw new \Exception(__METHOD__ . " requires a DbAndCondition[] type filter");
         }
-        $this->total_cards = -1;
     }
 
     /**
@@ -159,7 +155,6 @@ class Addressbook extends rcube_addressbook
     {
         $this->result = null;
         $this->filter = [];
-        $this->total_cards = -1;
     }
 
     /**
@@ -366,25 +361,18 @@ class Addressbook extends rcube_addressbook
      * The current filter criteria are defined by the search filter (see search()/set_search_set()), the currently
      * active group (see set_group()), and the required contact properties (see $requiredProps), if applicable.
      *
-     * The result of the operation is internally cached for later retrieval using get_result().
-     *
      * @return rcube_result_set Result set with values for 'count' and 'first'
      */
     public function count(): rcube_result_set
     {
-        $logger = Config::inst()->logger();
-
         try {
-            if ($this->total_cards < 0) {
-                $this->doCount();
-            }
-
-            $logger->debug("count() => {$this->total_cards}");
-            return new rcube_result_set($this->total_cards, ($this->list_page - 1) * $this->page_size);
+            $numCards = $this->doCount();
+            return new rcube_result_set($numCards, ($this->list_page - 1) * $this->page_size);
         } catch (\Exception $e) {
+            $logger = Config::inst()->logger();
             $logger->error(__METHOD__ . " exception: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
-            return new rcube_result_set(0, 0);
+            return new rcube_result_set();
         }
     }
 
@@ -1473,19 +1461,16 @@ class Addressbook extends rcube_addressbook
      */
     private function doCount(): int
     {
-        if ($this->total_cards < 0) {
-            $conditions = $this->currentFilterConditions();
+        $numCards = 0;
+        $conditions = $this->currentFilterConditions();
 
-            if (isset($conditions)) {
-                $db = Config::inst()->db();
-                [$result] = $db->get($conditions, '*', 'contacts', [ 'count' => true ]);
-                $this->total_cards = intval($result['*']);
-            } else {
-                $this->total_cards = 0;
-            }
+        if (isset($conditions)) {
+            $db = Config::inst()->db();
+            [$result] = $db->get($conditions, '*', 'contacts', [ 'count' => true ]);
+            $numCards = intval($result['*']);
         }
 
-        return $this->total_cards;
+        return $numCards;
     }
 
     private function parseVCard(string $vcf): VCard
