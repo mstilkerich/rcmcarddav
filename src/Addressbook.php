@@ -168,7 +168,8 @@ class Addressbook extends rcube_addressbook
      * the page are returned. The returned records are found in the $records property of the returned result set.
      *
      * Finally, the $first property of the returned result set contains the index into the total set of filtered records
-     * (i.e. not considering the segmentation into pages) of the first returned record.
+     * (i.e. not considering the segmentation into pages) of the first returned record. FIXME should this consider
+     * subset or not? Currently it is not considered, i.e. first will always be a multiple of the page size
      *
      * The $nocount parameter is an internal optimization that allows to skip querying the total amount of records of
      * the filtered set, if the caller is only interested in the records. In this case, the $count property of the
@@ -186,25 +187,21 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function list_records($cols = null, $subset = 0, $nocount = false)
     {
-        /** @var ?list<string> $cols */
-        if ($nocount) {
-            $first = ($this->list_page - 1) * $this->page_size;
-            $this->result = new rcube_result_set(0, $first);
-        } else {
-            $this->result = $this->count();
-        }
+        $first = ($this->list_page - 1) * $this->page_size;
+        $result = new rcube_result_set(0, $first);
 
+        /** @var ?list<string> $cols */
         try {
-            $records = $this->listRecordsReadDB($cols, $subset, $this->result);
+            $numRecords = $this->listRecordsReadDB($cols, $subset, $result);
 
             if ($nocount) {
-                $this->result->count = $records;
-            } elseif ($this->list_page <= 1) {
-                if ($records < $this->page_size && $subset == 0) {
-                    $this->result->count = $records;
-                } else {
-                    $this->result->count = $this->doCount();
-                }
+                $result->count = $numRecords;
+            } elseif ($this->list_page <= 1 && $numRecords < $this->page_size && $subset == 0) {
+                // If we are on the first page, no subset was requested and the number of records is smaller than the
+                // page size, there are no more records so we can skip the COUNT query
+                $result->count = $numRecords;
+            } else {
+                $result->count = $this->doCount();
             }
         } catch (\Exception $e) {
             $logger = Config::inst()->logger();
@@ -212,7 +209,8 @@ class Addressbook extends rcube_addressbook
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
         }
 
-        return $this->result;
+        $this->result = $result;
+        return $result;
     }
 
     /**
@@ -1253,7 +1251,13 @@ class Addressbook extends rcube_addressbook
      ***********************************************************************/
 
     /**
+     * Queries the records (or a subset, if requested) of the current page of the total record set matching the current
+     * filter conditions.
+     *
+     * The record sets are added to the given result set.
+     *
      * @param ?list<string> $cols List of contact fields to provide, null means all.
+     * @return int The number of records added to the result set.
      */
     private function listRecordsReadDB(?array $cols, int $subset, rcube_result_set $result): int
     {
