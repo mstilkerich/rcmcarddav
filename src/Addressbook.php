@@ -132,11 +132,18 @@ class Addressbook extends rcube_addressbook
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function set_search_set($filter): void
     {
-        if (is_array($filter) && (empty($filter) || $filter[0] instanceof DbAndCondition)) {
-            /** @var list<DbAndCondition> $filter */
-            $this->filter = $filter;
+        if (is_array($filter)) {
+            $ftyped = [];
+            foreach (array_keys($filter) as $k) {
+                if ($filter[$k] instanceof DbAndCondition) {
+                    $ftyped[] = $filter[$k];
+                } else {
+                    throw new \InvalidArgumentException(__METHOD__ . " requires a DbAndCondition[] type filter");
+                }
+            }
+            $this->filter = $ftyped;
         } else {
-            throw new \Exception(__METHOD__ . " requires a DbAndCondition[] type filter");
+            throw new \InvalidArgumentException(__METHOD__ . " requires a DbAndCondition[] type filter");
         }
     }
 
