@@ -577,6 +577,46 @@ final class AddressbookTest extends TestCase
     }
 
     /**
+     * @return list<array{?string, int, list<string>}>
+     */
+    public function groupFilterProvider(): array
+    {
+        return [
+            [ null, 0, ["506", "501", "502", "500", "503", "504"] ],
+            [ "House", rcube_addressbook::SEARCH_PREFIX, ["501", "502", "500"] ],
+            [ "ar", 0, ["501", "500"] ],
+            [ "ar", rcube_addressbook::SEARCH_ALL, ["501", "500"] ],
+            [ "Kings", rcube_addressbook::SEARCH_STRICT, ["503"] ],
+            [ "House", rcube_addressbook::SEARCH_STRICT, [] ],
+        ];
+    }
+
+    /**
+     * Tests that groups matching the given filter are listed.
+     *
+     * @dataProvider groupFilterProvider
+     * @param list<string> $expRecords
+     */
+    public function testListGroupsProvidesExpectedGroups(?string $filter, int $searchmode, array $expRecords): void
+    {
+        $abook = $this->createAbook();
+        $groups = $abook->list_groups($filter, $searchmode);
+
+        $this->assertNull($abook->get_error());
+        $this->assertCount(count($expRecords), $groups);
+
+        $lrOrder = array_column($groups, 'ID');
+        $this->assertSame($expRecords, $lrOrder, "Group order mismatch");
+        for ($i = 0; $i < count($expRecords); ++$i) {
+            $id = $expRecords[$i];
+            $fn = "tests/unit/data/addressbookTest/g{$id}.json";
+            $saveDataExp = Utils::readSaveDataFromJson($fn);
+            $saveDataRc = $groups[$i];
+            Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
+        }
+    }
+
+    /**
      * Asserts that a warning message concerning failure to download the photo has been issued for VCards where an
      * invalid Photo URI is used.
      */

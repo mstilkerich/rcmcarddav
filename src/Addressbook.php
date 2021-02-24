@@ -40,6 +40,12 @@ use carddav;
 /**
  * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type SaveData from DataConversion
+ *
+ * @psalm-type GroupSaveData = array{
+ *   ID: string,
+ *   id: string,
+ *   name: string
+ * }
  */
 class Addressbook extends rcube_addressbook
 {
@@ -707,7 +713,7 @@ class Addressbook extends rcube_addressbook
      * @param ?string $search Optional search string to match group name
      * @param int     $mode   Search mode. Sum of self::SEARCH_*
      *
-     * @return array  Indexed list of contact groups, each a hash array
+     * @return list<GroupSaveData> List of contact groups, each a hash array
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function list_groups($search = null, $mode = 0): array
@@ -732,10 +738,17 @@ class Addressbook extends rcube_addressbook
 
             /** @var list<array{id: string, name: string}> $groups */
             $groups = $db->get($conditions, "id,name", "groups");
-
-            foreach ($groups as &$group) {
-                $group['ID'] = $group['id']; // roundcube uses the ID uppercase for groups
-            }
+            $groups = array_map(
+                /**
+                 * @param array{id: string, name: string} $grp
+                 * @return GroupSaveData
+                 */
+                function (array $grp): array {
+                    $grp['ID'] = $grp['id'];
+                    return $grp;
+                },
+                $groups
+            );
 
             usort(
                 $groups,
