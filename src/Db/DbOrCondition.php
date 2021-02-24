@@ -22,6 +22,8 @@
  * along with RCMCardDAV. If not, see <https://www.gnu.org/licenses/>.
  */
 
+declare(strict_types=1);
+
 namespace MStilkerich\CardDavAddressbook4Roundcube\Db;
 
 /**
