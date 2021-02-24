@@ -61,7 +61,7 @@ class Addressbook extends rcube_addressbook
     /** @var list<string> A list of contact fields that must not be empty, otherwise the contact will be hidden. */
     private $requiredProps;
 
-    /** @var ?rcube_result_set The result of the last count(), list_records() or search() operation */
+    /** @var ?rcube_result_set The result of the last list_records() or search() operation */
     private $result = null;
 
     /** @var FullAbookRow Database row of the addressbook containing its configuration */
