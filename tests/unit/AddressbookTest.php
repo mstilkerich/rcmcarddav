@@ -31,6 +31,7 @@ use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook,DataConversion};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
+use MStilkerich\CardDavAddressbook4Roundcube\Db\DbAndCondition;
 use MStilkerich\CardDavClient\AddressbookCollection;
 use rcube_addressbook;
 
@@ -536,6 +537,31 @@ final class AddressbookTest extends TestCase
                 }
             }
         }
+    }
+
+    /**
+     * @return array<string, array{mixed}>
+     */
+    public function invalidFilterProvider(): array
+    {
+        return [
+            'SQL string' => [ 'WHERE name="foo"' ],
+            'Mixed DbAndCondition array' => [ [ new DbAndCondition(), 'WHERE name="foo"' ] ],
+        ];
+    }
+
+    /**
+     * Tests that set_search_set() throws an error when given an invalid filter type.
+     *
+     * @dataProvider invalidFilterProvider
+     * @param mixed $filter
+     */
+    public function testSetSearchSetThrowsErrorOnInvalidFilter($filter): void
+    {
+        $abook = $this->createAbook();
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('requires a DbAndCondition[] type filter');
+        $abook->set_search_set($filter);
     }
 
     /**
