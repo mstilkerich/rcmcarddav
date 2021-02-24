@@ -776,10 +776,10 @@ class Addressbook extends rcube_addressbook
      *
      * @param string $group_id Group identifier
      *
-     * @return array Group properties as hash array
+     * @return ?GroupSaveData Group properties as hash array, null in case of error.
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
-    public function get_group($group_id): array
+    public function get_group($group_id): ?array
     {
         $infra = Config::inst();
         $logger = $infra->logger();
@@ -791,14 +791,16 @@ class Addressbook extends rcube_addressbook
             // As of 1.4.6, roundcube is interested in name and email properties of a group,
             // i. e. if the group as a distribution list had an email address of its own. Otherwise, it will fall back
             // to getting the individual members' addresses
+            /** @var array{id: numeric-string, name: string} $result */
             $result = $db->lookup(["id" => $group_id, "abook_id" => $this->id], 'id,name', 'groups');
+            $result['ID'] = $result['id'];
+            return $result;
         } catch (\Exception $e) {
-            $logger->error("get_group($group_id): " . $e->getMessage());
-            $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
-            return [];
+            $logger->error("get_group($group_id): Could not get group: " . $e->getMessage());
+            $this->set_error(rcube_addressbook::ERROR_SEARCH, "Could not get group $group_id");
         }
 
-        return $result;
+        return null;
     }
 
     /**

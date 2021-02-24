@@ -591,7 +591,6 @@ final class AddressbookTest extends TestCase
      * Tests that get_record() returns expected record.
      *
      * @dataProvider getRecordProvider
-     * @param list<string> $expRecords
      */
     public function testGetRecordProvidesExpectedRecord(string $id, bool $assoc, bool $expError): void
     {
@@ -638,6 +637,7 @@ final class AddressbookTest extends TestCase
             }
         }
     }
+
     /**
      * @return list<array{?string, int, list<string>}>
      */
@@ -674,6 +674,45 @@ final class AddressbookTest extends TestCase
             $fn = "tests/unit/data/addressbookTest/g{$id}.json";
             $saveDataExp = Utils::readSaveDataFromJson($fn);
             $saveDataRc = $groups[$i];
+            Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
+        }
+    }
+
+    /** @return array<string, array{string,bool}> */
+    public function getGroupProvider(): array
+    {
+        return [
+            'Valid ID' => [ '500', false ],
+            'Invalid ID' => [ '50', true ],
+        ];
+    }
+
+    /**
+     * Tests that get_group() returns expected record.
+     *
+     * @dataProvider getGroupProvider
+     */
+    public function testGetGroupProvidesExpectedRecord(string $id, bool $expError): void
+    {
+        $abook = $this->createAbook();
+
+        $saveDataRc = $abook->get_group($id);
+
+        if ($expError) {
+            $this->assertNull($saveDataRc);
+
+            $logger = TestInfrastructure::logger();
+            $logger->expectMessage('error', "Could not get group");
+
+            $abookErr = $abook->get_error();
+            $this->assertIsArray($abookErr);
+            $this->assertSame(rcube_addressbook::ERROR_SEARCH, $abookErr['type']);
+            $this->assertStringContainsString("Could not get group $id", (string) $abookErr['message']);
+        } else {
+            $this->assertIsArray($saveDataRc);
+
+            $fn = "tests/unit/data/addressbookTest/g{$id}.json";
+            $saveDataExp = Utils::readSaveDataFromJson($fn);
             Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
         }
     }
