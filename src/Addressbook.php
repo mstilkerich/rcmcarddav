@@ -67,7 +67,7 @@ class Addressbook extends rcube_addressbook
     /** @var list<string> A list of contact fields that must not be empty, otherwise the contact will be hidden. */
     private $requiredProps;
 
-    /** @var ?rcube_result_set The result of the last list_records() or search() operation */
+    /** @var ?rcube_result_set The result of the last get_record(), list_records() or search() operation */
     private $result = null;
 
     /** @var FullAbookRow Database row of the addressbook containing its configuration */
@@ -404,6 +404,8 @@ class Addressbook extends rcube_addressbook
     /**
      * Get a specific contact record
      *
+     * The result of the operation is internally cached for later retrieval using get_result().
+     *
      * @param mixed  $id    Record identifier(s)
      * @param bool $assoc True to return record as associative array, otherwise a result set is returned
      *
@@ -433,7 +435,7 @@ class Addressbook extends rcube_addressbook
             return $assoc ? $save_data : $this->result;
         } catch (\Exception $e) {
             $logger->error("Could not get contact $id: " . $e->getMessage());
-            $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
+            $this->set_error(rcube_addressbook::ERROR_SEARCH, "Could not get contact $id");
             if ($assoc) {
                 /** @var SaveData $ret Psalm does not consider the empty array a subtype */
                 $ret = [];

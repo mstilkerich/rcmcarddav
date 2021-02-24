@@ -28,7 +28,7 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
 
 use PHPUnit\Framework\TestCase;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
-use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook,DataConversion};
+use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook,DataConversion,DelayedPhotoLoader};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\DbAndCondition;
@@ -576,6 +576,68 @@ final class AddressbookTest extends TestCase
         $logger->expectMessage('error', 'set_group(12345)');
     }
 
+    /** @return array<string, array{string,bool,bool}> */
+    public function getRecordProvider(): array
+    {
+        return [
+            'Valid ID' => [ '50', true, false ],
+            'Valid ID (rset)' => [ '50', false, false ],
+            'Invalid ID' => [ '500', true, true ],
+            'Invalid ID (rset)' => [ '500', false, true ],
+        ];
+    }
+
+    /**
+     * Tests that get_record() returns expected record.
+     *
+     * @dataProvider getRecordProvider
+     * @param list<string> $expRecords
+     */
+    public function testGetRecordProvidesExpectedRecord(string $id, bool $assoc, bool $expError): void
+    {
+        $abook = $this->createAbook();
+
+        $saveDataRc = $abook->get_record($id, $assoc);
+
+        if ($expError) {
+            if (!$assoc) {
+                $this->assertInstanceOf(\rcube_result_set::class, $saveDataRc);
+                $this->assertSame($saveDataRc->count, 0);
+                $this->assertSame($saveDataRc->first, 0);
+                $this->assertCount(0, $saveDataRc->records);
+                $this->assertNull($abook->get_result());
+            }
+            $logger = TestInfrastructure::logger();
+            $logger->expectMessage('error', "Could not get contact $id");
+
+            $abookErr = $abook->get_error();
+            $this->assertIsArray($abookErr);
+            $this->assertSame(rcube_addressbook::ERROR_SEARCH, $abookErr['type']);
+            $this->assertStringContainsString("Could not get contact $id", (string) $abookErr['message']);
+        } else {
+            if (!$assoc) {
+                $this->assertInstanceOf(\rcube_result_set::class, $saveDataRc);
+                $this->assertSame($saveDataRc, $abook->get_result());
+                $this->assertSame($saveDataRc->count, 1);
+                $this->assertSame($saveDataRc->first, 0);
+                $this->assertCount(1, $saveDataRc->records);
+                $this->assertIsArray($saveDataRc->records[0]);
+                $saveDataRc = $saveDataRc->records[0];
+            }
+
+            $this->assertIsArray($saveDataRc);
+            // we must use a record with an URI photo to check it remains wrapped in a photo loader
+            $this->assertInstanceOf(DelayedPhotoLoader::class, $saveDataRc['photo'], "photo not wrapped");
+
+            $fn = "tests/unit/data/addressbookTest/c{$id}.json";
+            $saveDataExp = Utils::readSaveDataFromJson($fn);
+            Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
+
+            if (isset($saveDataExp['photo']) && empty($saveDataExp['photo'])) {
+                $this->assertPhotoDownloadWarning();
+            }
+        }
+    }
     /**
      * @return list<array{?string, int, list<string>}>
      */
