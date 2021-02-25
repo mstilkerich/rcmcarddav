@@ -1339,7 +1339,7 @@ class Addressbook extends rcube_addressbook
             /** @var list<array{id: numeric-string, name: string, vcard?: string} & array<string,?string>> $contacts */
             $contacts = $db->get(
                 $conditions,
-                array_merge(["id", "name"], $dbattr),
+                array_values(array_unique(array_merge(["id", "name"], $dbattr))),
                 'contacts',
                 [
                     'limit' => [ $firstrow, $numrows ],
