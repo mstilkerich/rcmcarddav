@@ -236,15 +236,7 @@ class Database extends AbstractDatabase
                 return;
             }
 
-            $dbh->query(
-                "INSERT INTO " . $dbh->table_name("carddav_migrations") . " (filename) VALUES (?)",
-                $migration
-            );
-
-            if ($dbh->is_error()) {
-                $logger->error("Recording exec of migration $migration failed: " . $dbh->is_error());
-                return;
-            }
+            $this->insert('migrations', ['filename'], [ [$migration] ]);
         }
     }
 
