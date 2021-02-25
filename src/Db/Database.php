@@ -292,9 +292,10 @@ class Database extends AbstractDatabase
 
         // build / execute query
         $sqlRowPlaceholders = '(?' . str_repeat(',?', $numCols - 1) . ')';
+        $quotedCols = array_map([$dbh, 'quote_identifier'], $cols);
 
         $sql = 'INSERT INTO ' . $dbh->table_name("carddav_$table") .
-            '(' . implode(",", $cols)  . ') ' .
+            '(' . implode(",", $quotedCols)  . ') ' .
             'VALUES ' .
             implode(', ', array_fill(0, count($rows), $sqlRowPlaceholders));
 
@@ -326,7 +327,8 @@ class Database extends AbstractDatabase
         $dbh = $this->dbHandle;
         $logger = $this->logger;
 
-        $sql = 'UPDATE ' . $dbh->table_name("carddav_$table") . ' SET ' . implode("=?,", $cols) . '=? ';
+        $quotedCols = array_map([$dbh, 'quote_identifier'], $cols);
+        $sql = 'UPDATE ' . $dbh->table_name("carddav_$table") . ' SET ' . implode("=?,", $quotedCols) . '=? ';
 
         // WHERE clause
         $sql .= $this->getConditionsQuery($conditions);
@@ -413,14 +415,14 @@ class Database extends AbstractDatabase
 
         $sql = "SELECT ";
         if ($options['count'] ?? false) {
-            $columns = array_map(
+            $quotedCols = array_map(
                 function (string $col) use ($dbh): string {
                     // quoting needed for "*" in the as statement
                     return "COUNT(" . $this->quoteDbColumn($col) . ") as " . $dbh->quote_identifier($col);
                 },
                 $cols
             );
-            $sql .= implode(", ", $columns);
+            $sql .= implode(", ", $quotedCols);
         } else {
             $quotedCols = array_map([$this, 'quoteDbColumn'], $cols);
             $sql .= implode(", ", $quotedCols);
