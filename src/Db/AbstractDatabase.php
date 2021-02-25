@@ -112,8 +112,7 @@ abstract class AbstractDatabase
      * Gets rows from a database table.
      *
      * @param DbConditions $conditions Selects the rows to get.
-     * @param string       $cols  A comma-separated list of database column names used in the SELECT clause of the SQL
-     *                            statement. By default, all columns are selected.
+     * @param list<string> $cols Database column names to select. Empty array means all columns.
      * @param string $table       Name of the database table to select from, without the carddav_ prefix.
      * @param DbGetOptions $options Associative array with extra options, mapping option name => option setting
      *                            Currently supported:
@@ -134,7 +133,7 @@ abstract class AbstractDatabase
      */
     abstract public function get(
         $conditions,
-        string $cols = '*',
+        array $cols = [],
         string $table = 'contacts',
         array $options = []
     ): array;
@@ -145,6 +144,7 @@ abstract class AbstractDatabase
      * If the query yields fewer or more than one row, an exception is thrown.
      *
      * @param DbConditions $conditions Selects the row to lookup.
+     * @param list<string> $cols Database column names to select. Empty array means all columns.
      * @return DbGetResult If no error occurred, returns an associative row array with the
      *                     matching row, where keys are fieldnames and their value is the corresponding database
      *                     value of the field in the result row.
@@ -153,7 +153,7 @@ abstract class AbstractDatabase
      * @see normalizeConditions() for a description of $conditions
      * @see Database::getConditionsQuery()
      */
-    abstract public function lookup($conditions, string $cols = '*', string $table = 'contacts'): array;
+    abstract public function lookup($conditions, array $cols = [], string $table = 'contacts'): array;
 
     /**
      * Deletes rows from a database table.

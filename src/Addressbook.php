@@ -424,7 +424,7 @@ class Addressbook extends rcube_addressbook
 
             $davAbook = $this->getCardDavObj();
             /** @var array{vcard: string} $contact */
-            $contact = $db->lookup(['id' => $id, "abook_id" => $this->id], 'vcard', 'contacts');
+            $contact = $db->lookup(['id' => $id, "abook_id" => $this->id], ['vcard'], 'contacts');
             $vcard = $this->parseVCard($contact['vcard']);
             $save_data = $this->dataConverter->toRoundcube($vcard, $davAbook);
             $save_data['ID'] = $id;
@@ -496,10 +496,10 @@ class Addressbook extends rcube_addressbook
              * server-side one, we fall back to searching by URL if the UID search returned no results.
              * @var ?array{id: string} $contact
              */
-            [ $contact ] = $db->get(['cuid' => (string) $vcard->UID, "abook_id" => $this->id], 'id', 'contacts');
+            [ $contact ] = $db->get(['cuid' => (string) $vcard->UID, "abook_id" => $this->id], ['id'], 'contacts');
             if (!isset($contact)) {
                 /** @var array{id: string} */
-                $contact = $db->lookup(['uri' => $uri, "abook_id" => $this->id], 'id', 'contacts');
+                $contact = $db->lookup(['uri' => $uri, "abook_id" => $this->id], ['id'], 'contacts');
             }
 
             if (isset($contact["id"])) {
@@ -536,7 +536,7 @@ class Addressbook extends rcube_addressbook
              * get current DB data
              * @var array{etag: string, uri: string, showas: string, vcard: string} $contact
              */
-            $contact = $db->lookup(["id" => $id, "abook_id" => $this->id], "uri,etag,vcard,showas", "contacts");
+            $contact = $db->lookup(["id" => $id, "abook_id" => $this->id], ["uri", "etag", "vcard", "showas"]);
             $save_cols['showas'] = $contact['showas'];
 
             // create vcard from current DB data to be updated with the new data
@@ -579,7 +579,7 @@ class Addressbook extends rcube_addressbook
 
             $db->startTransaction();
             /** @var list<array{id: numeric-string, uri: string, cuid: string}> $contacts */
-            $contacts = $db->get(['id' => $ids, "abook_id" => $this->id], 'id,cuid,uri', 'contacts');
+            $contacts = $db->get(['id' => $ids, "abook_id" => $this->id], ['id', 'cuid', 'uri']);
 
             // make sure we only have contacts in $ids that belong to this addressbook
             $ids = array_column($contacts, "id");
@@ -589,11 +589,11 @@ class Addressbook extends rcube_addressbook
              * remove contacts from VCard based groups - get groups that the contacts are members of
              * @var list<string> $groupids
              */
-            $groupids = array_column($db->get(['contact_id' => $ids], 'group_id', 'group_user'), "group_id");
+            $groupids = array_column($db->get(['contact_id' => $ids], ['group_id'], 'group_user'), "group_id");
 
             if (!empty($groupids)) {
                 /** @var list<array{id: numeric-string, uri: ?string, etag: ?string, vcard: ?string}> $groups */
-                $groups = $db->get(['id' => $groupids], "id,etag,uri,vcard", "groups");
+                $groups = $db->get(['id' => $groupids], ["id", "etag", "uri", "vcard"], "groups");
 
                 foreach ($groups as $group) {
                     if (isset($group["vcard"])) {
@@ -642,7 +642,7 @@ class Addressbook extends rcube_addressbook
              * first remove / clear KIND=group vcard-based groups
              * @var list<array{uri: string, vcard: string, etag: string}> $vcard_groups
              */
-            $vcard_groups = $db->get(["abook_id" => $abook_id, "!vcard" => null], "uri,vcard,etag", "groups");
+            $vcard_groups = $db->get(["abook_id" => $abook_id, "!vcard" => null], ["uri", "vcard", "etag"], "groups");
 
             foreach ($vcard_groups as $vcard_group) {
                 if ($with_groups) {
@@ -659,7 +659,7 @@ class Addressbook extends rcube_addressbook
              * now delete all contact cards
              * @var list<array{uri: string}> $contacts
              */
-            $contacts = $db->get(["abook_id" => $abook_id], "uri", "contacts");
+            $contacts = $db->get(["abook_id" => $abook_id], ["uri"]);
             foreach ($contacts as $contact) {
                 $davAbook->deleteCard($contact["uri"]);
             }
@@ -699,7 +699,7 @@ class Addressbook extends rcube_addressbook
             if ($gid) {
                 $db = $infra->db();
                 // check for valid ID with the database - this throws an exception if the group cannot be found
-                $db->lookup(["id" => $gid, "abook_id" => $this->id], "id", "groups");
+                $db->lookup(["id" => $gid, "abook_id" => $this->id], ["id"], "groups");
                 $this->group_id = $gid;
             } else {
                 $this->group_id = null;
@@ -739,7 +739,7 @@ class Addressbook extends rcube_addressbook
             }
 
             /** @var list<array{id: string, name: string}> $groups */
-            $groups = $db->get($conditions, "id,name", "groups");
+            $groups = $db->get($conditions, ["id", "name"], "groups");
             $groups = array_map(
                 /**
                  * @param array{id: string, name: string} $grp
@@ -792,7 +792,7 @@ class Addressbook extends rcube_addressbook
             // i. e. if the group as a distribution list had an email address of its own. Otherwise, it will fall back
             // to getting the individual members' addresses
             /** @var array{id: numeric-string, name: string} $result */
-            $result = $db->lookup(["id" => $group_id, "abook_id" => $this->id], 'id,name', 'groups');
+            $result = $db->lookup(["id" => $group_id, "abook_id" => $this->id], ['id', 'name'], 'groups');
             $result['ID'] = $result['id'];
             return $result;
         } catch (\Exception $e) {
@@ -832,7 +832,7 @@ class Addressbook extends rcube_addressbook
 
                 $this->resync();
 
-                return $db->lookup(['cuid' => (string) $vcard->UID], 'id,name', 'groups');
+                return $db->lookup(['cuid' => (string) $vcard->UID], ['id', 'name'], 'groups');
             }
         } catch (\Exception $e) {
             $logger->error("create_group($name): " . $e->getMessage());
@@ -862,7 +862,7 @@ class Addressbook extends rcube_addressbook
 
             $db->startTransaction(false);
             /** @var array{name: string, uri: ?string} $group */
-            $group = $db->lookup(["id" => $group_id, "abook_id" => $this->id], 'name,uri', 'groups');
+            $group = $db->lookup(["id" => $group_id, "abook_id" => $this->id], ['name', 'uri'], 'groups');
 
             if (isset($group["uri"])) { // KIND=group VCard-based group
                 $davAbook->deleteCard($group["uri"]);
@@ -918,7 +918,11 @@ class Addressbook extends rcube_addressbook
             $db = $infra->db();
             $davAbook = $this->getCardDavObj();
             /** @var array{uri: ?string, name: string, etag: ?string, vcard: ?string} $group */
-            $group = $db->lookup(["id" => $group_id, "abook_id" => $this->id], 'uri,name,etag,vcard', 'groups');
+            $group = $db->lookup(
+                ["id" => $group_id, "abook_id" => $this->id],
+                ['uri', 'name', 'etag', 'vcard'],
+                'groups'
+            );
 
             if (isset($group["uri"])) { // KIND=group VCard-based group
                 /** @var array{uri: string, name: string, etag: string, vcard: string} $group */
@@ -987,12 +991,16 @@ class Addressbook extends rcube_addressbook
              * get current DB data
              * @var array{uri: ?string, name: string, etag: ?string, vcard: ?string} $group
              */
-            $group = $db->lookup(["id" => $group_id, "abook_id" => $this->id], 'name,uri,etag,vcard', 'groups');
+            $group = $db->lookup(
+                ["id" => $group_id, "abook_id" => $this->id],
+                ['name', 'uri', 'etag', 'vcard'],
+                'groups'
+            );
 
             // if vcard is set, this group is based on a KIND=group VCard
             if (isset($group['vcard'])) {
                 /** @var list<array{id: numeric-string, cuid: string}> $contacts */
-                $contacts = $db->get(["id" => $ids, "abook_id" => $this->id], "id, cuid", "contacts");
+                $contacts = $db->get(["id" => $ids, "abook_id" => $this->id], ["id", "cuid"]);
                 $db->endTransaction();
 
                 /** @var array{uri: string, name: string, etag: string, vcard: string} $group */
@@ -1074,12 +1082,16 @@ class Addressbook extends rcube_addressbook
              * get current DB data
              * @var array{name: string, uri: ?string} $group
              */
-            $group = $db->lookup(["id" => $group_id, "abook_id" => $this->id], 'name,uri,etag,vcard', 'groups');
+            $group = $db->lookup(
+                ["id" => $group_id, "abook_id" => $this->id],
+                ['name', 'uri', 'etag', 'vcard'],
+                'groups'
+            );
 
             // if vcard is set, this group is based on a KIND=group VCard
             if (isset($group['vcard'])) {
                 /** @var list<array{id: numeric-string, cuid: string}> $contacts */
-                $contacts = $db->get(["id" => $ids, "abook_id" => $this->id], "id, cuid", "contacts");
+                $contacts = $db->get(["id" => $ids, "abook_id" => $this->id], ["id", "cuid"]);
                 $db->endTransaction();
 
                 /** @var array{name: string, uri: string, etag: string, vcard: string} $group */
@@ -1137,13 +1149,13 @@ class Addressbook extends rcube_addressbook
         try {
             $logger->debug("get_record_groups($id)");
             /** @var list<string> $groupIds */
-            $groupIds = array_column($db->get(['contact_id' => $id], 'group_id', 'group_user'), 'group_id');
+            $groupIds = array_column($db->get(['contact_id' => $id], ['group_id'], 'group_user'), 'group_id');
             if (empty($groupIds)) {
                 $groups = [];
             } else {
                 /** @var array<numeric-string, string> $groups */
                 $groups = array_column(
-                    $db->get(['id' => $groupIds, 'abook_id' => $this->id], 'id,name', 'groups'),
+                    $db->get(['id' => $groupIds, 'abook_id' => $this->id], ['id', 'name'], 'groups'),
                     'name',
                     'id'
                 );
@@ -1306,12 +1318,12 @@ class Addressbook extends rcube_addressbook
         // determine whether we have to parse the vcard or if only db cols are requested
         if (isset($cols)) {
             if (count(array_intersect($cols, $this->table_cols)) < count($cols)) {
-                $dbattr = 'vcard';
+                $dbattr = ['vcard'];
             } else {
-                $dbattr = implode(",", $cols);
+                $dbattr = $cols;
             }
         } else {
-            $dbattr = 'vcard';
+            $dbattr = ['vcard'];
         }
 
         $sort_column = $this->sort_col;
@@ -1319,7 +1331,7 @@ class Addressbook extends rcube_addressbook
             $sort_column = "!$sort_column";
         }
 
-        $logger->debug("listRecordsReadDB $dbattr [$firstrow, $numrows] ORD($sort_column)");
+        $logger->debug("listRecordsReadDB " . join(',', $dbattr) . " [$firstrow, $numrows] ORD($sort_column)");
 
         $conditions = $this->currentFilterConditions();
 
@@ -1327,7 +1339,7 @@ class Addressbook extends rcube_addressbook
             /** @var list<array{id: numeric-string, name: string, vcard?: string} & array<string,?string>> $contacts */
             $contacts = $db->get(
                 $conditions,
-                "id,name,$dbattr",
+                array_merge(["id", "name"], $dbattr),
                 'contacts',
                 [
                     'limit' => [ $firstrow, $numrows ],
@@ -1497,7 +1509,7 @@ class Addressbook extends rcube_addressbook
 
         if (isset($conditions)) {
             $db = Config::inst()->db();
-            [$result] = $db->get($conditions, '*', 'contacts', [ 'count' => true ]);
+            [$result] = $db->get($conditions, [], 'contacts', [ 'count' => true ]);
             $numCards = intval($result['*']);
         }
 
@@ -1587,7 +1599,7 @@ class Addressbook extends rcube_addressbook
         $infra = Config::inst();
         $db = $infra->db();
         /** @var list<array{contact_id: numeric-string}> */
-        $records = $db->get(['group_id' => $groupid], 'contact_id', 'group_user');
+        $records = $db->get(['group_id' => $groupid], ['contact_id'], 'group_user');
         return array_column($records, "contact_id");
     }
 
@@ -1612,7 +1624,7 @@ class Addressbook extends rcube_addressbook
         $db = $infra->db();
 
         /** @var list<array{id: numeric-string, etag: string, uri: string, vcard: string}> $contacts */
-        $contacts = $db->get(["id" => $contact_ids, "abook_id" => $this->id], "id,etag,uri,vcard", "contacts");
+        $contacts = $db->get(["id" => $contact_ids, "abook_id" => $this->id], ["id", "etag", "uri", "vcard"]);
 
         foreach ($contacts as $contact) {
             $vcard = $this->parseVCard($contact['vcard']);

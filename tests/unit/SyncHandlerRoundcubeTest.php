@@ -112,7 +112,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
         $cache = $synch->getExistingVCardETags();
 
         $centries = $db->get(['abook_id' => '42']);
-        $gentries = $db->get(['abook_id' => '42', '!vcard' => null], 'id', 'groups');
+        $gentries = $db->get(['abook_id' => '42', '!vcard' => null], ['id'], 'groups');
         $this->assertCount(count($centries) + count($gentries), $cache);
 
         // check that contact and group card both contained

@@ -123,7 +123,7 @@ final class DataConversionTest extends TestCase
             ->method("get")
             ->with(
                 $this->equalTo(["abook_id" => "42"]),
-                $this->equalTo('typename,subtype'),
+                $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "Speciallabel"] ]));
@@ -151,7 +151,7 @@ final class DataConversionTest extends TestCase
             ->method("get")
             ->with(
                 $this->equalTo(["abook_id" => "42"]),
-                $this->equalTo('typename,subtype'),
+                $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
@@ -173,7 +173,7 @@ final class DataConversionTest extends TestCase
             ->method("get")
             ->with(
                 $this->equalTo(["abook_id" => "42"]),
-                $this->equalTo('typename,subtype'),
+                $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
             ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
@@ -205,7 +205,7 @@ final class DataConversionTest extends TestCase
             ->method("get")
             ->with(
                 $this->equalTo(["abook_id" => "42"]),
-                $this->equalTo('typename,subtype'),
+                $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
             ->will($this->returnValue([
@@ -234,7 +234,7 @@ final class DataConversionTest extends TestCase
             ->method("get")
             ->with(
                 $this->equalTo(["abook_id" => "42"]),
-                $this->equalTo('typename,subtype'),
+                $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
             ->will($this->returnValue([]));
@@ -269,7 +269,7 @@ final class DataConversionTest extends TestCase
             ->method("get")
             ->with(
                 $this->equalTo(["abook_id" => "42"]),
-                $this->equalTo('typename,subtype'),
+                $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
             ->will($this->returnValue([

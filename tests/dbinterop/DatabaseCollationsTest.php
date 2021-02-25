@@ -164,7 +164,7 @@ final class DatabaseCollationsTest extends TestCase
             $this->assertNotNull($tblshort);
 
             TestData::insertRow($tbl, $cols, $row);
-            $row2 = $db->lookup(array_combine($cols, $row), join(",", $cols), $tblshort);
+            $row2 = $db->lookup(array_combine($cols, $row), $cols, $tblshort);
             $this->assertEquals(array_combine($cols, $row), $row2, "Inserted row not same as in DB");
         }
     }
@@ -225,7 +225,7 @@ final class DatabaseCollationsTest extends TestCase
 
         // check that select with equals on any uppercase column returns only the new uppercased record
         foreach ($uccols as $idx) {
-            $rowuc2 = $db->lookup([$cols[$idx] => $rowuc[$idx]], "id", $tblshort);
+            $rowuc2 = $db->lookup([$cols[$idx] => $rowuc[$idx]], ["id"], $tblshort);
             $this->assertEquals($rowucId, $rowuc2["id"], "Queried row not the uppercased one for $tbl $cols[$idx]");
         }
     }
@@ -298,7 +298,7 @@ final class DatabaseCollationsTest extends TestCase
 
         foreach ($uccols as $idx => $pattern) {
             if (isset($pattern)) {
-                $rows = $db->get(["%$cols[$idx]" => $pattern], "id", $tblshort);
+                $rows = $db->get(["%$cols[$idx]" => $pattern], ["id"], $tblshort);
                 $this->assertCount(2, $rows, "Number of returned $tbl rows not as expected ($cols[$idx])");
 
                 $gotIds = array_column($rows, "id");

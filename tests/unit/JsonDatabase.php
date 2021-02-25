@@ -196,8 +196,8 @@ class JsonDatabase extends AbstractDatabase
             if (!empty($coldef["fktable"])) {
                 $fktable = $coldef["fktable"];
                 $fkcol = $coldef["fkcolumn"];
-                $frow1 = $this->lookup([$fkcol => $row1[$col]], '*', $fktable);
-                $frow2 = $row2Db->lookup([$fkcol => $row2[$col]], '*', $fktable);
+                $frow1 = $this->lookup([$fkcol => $row1[$col]], [], $fktable);
+                $frow2 = $row2Db->lookup([$fkcol => $row2[$col]], [], $fktable);
 
                 $result = $this->compareRows($fktable, $row2Db, $frow1, $frow2);
             } elseif ($coldef["type"] === "key") {
@@ -478,7 +478,7 @@ class JsonDatabase extends AbstractDatabase
         return $defaultValue;
     }
 
-    public function lookup($conditions, string $cols = '*', string $table = 'contacts'): array
+    public function lookup($conditions, array $cols = [], string $table = 'contacts'): array
     {
         $rows = $this->get($conditions, $cols, $table);
 
@@ -490,10 +490,10 @@ class JsonDatabase extends AbstractDatabase
         return $rows[0];
     }
 
-    public function get($conditions, string $cols = '*', string $table = 'contacts', array $options = []): array
+    public function get($conditions, array $cols = [], string $table = 'contacts', array $options = []): array
     {
         TestCase::assertArrayHasKey($table, $this->data, "Get for unknown table $table");
-        $columns = $cols == '*' ? array_keys($this->schema[$table]) : preg_split('/\s*,\s*/', $cols);
+        $columns = empty($cols) ? array_keys($this->schema[$table]) : $cols;
         $filteredRows = [];
 
         $unknownCols = array_diff($columns, array_keys($this->schema[$table]));
@@ -547,7 +547,7 @@ class JsonDatabase extends AbstractDatabase
 
         // COUNT
         if ($options['count'] ?? false) {
-            $cntcols = preg_split("/\s*,\s*/", $cols);
+            $cntcols = empty($cols) ? ['*'] : $cols;
             $result = [];
 
             foreach ($cntcols as $col) {

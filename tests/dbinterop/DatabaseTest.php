@@ -158,14 +158,14 @@ final class DatabaseTest extends TestCase
     {
         $db = self::$db;
 
-        // special case '*' - all columns
-        $records = $db->get([], '*');
+        // special case [] - all columns
+        $records = $db->get([], []);
         $records = TestInfrastructure::xformDatabaseResultToRowList(self::COMPARE_COLS, $records, false);
         $records = TestInfrastructure::sortRowList($records);
         $this->assertEquals($records, TestInfrastructure::sortRowList(self::$rows));
 
         // selection of columns
-        $records = $db->get([], 'name, firstname, email');
+        $records = $db->get([], ['name', 'firstname', 'email']);
         $records = TestInfrastructure::xformDatabaseResultToRowList(['name', 'firstname', 'email'], $records, true);
         $records = TestInfrastructure::sortRowList($records);
 
@@ -293,7 +293,7 @@ final class DatabaseTest extends TestCase
     public function testDatabaseCountOperator(): void
     {
         $db = self::$db;
-        $records = $db->get([], '*,name,firstname,surname', 'contacts', ['count' => true]);
+        $records = $db->get([], ['*', 'name', 'firstname', 'surname'], 'contacts', ['count' => true]);
         $this->assertCount(1, $records);
         $row = $records[0];
 
@@ -335,7 +335,7 @@ final class DatabaseTest extends TestCase
     public function testDatabaseOrderOperator(array $orderSetting, array $expOrder): void
     {
         $db = self::$db;
-        $records = array_column($db->get([], 'cuid', 'contacts', ['order' => $orderSetting]), 'cuid');
+        $records = array_column($db->get([], ['cuid'], 'contacts', ['order' => $orderSetting]), 'cuid');
         $this->assertCount(count(self::$rows), $records);
         $this->assertSame($expOrder, $records);
     }
@@ -383,7 +383,7 @@ final class DatabaseTest extends TestCase
         }
 
         $records = array_column(
-            $db->get([], 'cuid', 'contacts', ['order' => $orderSetting, 'limit' => $limitSetting]),
+            $db->get([], ['cuid'], 'contacts', ['order' => $orderSetting, 'limit' => $limitSetting]),
             'cuid'
         );
 
@@ -410,7 +410,7 @@ final class DatabaseTest extends TestCase
         $this->assertDirectoryExists("$scriptdir/INIT-currentschema");
         $exception = null;
         try {
-            $db->get([], '*', 'migrations');
+            $db->get([], [], 'migrations');
         } catch (DatabaseException $e) {
             $exception = $e;
         }
@@ -422,7 +422,7 @@ final class DatabaseTest extends TestCase
         $db->checkMigrations("", $scriptdir);
         TestInfrastructure::logger()->expectMessage('error', 'carddav_migrations');
 
-        $rows = $db->get([], '*', 'migrations');
+        $rows = $db->get([], [], 'migrations');
         $migsdone = array_column($rows, 'filename');
         sort($migsdone);
 
@@ -436,7 +436,7 @@ final class DatabaseTest extends TestCase
     public function testTransactionRollbackWorks(): void
     {
         $db = self::$db;
-        $recsOrig = array_column($db->get([], 'id', 'contacts'), 'id');
+        $recsOrig = array_column($db->get([], ['id'], 'contacts'), 'id');
         sort($recsOrig);
 
         $db->startTransaction(false);
@@ -446,7 +446,7 @@ final class DatabaseTest extends TestCase
             [ self::$abookId ]
         );
         $newid = TestData::insertRow('carddav_contacts', self::COMPARE_COLS, $testrow);
-        $recsInside = array_column($db->get([], 'id', 'contacts'), 'id');
+        $recsInside = array_column($db->get([], ['id'], 'contacts'), 'id');
         sort($recsInside);
 
         $recsInsideExp = array_merge($recsOrig, [$newid]);
@@ -460,7 +460,7 @@ final class DatabaseTest extends TestCase
         $db->rollbackTransaction();
 
         /** @var list<string> */
-        $recsAfter = array_column($db->get([], 'id', 'contacts'), 'id');
+        $recsAfter = array_column($db->get([], ['id'], 'contacts'), 'id');
         sort($recsAfter);
         TestCase::assertEquals($recsOrig, $recsAfter, "Rows after rollback differ from original ones");
     }

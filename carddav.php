@@ -1046,7 +1046,7 @@ class carddav extends rcube_plugin
 
             // ...groups and memberships
             /** @psalm-var list<string> $delgroups */
-            $delgroups = array_column($db->get(['abook_id' => $abookId], 'id', 'groups'), "id");
+            $delgroups = array_column($db->get(['abook_id' => $abookId], ['id'], 'groups'), "id");
             if (!empty($delgroups)) {
                 $db->delete(['group_id' => $delgroups], 'group_user');
             }
@@ -1245,7 +1245,7 @@ class carddav extends rcube_plugin
 
             $this->abooksDb = [];
             /** @var FullAbookRow $abookrow */
-            foreach ($db->get(['user_id' => (string) $_SESSION['user_id']], '*', 'addressbooks') as $abookrow) {
+            foreach ($db->get(['user_id' => (string) $_SESSION['user_id']], [], 'addressbooks') as $abookrow) {
                 $this->abooksDb[$abookrow["id"]] = $abookrow;
             }
         }

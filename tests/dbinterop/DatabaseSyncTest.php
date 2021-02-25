@@ -79,7 +79,7 @@ final class DatabaseSyncTest extends TestCase
                 // perform a SELECT so that DBMS has to assume the following update was computed based on this query
                 // before we run our update, the parent will update, thus there is a serialization conflict
                 [ "id" => $id, "filename" => $fn ] =
-                    $db->lookup(["%filename" => "UNITTEST-SYNC%"], "id,filename", "migrations");
+                    $db->lookup(["%filename" => "UNITTEST-SYNC%"], ["id", "filename"], "migrations");
                 $this->barrierReached("C_TA_START");
                 $this->assertIsString($id);
                 $this->assertIsString($fn);
@@ -103,7 +103,11 @@ final class DatabaseSyncTest extends TestCase
                 $this->barrierReached("P_TA_START");
                 $this->barrierWait("C_TA_START");
 
-                [ "filename" => $fn ] = $db->lookup(["%filename" => "UNITTEST-SYNC%"], "id,filename", "migrations");
+                [ "filename" => $fn ] = $db->lookup(
+                    ["%filename" => "UNITTEST-SYNC%"],
+                    ["id", "filename"],
+                    "migrations"
+                );
                 $db->update($recordId, ["filename"], ["$fn-PAR"], "migrations");
                 sleep(1);
 
@@ -115,7 +119,7 @@ final class DatabaseSyncTest extends TestCase
             }
 
             $cldWins = ($this->collectChild() === 0);
-            [ "filename" => $fn ] = $db->lookup($recordId, "*", "migrations");
+            [ "filename" => $fn ] = $db->lookup($recordId, [], "migrations");
             // it would also be ok if both failed with no changes to the DB or both succeeded with a result matching
             // serial execution of the two transactions, but these are not expected by any of the three DBs
             $this->assertTrue($parWins xor $cldWins, "Exactly one transaction must succeed ($parWins/$cldWins, $fn)");
@@ -170,7 +174,7 @@ final class DatabaseSyncTest extends TestCase
         try {
             $recordId = $db->insert("migrations", ["filename"], [["UNITTEST-SYNC-WPAROT"]]);
             $db->startTransaction(true); // read-only transaction
-            [ 'id' => $recordId2] = $db->lookup(["filename" => "UNITTEST-SYNC-WPAROT"], "id", "migrations");
+            [ 'id' => $recordId2] = $db->lookup(["filename" => "UNITTEST-SYNC-WPAROT"], ["id"], "migrations");
             $db->endTransaction();
 
             $this->assertSame($recordId, $recordId2);

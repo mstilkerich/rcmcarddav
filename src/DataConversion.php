@@ -1002,7 +1002,7 @@ class DataConversion
         }
 
         /** @var list<array{typename: string, subtype: string}> read extra subtypes */
-        $xtypes = $db->get(['abook_id' => $this->abookId], 'typename,subtype', 'xsubtypes');
+        $xtypes = $db->get(['abook_id' => $this->abookId], ['typename', 'subtype'], 'xsubtypes');
 
         foreach ($xtypes as $row) {
             [ "typename" => $attr, "subtype" => $subtype ] = $row;

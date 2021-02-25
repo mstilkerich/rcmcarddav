@@ -194,7 +194,7 @@ class Database extends AbstractDatabase
         try {
             $dbh->set_option('ignore_key_errors', true);
             /** @var list<array{filename: string}> $migrations */
-            $migrationsDone = $this->get([], 'filename', 'migrations');
+            $migrationsDone = $this->get([], ['filename'], 'migrations');
             $migrationsDone = array_column($migrationsDone, 'filename');
         } catch (DatabaseException $e) {
             $migrationsDone = [];
@@ -342,7 +342,7 @@ class Database extends AbstractDatabase
         return $dbh->affected_rows($sql_result);
     }
 
-    public function get($conditions, string $cols = '*', string $table = 'contacts', array $options = []): array
+    public function get($conditions, array $cols = [], string $table = 'contacts', array $options = []): array
     {
         $sql_result = $this->internalGet($conditions, $cols, $table, $options);
 
@@ -353,7 +353,7 @@ class Database extends AbstractDatabase
         return $ret;
     }
 
-    public function lookup($conditions, string $cols = '*', string $table = 'contacts'): array
+    public function lookup($conditions, array $cols = [], string $table = 'contacts'): array
     {
         $sql_result = $this->internalGet($conditions, $cols, $table);
 
@@ -395,29 +395,35 @@ class Database extends AbstractDatabase
      * Like {@see get()}, but returns the unfetched PDOStatement result.
      *
      * @param DbConditions $conditions
+     * @param list<string> $cols
      * @param DbGetOptions $options
      */
     private function internalGet(
         $conditions,
-        string $cols = '*',
+        array $cols = [],
         string $table = 'contacts',
         array $options = []
     ): PDOStatement {
         $dbh = $this->dbHandle;
         $logger = $this->logger;
 
+        if (empty($cols)) {
+            $cols = ['*'];
+        }
+
         $sql = "SELECT ";
         if ($options['count'] ?? false) {
-            $columns = preg_split("/\s*,\s*/", $cols);
             $columns = array_map(
                 function (string $col) use ($dbh): string {
-                    return "COUNT($col) as " . $dbh->quote_identifier($col); // quoting needed for "*"
+                    // quoting needed for "*" in the as statement
+                    return "COUNT(" . $this->quoteDbColumn($col) . ") as " . $dbh->quote_identifier($col);
                 },
-                $columns
+                $cols
             );
             $sql .= implode(", ", $columns);
         } else {
-            $sql .= $cols;
+            $quotedCols = array_map([$this, 'quoteDbColumn'], $cols);
+            $sql .= implode(", ", $quotedCols);
         }
         $sql .= " FROM " . $dbh->table_name("carddav_$table");
 
@@ -464,6 +470,19 @@ class Database extends AbstractDatabase
         }
 
         return $sql_result;
+    }
+
+    /**
+     * Quotes a database column identifier, except for the special string *.
+     */
+    private function quoteDbColumn(string $col): string
+    {
+        if ($col != '*') {
+            $dbh = $this->dbHandle;
+            $col = $dbh->quote_identifier($col);
+        }
+
+        return $col;
     }
 
     public function delete($conditions, string $table = 'contacts'): int

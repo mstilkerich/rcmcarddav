@@ -73,7 +73,7 @@ final class AddressbookTest extends TestCase
         $db->importData('tests/unit/data/syncHandlerTest/initial/db.json');
 
         /** @var FullAbookRow */
-        $abookcfg = $db->lookup("42", '*', 'addressbooks');
+        $abookcfg = $db->lookup("42", [], 'addressbooks');
         /** @var FullAbookRow */
         $abookcfg = $cfgOverride + $abookcfg;
 
@@ -113,7 +113,7 @@ final class AddressbookTest extends TestCase
         $this->assertSame("42", $abook->getId());
 
         /** @var FullAbookRow */
-        $abookcfg = $db->lookup("42", '*', 'addressbooks');
+        $abookcfg = $db->lookup("42", [], 'addressbooks');
         $roAbook = new Addressbook("42", $abookcfg, true, []);
         $this->assertSame(true, $roAbook->readonly);
     }
