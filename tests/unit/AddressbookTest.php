@@ -65,14 +65,17 @@ final class AddressbookTest extends TestCase
 
     /**
      * @param list<string> $reqCols
+     * @param array{refresh_time?: numeric-string, last_updated?: numeric-string} $cfgOverride
      */
-    private function createAbook(array $reqCols = []): Addressbook
+    private function createAbook(array $reqCols = [], array $cfgOverride = []): Addressbook
     {
         $db = $this->db;
         $db->importData('tests/unit/data/syncHandlerTest/initial/db.json');
 
         /** @var FullAbookRow */
         $abookcfg = $db->lookup("42", '*', 'addressbooks');
+        /** @var FullAbookRow */
+        $abookcfg = $cfgOverride + $abookcfg;
 
         $abook = new Addressbook("42", $abookcfg, false, $reqCols);
         $davobj = $this->createStub(AddressbookCollection::class);
@@ -725,6 +728,40 @@ final class AddressbookTest extends TestCase
             $saveDataExp = Utils::readSaveDataFromJson($fn);
             Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
         }
+    }
+
+    /**
+     * @return list<array{int,numeric-string,numeric-string,int}>
+     */
+    public function resyncDueProvider(): array
+    {
+        $now = time();
+        $nowStr = (string) $now;
+
+        return [
+            // now  refresh  lastup  expDue
+            [ $now, "3600", $nowStr, 3600 ],
+            [ $now, "0", "0", -$now ],
+            [ $now, "0", $nowStr, 0 ],
+            [ $now, "1", $nowStr, 1 ],
+            [ $now, "1", (string) ($now - 1), 0 ],
+            [ $now, "1", (string) ($now - 2), -1 ],
+        ];
+    }
+
+    /**
+     * Tests getRefreshTime() and checkResyncDue().
+     *
+     * @psalm-param numeric-string $rt
+     * @psalm-param numeric-string $lu
+     * @dataProvider resyncDueProvider
+     */
+    public function testCheckResyncDueProvidesExpDelta(int $now, string $rt, string $lu, int $expDue): void
+    {
+        $nowDelta = time() - $now; // delta to now in data provider
+        $abook = $this->createAbook([], ['refresh_time' => $rt, 'last_updated' => $lu]);
+        $this->assertSame(intval($rt), $abook->getRefreshTime());
+        $this->assertSame($expDue - $nowDelta, $abook->checkResyncDue());
     }
 
     /**
