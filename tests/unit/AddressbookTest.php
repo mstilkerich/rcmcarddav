@@ -582,6 +582,7 @@ final class AddressbookTest extends TestCase
         return [
             'Valid ID' => [ '50', true, false ],
             'Valid ID (rset)' => [ '50', false, false ],
+            'Valid ID (different addressbook)' => [ '70', true, true ],
             'Invalid ID' => [ '500', true, true ],
             'Invalid ID (rset)' => [ '500', false, true ],
         ];
@@ -595,6 +596,10 @@ final class AddressbookTest extends TestCase
     public function testGetRecordProvidesExpectedRecord(string $id, bool $assoc, bool $expError): void
     {
         $abook = $this->createAbook();
+        $db = $this->db;
+
+        // import contact belonging to different addressbook
+        $db->importData('tests/unit/data/addressbookTest/db2.json');
 
         $saveDataRc = $abook->get_record($id, $assoc);
 
@@ -683,6 +688,7 @@ final class AddressbookTest extends TestCase
     {
         return [
             'Valid ID' => [ '500', false ],
+            'Valid ID (different addressbook)' => [ '700', true ],
             'Invalid ID' => [ '50', true ],
         ];
     }
@@ -695,6 +701,10 @@ final class AddressbookTest extends TestCase
     public function testGetGroupProvidesExpectedRecord(string $id, bool $expError): void
     {
         $abook = $this->createAbook();
+        $db = $this->db;
+
+        // import contact belonging to different addressbook
+        $db->importData('tests/unit/data/addressbookTest/db2.json');
 
         $saveDataRc = $abook->get_group($id);
 

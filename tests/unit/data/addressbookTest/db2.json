@@ -44,5 +44,16 @@
 			"uri": "/book42/c60.vcf",
 			"cuid": "sabre-vobject-005e805f-0bc1-4333-8be2-97889fb45b7a"
 		}
+	],
+	"groups": [
+		{
+			"id": 700,
+			"abook_id": 404,
+			"name": "The Does",
+			"vcard": null, "etag": null, "uri": null, "cuid": null
+		}
+	],
+	"group_user": [
+		{ "group_id": 700, "contact_id": 70 }
 	]
 }
