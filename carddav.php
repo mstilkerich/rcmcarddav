@@ -1220,6 +1220,9 @@ class carddav extends rcube_plugin
                     }
                 }
             }
+
+            /** @var Preset */
+            $this->presets[$presetname] = $result;
         } catch (\Exception $e) {
             $logger->error("Error in preset $presetname: " . $e->getMessage());
         }
