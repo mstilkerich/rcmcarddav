@@ -325,7 +325,8 @@ class carddav extends rcube_plugin
         try {
             $logger->debug(__METHOD__);
 
-            foreach ($this->getAddressbooks() as $abookId => $abookrow) {
+            foreach ($this->getAddressbooks() as $abookrow) {
+                $abookId = $abookrow["id"];
                 $presetname = $abookrow['presetname'] ?? ""; // empty string is not a valid preset name
                 $ro = $this->presets[$presetname]['readonly'] ?? false;
 
@@ -445,7 +446,8 @@ class carddav extends rcube_plugin
 
 
             $fromPresetStringLocalized = rcube::Q($this->gettext('cd_frompreset'));
-            foreach ($abooks as $abookId => $abookrow) {
+            foreach ($abooks as $abookrow) {
+                $abookId = $abookrow["id"];
                 $presetname = $abookrow['presetname'] ?? ""; // empty string is not a valid presetname
                 if (!($this->presets[$presetname]['hide'] ?? false)) {
                     $blockhdr = $abookrow['name'];
@@ -512,7 +514,8 @@ class carddav extends rcube_plugin
             }
 
             // update existing in DB
-            foreach ($this->getAddressbooks(false) as $abookId => $abookrow) {
+            foreach ($this->getAddressbooks(false) as $abookrow) {
+                $abookId = $abookrow["id"];
                 if (isset($_POST["${abookId}_cd_delete"])) {
                     $this->deleteAddressbook($abookId);
                 } else {
