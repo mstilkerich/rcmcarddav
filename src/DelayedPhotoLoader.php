@@ -70,9 +70,6 @@ class DelayedPhotoLoader
     ) {
         $this->vcard = $vcard;
         $this->davAbook = $davAbook;
-
-        $logger = Config::inst()->logger();
-        $logger->debug("Wrapping photo");
     }
 
     /**
@@ -83,8 +80,6 @@ class DelayedPhotoLoader
      */
     public function __toString(): string
     {
-        $logger = Config::inst()->logger();
-        $logger->debug("Unwrapping photo");
         return $this->computePhotoFromProperty();
     }
 
@@ -102,9 +97,6 @@ class DelayedPhotoLoader
         if (!isset($photoProp)) {
             return "";
         }
-
-        $logger = Config::inst()->logger();
-        $logger->debug("Creating photo data from PHOTO property");
 
         // First we determine whether the photo needs processing (download/crop)
         $cropProp = $photoProp['X-ABCROP-RECTANGLE'];
@@ -151,12 +143,11 @@ class DelayedPhotoLoader
 
     private function downloadPhoto(string $uri): ?string
     {
-        $logger = Config::inst()->logger();
         try {
-            $logger->debug("downloadPhoto: Attempt to download photo from $uri");
             $response = $this->davAbook->downloadResource($uri);
             return $response['body'];
         } catch (\Exception $e) {
+            $logger = Config::inst()->logger();
             $logger->warning("downloadPhoto: Attempt to download photo from $uri failed: $e");
         }
 
@@ -174,7 +165,6 @@ class DelayedPhotoLoader
     private function fetchFromRoundcubeCache(VObject\Property $photoProp): ?string
     {
         $infra = Config::inst();
-        $logger = $infra->logger();
         $cache = $infra->cache();
 
         $key = $this->determineCacheKey();
@@ -182,17 +172,14 @@ class DelayedPhotoLoader
         $cacheObject = $cache->get($key);
 
         if (!isset($cacheObject)) {
-            $logger->debug("Roundcube cache miss $key");
             return null;
         }
 
         if (md5($photoProp->serialize()) !== $cacheObject["photoPropMd5"]) {
-            $logger->debug("Roundcube cached photo outdated - removing $key");
             $cache->remove($key);
             return null;
         }
 
-        $logger->debug("Roundcube cache hit $key");
         return $cacheObject["photo"];
     }
 
@@ -205,7 +192,6 @@ class DelayedPhotoLoader
     private function storeToRoundcubeCache(string $photoData, VObject\Property $photoProp): void
     {
         $infra = Config::inst();
-        $logger = $infra->logger();
         $cache = $infra->cache();
 
         $photoPropMd5 = md5($photoProp->serialize());
@@ -215,7 +201,6 @@ class DelayedPhotoLoader
         ];
 
         $key = $this->determineCacheKey();
-        $logger->debug("Storing to roundcube cache $key");
         $cache->set($key, $cacheObject);
     }
 
