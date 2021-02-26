@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
 	user_id INT(10) UNSIGNED NOT NULL,
 	last_updated BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the last update of the local database
 	refresh_time INT NOT NULL DEFAULT 3600, -- time span (seconds) after that the local database will be refreshed, default 1h
-	sync_token TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, -- sync-token the server sent us for the last sync
+	sync_token TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL, -- sync-token the server sent us for the last sync
 
 	presetname VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, -- presetname
 	use_categories INT NOT NULL DEFAULT '0',

@@ -1083,9 +1083,10 @@ class carddav extends rcube_plugin
         }
 
         $pa['user_id'] = (string) $_SESSION['user_id'];
+        $pa['sync_token'] = '';
 
         // required fields
-        $qf = ['name','username','password','url','user_id'];
+        $qf = ['name','username','password','url','user_id','sync_token'];
         $qv = [];
         foreach ($qf as $f) {
             if (!isset($pa[$f])) {
