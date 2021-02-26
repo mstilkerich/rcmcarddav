@@ -174,6 +174,8 @@ final class TestData
                 self::$data[$tbl][] = $row;
             }
         }
+
+        $_SESSION["user_id"] = self::$data["users"][0]["id"];
     }
 
     /**

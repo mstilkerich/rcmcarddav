@@ -38,8 +38,6 @@ final class TestInfrastructureDB
 
     public static function initDatabase(string $db_dsnw, string $db_prefix = ""): AbstractDatabase
     {
-        $_SESSION["user_id"] = "1";
-
         $rcconfig = \rcube::get_instance()->config;
         $rcconfig->set("db_prefix", $db_prefix, false);
         $rcconfig->set("db_dsnw", $db_dsnw, false);
