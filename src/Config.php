@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
 use Psr\Log\{LoggerInterface,LogLevel};
+use MStilkerich\CardDavClient\Services\Discovery;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
 use rcube;
 use rcube_cache;
@@ -40,6 +41,9 @@ class Config
 {
     /** @var ?Config The single instance of this class - can be exchanged by tests */
     public static $inst;
+
+    /** @var ?Discovery Instance of the discovery service to be returned - normally null, but can be set by tests */
+    public $discovery;
 
     /** @var LoggerInterface */
     protected $logger;
@@ -105,6 +109,11 @@ class Config
         }
 
         return $this->cache;
+    }
+
+    public function makeDiscoveryService(): Discovery
+    {
+        return $this->discovery ?? new Discovery();
     }
 }
 

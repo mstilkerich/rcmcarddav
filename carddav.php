@@ -25,7 +25,6 @@
 declare(strict_types=1);
 
 use MStilkerich\CardDavClient\Account;
-use MStilkerich\CardDavClient\Services\Discovery;
 use Psr\Log\LoggerInterface;
 use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config, RoundcubeLogger};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
@@ -242,7 +241,8 @@ class carddav extends rcube_plugin
 
     public function initPresets(): void
     {
-        $logger = Config::inst()->logger();
+        $infra = Config::inst();
+        $logger = $infra->logger();
 
         try {
             $logger->debug(__METHOD__);
@@ -280,7 +280,7 @@ class carddav extends rcube_plugin
 
                         $logger->info("Adding preset for $username at URL $url");
                         $account = new Account($url, $username, $password);
-                        $discover = new Discovery();
+                        $discover = $infra->makeDiscoveryService();
                         $abooks = $discover->discoverAddressbooks($account);
 
                         foreach ($abooks as $abook) {
@@ -501,7 +501,8 @@ class carddav extends rcube_plugin
      */
     public function savePreferences(array $args): array
     {
-        $logger = Config::inst()->logger();
+        $infra = Config::inst();
+        $logger = $infra->logger();
 
         try {
             $logger->debug(__METHOD__);
@@ -546,7 +547,7 @@ class carddav extends rcube_plugin
                         $new['username'],
                         self::replacePlaceholdersPassword($new['password'])
                     );
-                    $discover = new Discovery();
+                    $discover = $infra->makeDiscoveryService();
                     $abooks = $discover->discoverAddressbooks($account);
 
                     if (count($abooks) > 0) {
