@@ -351,7 +351,7 @@ class carddav extends rcube_plugin
      * @param array $p The passed array contains the keys:
      *     id: ID of the addressbook as passed to roundcube in the listAddressbooks hook.
      *     writeable: Whether the addressbook needs to be writeable (checked by roundcube after returning an instance).
-     * @psalm-param array{id: string} $p
+     * @psalm-param array{id: ?string} $p
      * @return array Returns the passed array extended by a key instance pointing to the addressbook object.
      *     If the addressbook is not provided by the plugin, simply do not set the instance and return what was passed.
      */
@@ -360,10 +360,12 @@ class carddav extends rcube_plugin
         $infra = Config::inst();
         $logger = $infra->logger();
 
-        try {
-            $logger->debug(__METHOD__ . "({$p['id']})");
+        $abookId = $p['id'] ?? 'null';
 
-            if (preg_match(";^carddav_(\d+)$;", $p['id'], $match)) {
+        try {
+            $logger->debug(__METHOD__ . "($abookId)");
+
+            if (preg_match(";^carddav_(\d+)$;", $abookId, $match)) {
                 $abookId = $match[1];
                 $abooks = $this->getAddressbooks(false);
 
@@ -397,7 +399,7 @@ class carddav extends rcube_plugin
                 }
             }
         } catch (\Exception $e) {
-            $logger->error("Error loading carddav addressbook {$p['id']}: " . $e->getMessage());
+            $logger->error("Error loading carddav addressbook $abookId: " . $e->getMessage());
         }
 
         return $p;
