@@ -42,7 +42,7 @@ final class TestData
     public const USERS_COLUMNS = [ "username", "mail_host" ];
 
     /** @var TestDataTableDef Column names of the carddav_addressbooks table */
-    public const ADDRESSBOOKS_COLUMNS = [ "name", "username", "password", "url", "user_id" ];
+    public const ADDRESSBOOKS_COLUMNS = [ "name", "username", "password", "url", "user_id", "sync_token" ];
 
     /** @var TestDataTableDef Column names of the carddav_xsubtypes table */
     public const XSUBTYPES_COLUMNS = [ "typename", "subtype", "abook_id" ];
@@ -70,8 +70,8 @@ final class TestData
             ["testuser@example.com", "mail.example.com"],
         ],
         "carddav_addressbooks" => [
-            [ "Empty Addressbook", "u1", "p1", "https://contacts.example.com/u1/empty/", [ "users", 0 ] ],
-            [ "Small Addressbook", "u2", "p1", "https://contacts.example.com/u2/small/", [ "users", 0 ] ],
+            [ "Empty Addressbook", "u1", "p1", "https://contacts.example.com/u1/empty/", [ "users", 0 ], "" ],
+            [ "Small Addressbook", "u2", "p1", "https://contacts.example.com/u2/small/", [ "users", 0 ], "" ],
         ],
         "carddav_contacts" => [
             [
