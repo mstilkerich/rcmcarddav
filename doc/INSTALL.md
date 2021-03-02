@@ -6,7 +6,7 @@ There is two ways to install the plugin.
 2. Installation from release tarball with the plugin's dependencies located in the plugin directory. There is the
    potential of conflicts with other versions of the same libraries being installed in roundcube's global vendor
    directory. This installation method may be simpler to use the roundcube packages shipped with some Linux
-   distributions, but we won't provide support in case you run into troubles with dependencies.
+   distributions or in case you can/do not want to run composer yourself.
 
 After installation, you may optionally [configure](#configuration) the plugin.
 
@@ -39,14 +39,14 @@ In case of errors, check the files `logs/*`.
 
 Releases of RCMCardDAV are also provided as a tarball than can be extracted to roundcube's plugin directory.
 
+__Note:__ Release tarballs prior to v4.1.0 lack the dependencies and require to run composer. See the INSTALL.md file
+inside that tarball for the appropriate instructions.
+
 - Log out of Roundcube!
   This is important because RCMCardDAV runs its database initialisation / update procedure only when a user logs in!
-- Get [composer](https://getcomposer.org/download/)
 - Download the release tarball from [here](releases/)
 - Extract the tarball to the roundcube/plugins directory (assuming roundcube is installed at `/var/lib/roundcube`)
-  `cd /var/lib/roundcube/plugins && tar xvzf /tmp/carddav-4.0.0.tgz`
-- Install the plugin's dependencies with `cd /var/lib/roundcube/plugins/carddav && php composer.phar install --no-dev`. To update to the latest versions of the
-  depended-on libraries, use `php composer.phar update --no-dev` instead.
+  `cd /var/lib/roundcube/plugins && tar xvzf /tmp/carddav-v4.1.0.tar.gz`
 - [Configure](#configuration) the plugin if needed.
 - Enable RCMCardDAV in Roundcube
   Open the file `config/config.inc.php` and add `carddav` to the array `$config['plugins']`.
@@ -61,7 +61,7 @@ installation scheme that is probably needed to comply with the Debian packaging 
   - The plugins are searched for in `/var/lib/roundcube/plugins`, some pre-installed plugins are actually stored with the
     static part and symlinked from the `plugins` directory.
 
-The easiest way to install the RCMCardDAV plugin in this constellation is to install from tarball using the corresponding
+The easiest way to install the RCMCardDAV plugin in this situation is to install from tarball using the corresponding
 [instructions](#Installation-from-release-tarball) above. The example code already contains the correct paths for
 Debian/Ubuntu.
 

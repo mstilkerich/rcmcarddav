@@ -8,6 +8,7 @@ TESTDB_postgres=rcmcarddavtest
 MIGTESTDB_postgres=rcmcarddavmigtest
 CD_TABLES=$(foreach tbl,addressbooks contacts groups group_user xsubtypes migrations,carddav_$(tbl))
 DOCDIR := doc/api/
+RELEASE_VERSION ?= $(shell git tag --points-at HEAD)
 
 # This environment variable is set on github actions
 # If not defined, it is expected that the root user can authenticate via unix socket auth
@@ -46,19 +47,23 @@ phpcompatcheck:
 psalmanalysis: tests/dbinterop/DatabaseAccounts.php
 	vendor/bin/psalm --no-cache --shepherd --report=testreports/psalm.txt --report-show-info=true --no-progress
 
+# Example usage for non-HEAD version: RELEASE_VERSION=v4.1.0 make tarball
 .PHONY: tarball
 tarball:
-	@mkdir -p releases
-	@VERS=$$(git tag --points-at HEAD); \
-		if [ -z "$$VERS" ]; then \
-			echo "Error: HEAD has no version tag"; \
-			exit 1; \
-		else \
-			NVERS=$$(echo "$$VERS" | sed -e 's/^v//'); \
-			grep -q "const PLUGIN_VERSION = '$$VERS'" carddav.php || { echo "carddav::PLUGIN_VERSION does not match release" ; exit 1; }; \
-			grep -q "^## Version $$NVERS" CHANGELOG.md || { echo "No changelog entry for release $$NVERS" ; exit 1; }; \
-			git archive --format tgz --prefix carddav/ -o releases/carddav-$$VERS.tgz --worktree-attributes HEAD; \
-		fi
+	mkdir -p releases
+	rm -rf releases/carddav
+	@[ -n "$(RELEASE_VERSION)" ] || { echo "Error: HEAD has no version tag, and no version was set in RELEASE_VERSION"; exit 1; }
+	( git show "$(RELEASE_VERSION):carddav.php" | grep -q "const PLUGIN_VERSION = '$(RELEASE_VERSION)'" ) || { echo "carddav::PLUGIN_VERSION does not match release" ; exit 1; }
+	@grep -q "^## Version $(patsubst v%,%,$(RELEASE_VERSION))" CHANGELOG.md || { echo "No changelog entry for release $(RELEASE_VERSION)" ; exit 1; }
+	git archive --format tar --prefix carddav/ -o releases/carddav-$(RELEASE_VERSION).tar --worktree-attributes $(RELEASE_VERSION)
+	@# Fetch a clean state of all dependencies
+	composer create-project --repository='{"type":"vcs", "url":"file://$(PWD)" }' -q --no-dev --no-plugins roundcube/carddav releases/carddav $(RELEASE_VERSION)
+	@# Force a Guzzle version compatible with roundcube 1.5
+	cd releases/carddav && composer require -q --update-no-dev 'guzzlehttp/guzzle:^6.5.5'
+	@# Append dependencies to the tar
+	tar -C releases --owner 0 --group 0 -rf releases/carddav-$(RELEASE_VERSION).tar carddav/vendor
+	@# gzip the tarball
+	gzip releases/carddav-$(RELEASE_VERSION).tar
 
 define EXECDBSCRIPT_postgres
 sed -e 's/TABLE_PREFIX//g' <$(2) | psql -U rcmcarddavtest $(1)
