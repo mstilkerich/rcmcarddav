@@ -58,7 +58,7 @@ jobs:
         run: |
           psql --username=postgres -c "create role rcmcarddavtest with login password 'rcmcarddavtest';"
       - name: Install dependencies
-        run: composer update --no-interaction --no-progress --with 'mstilkerich/carddavclient:1.0.x-dev'
+        run: composer update --no-interaction --no-progress
       - name: Check code style compliance with PSR12
         run: make stylecheck
       - name: Check code compatibility with minimum supported PHP version
