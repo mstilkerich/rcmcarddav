@@ -617,6 +617,9 @@ class carddav extends rcube_plugin
         if ($password == '%p') {
             $rcube = rcube::get_instance();
             $password = $rcube->decrypt((string) $_SESSION['password']);
+            if ($password === false) {
+                $password = "";
+            }
         }
 
         return $password;
@@ -694,9 +697,7 @@ class carddav extends rcube_plugin
         }
 
         if (strcasecmp($scheme, 'encrypted') === 0) {
-            if (empty($_SESSION['password'])) { // no key for encryption available, downgrade to DES_KEY
-                $scheme = 'des_key';
-            } else {
+            try {
                 // encrypted with IMAP password
                 $rcube = rcube::get_instance();
 
@@ -709,6 +710,12 @@ class carddav extends rcube_plugin
                 $rcube->config->set('carddav_des_key', '');
 
                 return '{ENCRYPTED}' . $crypted;
+            } catch (\Exception $e) {
+                $logger = Config::inst()->logger();
+                $logger->warning(
+                    "Could not encrypt password with 'encrypted' method, falling back to 'des_key': " . $e->getMessage()
+                );
+                $scheme = 'des_key';
             }
         }
 
@@ -728,31 +735,35 @@ class carddav extends rcube_plugin
         $logger = Config::inst()->logger();
 
         if (strpos($crypt, '{ENCRYPTED}') === 0) {
-            // return empty password if decruption key not available
-            if (empty($_SESSION['password'])) {
-                $logger->warning("Cannot decrypt password as now session password is available");
+            try {
+                $crypt = substr($crypt, strlen('{ENCRYPTED}'));
+                $rcube = rcube::get_instance();
+
+                $imap_password = $this->getDesKey();
+                $rcube->config->set('carddav_des_key', $imap_password);
+                $clear = $rcube->decrypt($crypt, 'carddav_des_key');
+                // there seems to be no way to unset a preference
+                $rcube->config->set('carddav_des_key', '');
+                if ($clear === false) {
+                    $clear = "";
+                }
+
+                return $clear;
+            } catch (\Exception $e) {
+                $logger->warning("Cannot decrypt password: " . $e->getMessage());
                 return "";
             }
-
-            $crypt = substr($crypt, strlen('{ENCRYPTED}'));
-            $rcube = rcube::get_instance();
-
-            $imap_password = $this->getDesKey();
-            $rcube->config->set('carddav_des_key', $imap_password);
-
-            $clear = $rcube->decrypt($crypt, 'carddav_des_key');
-
-            // there seems to be no way to unset a preference
-            $rcube->config->set('carddav_des_key', '');
-
-            return $clear;
         }
 
         if (strpos($crypt, '{DES_KEY}') === 0) {
             $crypt = substr($crypt, strlen('{DES_KEY}'));
             $rcube = rcube::get_instance();
+            $clear = $rcube->decrypt($crypt);
+            if ($clear === false) {
+                $clear = "";
+            }
 
-            return $rcube->decrypt($crypt);
+            return $clear;
         }
 
         if (strpos($crypt, '{BASE64}') === 0) {
@@ -1235,6 +1246,11 @@ class carddav extends rcube_plugin
     {
         $rcube = rcube::get_instance();
         $imap_password = $rcube->decrypt((string) $_SESSION['password']);
+
+        if ($imap_password === false || strlen($imap_password) == 0) {
+            throw new \Exception("No password available to use for encryption");
+        }
+
         while (strlen($imap_password) < 24) {
             $imap_password .= $imap_password;
         }

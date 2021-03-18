@@ -1,5 +1,8 @@
 # Changelog for RCMCardDAV
 
+- Fix: A fatal error would be raised when a password could not be decrypted, only on photo download. This would not be
+  notable to the user (except for the photo not being displayed), but show up in the logs.
+
 ## Version 4.1.0 (to 4.0.4)
 
 - Fix: Prefer labels from X-ABLabel extension if available over standard labels

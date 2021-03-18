@@ -52,6 +52,8 @@ final class CarddavTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
+        $rcube = \rcube::get_instance();
+        $_SESSION['password'] = $rcube->encrypt('theRoundcubePassword');
         $dbsettings = TestInfrastructureDB::dbSettings();
         $db_dsnw = $dbsettings[0];
         $db = TestInfrastructureDB::initDatabase($db_dsnw);
@@ -156,7 +158,7 @@ final class CarddavTest extends TestCase
         foreach ($abookObjs as $i => $davobj) {
             $this->assertSame("ExampleAcc ({$davobj->getName()})", $abooks[$i]['name']);
             $this->assertSame($username, $abooks[$i]['username']);
-            $this->assertStringStartsWith('{DES_KEY}', $abooks[$i]['password'] ?? "");
+            $this->assertStringStartsWith('{ENCRYPTED}', $abooks[$i]['password'] ?? "");
             $this->assertSame($davobj->getUri(), $abooks[$i]['url']);
             $this->assertSame($settings["active"] ?? "0", $abooks[$i]['active']);
             $this->assertSame($_SESSION["user_id"], $abooks[$i]['user_id']);
