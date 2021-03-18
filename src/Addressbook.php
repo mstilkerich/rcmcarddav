@@ -562,7 +562,7 @@ class Addressbook extends rcube_addressbook
      * @param array $ids   Record identifiers
      * @param bool  $force Remove records irreversible (see self::undelete)
      *
-     * @return int Number of contacts deleted
+     * @return int|false Number of removed records, False on failure
      */
     public function delete($ids, $force = true): int
     {
@@ -616,6 +616,7 @@ class Addressbook extends rcube_addressbook
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
             $logger->error("Failed to delete contacts [" . implode(",", $ids) . "]:" . $e->getMessage());
             $db->rollbackTransaction();
+            return false;
         }
 
         return $deleted;
