@@ -148,7 +148,7 @@ class DelayedPhotoLoader
             return $response['body'];
         } catch (\Exception $e) {
             $logger = Config::inst()->logger();
-            $logger->warning("downloadPhoto: Attempt to download photo from $uri failed: $e");
+            $logger->warning("downloadPhoto: Attempt to download photo from $uri failed: " . $e->getMessage());
         }
 
         return null;
