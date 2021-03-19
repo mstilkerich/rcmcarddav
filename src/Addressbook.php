@@ -564,7 +564,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return int|false Number of removed records, False on failure
      */
-    public function delete($ids, $force = true): int
+    public function delete($ids, $force = true)
     {
         $infra = Config::inst();
         $logger = $infra->logger();
