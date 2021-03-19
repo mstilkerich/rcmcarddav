@@ -45,7 +45,7 @@ jobs:
         with:
           path: roundcubemail
           repository: mstilkerich/roundcubemail
-          ref: 'fix_phpdoc_annotations'
+          ref: 'rcmcarddav_ci'
       - name: Copy config files
         run: |
           cp -v .github/workflows/ci-cfg/.??* ~/
