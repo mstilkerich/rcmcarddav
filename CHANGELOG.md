@@ -2,6 +2,8 @@
 
 - Fix: A fatal error would be raised when a password could not be decrypted, only on photo download. This would not be
   notable to the user (except for the photo not being displayed), but show up in the logs.
+- Fix #339: Allow adding public/shared addressbooks by giving full URL. Discovery is still used if the given URL does
+  not point to an addressbook directly, or points to an addressbook inside the user's addressbook home.
 
 ## Version 4.1.0 (to 4.0.4)
 
