@@ -34,27 +34,27 @@ $prefs['_GLOBAL']['loglevel_http'] = \Psr\Log\LogLevel::ERROR;
 // Each addressbook preset takes the following form:
 /*
 $prefs['<Presetname>'] = [
-	// required attributes
-	'name'         =>  '<Addressbook Name>',
-	'url'          =>  '<CardDAV Discovery URL>',
+    // required attributes
+    'name'         =>  '<Addressbook Name>',
+    'url'          =>  '<CardDAV Discovery URL>',
 
-	// required attributes unless passwordless authentication is used (Kerberos)
-	'username'     =>  '<CardDAV Username>',
-	'password'     =>  '<CardDAV Password>',
+    // required attributes unless passwordless authentication is used (Kerberos)
+    'username'     =>  '<CardDAV Username>',
+    'password'     =>  '<CardDAV Password>',
 
-	// optional attributes
-	'active'       =>  <true or false>,
-	'readonly'     =>  <true or false>,
-	'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
+    // optional attributes
+    'active'       =>  <true or false>,
+    'readonly'     =>  <true or false>,
+    'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
 
-	// attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset
-	'fixed'        =>  [ < 0 or more of the other attribute keys > ],
+    // attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset
+    'fixed'        =>  [ < 0 or more of the other attribute keys > ],
 
-	// always require these attributes, even for addressbook view
-	'require_always' => ['email'],
+    // always require these attributes, even for addressbook view
+    'require_always' => ['email'],
 
-	// hide this preset from CardDAV preferences section so users can't even see it
-	'hide' => <true or false>,
+    // hide this preset from CardDAV preferences section so users can't even see it
+    'hide' => <true or false>,
 ];
 */
 
