@@ -1,5 +1,6 @@
 # Changelog for RCMCardDAV
 
+## Version 4.1.1 (to 4.1.0)
 - Fix: A fatal error would be raised when a password could not be decrypted, only on photo download. This would not be
   notable to the user (except for the photo not being displayed), but show up in the logs.
 - Fix #339: Allow adding public/shared addressbooks by giving full URL. Discovery is still used if the given URL does
