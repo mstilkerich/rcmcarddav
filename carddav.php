@@ -24,8 +24,7 @@
 
 declare(strict_types=1);
 
-use MStilkerich\CardDavClient\Account;
-use MStilkerich\CardDavClient\{AddressbookCollection,WebDavResource};
+use MStilkerich\CardDavClient\{Account, AddressbookCollection};
 use Psr\Log\LoggerInterface;
 use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config, RoundcubeLogger};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
@@ -996,7 +995,7 @@ class carddav extends rcube_plugin
      * For fixed settings of preset addressbooks, no setting values will be contained.
      *
      * Boolean settings will always be present in the result, since there is no way to differentiate whether a checkbox
-     * was not ticket or the value was not submitted at all - so the absence of a boolean setting is considered as a
+     * was not checked or the value was not submitted at all - so the absence of a boolean setting is considered as a
      * false value for the setting.
      *
      * @param string $abookId The ID of the addressbook ("new" for new addressbooks, otherwise the numeric DB id)
@@ -1019,29 +1018,32 @@ class carddav extends rcube_plugin
 
             if (is_bool(self::ABOOK_TEMPLATE[$attr])) {
                 $result[$attr] = (bool) $value;
-            } elseif (isset($value)) {
-                if ($attr == "refresh_time") {
-                    try {
-                        $result["refresh_time"] = self::parseTimeParameter($value);
-                    } catch (\Exception $e) {
-                        // will use the DB default for new addressbooks, or leave the value unchanged for existing ones
-                    }
-                } elseif ($attr == "url") {
-                    $value = trim($value);
-                    if (!empty($value)) {
-                        // FILTER_VALIDATE_URL requires the scheme component, default to https if not specified
-                        if (strpos($value, "://") === false) {
-                            $value = "https://$value";
+            } else {
+                if (isset($value)) {
+                    if ($attr == "refresh_time") {
+                        try {
+                            $result["refresh_time"] = self::parseTimeParameter($value);
+                        } catch (\Exception $e) {
+                            // will use the DB default for new addressbooks, or leave the value unchanged for existing
+                            // ones
                         }
+                    } elseif ($attr == "url") {
+                        $value = trim($value);
+                        if (!empty($value)) {
+                            // FILTER_VALIDATE_URL requires the scheme component, default to https if not specified
+                            if (strpos($value, "://") === false) {
+                                $value = "https://$value";
+                            }
+                        }
+                        $result["url"] = $value;
+                    } elseif ($attr == "password") {
+                        // Password is only updated if not empty
+                        if (!empty($value)) {
+                            $result["password"] = $value;
+                        }
+                    } else {
+                        $result[$attr] = $value;
                     }
-                    $result["url"] = $value;
-                } elseif ($attr == "password") {
-                    // Password is only updated if not empty
-                    if (!empty($value)) {
-                        $result["password"] = $value;
-                    }
-                } else {
-                    $result[$attr] = $value;
                 }
             }
         }
@@ -1308,7 +1310,7 @@ class carddav extends rcube_plugin
         // If the discovery URI points to an addressbook that is not part of the discovered ones, we only use that
         // addressbook
         try {
-            $directAbook = WebDavResource::createInstance($uri, $account);
+            $directAbook = $infra->makeWebDavResource($uri, $account);
             if ($directAbook instanceof AddressbookCollection) {
                 $logger->debug("Only adding non-individual addressbook $uri");
                 return [ $directAbook ];

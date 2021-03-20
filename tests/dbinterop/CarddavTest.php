@@ -26,7 +26,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
-use MStilkerich\CardDavClient\{Account,AddressbookCollection};
+use MStilkerich\CardDavClient\{Account,AddressbookCollection,WebDavResource,WebDavCollection};
 use MStilkerich\CardDavClient\Services\Discovery;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
@@ -101,7 +101,7 @@ final class CarddavTest extends TestCase
         }
     }
 
-    /** @return array<string, array{int,AddressbookSettings,string}> */
+    /** @return array<string, array{?class-string<WebDavResource>,int,AddressbookSettings,bool,string}> */
     public function newAbookSettingsProvider(): array
     {
         $base = [
@@ -109,22 +109,78 @@ final class CarddavTest extends TestCase
             'username' => 'testNewAddressbookIsCorrectlySaved',
             'password' => 'thePassword',
             'url' => 'https://example.com',
-            'active' => "1",
         ];
 
         return [
-            '1 New with empty refresh time' => [ 1, ['active' => '1'] + $base, "3600" ],
-            '2 New inactive ones' => [ 2, ['refresh_time' => '1:02:3'] + $base, "3723" ],
+            '1 new with empty refresh time' => [ null, 1, ['active' => '1'] + $base, false, "3600" ],
+            '2 new inactive ones' => [ null, 2, ['refresh_time' => '1:02:3'] + $base, false, "3723" ],
+            'Direct URI to user addressbook' => [
+                AddressbookCollection::class,
+                2,
+                ['active' => '1', 'url' => 'https://www.example.com/dav/abook1'] + $base,
+                false, // all user addressbooks should be discovered
+                "3600"
+            ],
+            'URI to non-addressbook resource' => [
+                WebDavCollection::class,
+                2,
+                ['active' => '1', 'url' => 'https://www.example.com/dav'] + $base,
+                false, // all user addressbooks should be discovered
+                "3600"
+            ],
+            'URI to non-personal addressbook (public/shared)' => [
+                AddressbookCollection::class,
+                2,
+                ['active' => '1', 'url' => 'https://www.example.com/public/book'] + $base,
+                true, // only the non-personal addressbook should be discovered
+                "3600"
+            ],
+            'Direct URI to user addressbook with different host' => [
+                AddressbookCollection::class,
+                2,
+                ['active' => '1', 'url' => 'https://dav.example.com/dav/abook1'] + $base,
+                false, // all user addressbooks should be discovered
+                "3600"
+            ],
+            'URI to non-personal addressbook (public/shared) with different host' => [
+                AddressbookCollection::class,
+                2,
+                ['active' => '1', 'url' => 'https://dav.example.com/public/book'] + $base,
+                true, // only the non-personal addressbook should be discovered
+                "3600"
+            ],
+            'URI to non-personal addressbook (public/shared) without protocol in URI' => [
+                AddressbookCollection::class,
+                2,
+                ['active' => '1', 'url' => 'dav.example.com/public/book'] + $base,
+                true, // only the non-personal addressbook should be discovered
+                "3600"
+            ],
         ];
     }
 
     /**
-     * @param AddressbookSettings $settings
+     * Tests that new addressbooks are properly created in the database as posted from a preferences page.
+     *
+     * The result of the Discovery service is emulated to provide a test-vector-dependent number of addressbooks under
+     * the URL https://www.example.com/dav/abook<Index>.
+     *
+     * @param ?class-string<WebDavResource> $uriResType
+     *   The type of the discovery URI WebDavResource, null to throw Exception
+     * @param int $numAbooks The number of addressbooks that the discovery stub shall "discover"
+     * @param AddressbookSettings $settings The settings for the addressbook, e.g. as determined from preferences.
+     * @param bool $isSharedAbook True if the URI points to an addressbook outside the user's addressbook home
+     * @param string $expRt The expected refresh_time in the data base (result of conversion of the user-entered time)
      * @dataProvider newAbookSettingsProvider
      */
-    public function testNewAddressbookIsCorrectlySaved(int $numAbooks, array $settings, string $expRt): void
-    {
-        // create some test addressbooks
+    public function testNewAddressbookIsCorrectlySaved(
+        ?string $uriResType,
+        int $numAbooks,
+        array $settings,
+        bool $isSharedAbook,
+        string $expRt
+    ): void {
+        // create some test addressbooks to be discovered
         $abookObjs = [];
         for ($i = 0; $i < $numAbooks; ++$i) {
             $abookObjs[] = $this->makeAddressbookStub("New $i", "https://www.example.com/dav/abook$i");
@@ -133,13 +189,36 @@ final class CarddavTest extends TestCase
         // create a Discovery mock that "discovers" our test addressbooks
         $username = $settings['username'] ?? '';
         $password = $settings['password'] ?? '';
-        $account = new Account($settings['url'] ?? '', $username, $password);
+        $discoveryUrl = $settings['url'] ?? '';
+        if (!str_contains($discoveryUrl, '://')) {
+            $discoveryUrl = "https://$discoveryUrl";
+        }
+        $account = new Account($discoveryUrl, $username, $password);
         $discovery = $this->createMock(Discovery::class);
         $discovery->expects($this->once())
             ->method("discoverAddressbooks")
             ->with($this->equalTo($account))
             ->will($this->returnValue($abookObjs));
         TestInfrastructure::$infra->discovery = $discovery;
+
+        // create a stub to return for the discovery URI resource
+        if (isset($uriResType)) {
+            if ($uriResType == AddressbookCollection::class) {
+                $discResource = $this->makeAddressbookStub("Shared Abook", $discoveryUrl);
+
+                // a shared addressbook should be the only thing discovered
+                if ($isSharedAbook) {
+                    $abookObjs = [$discResource];
+                }
+            } else {
+                $discResource = $this->createStub($uriResType);
+                $discResource->method('getUri')->will($this->returnValue($discoveryUrl));
+            }
+
+            TestInfrastructure::$infra->webDavResource = $discResource;
+        } else {
+            TestInfrastructure::$infra->webDavResource = new \Exception("Emulate non-accessible WebDAV resource");
+        }
 
         // Set data for POST form
         $this->setPOSTforAbook("new", $settings);
@@ -153,6 +232,7 @@ final class CarddavTest extends TestCase
         // check DB record
         $db = TestInfrastructure::$infra->db();
         $abooks = $db->get(['username' => $username], [], 'addressbooks', ['order' => ['name']]);
+
         $this->assertCount(count($abookObjs), $abooks, "Expected number of new addressbooks not found in DB");
 
         foreach ($abookObjs as $i => $davobj) {
@@ -170,6 +250,7 @@ final class CarddavTest extends TestCase
         }
 
         TestInfrastructure::$infra->discovery = null;
+        TestInfrastructure::$infra->webDavResource = null;
     }
 
     /**
