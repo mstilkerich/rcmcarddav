@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-use MStilkerich\CardDavClient\Account;
+use MStilkerich\CardDavClient\{Account, AddressbookCollection};
 use Psr\Log\LoggerInterface;
 use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config, RoundcubeLogger};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
@@ -280,8 +280,7 @@ class carddav extends rcube_plugin
 
                         $logger->info("Adding preset for $username at URL $url");
                         $account = new Account($url, $username, $password);
-                        $discover = $infra->makeDiscoveryService();
-                        $abooks = $discover->discoverAddressbooks($account);
+                        $abooks = $this->determineAddressbooksToAdd($account);
 
                         foreach ($abooks as $abook) {
                             if ($preset['carddav_name_only']) {
@@ -552,8 +551,7 @@ class carddav extends rcube_plugin
                         $new['username'],
                         self::replacePlaceholdersPassword($new['password'])
                     );
-                    $discover = $infra->makeDiscoveryService();
-                    $abooks = $discover->discoverAddressbooks($account);
+                    $abooks = $this->determineAddressbooksToAdd($account);
 
                     if (count($abooks) > 0) {
                         $basename = $new['name'];
@@ -646,6 +644,20 @@ class carddav extends rcube_plugin
         }
 
         return $ret;
+    }
+
+    /**
+     * Compares the path components of two URIs.
+     *
+     * @return bool True if the normalized path components are equal.
+     */
+    private static function compareUrlPaths(string $url1, string $url2): bool
+    {
+        $comp1 = \Sabre\Uri\parse($url1);
+        $comp2 = \Sabre\Uri\parse($url2);
+        $p1 = trim(rtrim($comp1["path"] ?? "", "/"), "/");
+        $p2 = trim(rtrim($comp2["path"] ?? "", "/"), "/");
+        return $p1 === $p2;
     }
 
     /**
@@ -983,7 +995,7 @@ class carddav extends rcube_plugin
      * For fixed settings of preset addressbooks, no setting values will be contained.
      *
      * Boolean settings will always be present in the result, since there is no way to differentiate whether a checkbox
-     * was not ticket or the value was not submitted at all - so the absence of a boolean setting is considered as a
+     * was not checked or the value was not submitted at all - so the absence of a boolean setting is considered as a
      * false value for the setting.
      *
      * @param string $abookId The ID of the addressbook ("new" for new addressbooks, otherwise the numeric DB id)
@@ -1006,29 +1018,32 @@ class carddav extends rcube_plugin
 
             if (is_bool(self::ABOOK_TEMPLATE[$attr])) {
                 $result[$attr] = (bool) $value;
-            } elseif (isset($value)) {
-                if ($attr == "refresh_time") {
-                    try {
-                        $result["refresh_time"] = self::parseTimeParameter($value);
-                    } catch (\Exception $e) {
-                        // will use the DB default for new addressbooks, or leave the value unchanged for existing ones
-                    }
-                } elseif ($attr == "url") {
-                    $value = trim($value);
-                    if (!empty($value)) {
-                        // FILTER_VALIDATE_URL requires the scheme component, default to https if not specified
-                        if (strpos($value, "://") === false) {
-                            $value = "https://$value";
+            } else {
+                if (isset($value)) {
+                    if ($attr == "refresh_time") {
+                        try {
+                            $result["refresh_time"] = self::parseTimeParameter($value);
+                        } catch (\Exception $e) {
+                            // will use the DB default for new addressbooks, or leave the value unchanged for existing
+                            // ones
                         }
+                    } elseif ($attr == "url") {
+                        $value = trim($value);
+                        if (!empty($value)) {
+                            // FILTER_VALIDATE_URL requires the scheme component, default to https if not specified
+                            if (strpos($value, "://") === false) {
+                                $value = "https://$value";
+                            }
+                        }
+                        $result["url"] = $value;
+                    } elseif ($attr == "password") {
+                        // Password is only updated if not empty
+                        if (!empty($value)) {
+                            $result["password"] = $value;
+                        }
+                    } else {
+                        $result[$attr] = $value;
                     }
-                    $result["url"] = $value;
-                } elseif ($attr == "password") {
-                    // Password is only updated if not empty
-                    if (!empty($value)) {
-                        $result["password"] = $value;
-                    }
-                } else {
-                    $result[$attr] = $value;
                 }
             }
         }
@@ -1255,6 +1270,55 @@ class carddav extends rcube_plugin
             $imap_password .= $imap_password;
         }
         return substr($imap_password, 0, 24);
+    }
+
+    /**
+     * Determines the addressbooks to add for a given URI.
+     *
+     * We perform discovery to determine all the user's addressbooks.
+     *
+     * If the given URI might point to an addressbook directly (i.e. it has a non-empty path), we check if it is
+     * contained in the discovered addressbooks. If it is not, we check if it actually points to an addressbook. If it
+     * does, we add ONLY this addressbook, not the discovered ones.
+     *
+     * We need to perform the discovery to determine where the user's own addressbooks live (addressbook home).
+     *
+     * See https://github.com/mstilkerich/rcmcarddav/issues/339 for rationale.
+     *
+     * @param Account $account The account to discover the addressbooks for. The discovery URI is assumed as user input.
+     * @return list<AddressbookCollection> The determined addressbooks, possible empty.
+     */
+    private function determineAddressbooksToAdd(Account $account): array
+    {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+
+        $uri = $account->getDiscoveryUri();
+
+        $discover = $infra->makeDiscoveryService();
+        $abooks = $discover->discoverAddressbooks($account);
+
+        foreach ($abooks as $abook) {
+            // If the discovery URI points to an addressbook that was also discovered, we use the discovered results
+            // We deliberately only compare the path components, as the server part may contain a port (or not) or even
+            // be a different server name after discovery, but the path part should be "unique enough"
+            if (self::compareUrlPaths($uri, $abook->getUri())) {
+                return $abooks;
+            }
+        }
+
+        // If the discovery URI points to an addressbook that is not part of the discovered ones, we only use that
+        // addressbook
+        try {
+            $directAbook = $infra->makeWebDavResource($uri, $account);
+            if ($directAbook instanceof AddressbookCollection) {
+                $logger->debug("Only adding non-individual addressbook $uri");
+                return [ $directAbook ];
+            }
+        } catch (\Exception $e) {
+        }
+
+        return $abooks;
     }
 
     /**

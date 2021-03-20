@@ -137,7 +137,12 @@ added, resulting in deletion of the existing addressbooks from the database and 
            found for the preset, it will be appended in brackets to this name, except if carddav_name_only is true (see
            below).
  - `url`: URL where to find the CardDAV addressbook(s). This URL is taken to start a discovery process for addressbooks
-          according to RFC 6764. All addressbooks found will be added. The URL is fixed after creation of an addressbook
+          according to RFC 6764. If the URL points to an addressbook __outside__ the user's addressbook home (i.e. a
+          shared or public addressbook), __only__ this addressbook is added. Otherwise, all discovered addressbooks are
+          added. That means, even if the URL points to an individual addressbook that belongs to the user, all other
+          addressbooks of the user are added as well.
+
+All addressbooks found will be added. The URL is fixed after creation of an addressbook
           and cannot currently be updated automatically. You can use the same placeholders as for the username field.
 
 ### Required parameters unless password-less authentication is used (e.g. Kerberos)
@@ -213,7 +218,8 @@ $prefs['Work'] = [
 Preconfigured addressbooks are processed after the user has logged into roundcube.
 
 - If the user has no addressbooks for a preset (identified by the Presetname), an addressbook discovery will be
-  performed using the information stored with the preset. All discovered addressbooks are added.
+  performed using the information stored with the preset. All discovered addressbooks are added, except for the special
+  case of shared/public addressbooks (see documentation of the `url` preset parameter).
 - If the user has addressbooks created from a preset that no longer exists (again, identified by the Presetname), the
   addressbooks are deleted from the database.
 - Otherwise, all fields that the admin listed in the `fixed` setting of the corresponding preset are updated. Other
@@ -229,3 +235,4 @@ field is done. If you change the URL, you currently have two options:
    Addressbooks belonging to the old preset will be deleted upon the next login of the user and freshly created.
 
 
+<!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->
