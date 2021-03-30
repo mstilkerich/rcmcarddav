@@ -1193,43 +1193,31 @@ class Addressbook extends rcube_addressbook
     /**
      * Synchronizes the local card store with the CardDAV server.
      *
-     * @return int The duration in seconds that the sync took.
+     * @return int The duration in seconds that the sync took
      */
     public function resync(): int
     {
         $infra = Config::inst();
         $logger = $infra->logger();
         $db = $infra->db();
-        $duration = -1;
 
-        try {
-            $start_refresh = time();
-            $davAbook = $this->getCardDavObj();
-            $synchandler = new SyncHandlerRoundcube($this, $this->dataConverter, $davAbook);
-            $syncmgr = new Sync();
+        $start_refresh = time();
+        $davAbook = $this->getCardDavObj();
+        $synchandler = new SyncHandlerRoundcube($this, $this->dataConverter, $davAbook);
+        $syncmgr = new Sync();
 
-            $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token']);
-            $this->config['sync_token'] = $sync_token;
-            $this->config["last_updated"] = (string) time();
-            $db->update(
-                $this->id,
-                ["last_updated", "sync_token"],
-                [$this->config["last_updated"], $sync_token],
-                "addressbooks"
-            );
+        $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token']);
+        $this->config['sync_token'] = $sync_token;
+        $this->config["last_updated"] = (string) time();
+        $db->update(
+            $this->id,
+            ["last_updated", "sync_token"],
+            [$this->config["last_updated"], $sync_token],
+            "addressbooks"
+        );
 
-            $duration = time() - $start_refresh;
-            $logger->info("sync of addressbook {$this->id} ({$this->get_name()}) took $duration seconds");
-
-            if ($synchandler->hadErrors) {
-                $this->set_error(rcube_addressbook::ERROR_SAVING, "Non-fatal errors occurred during sync");
-            }
-        } catch (\Exception $e) {
-            $logger->error("Errors occurred during the refresh of addressbook " . $this->id . ": $e");
-            $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
-
-            $db->rollbackTransaction();
-        }
+        $duration = time() - $start_refresh;
+        $logger->info("sync of addressbook {$this->id} ({$this->get_name()}) took $duration seconds");
 
         return $duration;
     }
