@@ -63,6 +63,23 @@ interface RcmInterface
      * @param int $timeout Message displaying time in seconds
      */
     public function showMessage(string $msg, string $msgType = 'notice', $override = true, $timeout = 0): void;
+
+    /**
+     * Installs a roundcube hook function.
+     */
+    public function addHook(string $hook, callable $callback): void;
+
+    /**
+     * Loads localized texts for the current locale.
+     */
+    public function addTexts(string $dir): void;
+
+    /**
+     * Includes a CSS on the page.
+     *
+     * @param string $cssFile Path to CSS file relative to the plugin's skin path.
+     */
+    public function includeCSS(string $cssFile): void;
 }
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120

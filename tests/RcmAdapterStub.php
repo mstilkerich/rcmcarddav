@@ -26,12 +26,16 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube;
 
+use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavAddressbook4Roundcube\Frontend\RcmInterface;
 
 class RcmAdapterStub implements RcmInterface
 {
     /** @var array<string,string> Simulated POST data */
     public $postInputs = [];
+
+    /** @var array<string, callable> Records installed hook functions */
+    public $hooks = [];
 
     public function locText(string $msgId, array $vars = []): string
     {
@@ -44,6 +48,21 @@ class RcmAdapterStub implements RcmInterface
     }
 
     public function showMessage(string $msg, string $msgType = 'notice', $override = true, $timeout = 0): void
+    {
+    }
+
+    public function addHook(string $hook, callable $callback): void
+    {
+        // currently this stub only supports one callback per hook
+        TestCase::assertFalse(isset($this->hooks[$hook]), "Duplicate hook $hook");
+        $this->hooks[$hook] = $callback;
+    }
+
+    public function addTexts(string $dir): void
+    {
+    }
+
+    public function includeCSS(string $cssFile): void
     {
     }
 }

@@ -86,7 +86,7 @@ class carddav extends rcube_plugin implements RcmInterface
      *
      * @param rcube_plugin_api $api Plugin API
      */
-    public function __construct($api, array $options = [])
+    public function __construct($api)
     {
         parent::__construct($api);
 
@@ -113,30 +113,30 @@ class carddav extends rcube_plugin implements RcmInterface
     {
         $infra = Config::inst();
         $logger = $infra->logger();
-        $admPrefs = $infra->admPrefs();
 
         try {
-            // initialize carddavclient library
-            MStilkerich\CardDavClient\Config::init($logger, $infra->httpLogger());
-
-            $this->add_texts('localization/', false);
-
-            $this->add_hook('addressbooks_list', [$this, 'listAddressbooks']);
-            $this->add_hook('addressbook_get', [$this, 'getAddressbook']);
-
-            // if preferences are configured as hidden by the admin, don't register the hooks handling preferences
-            if (!$admPrefs->hidePreferences) {
-                $ui = new SettingsUI($this->abMgr);
-                $this->add_hook('preferences_list', [$ui, 'buildPreferencesPage']);
-                $this->add_hook('preferences_save', [$ui, 'savePreferences']);
-                $this->add_hook('preferences_sections_list', [$ui, 'addPreferencesSection']);
-            }
-
-            $this->add_hook('login_after', [$this, 'checkMigrations']);
-            $this->add_hook('login_after', [$this, 'initPresets']);
+            $rc = $infra->rc();
+            $rc->addHook('login_after', [$this, 'afterLogin']);
 
             if (!isset($_SESSION['user_id'])) {
                 return;
+            }
+
+            // initialize carddavclient library
+            MStilkerich\CardDavClient\Config::init($logger, $infra->httpLogger());
+
+            $rc->addTexts('localization/');
+
+            $rc->addHook('addressbooks_list', [$this, 'listAddressbooks']);
+            $rc->addHook('addressbook_get', [$this, 'getAddressbook']);
+
+            // if preferences are configured as hidden by the admin, don't register the hooks handling preferences
+            $admPrefs = $infra->admPrefs();
+            if (!$admPrefs->hidePreferences) {
+                $ui = new SettingsUI($this->abMgr);
+                $rc->addHook('preferences_list', [$ui, 'buildPreferencesPage']);
+                $rc->addHook('preferences_save', [$ui, 'savePreferences']);
+                $rc->addHook('preferences_sections_list', [$ui, 'addPreferencesSection']);
             }
 
             // use this address book for autocompletion queries
@@ -152,10 +152,9 @@ class carddav extends rcube_plugin implements RcmInterface
             );
 
             $config->set('autocomplete_addressbooks', array_merge($sources, $carddav_sources));
-            $skin_path = $this->local_skin_path();
-            $this->include_stylesheet($skin_path . '/carddav.css');
+            $rc->includeCSS('carddav.css');
         } catch (\Exception $e) {
-            $logger->error("Could not init rcmcarddav: " . $e->getMessage());
+            $logger->error("Could not init rcmcarddav: " . $e);
         }
     }
 
@@ -180,16 +179,34 @@ class carddav extends rcube_plugin implements RcmInterface
         $rcube->output->show_message($msg, $msgType, null, $override, $timeout);
     }
 
+    public function addHook(string $hook, callable $callback): void
+    {
+        $this->add_hook($hook, $callback);
+    }
+
+    public function addTexts(string $dir): void
+    {
+        $this->add_texts($dir);
+    }
+
+    public function includeCSS(string $cssFile): void
+    {
+        $skinPath = $this->local_skin_path();
+        $this->include_stylesheet("$skinPath/$cssFile");
+    }
+
     /***************************************************************************************
      *                                    HOOK FUNCTIONS
      **************************************************************************************/
 
-    public function checkMigrations(): void
+    public function afterLogin(): void
     {
         $infra = Config::inst();
         $logger = $infra->logger();
+        $admPrefs = $infra->admPrefs();
         $db = $infra->db();
 
+        // Migrate database schema to the current version if needed
         try {
             $logger->debug(__METHOD__);
 
@@ -200,11 +217,8 @@ class carddav extends rcube_plugin implements RcmInterface
         } catch (\Exception $e) {
             $logger->error("Error execution DB schema migrations: " . $e->getMessage());
         }
-    }
 
-    public function initPresets(): void
-    {
-        $admPrefs = Config::inst()->admPrefs();
+        // Initialize presets
         $admPrefs->initPresets($this->abMgr);
     }
 

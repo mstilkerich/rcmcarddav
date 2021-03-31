@@ -39,6 +39,7 @@ class Config extends \MStilkerich\CardDavAddressbook4Roundcube\Config
         $this->logger = $logger;
         $this->httpLogger = $logger;
         $this->db = $db;
+        $this->rc = new RcmAdapterStub();
     }
 
     public function setCache(rcube_cache $cache): void
@@ -55,6 +56,13 @@ class Config extends \MStilkerich\CardDavAddressbook4Roundcube\Config
     {
         TestCase::assertNotNull($this->cache);
         return $this->cache;
+    }
+
+    public function rcTestAdapter(): RcmAdapterStub
+    {
+        TestCase::assertInstanceOf(RcmAdapterStub::class, $this->rc);
+        // always return the stub
+        return $this->rc;
     }
 }
 

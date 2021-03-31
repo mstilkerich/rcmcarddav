@@ -109,12 +109,12 @@ class Config
 
     public function rc(?RcmInterface $rc = null): RcmInterface
     {
-        if (isset($rc)) {
-            $this->rc = $rc;
-        }
-
         if (!isset($this->rc)) {
-            throw new \Exception("Roundcube adapter not set");
+            if (isset($rc)) {
+                $this->rc = $rc;
+            } else {
+                throw new \Exception("Roundcube adapter not set");
+            }
         }
 
         return $this->rc;
@@ -122,12 +122,12 @@ class Config
 
     public function admPrefs(?AdminSettings $admPrefs = null): AdminSettings
     {
-        if (isset($admPrefs)) {
-            $this->admPrefs = $admPrefs;
-        }
-
         if (!isset($this->admPrefs)) {
-            throw new \Exception("Roundcube admin prefs not initialized");
+            if (isset($admPrefs)) {
+                $this->admPrefs = $admPrefs;
+            } else {
+                throw new \Exception("Roundcube admin prefs not initialized");
+            }
         }
 
         return $this->admPrefs;

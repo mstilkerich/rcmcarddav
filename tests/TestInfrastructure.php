@@ -30,6 +30,7 @@ use PHPUnit\Framework\TestCase;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
+use MStilkerich\CardDavAddressbook4Roundcube\Frontend\AdminSettings;
 
 final class TestInfrastructure
 {
@@ -39,10 +40,17 @@ final class TestInfrastructure
     /** @var ?TestLogger */
     private static $logger;
 
+    /**
+     * Initializes the RCMCardDAV infrastructure Config by a test-specific implementation.
+     *
+     * This includes the creation of test-specific logger and roundcube adapter interface.
+     */
     public static function init(AbstractDatabase $db): void
     {
         self::$infra = new Config($db, self::logger());
         \MStilkerich\CardDavAddressbook4Roundcube\Config::$inst = self::$infra;
+        $admPrefs = new AdminSettings(dirname(__FILE__) . "/../config.inc.php.dist");
+        self::$infra->admPrefs($admPrefs);
     }
 
     public static function logger(): TestLogger

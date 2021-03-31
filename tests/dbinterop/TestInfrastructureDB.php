@@ -36,6 +36,11 @@ final class TestInfrastructureDB
     /** @var ?rcube_db The roundcube database handle */
     private static $dbh;
 
+    /**
+     * Initializes the roundcube database connection and returns the RCMCardDAV DB handle.
+     *
+     * No data initialization takes place in this function.
+     */
     public static function initDatabase(string $db_dsnw, string $db_prefix = ""): AbstractDatabase
     {
         $rcconfig = \rcube::get_instance()->config;
@@ -54,6 +59,11 @@ final class TestInfrastructureDB
         return DatabaseAccounts::ACCOUNTS[$GLOBALS["TEST_DBTYPE"]];
     }
 
+    /**
+     * Returns the roundcube DB handle for bypassing the RCMCardDAV DB layer.
+     *
+     * This is particularly useful to test the Database class, but should otherwise be avoided.
+     */
     public static function getDbHandle(): rcube_db
     {
         if (isset(self::$dbh)) {
