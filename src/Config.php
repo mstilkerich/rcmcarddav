@@ -173,6 +173,29 @@ class Config
 
         return $res;
     }
+
+    /**
+     * Creates an Account object from the credentials in rcmcarddav.
+     *
+     * Particularly, this takes care of setting up the credentials information properly.
+     */
+    public static function makeAccount(string $discUrl, string $username, string $password, ?string $baseUrl): Account
+    {
+        if ($password == "%b") {
+            if (
+                isset($_SESSION['oauth_token']['access_token'])
+                && is_string($_SESSION['oauth_token']['access_token'])
+            ) {
+                $credentials = [ 'bearertoken' => $_SESSION['oauth_token']['access_token'] ];
+            } else {
+                throw new \Exception("OAUTH2 bearer authentication requested, but no token available in roundcube");
+            }
+        } else {
+            $credentials = [ 'username' => $username, 'password' => $password ];
+        }
+
+        return new Account($discUrl, $credentials, "", $baseUrl);
+    }
 }
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120

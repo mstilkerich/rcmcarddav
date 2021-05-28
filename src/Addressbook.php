@@ -1569,7 +1569,7 @@ class Addressbook extends rcube_addressbook
             $username = $this->config["username"];
             $password = $this->config["password"];
 
-            $account = new Account($url, $username, $password, $url);
+            $account = Config::makeAccount($url, $username, $password, $url);
             $this->davAbook = new AddressbookCollection($url, $account);
         }
 

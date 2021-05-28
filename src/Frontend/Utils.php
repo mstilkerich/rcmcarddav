@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
 
 use MStilkerich\CardDavAddressbook4Roundcube\Config;
+use MStilkerich\CardDavClient\Account;
 use rcube;
 
 /**

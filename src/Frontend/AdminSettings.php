@@ -184,7 +184,7 @@ class AdminSettings
                         $password = Utils::replacePlaceholdersPassword($preset['password']);
 
                         $logger->info("Adding preset for $username at URL $url");
-                        $account = new Account($url, $username, $password);
+                        $account = Config::makeAccount($url, $username, $password, null);
                         $abooks = $abMgr->determineAddressbooksToAdd($account);
 
                         foreach ($abooks as $abook) {

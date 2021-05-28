@@ -199,10 +199,11 @@ class SettingsUI
                     if (filter_var($new["url"], FILTER_VALIDATE_URL) === false) {
                         throw new \Exception("Invalid URL: " . $new["url"]);
                     }
-                    $account = new Account(
+                    $account = Config::makeAccount(
                         $new["url"],
                         $new['username'],
-                        Utils::replacePlaceholdersPassword($new['password'])
+                        Utils::replacePlaceholdersPassword($new['password']),
+                        null
                     );
                     $abooks = $abMgr->determineAddressbooksToAdd($account);
 
