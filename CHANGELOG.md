@@ -1,5 +1,11 @@
 # Changelog for RCMCardDAV
 
+## Version 4.2.0 (to 4.1.2)
+
+- New: Support OAUTH2 authentication in a single-sign-on setup in conjunction with roundcube 1.5 OAUTH2 authentication.
+  This enables to use the bearer token acquired during login by roundcube to also be used to authenticate with the
+  CardDAV server. It is currently not possible to add addressbooks using a custom OAUTH2 provider, i.e. a different one
+  than that used to log into roundcube.
 - Fix #348: Load the carddav plugin in the calendar task. This enables usage of carddav addressbooks within the calendar
   plugin, for example for the purpose of the birthday calendar.
 

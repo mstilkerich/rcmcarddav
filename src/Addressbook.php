@@ -184,13 +184,13 @@ class Addressbook extends rcube_addressbook
      * the page are returned. The returned records are found in the $records property of the returned result set.
      *
      * Finally, the $first property of the returned result set contains the index into the total set of filtered records
-     * (i.e. not considering the segmentation into pages) of the first returned record. FIXME should this consider
-     * subset or not? Currently it is not considered, i.e. first will always be a multiple of the page size
+     * (i.e. not considering the segmentation into pages) of the first returned record before applying the $subset
+     * parameter (i.e., $first is always a multiple of the page size).
      *
-     * The $nocount parameter is an internal optimization that allows to skip querying the total amount of records of
-     * the filtered set, if the caller is only interested in the records. In this case, the $count property of the
-     * returned result set will simply contain the number of returned records, but the filtered set may contain more
-     * records than this.
+     * The $nocount parameter is an optimization that allows to skip querying the total amount of records of the
+     * filtered set if the caller is only interested in the records. In this case, the $count property of the returned
+     * result set will simply contain the number of returned records, but the filtered set may contain more records than
+     * this.
      *
      * The result of the operation is internally cached for later retrieval using get_result().
      *
