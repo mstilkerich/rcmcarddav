@@ -686,27 +686,27 @@ class Addressbook extends rcube_addressbook
      * This filter mechanism is applied in addition to other filter mechanisms, see the description of the count()
      * operation.
      *
-     * @param null|0|string $gid Database identifier of the group. 0/"0"/null to reset the group filter.
+     * @param null|0|string $group_id Database identifier of the group. 0/"0"/null to reset the group filter.
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
-    public function set_group($gid): void
+    public function set_group($group_id): void
     {
         $infra = Config::inst();
         $logger = $infra->logger();
 
         try {
-            $logger->debug("set_group($gid)");
+            $logger->debug("set_group($group_id)");
 
-            if ($gid) {
+            if ($group_id) {
                 $db = $infra->db();
                 // check for valid ID with the database - this throws an exception if the group cannot be found
-                $db->lookup(["id" => $gid, "abook_id" => $this->id], ["id"], "groups");
-                $this->group_id = $gid;
+                $db->lookup(["id" => $group_id, "abook_id" => $this->id], ["id"], "groups");
+                $this->group_id = $group_id;
             } else {
                 $this->group_id = null;
             }
         } catch (\Exception $e) {
-            $logger->error("set_group($gid): " . $e->getMessage());
+            $logger->error("set_group($group_id): " . $e->getMessage());
         }
     }
 
