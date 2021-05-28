@@ -84,10 +84,16 @@ In the username and URL fields, the following substitutions are available:
 
 ### Password
 
-In the password field, the placeholder `%p` is substituted with the roundcube/IMAP password of the user. This only works
-if the password is `%p`, i.e. this placeholder is not replaced if it is part of a larger string. In this case, the
-password is also stored as `%p` in the database, so the user can avoid having their password stored in the roundcube
-database at all.
+In the password field, the following special values are substituted:
+
+ - `%p`: Replaced by the roundcube/IMAP password of the user.
+ - `%b`: Marker to use bearer authentication. If no preset-specific OAUTH configuration is configured, the bearer token
+   acquired by roundcube during login with OAUTH2 (available from roundcube 1.5) is used. The username is not used and
+   can be empty in that case.
+
+Substitution only works if the password is exactly the placeholder, i.e. this placeholder is not replaced if it is part
+of a larger string. In this case, the placeholder is also stored as password in the database, so the user can avoid
+having their password stored in the roundcube database at all.
 
 ## Preconfigured Addressbooks (Presets)
 
