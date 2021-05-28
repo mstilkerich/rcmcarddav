@@ -282,7 +282,7 @@ class carddav extends rcube_plugin
                         $password = self::replacePlaceholdersPassword($preset['password']);
 
                         $logger->info("Adding preset for $username at URL $url");
-                        $account = new Account($url, $username, $password);
+                        $account = Config::makeAccount($url, $username, $password, null);
                         $abooks = $this->determineAddressbooksToAdd($account);
 
                         foreach ($abooks as $abook) {
@@ -575,10 +575,11 @@ class carddav extends rcube_plugin
                     if (filter_var($new["url"], FILTER_VALIDATE_URL) === false) {
                         throw new \Exception("Invalid URL: " . $new["url"]);
                     }
-                    $account = new Account(
+                    $account = Config::makeAccount(
                         $new["url"],
                         $new['username'],
-                        self::replacePlaceholdersPassword($new['password'])
+                        self::replacePlaceholdersPassword($new['password']),
+                        null
                     );
                     $abooks = $this->determineAddressbooksToAdd($account);
 
