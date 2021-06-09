@@ -19,5 +19,7 @@ $labels = Array(
 	'cd_msg_synchronized' => 'CardDAV addressbook $name synchronized (Took $duration seconds)',
 	'cd_msg_syncfailed' => 'Sync of CardDAV addressbook $name failed: $errormsg',
 	'cd_frompreset' => ' (from preset _PRESETNAME_)',
+
+	'changeactive' => 'Toggle addressbook active'
 );
 ?>

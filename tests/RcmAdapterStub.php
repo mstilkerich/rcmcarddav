@@ -65,6 +65,26 @@ class RcmAdapterStub implements RcmInterface
     public function includeCSS(string $cssFile): void
     {
     }
+
+    public function includeJS(string $jsFile): void
+    {
+    }
+
+    public function addGuiObject(string $obj, string $id): void
+    {
+    }
+
+    public function setPageTitle(string $title): void
+    {
+    }
+
+    public function addTemplateObjHandler(string $name, callable $func): void
+    {
+    }
+
+    public function sendTemplate(string $templ, $exit = true): void
+    {
+    }
 }
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120:ft=php

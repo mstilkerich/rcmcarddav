@@ -28,7 +28,7 @@ use MStilkerich\CardDavClient\{Account, AddressbookCollection};
 use Psr\Log\LoggerInterface;
 use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config, RoundcubeLogger};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
-use MStilkerich\CardDavAddressbook4Roundcube\Frontend\{AddressbookManager,AdminSettings,RcmInterface,SettingsUI};
+use MStilkerich\CardDavAddressbook4Roundcube\Frontend\{AddressbookManager,AdminSettings,RcmInterface,SettingsUI,UI};
 
 // phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
 class carddav extends rcube_plugin implements RcmInterface
@@ -137,6 +137,12 @@ class carddav extends rcube_plugin implements RcmInterface
                 $rc->addHook('preferences_list', [$ui, 'buildPreferencesPage']);
                 $rc->addHook('preferences_save', [$ui, 'savePreferences']);
                 $rc->addHook('preferences_sections_list', [$ui, 'addPreferencesSection']);
+
+                // New UI
+                $newui = new UI($this->abMgr);
+                $this->addHook('settings_actions', [$newui, 'addSettingsAction']);
+                $this->register_action('plugin.carddav', [$newui, 'renderAddressbookList']);
+                $this->include_script("carddav.js");
             }
 
             // use this address book for autocompletion queries
@@ -193,6 +199,47 @@ class carddav extends rcube_plugin implements RcmInterface
     {
         $skinPath = $this->local_skin_path();
         $this->include_stylesheet("$skinPath/$cssFile");
+    }
+
+    public function includeJS(string $jsFile): void
+    {
+        $this->include_script($jsFile);
+    }
+
+    public function addGuiObject(string $obj, string $id): void
+    {
+        $rcube = \rcube::get_instance();
+
+        /** @psalm-var \rcmail_output_html */
+        $output = $rcube->output;
+        $output->add_gui_object($obj, $id);
+    }
+
+    public function setPageTitle(string $title): void
+    {
+        $rcube = \rcube::get_instance();
+
+        /** @psalm-var \rcmail_output_html */
+        $output = $rcube->output;
+        $output->set_pagetitle($title);
+    }
+
+    public function addTemplateObjHandler(string $name, callable $func): void
+    {
+        $rcube = \rcube::get_instance();
+
+        /** @psalm-var \rcmail_output_html */
+        $output = $rcube->output;
+        $output->add_handler($name, $func);
+    }
+
+    public function sendTemplate(string $templ, $exit = true): void
+    {
+        $rcube = \rcube::get_instance();
+
+        /** @psalm-var \rcmail_output_html */
+        $output = $rcube->output;
+        $output->send($templ, $exit);
     }
 
     /***************************************************************************************

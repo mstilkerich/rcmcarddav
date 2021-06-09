@@ -80,6 +80,46 @@ interface RcmInterface
      * @param string $cssFile Path to CSS file relative to the plugin's skin path.
      */
     public function includeCSS(string $cssFile): void;
+
+    /**
+     * Includes a javascript file on the page.
+     *
+     * @param string $jsFile Path to JS file relative to the plugin's skin path or roundcube standard JS paths.
+     */
+    public function includeJS(string $jsFile): void;
+
+    /**
+     * Register a GUI object to the client script
+     *
+     * @param string $obj Object name
+     * @param string $id  Object ID
+     */
+    public function addGuiObject(string $obj, string $id): void;
+
+    /**
+     * Setter for page title
+     *
+     * @param string $title Page title
+     */
+    public function setPageTitle(string $title): void;
+
+        /**
+     * Register a template object handler
+     *
+     * @param string $name Object name
+     * @param callable $func Function to call
+     * @psalm-param callable(array{id?: string}):string $func
+     */
+    public function addTemplateObjHandler(string $name, callable $func): void;
+
+    /**
+     * Send the request output to the client.
+     * This will either parse a skin template.
+     *
+     * @param string $templ Template name
+     * @param bool   $exit  True if script should terminate (default)
+     */
+    public function sendTemplate(string $templ, $exit = true): void;
 }
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120
