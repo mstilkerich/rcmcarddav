@@ -6,6 +6,7 @@ on:
     branches:
       - master
       - oauth2
+      - new_ui
 
 jobs:
   buildtest:
