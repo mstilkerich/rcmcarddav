@@ -49,11 +49,19 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
 rcube_webmail.prototype.carddav_activate_abook = function(abookid, active)
 {
     if (abookid) {
-        // TODO
-        //var prefix = state ? '' : 'un',
-        //  lock = this.display_message('folder' + prefix + 'subscribing', 'loading');
+        var prefix = active ? '' : 'de',
+          lock = this.display_message(rcmail.get_label('carddav.' + prefix + 'activatingabook', 'loading'));
 
-        //this.http_post(prefix + 'subscribe', {_mbox: folder}, lock);
+        this.http_post("plugin.carddav." + prefix + 'activateabook', {_abookid: abookid}, lock);
+    }
+};
+
+// resets state of addressbook active checkbox (e.g. on error)
+rcube_webmail.prototype.carddav_reset_active = function(abook, state)
+{
+    var row = rcmail.addressbooks_list.get_item(abook, true);
+    if (row) {
+        $('input[name="_active[]"]', row).first().prop('checked', state);
     }
 };
 

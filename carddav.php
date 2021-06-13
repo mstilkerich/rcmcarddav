@@ -114,6 +114,11 @@ class carddav extends rcube_plugin implements RcmInterface
         $infra = Config::inst();
         $logger = $infra->logger();
 
+        $rcmail = \rcmail::get_instance();
+        $rcTask = $rcmail->task;
+        $rcAction = $rcmail->action;
+        $infra->logger()->debug(__METHOD__ . ", $rcTask, $rcAction");
+
         try {
             $rc = $infra->rc();
             $rc->addHook('login_after', [$this, 'afterLogin']);
@@ -132,17 +137,14 @@ class carddav extends rcube_plugin implements RcmInterface
 
             // if preferences are configured as hidden by the admin, don't register the hooks handling preferences
             $admPrefs = $infra->admPrefs();
-            if (!$admPrefs->hidePreferences) {
+            if (!$admPrefs->hidePreferences && $rcTask == "settings") {
                 $ui = new SettingsUI($this->abMgr);
                 $rc->addHook('preferences_list', [$ui, 'buildPreferencesPage']);
                 $rc->addHook('preferences_save', [$ui, 'savePreferences']);
                 $rc->addHook('preferences_sections_list', [$ui, 'addPreferencesSection']);
 
                 // New UI
-                $newui = new UI($this->abMgr);
-                $this->addHook('settings_actions', [$newui, 'addSettingsAction']);
-                $this->register_action('plugin.carddav', [$newui, 'renderAddressbookList']);
-                $this->include_script("carddav.js");
+                new UI($this->abMgr);
             }
 
             // use this address book for autocompletion queries
@@ -185,14 +187,29 @@ class carddav extends rcube_plugin implements RcmInterface
         $rcube->output->show_message($msg, $msgType, null, $override, $timeout);
     }
 
+    public function clientCommand(string $method, ...$arguments): void
+    {
+        $rcube = \rcube::get_instance();
+        $output = $rcube->output;
+
+        if ($output instanceof \rcmail_output) {
+            $output->command($method, ...$arguments);
+        }
+    }
+
     public function addHook(string $hook, callable $callback): void
     {
         $this->add_hook($hook, $callback);
     }
 
+    public function registerAction(string $action, callable $callback): void
+    {
+        $this->register_action($action, $callback);
+    }
+
     public function addTexts(string $dir): void
     {
-        $this->add_texts($dir);
+        $this->add_texts($dir, true);
     }
 
     public function includeCSS(string $cssFile): void
@@ -201,9 +218,16 @@ class carddav extends rcube_plugin implements RcmInterface
         $this->include_stylesheet("$skinPath/$cssFile");
     }
 
-    public function includeJS(string $jsFile): void
+    public function includeJS(string $jsFile, bool $rcInclude = false): void
     {
-        $this->include_script($jsFile);
+        if ($rcInclude) {
+            $rcube = \rcube::get_instance();
+            /** @psalm-var \rcmail_output_html */
+            $output = $rcube->output;
+            $output->include_script($jsFile);
+        } else {
+            $this->include_script($jsFile);
+        }
     }
 
     public function addGuiObject(string $obj, string $id): void

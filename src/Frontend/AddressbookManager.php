@@ -155,9 +155,10 @@ class AddressbookManager
             }
         }
 
-        if (!empty($qf)) {
+        $userId = (string) $_SESSION['user_id'];
+        if (!empty($qf) && !empty($userId)) {
             $db = Config::inst()->db();
-            $db->update($abookId, $qf, $qv, "addressbooks");
+            $db->update(['id' => $abookId, 'user_id' => $userId], $qf, $qv, "addressbooks");
             $this->abooksDb = null;
         }
     }

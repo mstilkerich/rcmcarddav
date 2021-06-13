@@ -51,11 +51,19 @@ class RcmAdapterStub implements RcmInterface
     {
     }
 
+    public function clientCommand(string $method, ...$arguments): void
+    {
+    }
+
     public function addHook(string $hook, callable $callback): void
     {
         // currently this stub only supports one callback per hook
         TestCase::assertFalse(isset($this->hooks[$hook]), "Duplicate hook $hook");
         $this->hooks[$hook] = $callback;
+    }
+
+    public function registerAction(string $action, callable $callback): void
+    {
     }
 
     public function addTexts(string $dir): void
@@ -66,7 +74,7 @@ class RcmAdapterStub implements RcmInterface
     {
     }
 
-    public function includeJS(string $jsFile): void
+    public function includeJS(string $jsFile, bool $rcInclude = false): void
     {
     }
 

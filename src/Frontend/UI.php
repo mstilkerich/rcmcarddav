@@ -50,6 +50,16 @@ class UI
     public function __construct(AddressbookManager $abMgr)
     {
         $this->abMgr = $abMgr;
+
+        $infra = Config::inst();
+        $rc = $infra->rc();
+
+        $rc->addHook('settings_actions', [$this, 'addSettingsAction']);
+
+        $rc->registerAction('plugin.carddav', [$this, 'renderAddressbookList']);
+        $rc->registerAction('plugin.carddav.activateabook', [$this, 'actionActivateAbook']);
+        $rc->registerAction('plugin.carddav.deactivateabook', [$this, 'actionDeactivateAbook']);
+        $rc->includeJS("carddav.js");
     }
 
     /**
@@ -77,7 +87,7 @@ class UI
 
         $rc->setPagetitle($rc->locText('cd_title'));
 
-        $rc->includeJS('treelist.js');
+        $rc->includeJS('treelist.js', true);
         $rc->addTemplateObjHandler('addressbookslist', [$this, 'tmplAddressbooksList']);
         $rc->sendTemplate('carddav.addressbooks');
     }
@@ -106,7 +116,7 @@ class UI
             $abookHomeUrl = dirname($abook["url"]);
 
             if (!isset($accountsByAbookHomeUri[$abookHomeUrl])) {
-                $name = preg_replace("/ (.*)/", "", $abook["name"], 1);
+                $name = preg_replace("/ \(.*\)/", "", $abook["name"], 1);
                 $accountsByAbookHomeUri[$abookHomeUrl] = [
                     'id' => $abook["id"] . "_acc",
                     'name' => $name,
@@ -134,8 +144,10 @@ class UI
                     'id'    => 'rcmli' . $abook["id"],
                     'class' => 'addressbook'
                 ];
-                $abookHtml = \html::a(['href' => '#'], \rcube::Q($abook["name"]));
-                $abookHtml .= $checkboxActive->show('', ['value' => $abook['id']]);
+
+                $abookName = preg_replace("/.* \((.*)\)$/", "$1", $abook["name"], 1);
+                $abookHtml = \html::a(['href' => '#'], \rcube::Q($abookName));
+                $abookHtml .= $checkboxActive->show($abook["active"] ? $abook['id'] : '', ['value' => $abook['id']]);
                 $addressbooks[] = \html::tag('li', $attribs, $abookHtml);
             }
 
@@ -154,6 +166,34 @@ class UI
 
         $rc->addGuiObject('addressbookslist', $attrib['id']);
         return \html::tag('ul', $attrib, implode('', $accounts));
+    }
+
+    public function actionActivateAbook(): void
+    {
+        $this->changeAddressbookActive(true);
+    }
+
+    public function actionDeactivateAbook(): void
+    {
+        $this->changeAddressbookActive(false);
+    }
+
+    private function changeAddressbookActive(bool $active): void
+    {
+        $infra = Config::inst();
+        $rc = $infra->rc();
+        $prefix = $active ? "" : "de";
+
+        $abookId = $rc->inputValue("_abookid", false);
+        if (isset($abookId)) {
+            try {
+                $this->abMgr->updateAddressbook($abookId, ['active' => $active ]);
+                $rc->showMessage($rc->locText("${prefix}activateabook_success"), 'confirmation');
+            } catch (\Exception $e) {
+                $rc->showMessage("Activation failed!", 'error');
+                $rc->clientCommand('carddav_reset_active', $abookId, !$active);
+            }
+        }
     }
 }
 

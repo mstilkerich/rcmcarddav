@@ -20,6 +20,10 @@ $labels = Array(
 	'cd_msg_syncfailed' => 'Sync of CardDAV addressbook $name failed: $errormsg',
 	'cd_frompreset' => ' (from preset _PRESETNAME_)',
 
-	'changeactive' => 'Toggle addressbook active'
+	'changeactive' => 'Toggle addressbook active',
+	'activatingabook' => 'Activating addressbook...',
+	'deactivatingabook' => 'Deactivating addressbook...',
+	'activateabook_success' => 'Addressbook successfully activated',
+	'deactivateabook_success' => 'Addressbook successfully deactivated',
 );
 ?>

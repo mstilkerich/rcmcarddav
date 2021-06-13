@@ -65,9 +65,27 @@ interface RcmInterface
     public function showMessage(string $msg, string $msgType = 'notice', $override = true, $timeout = 0): void;
 
     /**
+     * Call a client (javascript) method
+     *
+     * @param string           $method       Method to call
+     * @param string|bool|int  ...$arguments Additional arguments
+     */
+    public function clientCommand(string $method, ...$arguments): void;
+
+    /**
      * Installs a roundcube hook function.
      */
     public function addHook(string $hook, callable $callback): void;
+
+    /**
+     * Register a handler for a specific client-request action
+     *
+     * The callback will be executed upon a request like /?_task=mail&_action=plugin.myaction
+     *
+     * @param string   $action   Action name (should be unique)
+     * @param callable $callback Callback function
+     */
+    public function registerAction(string $action, callable $callback): void;
 
     /**
      * Loads localized texts for the current locale.
@@ -85,8 +103,9 @@ interface RcmInterface
      * Includes a javascript file on the page.
      *
      * @param string $jsFile Path to JS file relative to the plugin's skin path or roundcube standard JS paths.
+     * @param bool $rcInclude If true, the script to include is taken from the roundcube path, not the plugin.
      */
-    public function includeJS(string $jsFile): void;
+    public function includeJS(string $jsFile, bool $rcInclude = false): void;
 
     /**
      * Register a GUI object to the client script
