@@ -59,6 +59,7 @@ class UI
         $rc->registerAction('plugin.carddav', [$this, 'renderAddressbookList']);
         $rc->registerAction('plugin.carddav.activateabook', [$this, 'actionActivateAbook']);
         $rc->registerAction('plugin.carddav.deactivateabook', [$this, 'actionDeactivateAbook']);
+        $rc->registerAction('plugin.carddav.ablist_selection', [$this, 'actionShowDetails']);
         $rc->includeJS("carddav.js");
     }
 
@@ -194,6 +195,61 @@ class UI
                 $rc->clientCommand('carddav_reset_active', $abookId, !$active);
             }
         }
+    }
+
+    public function actionShowDetails(): void
+    {
+        $infra = Config::inst();
+        $rc = $infra->rc();
+
+        $objType = $rc->inputValue("_type", false, \rcube_utils::INPUT_GET);
+
+        if ($objType == "addressbook") {
+            $rc->setPagetitle($rc->locText('abookproperties'));
+            $rc->addTemplateObjHandler('addressbookdetails', [$this, 'tmplAddressbookDetails']);
+            $rc->sendTemplate('carddav.addressbookDetails');
+        } elseif ($objType == "account") {
+            $rc->addTemplateObjHandler('accountdetails', [$this, 'tmplAccountDetails']);
+            $rc->sendTemplate('carddav.accountDetails');
+        } else {
+            return;
+        }
+    }
+
+    // INFO: name, url, group type, refresh time, time of last refresh
+    // ACTIONS: Refresh, Delete
+    public function tmplAddressbookDetails(array $attrib): string
+    {
+        $infra = Config::inst();
+        $rc = $infra->rc();
+        $out = '';
+
+        $table = new \html_table(['cols' => 2]);
+
+        try {
+            $abookId = $rc->inputValue("_id", false, \rcube_utils::INPUT_GET);
+            if (isset($abookId)) {
+                $abook = $this->abMgr->getAddressbook($abookId);
+
+                $table->add(['class' => 'title'], \html::label([], $rc->locText('cd_name')));
+                $table->add([], \rcube::Q($abook->get_name()));
+
+                $out .= \html::tag(
+                    'fieldset',
+                    [],
+                    \html::tag('legend', [], $rc->locText('basicinfo')) . $table->show($attrib)
+                );
+            }
+        } catch (\Exception $e) {
+        }
+
+        return $out;
+    }
+
+    public function tmplAccountDetails(array $attrib): string
+    {
+        $out = '';
+        return $out;
     }
 }
 

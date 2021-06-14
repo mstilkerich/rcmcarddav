@@ -29,6 +29,7 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
                 parent_focus: true,
                 id_prefix: 'rcmli',
             });
+            rcmail.addressbooks_list.addEventListener('select', function(node) { rcmail.carddav_ablist_select(node); });
         }
     }
 
@@ -45,6 +46,35 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
         );
     }
 });
+
+// handler when a row (account/addressbook) of the list is selected
+rcube_webmail.prototype.carddav_ablist_select = function(node)
+{
+    var id = node.id, url, win;
+    var type = node.level==0 ? 'account' : 'addressbook';
+
+    if (id) {
+        url = '&_action=plugin.carddav.ablist_selection&_id=' + id + '&_type=' + type;
+    }
+
+    if (win = this.get_frame_window(this.env.contentframe)) {
+        if (!url) {
+            if (win.location && win.location.href.indexOf(this.env.blankpage) < 0) {
+                win.location.href = this.env.blankpage;
+            }
+            if (this.env.frame_lock) {
+                this.set_busy(false, null, this.env.frame_lock);
+            }
+            return;
+        }
+
+        this.env.frame_lock = this.set_busy(true, 'loading');
+        win.location.href = this.env.comm_path + '&_framed=1' + url;
+    }
+
+//    this.enigma_loadframe(url);
+//    this.enable_command('plugin.enigma-key-delete', 'plugin.enigma-key-export-selected', list.get_selection().length > 0);
+};
 
 rcube_webmail.prototype.carddav_activate_abook = function(abookid, active)
 {

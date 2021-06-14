@@ -25,5 +25,9 @@ $labels = Array(
 	'deactivatingabook' => 'Deactivating addressbook...',
 	'activateabook_success' => 'Addressbook successfully activated',
 	'deactivateabook_success' => 'Addressbook successfully deactivated',
+	'accountproperties' => 'Account properties',
+	'abookproperties' => 'Addressbook properties',
+	'basicinfo' => 'Basic information',
+	
 );
 ?>

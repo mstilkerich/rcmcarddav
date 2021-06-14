@@ -51,9 +51,10 @@ interface RcmInterface
      *
      * @param string $id Form identifier of the field.
      * @param bool $allowHtml Whether to allow HTML tags in the input. If false, HTML tags will be stripped.
+     * @param \rcube_utils::INPUT_* $source
      * @return ?string Field value or NULL if not available.
      */
-    public function inputValue(string $id, bool $allowHtml): ?string;
+    public function inputValue(string $id, bool $allowHtml, int $source = \rcube_utils::INPUT_POST): ?string;
 
     /**
      * Shows a message to the roundcube user.

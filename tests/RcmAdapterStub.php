@@ -42,7 +42,7 @@ class RcmAdapterStub implements RcmInterface
         return $msgId;
     }
 
-    public function inputValue(string $id, bool $allowHtml): ?string
+    public function inputValue(string $id, bool $allowHtml, int $source = \rcube_utils::INPUT_POST): ?string
     {
         return $this->postInputs[$id] ?? null;
     }
