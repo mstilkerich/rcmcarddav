@@ -76,7 +76,8 @@ use rcube_utils;
  *     spouse?: string,
  *     maidenname?: string,
  *     organization?: string,
- *     department?: string
+ *     department?: string,
+ *     vcard?: DelayedVCardExporter | string
  * } & array<string, SaveDataMultiField|SaveDataAddressField>
  *
  * @psalm-type ColTypeDef = array{subtypes?: list<string>, subtypealias?: array<string,string>}
@@ -370,6 +371,13 @@ class DataConversion
         if (!isset($save_data["name"]) || strlen((string) $save_data["name"]) == 0) {
             $save_data["name"] = self::composeDisplayname($save_data);
         }
+
+        // For VCard export by roundcube, we provide the VCard in the vcard attribute of $save_data
+        // This allows to skip roundcube's own VCard creation; we don't provide the server's VCard directly because it
+        // may contain references to external photos not accessible by an importing application, therefore we inline the
+        // photo in that case.
+        $delayedExporter = new DelayedVCardExporter($save_data, $this);
+        $save_data["vcard"] = $delayedExporter;
 
         return $save_data;
     }
