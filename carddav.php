@@ -721,6 +721,10 @@ class carddav extends rcube_plugin
                 // there seems to be no way to unset a preference
                 $rcube->config->set('carddav_des_key', '');
 
+                if ($crypted === false) {
+                    throw new \Exception("Password encryption with user password failed");
+                }
+
                 return '{ENCRYPTED}' . $crypted;
             } catch (\Exception $e) {
                 $logger = Config::inst()->logger();
@@ -735,6 +739,10 @@ class carddav extends rcube_plugin
             // encrypted with global des_key
             $rcube = rcube::get_instance();
             $crypted = $rcube->encrypt($clear);
+
+            if ($crypted === false) {
+                throw new \Exception("Could not encrypt password with 'des_key' method: ");
+            }
             return '{DES_KEY}' . $crypted;
         }
 
