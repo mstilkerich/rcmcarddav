@@ -267,16 +267,25 @@ class DelayedPhotoLoader
         $dw = min($w, self::MAX_PHOTO_SIZE);
         $dh = min($h, self::MAX_PHOTO_SIZE);
 
-        $src = imagecreatefromstring($photoData);
-        $dst = imagecreatetruecolor($dw, $dh);
-        imagecopyresampled($dst, $src, 0, 0, $x, imagesy($src) - $y - $h, $dw, $dh, $w, $h);
+        if (
+            ($obStarted = ob_start())
+            && ($src = imagecreatefromstring($photoData))
+            && ($dst = imagecreatetruecolor($dw, $dh))
+            && ($imgHeight = imagesy($src))
+            && imagecopyresampled($dst, $src, 0, 0, $x, $imgHeight - $y - $h, $dw, $dh, $w, $h)
+            && imagepng($dst)
+            && ($croppedPhoto = ob_get_contents())
+        ) {
+            // nothing to do
+        } else {
+            $croppedPhoto = null;
+        }
 
-        ob_start();
-        imagepng($dst);
-        $photoData = ob_get_contents();
-        ob_end_clean();
+        if ($obStarted) {
+            ob_end_clean();
+        }
 
-        return $photoData;
+        return $croppedPhoto;
     }
 }
 
