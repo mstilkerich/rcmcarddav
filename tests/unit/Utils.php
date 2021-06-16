@@ -29,6 +29,7 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
 use PHasher;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavAddressbook4Roundcube\DataConversion;
+use MStilkerich\CardDavAddressbook4Roundcube\DelayedVCardExporter;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 
 /**
@@ -84,6 +85,12 @@ class Utils
             unset($saveDataExp['photo']);
             unset($saveDataRc['photo']);
         }
+
+        if (isset($saveDataRc["vcard"])) {
+            TestCase::assertInstanceOf(DelayedVCardExporter::class, $saveDataRc["vcard"]);
+            unset($saveDataRc["vcard"]);
+        }
+
         TestCase::assertEquals($saveDataExp, $saveDataRc, $msg);
     }
 

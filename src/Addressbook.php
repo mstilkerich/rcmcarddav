@@ -1737,8 +1737,8 @@ class Addressbook extends rcube_addressbook
 
             if ($col == '*') { // any contact attribute must match $val
                 foreach ($save_data as $k => $v) {
-                    // Skip photo to avoid download - matching a search value against photo is not meaningful use case
-                    if ($k !== "photo") {
+                    // Skip photo/vcard to avoid download - matching against photo is no meaningful use case
+                    if ($k !== "photo" && $k !== "vcard") {
                         $v = is_array($v) ? $v : (string) $v;
                         if ($this->compare_search_value($k, $v, $val, $mode)) {
                             $psFilterMatched = true;
