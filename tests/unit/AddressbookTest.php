@@ -758,10 +758,13 @@ final class AddressbookTest extends TestCase
      */
     public function testCheckResyncDueProvidesExpDelta(int $now, string $rt, string $lu, int $expDue): void
     {
-        $nowDelta = time() - $now; // delta to now in data provider
         $abook = $this->createAbook([], ['refresh_time' => $rt, 'last_updated' => $lu]);
         $this->assertSame(intval($rt), $abook->getRefreshTime());
-        $this->assertSame($expDue - $nowDelta, $abook->checkResyncDue());
+
+        // allow a tolerance of 1 second
+        $nowDelta = time() - $now; // delta to now in data provider
+        $expDue -= $nowDelta;
+        $this->assertLessThanOrEqual(1, $expDue - $abook->checkResyncDue());
     }
 
     /**
