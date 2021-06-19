@@ -503,6 +503,7 @@ class DataConversion
         if (strlen($photoData) > 0) {
             self::setPhotoProperty($vcard, $photoData);
         }
+        // Note: if DelayedPhotoLoader fails for whatever reason, we keep the original PHOTO property untouched
 
         return $vcard->serialize();
     }

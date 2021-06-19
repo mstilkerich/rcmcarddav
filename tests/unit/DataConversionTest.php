@@ -550,6 +550,7 @@ final class DataConversionTest extends TestCase
      */
     public function testCorrectExportOfVcardFromRoundcube(string $vcfFile, string $_jsonFileNotExisting): void
     {
+        $logger = TestInfrastructure::logger();
         $db = $this->db;
         $db->expects($this->once())
             ->method("get")
@@ -571,6 +572,7 @@ final class DataConversionTest extends TestCase
         $this->assertInstanceOf(VCard::class, $vcardOrig);
 
         $vcfExported = DataConversion::exportVCard($vcardOrig, $saveData);
+        $this->assertPhotoDownloadWarning($logger, $vcfFile);
         $vcardExported = VObject\Reader::read($vcfExported);
         $this->assertInstanceOf(VCard::class, $vcardExported);
 
