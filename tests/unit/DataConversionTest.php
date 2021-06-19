@@ -33,7 +33,7 @@ use MStilkerich\Tests\CardDavAddressbook4Roundcube\{TestInfrastructure,TestLogge
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 use MStilkerich\CardDavClient\{Account,AddressbookCollection};
-use MStilkerich\CardDavAddressbook4Roundcube\{DataConversion,DelayedPhotoLoader};
+use MStilkerich\CardDavAddressbook4Roundcube\{DataConversion,DelayedPhotoLoader,DelayedVCardExporter};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
 
 final class DataConversionTest extends TestCase
@@ -532,6 +532,50 @@ final class DataConversionTest extends TestCase
 
         $this->expectExceptionMessage('not a known roundcube contact property');
         $dc->isMultivalueProperty("unknown");
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public function vcardExportSamplesProvider(): array
+    {
+        return $this->vcardSamplesProvider('tests/unit/data/vcardExport');
+    }
+
+    /**
+     * Tests that a VCard converted to roundcube can be properly exported as vcard again.
+     *
+     *
+     * @dataProvider vcardExportSamplesProvider
+     */
+    public function testCorrectExportOfVcardFromRoundcube(string $vcfFile, string $_jsonFileNotExisting): void
+    {
+        $db = $this->db;
+        $db->expects($this->once())
+            ->method("get")
+            ->with(
+                $this->equalTo(["abook_id" => "42"]),
+                $this->equalTo(['typename', 'subtype']),
+                $this->equalTo('xsubtypes')
+            )
+            ->will($this->returnValue([
+                ["typename" => "email", "subtype" => "SpecialLabel"],
+            ]));
+
+        $dc = new DataConversion("42");
+        $vcardOrig = TestInfrastructure::readVCard($vcfFile);
+        $saveData = $dc->toRoundcube($vcardOrig, $this->abook);
+
+        $this->assertIsString($saveData["vcard"] ?? null);
+        $vcardOrig = $saveData["_carddav_vcard"] ?? null;
+        $this->assertInstanceOf(VCard::class, $vcardOrig);
+
+        $vcfExported = DataConversion::exportVCard($vcardOrig, $saveData);
+        $vcardExported = VObject\Reader::read($vcfExported);
+        $this->assertInstanceOf(VCard::class, $vcardExported);
+
+        $vcardExpected = TestInfrastructure::readVCard("$vcfFile.exported");
+        $this->compareVCards($vcardExpected, $vcardExported, false);
     }
 
     private function compareVCards(VCard $vcardExpected, VCard $vcardRoundcube, bool $isNew): void
