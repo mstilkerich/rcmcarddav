@@ -28,8 +28,9 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
 
 use PHasher;
 use PHPUnit\Framework\TestCase;
+use Sabre\VObject\Component\VCard;
 use MStilkerich\CardDavAddressbook4Roundcube\DataConversion;
-use MStilkerich\CardDavAddressbook4Roundcube\DelayedVCardExporter;
+use MStilkerich\CardDavAddressbook4Roundcube\DelayedPhotoLoader;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 
 /**
@@ -81,14 +82,24 @@ class Utils
         TestCase::assertSame(isset($saveDataExp['photo']), isset($saveDataRc['photo']), $msg);
         if (isset($saveDataExp['photo'])) {
             TestCase::assertIsString($saveDataExp["photo"]);
+
+            // Check that save data contains a pristine photo loader
+            TestCase::assertInstanceOf(DelayedPhotoLoader::class, $saveDataRc["photo"]);
+            TestCase::assertTrue($saveDataRc["photo"]->pristine(), "Photo loader not pristine");
+
             self::comparePhoto($saveDataExp['photo'], (string) $saveDataRc['photo']);
             unset($saveDataExp['photo']);
             unset($saveDataRc['photo']);
         }
 
         if (isset($saveDataRc["vcard"])) {
-            TestCase::assertInstanceOf(DelayedVCardExporter::class, $saveDataRc["vcard"]);
+            TestCase::assertIsString($saveDataRc["vcard"]);
             unset($saveDataRc["vcard"]);
+        }
+
+        if (isset($saveDataRc["_carddav_vcard"])) {
+            TestCase::assertInstanceOf(VCard::class, $saveDataRc["_carddav_vcard"]);
+            unset($saveDataRc["_carddav_vcard"]);
         }
 
         TestCase::assertEquals($saveDataExp, $saveDataRc, $msg);
