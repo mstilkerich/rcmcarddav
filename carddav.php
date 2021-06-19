@@ -26,8 +26,9 @@ declare(strict_types=1);
 
 use MStilkerich\CardDavClient\{Account, AddressbookCollection};
 use Psr\Log\LoggerInterface;
-use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config, RoundcubeLogger};
+use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config, RoundcubeLogger, DataConversion};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
+use Sabre\VObject\Component\VCard;
 
 /**
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
@@ -57,6 +58,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
  *     presetname?: string
  * }
  * @psalm-import-type FullAbookRow from AbstractDatabase
+ * @psalm-import-type SaveDataFromDC from DataConversion
  */
 // phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
 class carddav extends rcube_plugin
@@ -182,6 +184,7 @@ class carddav extends rcube_plugin
 
             $this->add_hook('addressbooks_list', [$this, 'listAddressbooks']);
             $this->add_hook('addressbook_get', [$this, 'getAddressbook']);
+            $this->add_hook('addressbook_export', [$this, 'exportVCards']);
 
             // if preferences are configured as hidden by the admin, don't register the hooks handling preferences
             if (!$this->hidePreferences) {
@@ -402,6 +405,32 @@ class carddav extends rcube_plugin
         }
 
         return $p;
+    }
+
+    /**
+     * Prepares the exported VCards when the user requested VCard export in roundcube.
+     *
+     * By adding a "vcard" member to a save_data set, we can override roundcube's own VCard creation
+     * from the save_data and provide the VCard directly.
+     *
+     * Beware: This function is called also for non-carddav addressbooks, therefore it must handle entries
+     * that cannot be found in the carddav addressbooks.
+     *
+     * @param array{result: rcube_result_set} $saveDataSet A result set as provided by Addressbook::list_records
+     * @return array{abort: bool, result: rcube_result_set} The result set with added vcard members in each save_data
+     */
+    public function exportVCards(array $saveDataSet): array
+    {
+        /** @psalm-var SaveDataFromDC $save_data */
+        foreach ($saveDataSet["result"]->records as &$save_data) {
+            $vcard = $save_data["_carddav_vcard"] ?? null;
+            if ($vcard instanceof VCard) {
+                $vcf = DataConversion::exportVCard($vcard, $save_data);
+                $save_data["vcard"] = $vcf;
+            }
+        }
+
+        return [ "result" => $saveDataSet["result"], "abort" => false ];
     }
 
     /**
@@ -1012,7 +1041,7 @@ class carddav extends rcube_plugin
      */
     private function getAddressbookSettingsFromPOST(string $abookId, ?string $presetName = null): array
     {
-        $result = [ ];
+        $result = [];
 
         // Fill $result with all values that have been POSTed; for unset boolean values, false is assumed
         foreach (array_keys(self::ABOOK_TEMPLATE) as $attr) {
