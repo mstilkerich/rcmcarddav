@@ -77,7 +77,8 @@ use rcube_utils;
  *     maidenname?: string,
  *     organization?: string,
  *     department?: string,
- *     vcard?: DelayedVCardExporter | string
+ *     vcard?: string,
+ *     _carddav_vcard?: VCard,
  * } & array<string, SaveDataMultiField|SaveDataAddressField>
  *
  * @psalm-type ColTypeDef = array{subtypes?: list<string>, subtypealias?: array<string,string>}
@@ -85,6 +86,16 @@ use rcube_utils;
  */
 class DataConversion
 {
+    /** @var string This is an empty VCard string to workaround an incompatibility of Roundcube's export code with the
+     *              DelayedPhotoLoader object that we store in the photo attribute of save_data.
+     */
+    private const EMPTY_VCF =
+        "BEGIN:VCARD\r\n" .
+        "VERSION:3.0\r\n" .
+        "FN:Dummy\r\n" .
+        "N:;;;;;\r\n" .
+        "END:VCARD\r\n";
+
     /**
      * @var array{simple: array<string,string>, multi: array<string,string>} VCF2RC
      *      maps VCard property names to roundcube keys
@@ -283,6 +294,8 @@ class DataConversion
         $save_data = [
             // DEFAULTS
             'kind'   => 'individual',
+            // this causes roundcube's own vcard creation code be skipped in the VCard export
+            'vcard'  => self::EMPTY_VCF,
         ];
 
         foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
@@ -372,16 +385,9 @@ class DataConversion
             $save_data["name"] = self::composeDisplayname($save_data);
         }
 
-        // For VCard export by roundcube, we provide the VCard in the vcard attribute of $save_data
-        // This allows to skip roundcube's own VCard creation; we don't provide the server's VCard directly because it
-        // may contain references to external photos not accessible by an importing application, therefore we inline the
-        // photo in that case.
-        $delayedExporter = new DelayedVCardExporter($save_data, $this);
-        $save_data["vcard"] = $delayedExporter;
-
+        $save_data['_carddav_vcard'] = $vcard;
         return $save_data;
     }
-
 
     /**
      * Creates roundcube address data from an ADR VCard property.
@@ -481,6 +487,27 @@ class DataConversion
     }
 
     /**
+     * Exports a VCard
+     *
+     * We provide the VCard as is on the server, with the following exceptions:
+     *   - PHOTO referenced by URI is downloaded and included in the VCard
+     *   - PHOTO with X-ABCROP-RECTANGLE parameter is stored cropped
+     *
+     * @param VCard $vcard The original VCard object from that the save_data was created
+     * @param SaveDataFromDC $save_data The save data created from the VCard
+     * @return string The exported and serialized VCard
+     */
+    public static function exportVCard(VCard $vcard, array $save_data): string
+    {
+        $photoData = (string) ($save_data["photo"] ?? "");
+        if (strlen($photoData) > 0) {
+            self::setPhotoProperty($vcard, $photoData);
+        }
+
+        return $vcard->serialize();
+    }
+
+    /**
      * Returns an RFC2425 date-time string for the current time in UTC.
      *
      * Example: 2020-11-12T16:18:41Z
@@ -531,6 +558,18 @@ class DataConversion
     }
 
     /**
+     * Sets the PHOTO property in a VCard to an inlined photo, including the necessary parameters.
+     */
+    private static function setPhotoProperty(VCard $vcard, string $photoData): void
+    {
+        $vcard->PHOTO = $photoData;
+        if (isset($vcard->PHOTO)) {
+            $vcard->PHOTO['ENCODING'] = 'b';
+            $vcard->PHOTO['VALUE'] = 'binary';
+        }
+    }
+
+    /**
      * Sets properties with a single value in a VCard from roundcube contact data.
      *
      * About the contents of save_data:
@@ -550,21 +589,21 @@ class DataConversion
 
         foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
             if (isset($save_data[$rckey])) {
-                if (!is_string($save_data[$rckey])) {
-                    $logger->error("save data $rckey must be string" . print_r($save_data[$rckey], true));
+                $rcValue = $save_data[$rckey];
+                if (!is_string($rcValue)) {
+                    $logger->error("save data $rckey must be string" . print_r($rcValue, true));
                     continue;
                 }
 
-                if (strlen($save_data[$rckey]) == 0) {
+                if (strlen($rcValue) == 0) {
                     unset($vcard->{$vkey});
                 } else {
-                    $vcard->{$vkey} = $save_data[$rckey];
+                    $vcard->{$vkey} = $rcValue;
 
                     // Special handling for PHOTO
                     // If PHOTO is set from roundcube data, set the parameters properly
-                    if ($rckey === "photo" && isset($vcard->PHOTO)) {
-                        $vcard->PHOTO['ENCODING'] = 'b';
-                        $vcard->PHOTO['VALUE'] = 'binary';
+                    if ($rckey === "photo") {
+                        self::setPhotoProperty($vcard, $rcValue);
                     }
                 }
             } else {
