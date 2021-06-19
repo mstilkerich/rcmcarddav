@@ -1,5 +1,15 @@
 # Changelog for RCMCardDAV
 
+## Version 4.1.2 (to 4.1.1)
+- Fix #345: Crash during cropping of photos with `X-ABCROP-RECTANGLE` parameter when error occurred during crop, e.g.
+  picture format not supported by php-gd.
+- New: When exporting a VCard from a carddav addressbook, the export is now handled by rcmcarddav. The exported
+  card is exactly the card on the server, including any properties not supported by roundcube / rcmcarddav. The only
+  exception is the photo property: photos referenced by URI will be downloaded and stored inside the card; photos with
+  `X-ABCROP-RECTANGLE` will be stored cropped. This is to improve interoperability with the importing application.
+- Fix #345: When exporting a VCard from a carddav addressbook, the PHOTO property in the exported card contained an
+  invalid value.
+
 ## Version 4.1.1 (to 4.1.0)
 - Fix: A fatal error would be raised when a password could not be decrypted, only on photo download. This would not be
   notable to the user (except for the photo not being displayed), but show up in the logs.
