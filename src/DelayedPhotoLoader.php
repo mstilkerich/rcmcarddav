@@ -58,6 +58,9 @@ class DelayedPhotoLoader
      */
     private const MAX_PHOTO_SIZE = 256;
 
+    /** @var ?string $photoData After the first serialization, the result is cached in this attribute. */
+    private $photoData = null;
+
     /** @var VCard $vcard The VCard the photo belongs to */
     private $vcard;
 
@@ -80,7 +83,25 @@ class DelayedPhotoLoader
      */
     public function __toString(): string
     {
-        return $this->computePhotoFromProperty();
+        if (isset($this->photoData)) {
+            return $this->photoData;
+        }
+
+        try {
+            $this->photoData = $this->computePhotoFromProperty();
+            return $this->photoData;
+        } catch (\Exception $e) {
+            return "";
+        }
+    }
+
+    /**
+     * Tells whether the vcard export has been performed already by this exporter.
+     * @return bool True if toString() was _not_ previously executed.
+     */
+    public function pristine(): bool
+    {
+        return !isset($this->photoData);
     }
 
     /**
@@ -166,15 +187,18 @@ class DelayedPhotoLoader
     {
         $infra = Config::inst();
         $cache = $infra->cache();
+        $logger = $infra->logger();
 
         $key = $this->determineCacheKey();
         /** @var ?PhotoCacheObject $cacheObject */
         $cacheObject = $cache->get($key);
 
         if (!isset($cacheObject)) {
+            $logger->debug(__METHOD__ . ": Roundcube cache miss (key: $key)!");
             return null;
         }
 
+        $logger->debug(__METHOD__ . ": Roundcube cache hit (key: $key)!");
         if (md5($photoProp->serialize()) !== $cacheObject["photoPropMd5"]) {
             $cache->remove($key);
             return null;
