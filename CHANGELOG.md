@@ -1,5 +1,8 @@
 # Changelog for RCMCardDAV
 
+- Fix #348: Load the carddav plugin in the calendar task. This enables usage of carddav addressbooks within the calendar
+  plugin, for example for the purpose of the birthday calendar.
+
 ## Version 4.1.2 (to 4.1.1)
 - Fix #345: Crash during cropping of photos with `X-ABCROP-RECTANGLE` parameter when error occurred during crop, e.g.
   picture format not supported by php-gd.
