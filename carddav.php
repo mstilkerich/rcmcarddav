@@ -124,7 +124,7 @@ class carddav extends rcube_plugin
     /** @var array<string, Preset> Presets from config.inc.php */
     private $presets = [];
 
-    public $task = 'addressbook|login|mail|settings';
+    public $task = 'addressbook|login|mail|settings|calendar';
 
     /** @var ?array<string, FullAbookRow> $abooksDb Cache of the user's addressbook DB entries.
      *                                              Associative array mapping addressbook IDs to DB rows.
