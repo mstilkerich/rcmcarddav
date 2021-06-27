@@ -216,40 +216,139 @@ class UI
         }
     }
 
-    // INFO: name, url, group type, refresh time, time of last refresh
+    // INFO: name, url, group type, refresh time, time of last refresh, discovered vs. manually added
     // ACTIONS: Refresh, Delete
     public function tmplAddressbookDetails(array $attrib): string
     {
         $infra = Config::inst();
         $rc = $infra->rc();
+        $logger = $infra->logger();
         $out = '';
-
-        $table = new \html_table(['cols' => 2]);
 
         try {
             $abookId = $rc->inputValue("_id", false, \rcube_utils::INPUT_GET);
             if (isset($abookId)) {
                 $abook = $this->abMgr->getAddressbook($abookId);
+                $abookrow = $abook->getDbProperties();
+                $presetName = $abookrow['presetname'] ?? ""; // empty string is not a valid presetname
 
+                // SECTION: BASIC INFORMATION
+                $table = new \html_table(['cols' => 2]);
+
+                // Addressbook name
                 $table->add(['class' => 'title'], \html::label([], $rc->locText('cd_name')));
-                $table->add([], \rcube::Q($abook->get_name()));
+                $table->add([], $this->buildSettingField($abookId, 'name', $abook->get_name(), $presetName));
+
+                // Addressbook URL
+                $table->add(['class' => 'title'], \html::label([], $rc->locText('cd_url')));
+                $table->add([], $this->buildSettingField($abookId, 'url', $abookrow['url'], $presetName));
 
                 $out .= \html::tag(
                     'fieldset',
                     [],
                     \html::tag('legend', [], $rc->locText('basicinfo')) . $table->show($attrib)
                 );
+
+                // SECTION: SYNCHRONIZATION
+                $table = new \html_table(['cols' => 2]);
+
+                // Refresh interval setting
+                $table->add(['class' => 'title'], \html::label([], $rc->locText('cd_refresh_time')));
+                // input box for refresh time
+                $rt = $abook->getRefreshTime();
+                $rtString = sprintf("%02d:%02d:%02d", floor($rt / 3600), ($rt / 60) % 60, $rt % 60);
+                $table->add([], $this->buildSettingField($abookId, 'refresh_time', $rtString, $presetName));
+
+                // Time of last refresh
+                if (!empty($abookrow['last_updated'])) { // if never synced, last_updated is 0 -> don't show
+                    $table->add(['class' => 'title'], \html::label([], $rc->locText('cd_lastupdate_time')));
+                    $table->add([], date("Y-m-d H:i:s", intval($abookrow['last_updated'])));
+                }
+
+                $out .= \html::tag(
+                    'fieldset',
+                    [],
+                    \html::tag('legend', [], $rc->locText('syncinfo')) . $table->show($attrib)
+                );
+
+                // SECTION: MISC SETTINGS
+                $table = new \html_table(['cols' => 2]);
+
+                // Refresh interval setting
+                $table->add(['class' => 'title'], \html::label([], $rc->locText('newgroupstype')));
+
+                $radioBtn = new \html_radiobutton(['name' => 'new_groups_type']);
+                $ul = \html::tag('li', [], $radioBtn->show("vcard") . $rc->locText('grouptype_vcard'));
+                $ul .= \html::tag('li', [], $radioBtn->show("categories") . $rc->locText('grouptype_categories'));
+                $table->add([], \html::tag('ul', ['class' => 'proplist'], $ul));
+
+                $out .= \html::tag(
+                    'fieldset',
+                    [],
+                    \html::tag('legend', [], $rc->locText('miscsettings')) . $table->show($attrib)
+                );
             }
         } catch (\Exception $e) {
+            $logger->error($e->getMessage());
         }
 
         return $out;
     }
 
+    // INFO: name, url, group type, rediscover time, time of last rediscovery
+    // ACTIONS: Rediscover, Delete, Add manual addressbook
     public function tmplAccountDetails(array $attrib): string
     {
         $out = '';
         return $out;
+    }
+
+    /**
+     * @param null|string|bool $value Value to show if the field can be edited.
+     * @param null|string|bool $roValue Value to show if the field is shown in non-editable form.
+     */
+    private function buildSettingField(
+        string $abookId,
+        string $attr,
+        $value,
+        ?string $presetName,
+        $roValue = null
+    ): string {
+        $infra = Config::inst();
+        $admPrefs = $infra->admPrefs();
+        $rc = $infra->rc();
+
+        // if the value is not set, use the default from the addressbook template
+        $value = $value ?? AddressbookManager::ABOOK_TEMPLATE[$attr];
+        $roValue = $roValue ?? $value;
+        // note: noOverrideAllowed always returns true for URL
+        $attrFixed = ($abookId != "new") && $admPrefs->noOverrideAllowed($attr, $presetName);
+
+        if (is_bool(AddressbookManager::ABOOK_TEMPLATE[$attr])) {
+            // boolean settings as a checkbox
+            if ($attrFixed) {
+                $content = $rc->locText($roValue ? 'cd_enabled' : 'cd_disabled');
+            } else {
+                // check box for activating
+                $checkbox = new \html_checkbox(['name' => "${abookId}_cd_$attr", 'value' => 1]);
+                $content = $checkbox->show($value ? "1" : "0");
+            }
+        } else {
+            if ($attrFixed) {
+                $content = (string) $roValue;
+            } else {
+                // input box for username
+                $input = new \html_inputfield([
+                    'name' => "${abookId}_cd_$attr",
+                    'type' => ($attr == 'password') ? 'password' : 'text',
+                    'autocomplete' => 'off',
+                    'value' => $value
+                ]);
+                $content = $input->show();
+            }
+        }
+
+        return $content;
     }
 }
 

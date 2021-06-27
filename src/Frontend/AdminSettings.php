@@ -70,7 +70,7 @@ class AdminSettings
 
     /**
      * Initializes AdminSettings from a config.inc.php file, using default values if that file is not available.
-     * @var string $configfile Path of the config.inc.php file to load.
+     * @param string $configfile Path of the config.inc.php file to load.
      */
     public function __construct(string $configfile)
     {

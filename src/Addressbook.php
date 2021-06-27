@@ -1191,6 +1191,15 @@ class Addressbook extends rcube_addressbook
     }
 
     /**
+     * Returns the addressbook's database properties
+     * @return FullAbookRow
+     */
+    public function getDbProperties(): array
+    {
+        return $this->config;
+    }
+
+    /**
      * Synchronizes the local card store with the CardDAV server.
      *
      * @return int The duration in seconds that the sync took
