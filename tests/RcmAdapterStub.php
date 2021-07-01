@@ -93,6 +93,11 @@ class RcmAdapterStub implements RcmInterface
     public function sendTemplate(string $templ, $exit = true): void
     {
     }
+
+    public function requestForm(array $attrib, string $content): string
+    {
+        return '';
+    }
 }
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120:ft=php

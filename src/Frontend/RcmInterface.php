@@ -140,6 +140,16 @@ interface RcmInterface
      * @param bool   $exit  True if script should terminate (default)
      */
     public function sendTemplate(string $templ, $exit = true): void;
+
+    /**
+     * Build a form tag with a unique request token
+     *
+     * @param array  $attrib  Named tag parameters including 'action' and 'task' values which are put into hidden fields
+     * @param string $content Form content
+     *
+     * @return string HTML code for the form
+     */
+    public function requestForm(array $attrib, string $content): string;
 }
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120

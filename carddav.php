@@ -266,6 +266,15 @@ class carddav extends rcube_plugin implements RcmInterface
         $output->send($templ, $exit);
     }
 
+    public function requestForm(array $attrib, string $content): string
+    {
+        $rcube = \rcube::get_instance();
+
+        /** @psalm-var \rcmail_output_html */
+        $output = $rcube->output;
+        return $output->request_form($attrib, $content);
+    }
+
     /***************************************************************************************
      *                                    HOOK FUNCTIONS
      **************************************************************************************/

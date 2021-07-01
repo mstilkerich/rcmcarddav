@@ -128,6 +128,8 @@ class AddressbookManager
     /**
      * Updates some settings of an addressbook in the database.
      *
+     * If the given addresbook ID does not refer to an addressbook of the logged in user, nothing is changed.
+     *
      * @param string $abookId ID of the addressbook
      * @param AbookSettings $pa Array with the settings to update
      */

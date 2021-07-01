@@ -35,14 +35,15 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
 
     if (rcmail.env.action == 'plugin.carddav') {
         rcmail.register_command(
-            'plugin.carddav-activate-abook',
-            function(abookid) { rcmail.carddav_activate_abook(abookid, true); },
+            'plugin.carddav-toggle-abook-active',
+            function(props) { rcmail.carddav_activate_abook(props.abookid, props.state); },
             true
         );
+    } else if (rcmail.env.action == 'plugin.carddav.abookdetails') {
         rcmail.register_command(
-            'plugin.carddav-deactivate-abook',
-            function(abookid) { rcmail.carddav_activate_abook(abookid, false); },
-            true
+            'plugin.carddav-save-abook',
+            function() { rcmail.carddav_save_abook(); },
+            true // enable
         );
     }
 });
@@ -51,10 +52,13 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
 rcube_webmail.prototype.carddav_ablist_select = function(node)
 {
     var id = node.id, url, win;
-    var type = node.level==0 ? 'account' : 'addressbook';
 
-    if (id) {
-        url = '&_action=plugin.carddav.ablist_selection&_id=' + id + '&_type=' + type;
+    if (node.level==0) {
+        // Account
+        url = '&_action=plugin.carddav.accountdetails&accountid=' + id;
+    } else {
+        // Addressbook
+        url = '&_action=plugin.carddav.abookdetails&abookid=' + id;
     }
 
     if (win = this.get_frame_window(this.env.contentframe)) {
@@ -71,18 +75,15 @@ rcube_webmail.prototype.carddav_ablist_select = function(node)
         this.env.frame_lock = this.set_busy(true, 'loading');
         win.location.href = this.env.comm_path + '&_framed=1' + url;
     }
-
-//    this.enigma_loadframe(url);
-//    this.enable_command('plugin.enigma-key-delete', 'plugin.enigma-key-export-selected', list.get_selection().length > 0);
 };
 
 rcube_webmail.prototype.carddav_activate_abook = function(abookid, active)
 {
     if (abookid) {
-        var prefix = active ? '' : 'de',
-          lock = this.display_message(rcmail.get_label('carddav.' + prefix + 'activatingabook', 'loading'));
+        var prefix = active ? '' : 'de';
+        var lock = this.display_message(rcmail.get_label('carddav.' + prefix + 'activatingabook', 'loading'));
 
-        this.http_post("plugin.carddav." + prefix + 'activateabook', {_abookid: abookid}, lock);
+        this.http_post("plugin.carddav.activateabook", {abookid: abookid, state: (active ? 1 : 0)}, lock);
     }
 };
 
@@ -93,6 +94,11 @@ rcube_webmail.prototype.carddav_reset_active = function(abook, state)
     if (row) {
         $('input[name="_active[]"]', row).first().prop('checked', state);
     }
+};
+
+rcube_webmail.prototype.carddav_save_abook = function()
+{
+    $('form[name="addressbookdetails"]').submit();
 };
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120

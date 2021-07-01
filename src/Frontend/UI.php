@@ -57,9 +57,9 @@ class UI
         $rc->addHook('settings_actions', [$this, 'addSettingsAction']);
 
         $rc->registerAction('plugin.carddav', [$this, 'renderAddressbookList']);
-        $rc->registerAction('plugin.carddav.activateabook', [$this, 'actionActivateAbook']);
-        $rc->registerAction('plugin.carddav.deactivateabook', [$this, 'actionDeactivateAbook']);
-        $rc->registerAction('plugin.carddav.ablist_selection', [$this, 'actionShowDetails']);
+        $rc->registerAction('plugin.carddav.activateabook', [$this, 'actionChangeAddressbookActive']);
+        $rc->registerAction('plugin.carddav.abookdetails', [$this, 'actionAddressbookDetails']);
+        $rc->registerAction('plugin.carddav.accountdetails', [$this, 'actionAccountDetails']);
         $rc->includeJS("carddav.js");
     }
 
@@ -132,7 +132,7 @@ class UI
                 'name'    => '_active[]',
                 'title'   => $rc->locText('changeactive'),
                 'onclick' => \rcmail_output::JS_OBJECT_NAME .
-                  ".command(this.checked?'plugin.carddav-activate-abook':'plugin.carddav-deactivate-abook',this.value)",
+                  ".command('plugin.carddav-toggle-abook-active', {abookid: this.value, state: this.checked})",
         ]);
 
         $accounts = [];
@@ -169,25 +169,19 @@ class UI
         return \html::tag('ul', $attrib, implode('', $accounts));
     }
 
-    public function actionActivateAbook(): void
-    {
-        $this->changeAddressbookActive(true);
-    }
-
-    public function actionDeactivateAbook(): void
-    {
-        $this->changeAddressbookActive(false);
-    }
-
-    private function changeAddressbookActive(bool $active): void
+    public function actionChangeAddressbookActive(): void
     {
         $infra = Config::inst();
         $rc = $infra->rc();
-        $prefix = $active ? "" : "de";
 
-        $abookId = $rc->inputValue("_abookid", false);
-        if (isset($abookId)) {
+        $abookId = $rc->inputValue("abookid", false);
+        // the state parameter is set to 0 (deactivated) or 1 (active) by the client
+        $active  = $rc->inputValue("state", false);
+
+        if (isset($abookId) && isset($active)) {
             try {
+                $active = ($active == "1"); // if this is some invalid value, just consider it as deactivated
+                $prefix = $active ? "" : "de";
                 $this->abMgr->updateAddressbook($abookId, ['active' => $active ]);
                 $rc->showMessage($rc->locText("${prefix}activateabook_success"), 'confirmation');
             } catch (\Exception $e) {
@@ -197,27 +191,54 @@ class UI
         }
     }
 
-    public function actionShowDetails(): void
+    public function actionAccountDetails(): void
     {
         $infra = Config::inst();
         $rc = $infra->rc();
 
-        $objType = $rc->inputValue("_type", false, \rcube_utils::INPUT_GET);
+        $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GET);
 
-        if ($objType == "addressbook") {
-            $rc->setPagetitle($rc->locText('abookproperties'));
-            $rc->addTemplateObjHandler('addressbookdetails', [$this, 'tmplAddressbookDetails']);
-            $rc->sendTemplate('carddav.addressbookDetails');
-        } elseif ($objType == "account") {
+        if (isset($accountId)) {
             $rc->addTemplateObjHandler('accountdetails', [$this, 'tmplAccountDetails']);
             $rc->sendTemplate('carddav.accountDetails');
-        } else {
-            return;
         }
     }
 
-    // INFO: name, url, group type, refresh time, time of last refresh, discovered vs. manually added
-    // ACTIONS: Refresh, Delete
+    public function actionAddressbookDetails(): void
+    {
+        $infra = Config::inst();
+        $rc = $infra->rc();
+        $logger = $infra->logger();
+
+        $abookId = $rc->inputValue("abookid", false, \rcube_utils::INPUT_POST);
+        if (isset($abookId)) {
+            // POST - Settings saved
+            try {
+                $abMgr = $this->abMgr;
+                $abook = $abMgr->getAddressbook($abookId);
+                $abookrow = $abook->getDbProperties();
+                $newset = $this->getAddressbookSettingsFromPOST($abookrow["presetname"]);
+                $abMgr->updateAddressbook($abookId, $newset);
+            } catch (\Exception $e) {
+                $logger->error("Error saving carddav preferences: " . $e->getMessage());
+            }
+        } else {
+            // GET - Addressbook selected in list
+            $abookId = $rc->inputValue("abookid", false, \rcube_utils::INPUT_GET);
+        }
+
+        if (isset($abookId)) {
+            $rc->setPagetitle($rc->locText('abookproperties'));
+            $rc->addTemplateObjHandler('addressbookdetails', [$this, 'tmplAddressbookDetails']);
+            $rc->sendTemplate('carddav.addressbookDetails');
+        } else {
+            $logger->warning(__METHOD__ . ": no addressbook ID found in parameters");
+        }
+    }
+
+    // INFO: name, url, group type, refresh time, time of last refresh, discovered vs. manually added,
+    //       cache state (# contacts, groups, etc.), list of custom subtypes (add / delete)
+    // ACTIONS: Refresh, Delete (for manually-added addressbooks), Clear local cache
     public function tmplAddressbookDetails(array $attrib): string
     {
         $infra = Config::inst();
@@ -226,17 +247,22 @@ class UI
         $out = '';
 
         try {
-            $abookId = $rc->inputValue("_id", false, \rcube_utils::INPUT_GET);
+            // Note: abookid is provided as GET (addressbook selection) or POST parameter (settings form)
+            $abookId = $rc->inputValue("abookid", false, \rcube_utils::INPUT_GP);
             if (isset($abookId)) {
                 $abook = $this->abMgr->getAddressbook($abookId);
                 $abookrow = $abook->getDbProperties();
                 $presetName = $abookrow['presetname'] ?? ""; // empty string is not a valid presetname
 
+                // HIDDEN FIELDS
+                $abookIdField = new \html_hiddenfield(['name' => "abookid", 'value' => $abookId]);
+                $out .= $abookIdField->show();
+
                 // SECTION: BASIC INFORMATION
                 $table = new \html_table(['cols' => 2]);
 
                 // Addressbook name
-                $table->add(['class' => 'title'], \html::label([], $rc->locText('cd_name')));
+                $table->add(['class' => 'title'], \html::label(['for' => 'name'], $rc->locText('cd_name')));
                 $table->add([], $this->buildSettingField($abookId, 'name', $abook->get_name(), $presetName));
 
                 // Addressbook URL
@@ -277,15 +303,33 @@ class UI
                 // Refresh interval setting
                 $table->add(['class' => 'title'], \html::label([], $rc->locText('newgroupstype')));
 
-                $radioBtn = new \html_radiobutton(['name' => 'new_groups_type']);
-                $ul = \html::tag('li', [], $radioBtn->show("vcard") . $rc->locText('grouptype_vcard'));
-                $ul .= \html::tag('li', [], $radioBtn->show("categories") . $rc->locText('grouptype_categories'));
+                $radioBtn = new \html_radiobutton(['name' => 'use_categories']);
+                $useCategories = $abookrow['use_categories'] ? "1" : "0";
+                $ul = \html::tag(
+                    'li',
+                    [],
+                    $radioBtn->show($useCategories, ['value' => '0']) . $rc->locText('grouptype_vcard')
+                );
+                $ul .= \html::tag(
+                    'li',
+                    [],
+                    $radioBtn->show($useCategories, ['value' => '1']) . $rc->locText('grouptype_categories')
+                );
                 $table->add([], \html::tag('ul', ['class' => 'proplist'], $ul));
 
                 $out .= \html::tag(
                     'fieldset',
                     [],
                     \html::tag('legend', [], $rc->locText('miscsettings')) . $table->show($attrib)
+                );
+
+                $out = $rc->requestForm(
+                    [
+                        'task' => 'settings',
+                        'action' => 'plugin.carddav.abookdetails',
+                        'method' => 'post',
+                    ] + $attrib,
+                    $out
                 );
             }
         } catch (\Exception $e) {
@@ -339,7 +383,7 @@ class UI
             } else {
                 // input box for username
                 $input = new \html_inputfield([
-                    'name' => "${abookId}_cd_$attr",
+                    'name' => $attr,
                     'type' => ($attr == 'password') ? 'password' : 'text',
                     'autocomplete' => 'off',
                     'value' => $value
@@ -349,6 +393,62 @@ class UI
         }
 
         return $content;
+    }
+
+    /**
+     * This function gets the addressbook settings from a POST request.
+     *
+     * The result array will only have keys set for POSTed values.
+     *
+     * For fixed settings of preset addressbooks, no setting values will be contained.
+     *
+     * Boolean settings will always be present in the result, since there is no way to differentiate whether a checkbox
+     * was not checked or the value was not submitted at all - so the absence of a boolean setting is considered as a
+     * false value for the setting.
+     *
+     * @param ?string $presetName Name of the preset the addressbook belongs to; null for user-defined addressbook.
+     * @return AbookSettings An array with addressbook column keys and their setting.
+     */
+    private function getAddressbookSettingsFromPOST(?string $presetName = null): array
+    {
+        $infra = Config::inst();
+        $admPrefs = $infra->admPrefs();
+        $rc = $infra->rc();
+
+        $result = [];
+
+        // Fill $result with all values that have been POSTed; for unset boolean values, false is assumed
+        foreach (array_keys(AddressbookManager::ABOOK_TEMPLATE) as $attr) {
+            // fixed settings for preset addressbooks are ignored
+            if ($admPrefs->noOverrideAllowed($attr, $presetName)) {
+                continue;
+            }
+            if ($attr == "password" || $attr == "active") {
+                // FIXME restrict to settings included in the form
+                continue;
+            }
+
+            $value = $rc->inputValue($attr, false);
+
+            if (is_bool(AddressbookManager::ABOOK_TEMPLATE[$attr])) {
+                $result[$attr] = (bool) $value;
+            } else {
+                if (isset($value)) {
+                    if ($attr == "refresh_time") {
+                        try {
+                            $result["refresh_time"] = Utils::parseTimeParameter($value);
+                        } catch (\Exception $e) {
+                            // leave the value unchanged
+                        }
+                    } else {
+                        $result[$attr] = $value;
+                    }
+                }
+            }
+        }
+
+        /** @psalm-var AbookSettings */
+        return $result;
     }
 }
 
