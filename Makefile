@@ -6,7 +6,7 @@ TESTDB_mysql=rcmcarddavtest
 MIGTESTDB_mysql=rcmcarddavmigtest
 TESTDB_postgres=rcmcarddavtest
 MIGTESTDB_postgres=rcmcarddavmigtest
-CD_TABLES=$(foreach tbl,addressbooks contacts groups group_user xsubtypes migrations,carddav_$(tbl))
+CD_TABLES=$(foreach tbl,accounts addressbooks contacts groups group_user xsubtypes migrations,carddav_$(tbl))
 DOCDIR := doc/api/
 RELEASE_VERSION ?= $(shell git tag --points-at HEAD)
 

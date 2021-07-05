@@ -1,28 +1,47 @@
-CREATE SEQUENCE TABLE_PREFIXcarddav_addressbooks_seq
+-- Accounts table
+CREATE SEQUENCE TABLE_PREFIXcarddav_accounts_seq
 	INCREMENT BY 1
 	NO MAXVALUE
 	MINVALUE 1
 	CACHE 1;
 
--- table to store the configured address books
-
-CREATE TABLE TABLE_PREFIXcarddav_addressbooks (
-	id integer DEFAULT nextval('TABLE_PREFIXcarddav_addressbooks_seq'::text) PRIMARY KEY,
+CREATE TABLE TABLE_PREFIXcarddav_accounts (
+	id integer DEFAULT nextval('TABLE_PREFIXcarddav_accounts_seq'::text) PRIMARY KEY,
 	name VARCHAR(64) NOT NULL,
 	username VARCHAR(255) NOT NULL,
 	password TEXT NOT NULL,
 	url TEXT NOT NULL,
 	active SMALLINT NOT NULL DEFAULT 1,
 	user_id integer NOT NULL REFERENCES TABLE_PREFIXusers (user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	last_discovered BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the addressbooks were last discovered
+	rediscover_time INT NOT NULL DEFAULT 86400, -- time span (seconds) after that the addressbooks will be rediscovered, default 1d
+
+	presetname VARCHAR(255) -- presetname
+);
+CREATE INDEX TABLE_PREFIXcarddav_accounts_user_id_idx ON TABLE_PREFIXcarddav_accounts(user_id);
+
+-- Addressbooks table
+CREATE SEQUENCE TABLE_PREFIXcarddav_addressbooks_seq
+	INCREMENT BY 1
+	NO MAXVALUE
+	MINVALUE 1
+	CACHE 1;
+CREATE TABLE TABLE_PREFIXcarddav_addressbooks (
+	id integer DEFAULT nextval('TABLE_PREFIXcarddav_addressbooks_seq'::text) PRIMARY KEY,
+	name VARCHAR(64) NOT NULL,
+	url TEXT NOT NULL,
+	active SMALLINT NOT NULL DEFAULT 1,
 	last_updated BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the last update of the local database
 	refresh_time INT NOT NULL DEFAULT 3600, -- time span (seconds) after that the local database will be refreshed, default 1h
 	sync_token TEXT NOT NULL DEFAULT '', -- sync-token the server sent us for the last sync
 
-	presetname VARCHAR(255), -- presetname
-	use_categories SMALLINT NOT NULL DEFAULT 0
+	use_categories SMALLINT NOT NULL DEFAULT 0,
+	discovered SMALLINT NOT NULL DEFAULT 1, -- 1: addressbook was automatically discovered; 0: addressbook was manually added, e.g. shared addressbook
+	account_id integer NOT NULL REFERENCES TABLE_PREFIXcarddav_accounts (id) ON DELETE CASCADE ON UPDATE CASCADE
 );
-CREATE INDEX TABLE_PREFIXcarddav_addressbooks_user_id_idx ON TABLE_PREFIXcarddav_addressbooks(user_id);
+CREATE INDEX TABLE_PREFIXcarddav_addressbooks_account_id_idx ON TABLE_PREFIXcarddav_addressbooks(account_id);
 
+-- Contacts table
 CREATE SEQUENCE TABLE_PREFIXcarddav_contacts_seq
 	INCREMENT BY 1
 	NO MAXVALUE
@@ -49,6 +68,7 @@ CREATE TABLE TABLE_PREFIXcarddav_contacts (
 
 CREATE INDEX TABLE_PREFIXcarddav_contacts_abook_id_idx ON TABLE_PREFIXcarddav_contacts(abook_id);
 
+-- Custom subtypes table
 CREATE SEQUENCE TABLE_PREFIXcarddav_xsubtypes_seq
 	INCREMENT BY 1
 	NO MAXVALUE
@@ -64,6 +84,7 @@ CREATE TABLE TABLE_PREFIXcarddav_xsubtypes (
 );
 CREATE INDEX TABLE_PREFIXcarddav_xsubtypes_abook_id_idx ON TABLE_PREFIXcarddav_xsubtypes(abook_id);
 
+-- Groups table
 CREATE SEQUENCE TABLE_PREFIXcarddav_groups_seq
 	INCREMENT BY 1
 	NO MAXVALUE
@@ -84,6 +105,7 @@ CREATE TABLE TABLE_PREFIXcarddav_groups (
 );
 CREATE INDEX TABLE_PREFIXcarddav_groups_abook_id_idx ON TABLE_PREFIXcarddav_groups(abook_id);
 
+-- Table for mapping group memberships
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_group_user (
 	group_id   integer NOT NULL,
 	contact_id integer NOT NULL,
@@ -95,6 +117,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_group_user (
 CREATE INDEX TABLE_PREFIXcarddav_group_user_contact_id_idx ON TABLE_PREFIXcarddav_group_user(contact_id);
 CREATE INDEX TABLE_PREFIXcarddav_group_user_group_id_idx ON TABLE_PREFIXcarddav_group_user(group_id);
 
+-- Table to record performed migrations and thereby schema version
 CREATE SEQUENCE TABLE_PREFIXcarddav_migrations_seq
 	INCREMENT BY 1
 	NO MAXVALUE

@@ -80,7 +80,7 @@ final class CarddavTest extends TestCase
         $plugin->init();
 
         $pseudoAbook = [ "id" => "foo", "name" => "foo", "groups" => true, "autocomplete" => true, "readonly" => true ];
-        $res = $plugin->listAddressbooks(["sources" => ["foobar" => $pseudoAbook] ]);
+        $res = $plugin->listAddressbooks(["sources" => ["foobar" => $pseudoAbook]]);
 
         $this->assertArrayHasKey("foobar", $res["sources"], "Other addressbooks not preserved in list");
 

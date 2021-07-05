@@ -38,6 +38,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition
 use carddav;
 
 /**
+ * @psalm-import-type FullAccountRow from AbstractDatabase
  * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type SaveData from DataConversion
  *
@@ -70,6 +71,9 @@ class Addressbook extends rcube_addressbook
     /** @var ?rcube_result_set The result of the last get_record(), list_records() or search() operation */
     private $result = null;
 
+    /** @var FullAccountRow Database row of the account containing its configuration */
+    private $accountConfig;
+
     /** @var FullAbookRow Database row of the addressbook containing its configuration */
     private $config;
 
@@ -83,6 +87,7 @@ class Addressbook extends rcube_addressbook
      * Constructs an addressbook object.
      *
      * @param string $dbid The addressbook's database ID
+     * @param FullAccountRow $accountConfig The database row of the addressbook's account
      * @param FullAbookRow $config The database row of the addressbook
      * @param bool $readonly If true, the addressbook is readonly and change operations are disabled.
      * @param list<string> $requiredProps A list of address object columns that must not be empty. If any of the fields
@@ -90,10 +95,12 @@ class Addressbook extends rcube_addressbook
      */
     public function __construct(
         string $dbid,
+        array $accountConfig,
         array $config,
         bool $readonly,
         array $requiredProps
     ) {
+        $this->accountConfig = $accountConfig;
         $this->config = $config;
         $this->primary_key = 'id';
         $this->groups   = true;
@@ -1191,15 +1198,6 @@ class Addressbook extends rcube_addressbook
     }
 
     /**
-     * Returns the addressbook's database properties
-     * @return FullAbookRow
-     */
-    public function getDbProperties(): array
-    {
-        return $this->config;
-    }
-
-    /**
      * Synchronizes the local card store with the CardDAV server.
      *
      * @return int The duration in seconds that the sync took
@@ -1575,8 +1573,8 @@ class Addressbook extends rcube_addressbook
             $url = $this->config["url"];
 
             // only the username and password are stored to DB before replacing placeholders
-            $username = $this->config["username"];
-            $password = $this->config["password"];
+            $username = $this->accountConfig["username"];
+            $password = $this->accountConfig["password"];
 
             $account = Config::makeAccount($url, $username, $password, $url);
             $this->davAbook = new AddressbookCollection($url, $account);

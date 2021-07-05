@@ -29,23 +29,25 @@
 $prefs['_GLOBAL']['loglevel'] = \Psr\Log\LogLevel::WARNING;
 $prefs['_GLOBAL']['loglevel_http'] = \Psr\Log\LogLevel::ERROR;
 
-//// ** ADDRESSBOOK PRESETS
+//// ** ACCOUNT PRESETS
 
-// Each addressbook preset takes the following form:
+// Each account preset takes the following form:
 /*
 $prefs['<Presetname>'] = [
     // required attributes
-    'name'         =>  '<Addressbook Name>',
+    'name'         =>  '<Account Name>',
     'url'          =>  '<CardDAV Discovery URL>',
 
     // required attributes unless passwordless authentication is used (Kerberos)
     'username'     =>  '<CardDAV Username>',
     'password'     =>  '<CardDAV Password>',
 
-    // optional attributes
+    // optional attributes for account and auto-discovered addressbooks
     'active'       =>  <true or false>,
     'readonly'     =>  <true or false>,
+    'rediscover_time' => '<Rediscover Time in Hours, Format HH[:MM[:SS]]>',
     'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
+    'use_categories' => <true or false>,
 
     // attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset
     'fixed'        =>  [ < 0 or more of the other attribute keys > ],
@@ -55,6 +57,26 @@ $prefs['<Presetname>'] = [
 
     // hide this preset from CardDAV preferences section so users can't even see it
     'hide' => <true or false>,
+
+    // optional: manually add (non-discoverable) addressbooks
+    'extra_addressbooks' =>  [
+        '<Shared Addressbook Name>' => [
+            // required attributes
+            'url'          =>  '<Addressbook URL>',
+
+            // optional attributes - if not specified, values from account are applied
+            'active'       =>  <true or false>,
+            'readonly'     =>  <true or false>,
+            'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
+            'use_categories' => <true or false>,
+
+            // attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset addressbook
+            'fixed'        =>  [ < 0 or more of the other attribute keys > ],
+
+            // always require these attributes, even for addressbook view
+            'require_always' => ['email'],
+        ]
+    ],
 ];
 */
 

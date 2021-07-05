@@ -60,6 +60,7 @@ class UI
         $rc->registerAction('plugin.carddav.activateabook', [$this, 'actionChangeAddressbookActive']);
         $rc->registerAction('plugin.carddav.abookdetails', [$this, 'actionAddressbookDetails']);
         $rc->registerAction('plugin.carddav.accountdetails', [$this, 'actionAccountDetails']);
+        $rc->includeCSS('carddav.css');
         $rc->includeJS("carddav.js");
     }
 
@@ -72,9 +73,9 @@ class UI
         // register as settings action
         $args['actions'][] = [
             'action' => 'plugin.carddav',
-            'class'  => 'cd_preferences', // OK CSS style
-            'label'  => 'cd_title', // OK text display
-            'title'  => 'cd_title', // OK tooltip text
+            'class'  => 'cd_preferences', // CSS style
+            'label'  => 'cd_title', // text display
+            'title'  => 'cd_title', // tooltip text
             'domain' => 'carddav',
         ];
 
@@ -110,22 +111,11 @@ class UI
             $attrib['id'] = 'rcmcarddavaddressbookslist';
         }
 
+        $accounts = $this->abMgr->getAccounts(false);
         $abooks = $this->abMgr->getAddressbooks(false);
 
-        $accountsByAbookHomeUri = [];
         foreach ($abooks as $abook) {
-            $abookHomeUrl = dirname($abook["url"]);
-
-            if (!isset($accountsByAbookHomeUri[$abookHomeUrl])) {
-                $name = preg_replace("/ \(.*\)/", "", $abook["name"], 1);
-                $accountsByAbookHomeUri[$abookHomeUrl] = [
-                    'id' => $abook["id"] . "_acc",
-                    'name' => $name,
-                    'addressbooks' => []
-                ];
-            }
-
-            $accountsByAbookHomeUri[$abookHomeUrl]["addressbooks"][] = $abook;
+            $accounts[$abook["account_id"]]['addressbooks'][] = $abook;
         }
 
         $checkboxActive = new \html_checkbox([
@@ -135,38 +125,36 @@ class UI
                   ".command('plugin.carddav-toggle-abook-active', {abookid: this.value, state: this.checked})",
         ]);
 
-        $accounts = [];
-        foreach ($accountsByAbookHomeUri as $account) {
+        $accountListItems = [];
+        foreach ($accounts as $account) {
             $content = \html::a(['href' => '#'], \rcube::Q($account["name"]));
 
-            $addressbooks = [];
-            foreach ($account["addressbooks"] as $abook) {
+            $addressbookListItems = [];
+            foreach (($account["addressbooks"] ?? []) as $abook) {
                 $attribs = [
-                    'id'    => 'rcmli' . $abook["id"],
+                    'id'    => 'rcmli_abook' . $abook["id"],
                     'class' => 'addressbook'
                 ];
 
-                $abookName = preg_replace("/.* \((.*)\)$/", "$1", $abook["name"], 1);
-                $abookHtml = \html::a(['href' => '#'], \rcube::Q($abookName));
+                $abookHtml = \html::a(['href' => '#'], \rcube::Q($abook["name"]));
                 $abookHtml .= $checkboxActive->show($abook["active"] ? $abook['id'] : '', ['value' => $abook['id']]);
-                $addressbooks[] = \html::tag('li', $attribs, $abookHtml);
+                $addressbookListItems[] = \html::tag('li', $attribs, $abookHtml);
             }
 
-
-            if (!empty($addressbooks)) {
+            if (!empty($addressbookListItems)) {
                 $content .= \html::div('treetoggle expanded', '&nbsp;');
-                $content .= \html::tag('ul', ['style' => null], implode("\n", $addressbooks));
+                $content .= \html::tag('ul', ['style' => null], implode("\n", $addressbookListItems));
             }
 
             $attribs = [
-                'id'    => 'rcmli' . $account["id"],
+                'id'    => 'rcmli_acc' . $account["id"],
                 'class' => 'account'
             ];
-            $accounts[] = \html::tag('li', $attribs, $content);
+            $accountListItems[] = \html::tag('li', $attribs, $content);
         }
 
         $rc->addGuiObject('addressbookslist', $attrib['id']);
-        return \html::tag('ul', $attrib, implode('', $accounts));
+        return \html::tag('ul', $attrib, implode('', $accountListItems));
     }
 
     public function actionChangeAddressbookActive(): void
@@ -215,9 +203,9 @@ class UI
             // POST - Settings saved
             try {
                 $abMgr = $this->abMgr;
-                $abook = $abMgr->getAddressbook($abookId);
-                $abookrow = $abook->getDbProperties();
-                $newset = $this->getAddressbookSettingsFromPOST($abookrow["presetname"]);
+                $abookrow = $abMgr->getAddressbookConfig($abookId);
+                $account = $abMgr->getAccountConfig($abookrow["account_id"]);
+                $newset = $this->getAddressbookSettingsFromPOST($account["presetname"]);
                 $abMgr->updateAddressbook($abookId, $newset);
             } catch (\Exception $e) {
                 $logger->error("Error saving carddav preferences: " . $e->getMessage());
@@ -250,9 +238,9 @@ class UI
             // Note: abookid is provided as GET (addressbook selection) or POST parameter (settings form)
             $abookId = $rc->inputValue("abookid", false, \rcube_utils::INPUT_GP);
             if (isset($abookId)) {
-                $abook = $this->abMgr->getAddressbook($abookId);
-                $abookrow = $abook->getDbProperties();
-                $presetName = $abookrow['presetname'] ?? ""; // empty string is not a valid presetname
+                $abookrow = $this->abMgr->getAddressbookConfig($abookId);
+                $account = $this->abMgr->getAccountConfig($abookrow["account_id"]);
+                $presetName = $account['presetname'] ?? ""; // empty string is not a valid presetname
 
                 // HIDDEN FIELDS
                 $abookIdField = new \html_hiddenfield(['name' => "abookid", 'value' => $abookId]);
@@ -263,7 +251,7 @@ class UI
 
                 // Addressbook name
                 $table->add(['class' => 'title'], \html::label(['for' => 'name'], $rc->locText('cd_name')));
-                $table->add([], $this->buildSettingField($abookId, 'name', $abook->get_name(), $presetName));
+                $table->add([], $this->buildSettingField($abookId, 'name', $abookrow['name'], $presetName));
 
                 // Addressbook URL
                 $table->add(['class' => 'title'], \html::label([], $rc->locText('cd_url')));
@@ -281,7 +269,7 @@ class UI
                 // Refresh interval setting
                 $table->add(['class' => 'title'], \html::label([], $rc->locText('cd_refresh_time')));
                 // input box for refresh time
-                $rt = $abook->getRefreshTime();
+                $rt = intval($abookrow['refresh_time']);
                 $rtString = sprintf("%02d:%02d:%02d", floor($rt / 3600), ($rt / 60) % 60, $rt % 60);
                 $table->add([], $this->buildSettingField($abookId, 'refresh_time', $rtString, $presetName));
 
@@ -366,7 +354,7 @@ class UI
         $value = $value ?? AddressbookManager::ABOOK_TEMPLATE[$attr];
         $roValue = $roValue ?? $value;
         // note: noOverrideAllowed always returns true for URL
-        $attrFixed = ($abookId != "new") && $admPrefs->noOverrideAllowed($attr, $presetName);
+        $attrFixed = $admPrefs->noOverrideAllowed($attr, $presetName);
 
         if (is_bool(AddressbookManager::ABOOK_TEMPLATE[$attr])) {
             // boolean settings as a checkbox
@@ -423,7 +411,7 @@ class UI
             if ($admPrefs->noOverrideAllowed($attr, $presetName)) {
                 continue;
             }
-            if ($attr == "password" || $attr == "active") {
+            if ($attr == "active" || $attr == "discovered") {
                 // FIXME restrict to settings included in the form
                 continue;
             }

@@ -53,12 +53,15 @@ rcube_webmail.prototype.carddav_ablist_select = function(node)
 {
     var id = node.id, url, win;
 
-    if (node.level==0) {
+    if (id.startsWith("_acc")) {
         // Account
-        url = '&_action=plugin.carddav.accountdetails&accountid=' + id;
-    } else {
+        url = '&_action=plugin.carddav.accountdetails&accountid=' + id.substr(4);
+    } else if (id.startsWith("_abook")) {
         // Addressbook
-        url = '&_action=plugin.carddav.abookdetails&abookid=' + id;
+        url = '&_action=plugin.carddav.abookdetails&abookid=' + id.substr(6);
+    } else {
+        // unexpected id
+        return;
     }
 
     if (win = this.get_frame_window(this.env.contentframe)) {

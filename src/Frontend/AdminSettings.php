@@ -35,6 +35,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
  * @psalm-import-type FullAbookRow from AbstractDatabase
+ * @psalm-import-type AccountSettings from AddressbookManager
  * @psalm-import-type AbookSettings from AddressbookManager
  * @psalm-import-type Preset from AddressbookManager
  */
@@ -160,23 +161,21 @@ class AdminSettings
             // Group the addressbooks by their preset
             $existingPresets = [];
             foreach ($abooks as $abookrow) {
+                $account = $abMgr->getAccountConfig($abookrow['account_id']);
+
                 /** @var string $pn Not null because filtered by getAddressbooks() */
-                $pn = $abookrow['presetname'];
-                if (!key_exists($pn, $existingPresets)) {
-                    $existingPresets[$pn] = [];
-                }
+                $pn = $account['presetname'];
                 $existingPresets[$pn][] = $abookrow;
             }
 
             // Walk over the current presets configured by the admin and add, update or delete addressbooks
             foreach ($this->presets as $presetname => $preset) {
-                // addressbooks exist for this preset => update settings
+                // account exists for this preset => update settings
                 if (key_exists($presetname, $existingPresets)) {
                     $this->updatePresetAddressbooks($preset, $existingPresets[$presetname], $abMgr);
                     unset($existingPresets[$presetname]);
                 } else { // create new
                     $preset['presetname'] = $presetname;
-                    $abname = $preset['name'];
 
                     try {
                         $username = Utils::replacePlaceholdersUsername($preset['username']);
@@ -187,14 +186,14 @@ class AdminSettings
                         $account = Config::makeAccount($url, $username, $password, null);
                         $abooks = $abMgr->determineAddressbooksToAdd($account);
 
-                        foreach ($abooks as $abook) {
-                            if ($preset['carddav_name_only']) {
-                                $preset['name'] = $abook->getName();
-                            } else {
-                                $preset['name'] = "$abname (" . $abook->getName() . ')';
-                            }
+                        // store account
+                        $preset["account_id"] = $abMgr->insertAccount($preset);
 
+                        // store addressbooks
+                        foreach ($abooks as $abook) {
+                            $preset['name'] = $abook->getName();
                             $preset['url'] = $abook->getUri();
+                            $preset['discovered'] = true; // FIXME handle non-discoverable addressbooks
                             $abMgr->insertAddressbook($preset);
                         }
                     } catch (\Exception $e) {
@@ -206,9 +205,8 @@ class AdminSettings
             // delete existing preset addressbooks that were removed by admin
             foreach ($existingPresets as $ep) {
                 $logger->info("Deleting preset addressbooks for " . (string) $_SESSION['user_id']);
-                foreach ($ep as $abookrow) {
-                    $abMgr->deleteAddressbook($abookrow['id']);
-                }
+                $accountId = $ep[0]["account_id"];
+                $abMgr->deleteAccount($accountId); // also deletes the addressbooks
             }
         } catch (\Exception $e) {
             $logger->error("Error initializing preconfigured addressbooks: {$e->getMessage()}");
@@ -227,10 +225,30 @@ class AdminSettings
             return;
         }
 
-        foreach ($abooks as $abookrow) {
-            // decrypt password so that the comparison works
-            $abookrow['password'] = Utils::decryptPassword($abookrow['password']);
+        $accountId = $abooks[0]["account_id"];
+        $account = $abMgr->getAccountConfig($accountId);
+        // decrypt password so that the comparison works
+        $account['password'] = Utils::decryptPassword($account['password']);
 
+        // update only those attributes marked as fixed by the admin
+        // otherwise there may be user changes that should not be destroyed
+        $pa = [];
+
+        foreach ($preset['fixed'] as $k) {
+            if (isset($account[$k]) && isset($preset[$k])) {
+                if ($account[$k] != $preset[$k]) {
+                    $pa[$k] = $preset[$k];
+                }
+            }
+        }
+
+        // only update if something changed
+        if (!empty($pa)) {
+            /** @psalm-var AccountSettings $pa */
+            $abMgr->updateAccount($accountId, $pa);
+        }
+
+        foreach ($abooks as $abookrow) {
             // update only those attributes marked as fixed by the admin
             // otherwise there may be user changes that should not be destroyed
             $pa = [];
@@ -239,15 +257,7 @@ class AdminSettings
                 if (isset($abookrow[$k]) && isset($preset[$k])) {
                     // only update the name if it is used
                     if ($k === 'name') {
-                        if (!$preset['carddav_name_only']) {
-                            $fullname = $abookrow['name'];
-                            $cnpos = strpos($fullname, ' (');
-                            if ($cnpos === false && $preset['name'] != $fullname) {
-                                $pa['name'] = $preset['name'];
-                            } elseif ($cnpos !== false && $preset['name'] != substr($fullname, 0, $cnpos)) {
-                                $pa['name'] = $preset['name'] . substr($fullname, $cnpos);
-                            }
-                        }
+                        // name in the preset applies to the account, not the addressbook
                     } elseif ($k === 'url') {
                         // the URL cannot be automatically updated, as it was discovered and normally will
                         // not exactly match the discovery URI. Resetting it to the discovery URI would
@@ -278,11 +288,11 @@ class AdminSettings
 
         try {
             foreach (array_keys($result) as $attr) {
-                if ($attr == 'refresh_time') {
-                    // refresh_time is stored in seconds
-                    if (isset($preset["refresh_time"])) {
-                        if (is_string($preset["refresh_time"])) {
-                            $result["refresh_time"] = Utils::parseTimeParameter($preset["refresh_time"]);
+                if ($attr == 'refresh_time' || $attr == 'rediscover_time') {
+                    // refresh_time/'rediscover_time' is stored in seconds
+                    if (isset($preset[$attr])) {
+                        if (is_string($preset[$attr])) {
+                            $result[$attr] = Utils::parseTimeParameter($preset[$attr]);
                         } else {
                             $logger->error("Preset $presetname: setting $attr must be time string like 01:00:00");
                         }

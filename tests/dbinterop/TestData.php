@@ -41,8 +41,11 @@ final class TestData
     /** @var TestDataTableDef Column names of the users table */
     public const USERS_COLUMNS = [ "username", "mail_host" ];
 
+    /** @var TestDataTableDef Column names of the carddav_accounts table */
+    public const ACCOUNTS_COLUMNS = [ "name", "username", "password", "url", "user_id" ];
+
     /** @var TestDataTableDef Column names of the carddav_addressbooks table */
-    public const ADDRESSBOOKS_COLUMNS = [ "name", "username", "password", "url", "user_id", "sync_token" ];
+    public const ADDRESSBOOKS_COLUMNS = [ "name", "url", "account_id", "sync_token" ];
 
     /** @var TestDataTableDef Column names of the carddav_xsubtypes table */
     public const XSUBTYPES_COLUMNS = [ "typename", "subtype", "abook_id" ];
@@ -69,9 +72,13 @@ final class TestData
         "users" => [
             ["testuser@example.com", "mail.example.com"],
         ],
+        "carddav_accounts" => [
+            [ "First Account", "u1", "p1", "https://contacts.example.com/", [ "users", 0 ] ],
+            [ "Second Account", "u2", "p2", "https://contacts.example.com/", [ "users", 0 ] ],
+        ],
         "carddav_addressbooks" => [
-            [ "Empty Addressbook", "u1", "p1", "https://contacts.example.com/u1/empty/", [ "users", 0 ], "" ],
-            [ "Small Addressbook", "u2", "p1", "https://contacts.example.com/u2/small/", [ "users", 0 ], "" ],
+            [ "Empty Addressbook", "https://contacts.example.com/u1/empty/", [ "carddav_accounts", 0 ], "" ],
+            [ "Small Addressbook", "https://contacts.example.com/u2/small/", [ "carddav_accounts", 1 ], "" ],
         ],
         "carddav_contacts" => [
             [

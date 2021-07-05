@@ -1,5 +1,9 @@
 # Changelog for RCMCardDAV
 
+## Version 5.0.0 (to 4.1.2)
+- Replace UI. The new UI is located directly in roundcube settings as a main section, not a subsection of `Preferences`.
+- Presets: Removed option `carddav_name_only`. It makes no sense with the separation of accounts / addressbooks anymore.
+
 ## Version 4.1.1 (to 4.1.0)
 - Fix: A fatal error would be raised when a password could not be decrypted, only on photo download. This would not be
   notable to the user (except for the photo not being displayed), but show up in the logs.

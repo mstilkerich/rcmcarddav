@@ -37,12 +37,18 @@ use Psr\Log\LoggerInterface;
  * @psalm-type DbInsRow = list<?string>
  * @psalm-type DbGetOptions = array{limit?: array{int,int}, order?: list<string>, count?: true}
  *
- * @psalm-type FullAbookRow = array{
+ * @psalm-type FullAccountRow = array{
  *     id: string, user_id: string, name: string,
  *     username: string, password: string, url: string,
+ *     active: numeric-string,
+ *     last_discovered: numeric-string, rediscover_time: numeric-string,
+ *     presetname: ?string
+ * }
+ * @psalm-type FullAbookRow = array{
+ *     id: string, account_id: string, name: string,
+ *     url: string, discovered: numeric-string,
  *     active: numeric-string, use_categories: numeric-string,
  *     last_updated: numeric-string, refresh_time: numeric-string, sync_token: string,
- *     presetname: ?string
  * }
  *
  * @psalm-import-type SaveDataFromDC from \MStilkerich\CardDavAddressbook4Roundcube\DataConversion

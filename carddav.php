@@ -28,7 +28,7 @@ use MStilkerich\CardDavClient\{Account, AddressbookCollection};
 use Psr\Log\LoggerInterface;
 use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config, RoundcubeLogger};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
-use MStilkerich\CardDavAddressbook4Roundcube\Frontend\{AddressbookManager,AdminSettings,RcmInterface,SettingsUI,UI};
+use MStilkerich\CardDavAddressbook4Roundcube\Frontend\{AddressbookManager,AdminSettings,RcmInterface,UI};
 
 // phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
 class carddav extends rcube_plugin implements RcmInterface
@@ -38,7 +38,7 @@ class carddav extends rcube_plugin implements RcmInterface
      *
      * During development, it is set to the last release and added the suffix +dev.
      */
-    private const PLUGIN_VERSION = 'v4.2.0+dev';
+    private const PLUGIN_VERSION = 'v5.0.0+dev';
 
     /**
      * Information about this plugin that is queried by roundcube.
@@ -138,12 +138,6 @@ class carddav extends rcube_plugin implements RcmInterface
             // if preferences are configured as hidden by the admin, don't register the hooks handling preferences
             $admPrefs = $infra->admPrefs();
             if (!$admPrefs->hidePreferences && $rcTask == "settings") {
-                $ui = new SettingsUI($this->abMgr);
-                $rc->addHook('preferences_list', [$ui, 'buildPreferencesPage']);
-                $rc->addHook('preferences_save', [$ui, 'savePreferences']);
-                $rc->addHook('preferences_sections_list', [$ui, 'addPreferencesSection']);
-
-                // New UI
                 new UI($this->abMgr);
             }
 
@@ -160,7 +154,6 @@ class carddav extends rcube_plugin implements RcmInterface
             );
 
             $config->set('autocomplete_addressbooks', array_merge($sources, $carddav_sources));
-            $rc->includeCSS('carddav.css');
         } catch (\Exception $e) {
             $logger->error("Could not init rcmcarddav: " . $e);
         }
@@ -320,8 +313,8 @@ class carddav extends rcube_plugin implements RcmInterface
 
             foreach ($this->abMgr->getAddressbooks() as $abookrow) {
                 $abookId = $abookrow["id"];
-                $presetname = $abookrow['presetname'] ?? ""; // empty string is not a valid preset name
-                $ro = $admPrefs->presets[$presetname]['readonly'] ?? false;
+                $presetName = $abookrow['presetname'] ?? ""; // empty string is not a valid preset name
+                $ro = $admPrefs->presets[$presetName]['readonly'] ?? false;
 
                 $p['sources']["carddav_$abookId"] = [
                     'id' => "carddav_$abookId",

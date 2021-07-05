@@ -139,9 +139,8 @@ added, resulting in deletion of the existing addressbooks from the database and 
 
 ### Required parameters
 
- - `name`: User-visible name of the addressbook. If the server provides an additional display name for the addressbooks
-           found for the preset, it will be appended in brackets to this name, except if carddav_name_only is true (see
-           below).
+ - `name`: User-visible name of the account. The addressbooks will be named according to the name provided by the
+           server, unless no server-side name is provided. In the latter case, a name will be derived.
  - `url`: URL where to find the CardDAV addressbook(s). This URL is taken to start a discovery process for addressbooks
           according to RFC 6764. If the URL points to an addressbook __outside__ the user's addressbook home (i.e. a
           shared or public addressbook), __only__ this addressbook is added. Otherwise, all discovered addressbooks are
@@ -158,12 +157,12 @@ All addressbooks found will be added. The URL is fixed after creation of an addr
 ### Optional parameters
  - `active`: If this parameter is false, the addressbook is not used by roundcube unless the user changes this setting.
              Default: true
- - `carddav_name_only`: If this parameter is true, only the server provided displayname is used for addressbooks created
-             from this preset, except if the server does not provide a display name.
-             Default: false
  - `readonly`: If this parameter is true, the addressbook will only be accessible in read-only mode, i.e., the user will
              not be able to add, modify or delete contacts in the addressbook.
              Default: false
+ - `rediscover_time`: Time interval after which the addressbooks for the account should be rediscovered, in hours.
+                      Format: `HH[:MM[:SS]]`
+                      Default: 24:00:00 (1 day)
  - `refresh_time`: Time interval for that cached versions of the addressbook entries should be used, in hours. After
              this time interval has passed since the last pull from the server, it will be refreshed when the
              addressbook is accessed the next time. Format: `HH[:MM[:SS]]`
