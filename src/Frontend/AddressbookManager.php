@@ -31,7 +31,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 /**
- * @psalm-type ConfigurablePresetAttribute = 'name'|'url'|'username'|'password'|'active'|'refresh_time'|'rediscover_time'
+ * @psalm-type ConfigurablePresetAttr = 'name'|'url'|'username'|'password'|'active'|'refresh_time'|'rediscover_time'
  * @psalm-type Preset = array{
  *     name: string,
  *     url: string,
@@ -42,7 +42,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *     readonly: bool,
  *     rediscover_time: int,
  *     refresh_time: int,
- *     fixed: list<ConfigurablePresetAttribute>,
+ *     fixed: list<ConfigurablePresetAttr>,
  *     require_always: list<string>,
  *     hide: bool
  * }
@@ -140,10 +140,10 @@ class AddressbookManager
         $readonly = !empty($admPrefs->presets[$presetname]["readonly"] ?? '0');
         $requiredProps = $admPrefs->presets[$presetname]["require_always"] ?? [];
 
-        $account['username'] = Utils::replacePlaceholdersUsername($account["username"]);
-        $account['password'] = Utils::replacePlaceholdersPassword(Utils::decryptPassword($account["password"]));
+        $config['username'] = Utils::replacePlaceholdersUsername($account["username"]);
+        $config['password'] = Utils::replacePlaceholdersPassword(Utils::decryptPassword($account["password"]));
 
-        $abook = new Addressbook($abookId, $account, $config, $readonly, $requiredProps);
+        $abook = new Addressbook($abookId, $config, $readonly, $requiredProps);
         return $abook;
     }
 

@@ -1,5 +1,5 @@
 {
-	"addressbooks": {
+	"accounts": {
 		"id": "key",
 		"name": "string",
 		"username": "string",
@@ -7,11 +7,21 @@
 		"url": "string",
 		"active": "int=1",
 		"user_id": "int",
+		"last_discovered": "int=0",
+		"rediscover_time": "int=86400",
+		"presetname": "?string"
+	},
+	"addressbooks": {
+		"id": "key",
+		"name": "string",
+		"url": "string",
+		"active": "int=1",
 		"last_updated": "int=0",
 		"refresh_time": "int=3600",
 		"sync_token": "string=",
-		"presetname": "?string",
-		"use_categories": "int=0"
+		"use_categories": "int=0",
+		"discovered": "int=1",
+		"account_id": "key[accounts.id]"
 	},
 	"contacts": {
 		"id": "key",

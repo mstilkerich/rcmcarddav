@@ -38,9 +38,18 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition
 use carddav;
 
 /**
- * @psalm-import-type FullAccountRow from AbstractDatabase
- * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type SaveData from DataConversion
+ *
+ * @psalm-type AddressbookOptions = array{
+ *   name: string,
+ *   username: string,
+ *   password: string,
+ *   url: string,
+ *   use_categories: numeric-string,
+ *   last_updated: numeric-string,
+ *   refresh_time: numeric-string,
+ *   sync_token: string
+ * }
  *
  * @psalm-type GroupSaveData = array{
  *   ID: string,
@@ -71,10 +80,7 @@ class Addressbook extends rcube_addressbook
     /** @var ?rcube_result_set The result of the last get_record(), list_records() or search() operation */
     private $result = null;
 
-    /** @var FullAccountRow Database row of the account containing its configuration */
-    private $accountConfig;
-
-    /** @var FullAbookRow Database row of the addressbook containing its configuration */
+    /** @var AddressbookOptions Various options for the behavior of the addressbook */
     private $config;
 
     /** @var array $table_cols
@@ -87,20 +93,17 @@ class Addressbook extends rcube_addressbook
      * Constructs an addressbook object.
      *
      * @param string $dbid The addressbook's database ID
-     * @param FullAccountRow $accountConfig The database row of the addressbook's account
-     * @param FullAbookRow $config The database row of the addressbook
+     * @param AddressbookOptions $config Options for the addressbook
      * @param bool $readonly If true, the addressbook is readonly and change operations are disabled.
      * @param list<string> $requiredProps A list of address object columns that must not be empty. If any of the fields
      *                                    is empty, the contact will be hidden.
      */
     public function __construct(
         string $dbid,
-        array $accountConfig,
         array $config,
         bool $readonly,
         array $requiredProps
     ) {
-        $this->accountConfig = $accountConfig;
         $this->config = $config;
         $this->primary_key = 'id';
         $this->groups   = true;
@@ -1573,8 +1576,8 @@ class Addressbook extends rcube_addressbook
             $url = $this->config["url"];
 
             // only the username and password are stored to DB before replacing placeholders
-            $username = $this->accountConfig["username"];
-            $password = $this->accountConfig["password"];
+            $username = $this->config["username"];
+            $password = $this->config["password"];
 
             $account = Config::makeAccount($url, $username, $password, $url);
             $this->davAbook = new AddressbookCollection($url, $account);

@@ -36,6 +36,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
 use rcube_addressbook;
 
 /**
+ * @psalm-import-type FullAccountRow from AbstractDatabase
  * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type SaveData from DataConversion
  */
@@ -74,7 +75,8 @@ final class AddressbookTest extends TestCase
 
         /** @var FullAbookRow */
         $abookcfg = $db->lookup("42", [], 'addressbooks');
-        /** @var FullAbookRow */
+        /** @var FullAccountRow */
+        $accountcfg = $db->lookup($abookcfg['id'], [], 'accounts');
         $abookcfg = $cfgOverride + $abookcfg;
 
         $abook = new Addressbook("42", $abookcfg, false, $reqCols);
@@ -114,7 +116,9 @@ final class AddressbookTest extends TestCase
 
         /** @var FullAbookRow */
         $abookcfg = $db->lookup("42", [], 'addressbooks');
-        $roAbook = new Addressbook("42", $abookcfg, true, []);
+        /** @var FullAccountRow */
+        $accountcfg = $db->lookup($abookcfg['id'], [], 'accounts');
+        $roAbook = new Addressbook("42", $abookcfg + $accountcfg, true, []);
         $this->assertSame(true, $roAbook->readonly);
     }
 
