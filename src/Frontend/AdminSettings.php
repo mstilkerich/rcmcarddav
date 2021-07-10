@@ -34,15 +34,98 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  * Represents the administrative settings of the plugin.
  *
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
+ * @psalm-type ConfigurablePresetAttr = 'name'|'username'|'password'|'url'|'accountActive'|'rediscover_time'
+ *                                      'active'|'refresh_time'|'use_categories'
+ *
+ * @psalm-type PresetExtraAbook = array{
+ *     url: string,
+ *     active: bool,
+ *     readonly: bool,
+ *     refresh_time: int,
+ *     use_categories: bool,
+ *     fixed: list<ConfigurablePresetAttr>,
+ *     require_always: list<string>,
+ * }
+ * @psalm-type Preset = array{
+ *     name: string,
+ *     username: string,
+ *     password: string,
+ *     url: ?string,
+ *     accountActive: bool,
+ *     rediscover_time: int,
+ *     hide: bool,
+ *     active: bool,
+ *     readonly: bool,
+ *     refresh_time: int,
+ *     use_categories: bool,
+ *     fixed: list<ConfigurablePresetAttr>,
+ *     require_always: list<string>,
+ *     extra_addressbooks: array<string, PresetExtraAbook>,
+ * }
+ *
+ * @psalm-type SettingSpecification=array{'timestr'|'string'|'bool'|'string[]'|'skip', bool, int|string|bool|array|null}
+ *
  * @psalm-import-type FullAbookRow from AbstractDatabase
+ * @psalm-import-type FullAccountRow from AbstractDatabase
  * @psalm-import-type AccountSettings from AddressbookManager
  * @psalm-import-type AbookSettings from AddressbookManager
- * @psalm-import-type Preset from AddressbookManager
  */
 class AdminSettings
 {
     /** @var list<PasswordStoreScheme> List of supported password store schemes */
     public const PWSTORE_SCHEMES = [ 'plain', 'base64', 'des_key', 'encrypted' ];
+
+    /**
+     * @var array<string, SettingSpecification> PRESET_SETTINGS_EXTRA_ABOOK
+     *   This describes the valid attributes in a preset configuration of an extra addressbook (non-discovered), their
+     *   data type, whether they are mandatory to be specified by the admin, and the default value for optional
+     *   attributes.
+     */
+    private const PRESET_SETTINGS_EXTRA_ABOOK = [
+        // type, mandatory, default value
+        'url' => [ 'string', true, null ],
+        'active' => [ 'bool', false, true ],
+        'readonly' => [ 'bool', false, false, null ],
+        'refresh_time' => [ 'timestr', false, '1:0:0' ],
+        'use_categories' => [ 'bool', false, true ],
+        'fixed' => [ 'string[]', false, [], null ],
+        'require_always' => [ 'string[]', false, [], null ],
+    ];
+
+    /**
+     * @var array<string, SettingSpecification> PRESET_SETTINGS
+     *   This describes the valid attributes in a preset configuration, their data type, whether they are mandatory to
+     *   be specified by the admin, and the default value for optional attributes.
+     */
+    private const PRESET_SETTINGS = [
+        // type, mandatory, default value
+        'name' => [ 'string', true, null ],
+        'username' => [ 'string', false, '' ],
+        'password' => [ 'string', false, '' ],
+        'url' => [ 'string', false, null ],
+        'accountActive' => [ 'bool', false, true ],
+        'rediscover_time' => [ 'timestr', false, '24:0:0' ],
+        'hide' => [ 'bool', false, false ],
+        'extra_addressbooks' => [ 'skip', false, null ],
+    ] + self::PRESET_SETTINGS_EXTRA_ABOOK;
+
+    /**
+     * @var array<ConfigurablePresetAttr, array{'account'|'addressbook', string}> PRESET_ATTR_DBMAP
+     *   This contains the attributes that can be automatically updated from an admin preset if the admin configured
+     *   them as fixed. It maps the attribute name from the preset to the DB object type (account or addressbook) and
+     *   the DB column name.
+     */
+    private const PRESET_ATTR_DBMAP = [
+        'name'            => ['account','name'],
+        'username'        => ['account','username'],
+        'password'        => ['account','password'],
+        'url'             => ['account','url'], // addressbook URL cannot be updated, only discovery URI
+        'accountActive'   => ['account','active'],
+        'rediscover_time' => ['account','rediscover_time'],
+        'active'          => ['addressbook','active'],
+        'refresh_time'    => ['addressbook','refresh_time'],
+        'use_categories'  => ['addressbook','use_categories']
+    ];
 
     /**
      * @var PasswordStoreScheme encryption scheme
@@ -64,10 +147,8 @@ class AdminSettings
 
     /**
      * @var array<string, Preset> Presets from config.inc.php
-     * @readonly
-     * @psalm-allow-private-mutation
      */
-    public $presets = [];
+    private $presets = [];
 
     /**
      * Initializes AdminSettings from a config.inc.php file, using default values if that file is not available.
@@ -106,42 +187,51 @@ class AdminSettings
         }
 
         // Store presets
-        foreach ($prefs as $presetname => $preset) {
+        foreach ($prefs as $presetName => $preset) {
             // _GLOBAL contains plugin configuration not related to an addressbook preset - skip
-            if ($presetname === '_GLOBAL') {
+            if ($presetName === '_GLOBAL') {
                 continue;
             }
 
-            if (!is_string($presetname) || strlen($presetname) == 0) {
+            if (!is_string($presetName) || strlen($presetName) == 0) {
                 $logger->error("A preset key must be a non-empty string - ignoring preset!");
                 continue;
             }
 
             if (!is_array($preset)) {
-                $logger->error("A preset definition must be an array of settings - ignoring preset $presetname!");
+                $logger->error("A preset definition must be an array of settings - ignoring preset $presetName!");
                 continue;
             }
 
-            $this->addPreset($presetname, $preset);
+            $this->addPreset($presetName, $preset);
         }
     }
 
     /**
-     * @param ?string $presetName If the setting is checked for an addressbook from a preset, the key of the preset.
-     *                            Null if the setting is checked for a user-defined addressbook.
-     * @return bool True if the setting is fixed for the given preset. Always false for user-defined addressbooks.
+     * Returns the preset with the given name.
+     *
+     * Optionally, the URL of a manually added addressbook may be given. In this case, the returned preset will contain
+     * the values of that specific addressbook instead of those for auto-discovered addressbooks.
+     *
+     * @return Preset
      */
-    public function noOverrideAllowed(string $pref, ?string $presetName): bool
+    public function getPreset(string $presetName, ?string $xabookUrl = null): array
     {
-        // generally, url is fixed, as it results from discovery and has no direct correlation with the admin setting
-        // if the URL of the addressbook changes, all URIs of our database objects would have to change, too -> in such
-        // cases, deleting and re-adding the addressbook would be simpler
-        if ($pref == "url") {
-            return true;
+        if (!isset($this->presets[$presetName])) {
+            throw new \Exception("Query for undefined preset $presetName");
         }
 
-        $pn = $presetName ?? ""; // empty string is not a valid presetname
-        return in_array($pref, $this->presets[$pn]['fixed'] ?? []);
+        $preset = $this->presets[$presetName];
+
+        if (isset($xabookUrl) && isset($preset['extra_addressbooks'][$xabookUrl])) {
+            /**
+             * @psalm-var Preset $preset psalm assumes that extra keys (e.g. hide) may be present in the xabook preset
+             *            with unknown type, but this is not the case
+             */
+            $preset = $preset['extra_addressbooks'][$xabookUrl] + $preset;
+        }
+
+        return $preset;
     }
 
     /**
@@ -153,59 +243,70 @@ class AdminSettings
         $logger = $infra->logger();
 
         try {
-            $logger->debug(__METHOD__);
+            $userId = (string) $_SESSION['user_id'];
 
-            // Get all existing addressbooks of this user that have been created from presets
-            $abooks = $abMgr->getAddressbooks(false, true);
-
-            // Group the addressbooks by their preset
+            // Get all existing accounts of this user that have been created from presets
+            $accountIds = $abMgr->getAccountIds(false, true);
             $existingPresets = [];
-            foreach ($abooks as $abookrow) {
-                $account = $abMgr->getAccountConfig($abookrow['account_id']);
-
-                /** @var string $pn Not null because filtered by getAddressbooks() */
-                $pn = $account['presetname'];
-                $existingPresets[$pn][] = $abookrow;
+            foreach ($accountIds as $accountId) {
+                $account = $abMgr->getAccountConfig($accountId);
+                /** @psalm-var string $presetName Not null because filtered by getAccountIds() */
+                $presetName = $account['presetname'];
+                $existingPresets[$presetName] = $accountId;
             }
 
             // Walk over the current presets configured by the admin and add, update or delete addressbooks
-            foreach ($this->presets as $presetname => $preset) {
-                // account exists for this preset => update settings
-                if (key_exists($presetname, $existingPresets)) {
-                    $this->updatePresetAddressbooks($preset, $existingPresets[$presetname], $abMgr);
-                    unset($existingPresets[$presetname]);
-                } else { // create new
-                    $preset['presetname'] = $presetname;
+            foreach ($this->presets as $presetName => $preset) {
+                if (isset($existingPresets[$presetName])) {
+                    $accountId = $existingPresets[$presetName];
+
+                    // Update the extra addressbooks with the current set of the admin
+                    // TODO
+
+                    // Update the fixed account/addressbook settings with the current admin values
+                    $this->updatePresetSettings($presetName, $accountId, $abMgr);
+                } else {
+                    // If no account exists yet, add a new account for the preset
+                    $logger->info("Adding preset $presetName for user $userId");
 
                     try {
-                        $username = Utils::replacePlaceholdersUsername($preset['username']);
-                        $url = Utils::replacePlaceholdersUrl($preset['url']);
-                        $password = Utils::replacePlaceholdersPassword($preset['password']);
-
-                        $logger->info("Adding preset for $username at URL $url");
-                        $account = Config::makeAccount($url, $username, $password, null);
-                        $abooks = $abMgr->determineAddressbooksToAdd($account);
-
                         // store account
-                        $preset["account_id"] = $abMgr->insertAccount($preset);
+                        $account = $this->makeDbObjFromPreset('account', $preset);
+                        $account['presetname'] = $presetName;
+                        $abookTmpl = $this->makeDbObjFromPreset('addressbook', $preset);
+                        $abookTmpl["account_id"] = $abMgr->insertAccount($account);
 
-                        // store addressbooks
-                        foreach ($abooks as $abook) {
-                            $preset['name'] = $abook->getName();
-                            $preset['url'] = $abook->getUri();
-                            $preset['discovered'] = true; // FIXME handle non-discoverable addressbooks
-                            $abMgr->insertAddressbook($preset);
+                        // Auto-discovery if discovery URI is set
+                        if (isset($preset['url'])) {
+                            $username = Utils::replacePlaceholdersUsername($preset['username']);
+                            $password = Utils::replacePlaceholdersPassword($preset['password']);
+                            $discoveryUrl = Utils::replacePlaceholdersUrl($preset['url']);
+                            $account = Config::makeAccount($discoveryUrl, $username, $password, null);
+                            $discover = $infra->makeDiscoveryService();
+                            $abooks = $discover->discoverAddressbooks($account);
+
+                            // store discovered addressbooks
+                            foreach ($abooks as $abook) {
+                                $abookTmpl['name'] = $abook->getName();
+                                $abookTmpl['url'] = $abook->getUri();
+                                $abookTmpl['discovered'] = true;
+                                $abMgr->insertAddressbook($abookTmpl);
+                            }
                         }
+
+                        // 2) Create / delete the extra addressbooks for this preset
+                        // TODO
                     } catch (\Exception $e) {
-                        $logger->error("Error adding addressbook from preset $presetname: {$e->getMessage()}");
+                        $logger->error("Error adding preset $presetName for user $userId {$e->getMessage()}");
                     }
                 }
+
+                unset($existingPresets[$presetName]);
             }
 
             // delete existing preset addressbooks that were removed by admin
-            foreach ($existingPresets as $ep) {
-                $logger->info("Deleting preset addressbooks for " . (string) $_SESSION['user_id']);
-                $accountId = $ep[0]["account_id"];
+            foreach ($existingPresets as $presetName => $accountId) {
+                $logger->info("Deleting preset $presetName for user $userId");
                 $abMgr->deleteAccount($accountId); // also deletes the addressbooks
             }
         } catch (\Exception $e) {
@@ -214,117 +315,189 @@ class AdminSettings
     }
 
     /**
-     * Updates the fixed fields of addressbooks derived from presets against the current admin settings.
-     * @param Preset $preset
-     * @param list<FullAbookRow> $abooks for the given preset
+     * Updates the fixed fields of account and addressbooks derived from a preset with the current admin settings.
+     *
+     * Only fixed fields are updated, as non-fixed fields may have been changed by the user.
+     *
      * @param AddressbookManager $abMgr The addressbook manager.
      */
-    private function updatePresetAddressbooks(array $preset, array $abooks, AddressbookManager $abMgr): void
+    private function updatePresetSettings(string $presetName, string $accountId, AddressbookManager $abMgr): void
     {
-        if (!is_array($preset["fixed"] ?? "")) {
-            return;
-        }
-
-        $accountId = $abooks[0]["account_id"];
         $account = $abMgr->getAccountConfig($accountId);
         // decrypt password so that the comparison works
         $account['password'] = Utils::decryptPassword($account['password']);
+        $this->updatePresetObject($account, 'account', $presetName, $abMgr);
+
+        $abooks = $abMgr->getAddressbookConfigsForAccount($accountId);
+        foreach ($abooks as $abook) {
+            $this->updatePresetObject($abook, 'addressbook', $presetName, $abMgr);
+        }
+    }
+
+    /**
+     * Updates the fixed fields of one preset object (account or addressbook) with the current admin settings.
+     *
+     * Only fixed fields are updated, as non-fixed fields may have been changed by the user.
+     *
+     * @param FullAbookRow | FullAccountRow $obj
+     * @param 'addressbook'|'account' $type
+     */
+    private function updatePresetObject(array $obj, string $type, string $presetName, AddressbookManager $abMgr): void
+    {
+        // extra addressbooks (discovered == 0) can have individual preset settings
+        $xabookUrl = ($type == 'addressbook') ? $obj['url'] : null;
+        $preset = $this->getPreset($presetName, $xabookUrl);
 
         // update only those attributes marked as fixed by the admin
         // otherwise there may be user changes that should not be destroyed
         $pa = [];
-
         foreach ($preset['fixed'] as $k) {
-            if (isset($account[$k]) && isset($preset[$k])) {
-                if ($account[$k] != $preset[$k]) {
-                    $pa[$k] = $preset[$k];
+            if (isset($preset[$k]) && isset(self::PRESET_ATTR_DBMAP[$k])) {
+                [ $attrObjType, $attrDbName ] = self::PRESET_ATTR_DBMAP[$k];
+
+                if ($type == $attrObjType && isset($obj[$attrDbName]) && $obj[$attrDbName] != $preset[$k]) {
+                    $pa[$attrDbName] = $preset[$k];
                 }
             }
         }
 
         // only update if something changed
         if (!empty($pa)) {
-            /** @psalm-var AccountSettings $pa */
-            $abMgr->updateAccount($accountId, $pa);
-        }
-
-        foreach ($abooks as $abookrow) {
-            // update only those attributes marked as fixed by the admin
-            // otherwise there may be user changes that should not be destroyed
-            $pa = [];
-
-            foreach ($preset['fixed'] as $k) {
-                if (isset($abookrow[$k]) && isset($preset[$k])) {
-                    // only update the name if it is used
-                    if ($k === 'name') {
-                        // name in the preset applies to the account, not the addressbook
-                    } elseif ($k === 'url') {
-                        // the URL cannot be automatically updated, as it was discovered and normally will
-                        // not exactly match the discovery URI. Resetting it to the discovery URI would
-                        // break the addressbook record
-                    } elseif ($abookrow[$k] != $preset[$k]) {
-                        $pa[$k] = $preset[$k];
-                    }
-                }
-            }
-
-            // only update if something changed
-            if (!empty($pa)) {
+            if ($type == 'account') {
+                /** @psalm-var AccountSettings $pa */
+                $abMgr->updateAccount($obj['id'], $pa);
+            } else {
                 /** @psalm-var AbookSettings $pa */
-                $abMgr->updateAddressbook($abookrow['id'], $pa);
+                $abMgr->updateAddressbook($obj['id'], $pa);
             }
         }
     }
 
     /**
+     * Creates a DB object to insert from a preset.
+     *
+     * @param 'addressbook'|'account' $type
+     * @param Preset $preset
+     * @return AbookSettings | AccountSettings
+     */
+    private function makeDbObjFromPreset(string $type, array $preset): array
+    {
+        $result = [];
+
+        foreach (self::PRESET_ATTR_DBMAP as $k => $spec) {
+            [ $attrObjType, $attrDbName ] = $spec;
+            if ($type == $attrObjType) {
+                $result[$attrDbName] = $preset[$k];
+            }
+        }
+
+        /** @psalm-var AbookSettings | AccountSettings $result */
+        return $result;
+    }
+
+    /**
      * Adds the given preset from config.inc.php to $this->presets.
      */
-    private function addPreset(string $presetname, array $preset): void
+    private function addPreset(string $presetName, array $preset): void
     {
         $logger = Config::inst()->logger();
 
-        // Resulting preset initialized with defaults
-        $result = AddressbookManager::PRESET_TEMPLATE;
-
         try {
-            foreach (array_keys($result) as $attr) {
-                if ($attr == 'refresh_time' || $attr == 'rediscover_time') {
-                    // refresh_time/'rediscover_time' is stored in seconds
-                    if (isset($preset[$attr])) {
-                        if (is_string($preset[$attr])) {
-                            $result[$attr] = Utils::parseTimeParameter($preset[$attr]);
-                        } else {
-                            $logger->error("Preset $presetname: setting $attr must be time string like 01:00:00");
-                        }
-                    }
-                } elseif (is_bool($result[$attr])) {
-                    if (isset($preset[$attr])) {
-                        if (is_bool($preset[$attr])) {
-                            $result[$attr] = $preset[$attr];
-                        } else {
-                            $logger->error("Preset $presetname: setting $attr must be boolean");
-                        }
-                    }
-                } elseif (is_array($result[$attr])) {
-                    if (isset($preset[$attr]) && is_array($preset[$attr])) {
-                        foreach (array_keys($preset[$attr]) as $k) {
-                            if (is_string($preset[$attr][$k])) {
-                                $result[$attr][] = $preset[$attr][$k];
-                            }
-                        }
-                    }
-                } else {
-                    if (isset($preset[$attr]) && is_string($preset[$attr])) {
-                        $result[$attr] = $preset[$attr];
+            /** @psalm-var Preset Checked by parsePresetArray() */
+            $result = $this->parsePresetArray(self::PRESET_SETTINGS, $preset);
+
+            // Parse extra addressbooks
+            $result['extra_addressbooks'] = [];
+            if (isset($preset['extra_addressbooks'])) {
+                if (!is_array($preset['extra_addressbooks'])) {
+                    throw new \Exception("setting extra_addressbooks must be an array");
+                }
+
+                foreach (array_keys($preset['extra_addressbooks']) as $k) {
+                    if (is_array($preset['extra_addressbooks'][$k])) {
+                        /** @psalm-var PresetExtraAbook Checked by parsePresetArray() */
+                        $xabook = $this->parsePresetArray(
+                            self::PRESET_SETTINGS_EXTRA_ABOOK,
+                            $preset['extra_addressbooks'][$k],
+                            $result
+                        );
+
+                        $result['extra_addressbooks'][$xabook['url']] = $xabook;
+                    } else {
+                        throw new \Exception("setting extra_addressbooks[$k] must be an array");
                     }
                 }
             }
 
-            /** @var Preset */
-            $this->presets[$presetname] = $result;
+            $this->presets[$presetName] = $result;
         } catch (\Exception $e) {
-            $logger->error("Error in preset $presetname: " . $e->getMessage());
+            $logger->error("Error in preset $presetName: " . $e->getMessage());
         }
+    }
+
+    /**
+     * Parses / checks a user-input array according to a settings specification.
+     *
+     * @param array<string, SettingSpecification> $spec The specification of the expected fields.
+     * @param array $preset The user-input array
+     * @param null|Preset $defaults An optional array with defaults that take precedence over defaults in $spec.
+     * @return array If no error, the resulting array, containing only attributes from $spec.
+     */
+    private function parsePresetArray(array $spec, array $preset, ?array $defaults = null): array
+    {
+        $result = [];
+        foreach ($spec as $attr => $specs) {
+            [ $type, $mandatory, $defaultValue ] = $specs;
+
+            if (isset($preset[$attr])) {
+                switch ($type) {
+                    case 'skip':
+                        // this item has a special handler
+                        continue 2;
+
+                    case 'string':
+                    case 'timestr':
+                        if (is_string($preset[$attr])) {
+                            if ($type == 'timestr') {
+                                $result[$attr] = Utils::parseTimeParameter($preset[$attr]);
+                            } else {
+                                $result[$attr] = $preset[$attr];
+                            }
+                        } else {
+                            throw new \Exception("setting $attr must be a string");
+                        }
+                        break;
+
+                    case 'bool':
+                        if (is_bool($preset[$attr])) {
+                            $result[$attr] = $preset[$attr];
+                        } else {
+                            throw new \Exception("setting $attr must be boolean");
+                        }
+                        break;
+
+                    case 'string[]':
+                        if (is_array($preset[$attr])) {
+                            $result[$attr] = [];
+                            foreach (array_keys($preset[$attr]) as $k) {
+                                if (is_string($preset[$attr][$k])) {
+                                    $result[$attr][] = $preset[$attr][$k];
+                                } else {
+                                    throw new \Exception("setting $attr\[$k\] must be string");
+                                }
+                            }
+                        } else {
+                            throw new \Exception("setting $attr must be array");
+                        }
+                }
+            } elseif ($mandatory) {
+                throw new \Exception("required setting $attr is not set");
+            } else {
+                $result[$attr] = $defaults[$attr] ?? $defaultValue;
+            }
+        }
+
+        return $result;
     }
 }
 

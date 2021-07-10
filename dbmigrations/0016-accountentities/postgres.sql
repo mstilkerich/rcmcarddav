@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_accounts (
 	name VARCHAR(64) NOT NULL,
 	username VARCHAR(255) NOT NULL,
 	password TEXT NOT NULL,
-	url TEXT NOT NULL,
+	url TEXT, -- discovery URI, NULL means no discovery of addressbooks
 	active SMALLINT NOT NULL DEFAULT 1,
 	user_id integer NOT NULL REFERENCES TABLE_PREFIXusers (user_id) ON DELETE CASCADE ON UPDATE CASCADE,
 	last_discovered BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the addressbooks were last discovered

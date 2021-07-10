@@ -77,19 +77,19 @@ class Utils
      *
      * The time string must have the format HH[:MM[:SS]]. If the format does not match, an exception is thrown.
      *
-     * @param string $refresht The time string to parse
+     * @param string $timeStr The time string to parse
      * @return int The time in seconds
      */
-    public static function parseTimeParameter(string $refresht): int
+    public static function parseTimeParameter(string $timeStr): int
     {
-        if (preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $refresht, $match)) {
+        if (preg_match('/^(\d+)(:([0-5]?\d))?(:([0-5]?\d))?$/', $timeStr, $match)) {
             $ret = 0;
 
             $ret += intval($match[1] ?? 0) * 3600;
             $ret += intval($match[3] ?? 0) * 60;
             $ret += intval($match[5] ?? 0);
         } else {
-            throw new \Exception("Time string $refresht could not be parsed");
+            throw new \Exception("Time string $timeStr could not be parsed");
         }
 
         return $ret;

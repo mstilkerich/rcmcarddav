@@ -150,7 +150,7 @@ class carddav extends rcube_plugin implements RcmInterface
                 function (string $id): string {
                     return "carddav_$id";
                 },
-                array_keys($this->abMgr->getAddressbooks())
+                $this->abMgr->getAddressbookIds()
             );
 
             $config->set('autocomplete_addressbooks', array_merge($sources, $carddav_sources));
@@ -310,18 +310,31 @@ class carddav extends rcube_plugin implements RcmInterface
 
         try {
             $logger->debug(__METHOD__);
+            $abMgr = $this->abMgr;
 
-            foreach ($this->abMgr->getAddressbooks() as $abookrow) {
-                $abookId = $abookrow["id"];
-                $presetName = $abookrow['presetname'] ?? ""; // empty string is not a valid preset name
-                $ro = $admPrefs->presets[$presetName]['readonly'] ?? false;
+            foreach ($abMgr->getAddressbookIds() as $abookId) {
+                $abookrow = $abMgr->getAddressbookConfig($abookId);
+                $account = $abMgr->getAccountConfig($abookrow['account_id']);
+
+                if (isset($account['presetname'])) {
+                    try {
+                        // TODO consider making readonly a DB column
+                        $preset = $admPrefs->getPreset($account['presetname'], $abookrow['url']);
+                        $readonly = $preset['readonly'];
+                    } catch (\Exception $e) {
+                        // it appears the admin deleted the preset - don't show the addressbook to roundcube
+                        continue;
+                    }
+                } else {
+                    $readonly = false;
+                }
 
                 $p['sources']["carddav_$abookId"] = [
                     'id' => "carddav_$abookId",
                     'name' => $abookrow['name'],
                     'groups' => true,
                     'autocomplete' => true,
-                    'readonly' => $ro,
+                    'readonly' => $readonly
                 ];
             }
         } catch (\Exception $e) {

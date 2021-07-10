@@ -31,11 +31,48 @@ use MStilkerich\CardDavAddressbook4Roundcube\Config;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 /**
+ * @psalm-type UiFieldType = 'text'|'plain'|'datetime'|'timestr'|'radio'
+ * @psalm-type SettingFieldSpec = array{0: string, 1: string, 2: UiFieldType, 3?: list<array{string,string}>}
+ * @psalm-type FieldSetSpec = array{label: string, fields: list<SettingFieldSpec>}
+ * @psalm-type FormSpec = list<FieldSetSpec>
  * @psalm-import-type FullAbookRow from AbstractDatabase
+ * @psalm-import-type FullAccountRow from AbstractDatabase
  * @psalm-import-type AbookSettings from AddressbookManager
  */
 class UI
 {
+    /** @var FormSpec UI_FORM_ABOOK */
+    private const UI_FORM_ABOOK = [
+        [
+            'label' => 'basicinfo',
+            'fields' => [
+                [ 'cd_name', 'name', 'text' ],
+                [ 'cd_url', 'url', 'plain' ],
+            ]
+        ],
+        [
+            'label' => 'syncinfo',
+            'fields' => [
+                [ 'cd_refresh_time', 'refresh_time', 'timestr' ],
+                [ 'cd_lastupdate_time', 'last_updated', 'datetime' ],
+            ]
+        ],
+        [
+            'label' => 'miscsettings',
+            'fields' => [
+                [
+                    'newgroupstype',
+                    'use_categories',
+                    'radio',
+                    [
+                        [ '0', 'grouptype_vcard' ],
+                        [ '1', 'grouptype_categories' ],
+                    ]
+                ],
+            ]
+        ],
+    ];
+
     /**
      * The addressbook manager.
      * @var AddressbookManager
@@ -111,11 +148,13 @@ class UI
             $attrib['id'] = 'rcmcarddavaddressbookslist';
         }
 
-        $accounts = $this->abMgr->getAccounts(false);
-        $abooks = $this->abMgr->getAddressbooks(false);
+        $abMgr = $this->abMgr;
+        $accountIds = $abMgr->getAccountIds(false);
 
-        foreach ($abooks as $abook) {
-            $accounts[$abook["account_id"]]['addressbooks'][] = $abook;
+        $accounts = [];
+        foreach ($accountIds as $accountId) {
+            $accounts[$accountId] = $abMgr->getAccountConfig($accountId);
+            $accounts[$accountId]['addressbooks'] = $abMgr->getAddressbookConfigsForAccount($accountId);
         }
 
         $checkboxActive = new \html_checkbox([
@@ -224,6 +263,109 @@ class UI
         }
     }
 
+    /**
+     * @param FormSpec $formSpec Specification of the form
+     * @param FullAbookRow | FullAccountRow $obj The DB row of the object whose settings shall be shown
+     * @param list<string> $fixedAttributes A list of non-changeable settings by choice of the admin
+     */
+    private function makeSettingsForm(array $formSpec, array $obj, array $fixedAttributes, array $attrib): string
+    {
+        $infra = Config::inst();
+        $rc = $infra->rc();
+
+        $out = '';
+        foreach ($formSpec as $fieldSet) {
+            $table = new \html_table(['cols' => 2]);
+
+            foreach ($fieldSet['fields'] as $fieldSpec) {
+                [ $fieldLabel, $fieldKey ] = $fieldSpec;
+
+                $readonly = in_array($fieldKey, $fixedAttributes);
+                $table->add(['class' => 'title'], \html::label(['for' => $fieldKey], $rc->locText($fieldLabel)));
+                $table->add([], $this->uiField($fieldSpec, (string) $obj[$fieldKey], $readonly));
+            }
+
+            $out .= \html::tag(
+                'fieldset',
+                [],
+                \html::tag('legend', [], $rc->locText($fieldSet['label'])) . $table->show($attrib)
+            );
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return list<string> The list of fixed attributes
+     */
+    private function getFixedSettings(?string $presetName, ?string $abookUrl = null): array
+    {
+        if (!isset($presetName)) {
+            return [];
+        }
+
+        $infra = Config::inst();
+        $admPrefs = $infra->admPrefs();
+        $preset = $admPrefs->getPreset($presetName, $abookUrl);
+        return $preset['fixed'];
+    }
+
+
+    /**
+     * @param SettingFieldSpec $fieldSpec
+     */
+    private function uiField(array $fieldSpec, string $fieldValue, bool $readonly): string
+    {
+        [, $fieldKey, $uiType ] = $fieldSpec;
+
+        $infra = Config::inst();
+        $rc = $infra->rc();
+
+        switch ($uiType) {
+            case 'datetime':
+                $t = intval($fieldValue);
+                if ($t > 0) {
+                    $fieldValue = date("Y-m-d H:i:s", intval($fieldValue));
+                } else {
+                    $fieldValue = $rc->locText('never');
+                }
+                // fall through to plain
+
+            case 'plain':
+                return \rcube::Q($fieldValue);
+
+            case 'timestr':
+                $t = intval($fieldValue);
+                $fieldValue = sprintf("%02d:%02d:%02d", floor($t / 3600), ($t / 60) % 60, $t % 60);
+                // fall through to text field
+
+            case 'text':
+                $input = new \html_inputfield([
+                    'name' => $fieldKey,
+                    'type' => $uiType,
+                    'value' => $fieldValue,
+                    'disabled' => $readonly,
+                ]);
+                return $input->show();
+
+            case 'radio':
+                $ul = '';
+                $radioBtn = new \html_radiobutton(['name' => $fieldKey]);
+
+                foreach (($fieldSpec[3] ?? []) as $selectionSpec) {
+                    [ $selValue, $selLabel ] = $selectionSpec;
+                    $ul .= \html::tag(
+                        'li',
+                        [],
+                        $radioBtn->show($fieldValue, ['value' => $selValue]) . $rc->locText($selLabel)
+                    );
+                }
+                return \html::tag('ul', ['class' => 'proplist'], $ul);
+        }
+
+        throw new \Exception("Unknown UI element type $uiType for $fieldKey");
+    }
+
     // INFO: name, url, group type, refresh time, time of last refresh, discovered vs. manually added,
     //       cache state (# contacts, groups, etc.), list of custom subtypes (add / delete)
     // ACTIONS: Refresh, Delete (for manually-added addressbooks), Clear local cache
@@ -240,76 +382,14 @@ class UI
             if (isset($abookId)) {
                 $abookrow = $this->abMgr->getAddressbookConfig($abookId);
                 $account = $this->abMgr->getAccountConfig($abookrow["account_id"]);
-                $presetName = $account['presetname'] ?? ""; // empty string is not a valid presetname
+
+                $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookrow['url']);
 
                 // HIDDEN FIELDS
                 $abookIdField = new \html_hiddenfield(['name' => "abookid", 'value' => $abookId]);
                 $out .= $abookIdField->show();
 
-                // SECTION: BASIC INFORMATION
-                $table = new \html_table(['cols' => 2]);
-
-                // Addressbook name
-                $table->add(['class' => 'title'], \html::label(['for' => 'name'], $rc->locText('cd_name')));
-                $table->add([], $this->buildSettingField($abookId, 'name', $abookrow['name'], $presetName));
-
-                // Addressbook URL
-                $table->add(['class' => 'title'], \html::label([], $rc->locText('cd_url')));
-                $table->add([], $this->buildSettingField($abookId, 'url', $abookrow['url'], $presetName));
-
-                $out .= \html::tag(
-                    'fieldset',
-                    [],
-                    \html::tag('legend', [], $rc->locText('basicinfo')) . $table->show($attrib)
-                );
-
-                // SECTION: SYNCHRONIZATION
-                $table = new \html_table(['cols' => 2]);
-
-                // Refresh interval setting
-                $table->add(['class' => 'title'], \html::label([], $rc->locText('cd_refresh_time')));
-                // input box for refresh time
-                $rt = intval($abookrow['refresh_time']);
-                $rtString = sprintf("%02d:%02d:%02d", floor($rt / 3600), ($rt / 60) % 60, $rt % 60);
-                $table->add([], $this->buildSettingField($abookId, 'refresh_time', $rtString, $presetName));
-
-                // Time of last refresh
-                if (!empty($abookrow['last_updated'])) { // if never synced, last_updated is 0 -> don't show
-                    $table->add(['class' => 'title'], \html::label([], $rc->locText('cd_lastupdate_time')));
-                    $table->add([], date("Y-m-d H:i:s", intval($abookrow['last_updated'])));
-                }
-
-                $out .= \html::tag(
-                    'fieldset',
-                    [],
-                    \html::tag('legend', [], $rc->locText('syncinfo')) . $table->show($attrib)
-                );
-
-                // SECTION: MISC SETTINGS
-                $table = new \html_table(['cols' => 2]);
-
-                // Refresh interval setting
-                $table->add(['class' => 'title'], \html::label([], $rc->locText('newgroupstype')));
-
-                $radioBtn = new \html_radiobutton(['name' => 'use_categories']);
-                $useCategories = $abookrow['use_categories'] ? "1" : "0";
-                $ul = \html::tag(
-                    'li',
-                    [],
-                    $radioBtn->show($useCategories, ['value' => '0']) . $rc->locText('grouptype_vcard')
-                );
-                $ul .= \html::tag(
-                    'li',
-                    [],
-                    $radioBtn->show($useCategories, ['value' => '1']) . $rc->locText('grouptype_categories')
-                );
-                $table->add([], \html::tag('ul', ['class' => 'proplist'], $ul));
-
-                $out .= \html::tag(
-                    'fieldset',
-                    [],
-                    \html::tag('legend', [], $rc->locText('miscsettings')) . $table->show($attrib)
-                );
+                $out .= $this->makeSettingsForm(self::UI_FORM_ABOOK, $abookrow, $fixedAttributes, $attrib);
 
                 $out = $rc->requestForm(
                     [
@@ -336,54 +416,6 @@ class UI
     }
 
     /**
-     * @param null|string|bool $value Value to show if the field can be edited.
-     * @param null|string|bool $roValue Value to show if the field is shown in non-editable form.
-     */
-    private function buildSettingField(
-        string $abookId,
-        string $attr,
-        $value,
-        ?string $presetName,
-        $roValue = null
-    ): string {
-        $infra = Config::inst();
-        $admPrefs = $infra->admPrefs();
-        $rc = $infra->rc();
-
-        // if the value is not set, use the default from the addressbook template
-        $value = $value ?? AddressbookManager::ABOOK_TEMPLATE[$attr];
-        $roValue = $roValue ?? $value;
-        // note: noOverrideAllowed always returns true for URL
-        $attrFixed = $admPrefs->noOverrideAllowed($attr, $presetName);
-
-        if (is_bool(AddressbookManager::ABOOK_TEMPLATE[$attr])) {
-            // boolean settings as a checkbox
-            if ($attrFixed) {
-                $content = $rc->locText($roValue ? 'cd_enabled' : 'cd_disabled');
-            } else {
-                // check box for activating
-                $checkbox = new \html_checkbox(['name' => "${abookId}_cd_$attr", 'value' => 1]);
-                $content = $checkbox->show($value ? "1" : "0");
-            }
-        } else {
-            if ($attrFixed) {
-                $content = (string) $roValue;
-            } else {
-                // input box for username
-                $input = new \html_inputfield([
-                    'name' => $attr,
-                    'type' => ($attr == 'password') ? 'password' : 'text',
-                    'autocomplete' => 'off',
-                    'value' => $value
-                ]);
-                $content = $input->show();
-            }
-        }
-
-        return $content;
-    }
-
-    /**
      * This function gets the addressbook settings from a POST request.
      *
      * The result array will only have keys set for POSTed values.
@@ -399,6 +431,8 @@ class UI
      */
     private function getAddressbookSettingsFromPOST(?string $presetName = null): array
     {
+        return [];
+        /* TODO use the FORM spec to check for valid values plus fixedAttributes
         $infra = Config::inst();
         $admPrefs = $infra->admPrefs();
         $rc = $infra->rc();
@@ -434,6 +468,7 @@ class UI
                 }
             }
         }
+         */
 
         /** @psalm-var AbookSettings */
         return $result;

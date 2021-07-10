@@ -33,5 +33,6 @@ $labels = Array(
 	'newgroupstype' => 'Type of new contact groups',
 	'grouptype_vcard' => 'Separate KIND=group (RFC6350) VCards for new groups (best compatibility with Apple applications)',
 	'grouptype_categories' => 'Store groups as CATEGORIES inside contact VCards (best compatibility with non-Apple applications)',
+	'never' => 'never',
 );
 ?>

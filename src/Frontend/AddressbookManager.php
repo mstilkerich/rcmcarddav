@@ -31,84 +31,69 @@ use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 /**
- * @psalm-type ConfigurablePresetAttr = 'name'|'url'|'username'|'password'|'active'|'refresh_time'|'rediscover_time'
- * @psalm-type Preset = array{
- *     name: string,
- *     url: string,
- *     username: string,
- *     password: string,
- *     active: bool,
- *     use_categories: bool,
- *     readonly: bool,
- *     rediscover_time: int,
- *     refresh_time: int,
- *     fixed: list<ConfigurablePresetAttr>,
- *     require_always: list<string>,
- *     hide: bool
- * }
+ * Describes for each database field of an addressbook / account: type, mandatory on insert
+ * @psalm-type SettingSpecification = array{'int'|'string'|'bool', bool}
+ *
+ * The data types AccountSettings / AbookSettings describe the attributes of an account / addressbook row in the
+ * corresponding DB table, that can be used for inserting / updating the addressbook. Contrary to the  FullAccountRow /
+ * FullAbookRow types:
+ *   - all keys are optional (for use of update of individual columns, others are not specified)
+ *   - DB managed columns (particularly: id) are missing
+ *   - Columns not to be updated by the user / admin are missing (e.g., last_updated)
  * @psalm-type AccountSettings = array{
  *     name?: string,
  *     username?: string,
  *     password?: string,
- *     url?: string,
+ *     url?: ?string,
  *     rediscover_time?: int,
  *     active?: bool,
  *     presetname?: string
  * }
  * @psalm-type AbookSettings = array{
+ *     account_id?: string,
  *     name?: string,
  *     url?: string,
- *     account_id?: string,
- *     active?: bool,
- *     refresh_time?: int,
  *     active?: bool,
  *     use_categories?: bool,
- *     sync_token?: string,
+ *     refresh_time?: int,
  *     discovered?: bool
  * }
+ *
  * @psalm-import-type FullAccountRow from AbstractDatabase
  * @psalm-import-type FullAbookRow from AbstractDatabase
  */
 class AddressbookManager
 {
     /**
-     * @var AccountSettings Template for account settings from the settings page.
-     *      The default values in this template also serve do determine the type (bool, int, string).
+     * @var array<string,SettingSpecification>
+     *      List of user-/admin-configurable settings for an account. Note: The array must contain all fields of the
+     *      AccountSettings type. Only fields listed in the array can be set via the insertAccount() / updateAccount()
+     *      methods.
      */
-    public const ACCOUNT_TEMPLATE = [
-        // standard account settings
-        'name' => '',
-        'username' => '',
-        'password' => '',
-        'url' => '',
-        'active' => true,
-        'rediscover_time' => 86400,
+    private const ACCOUNT_SETTINGS = [
+        'name' => [ 'string', true ],
+        'username' => [ 'string', true ],
+        'password' => [ 'string', true ],
+        'url' => [ 'string', false ], // discovery URI can be NULL, disables discovery
+        'rediscover_time' => [ 'int', false ],
+        'active' => [ 'bool', false ],
+        'presetname' => [ 'string', false ],
     ];
 
     /**
-     * @var AbookSettings Template for addressbook settings from the settings page.
-     *      The default values in this template also serve do determine the type (bool, int, string).
+     * @var array<string,SettingSpecification>
+     *      AbookSettings List of user-/admin-configurable settings for an addressbook. Note: The array must contain all
+     *      fields of the AbookSettings type. Only fields listed in the array can be set via the insertAddressbook()
+     *      / updateAddressbook() methods.
      */
-    public const ABOOK_TEMPLATE = [
-        // standard addressbook settings
-        'name' => '',
-        'url' => '',
-        'active' => true,
-        'use_categories' => true,
-        'refresh_time' => 3600,
-        'discovered' => true,
-    ];
-
-    /**
-     * @var Preset Template for a preset; has the standard account/addressbook settings plus some extra properties.
-     *      The default values in this template also serve do determine the type (bool, int, string, array).
-     */
-    public const PRESET_TEMPLATE = self::ACCOUNT_TEMPLATE + self::ABOOK_TEMPLATE + [
-        // extra settings for presets
-        'readonly' => false,
-        'hide' => false,
-        'fixed' => [],
-        'require_always' => [],
+    private const ABOOK_SETTINGS = [
+        'account_id' => [ 'string', true ],
+        'name' => [ 'string', true ],
+        'url' => [ 'string', true ],
+        'active' => [ 'bool', false ],
+        'use_categories' => [ 'bool', false ],
+        'refresh_time' => [ 'int', false ],
+        'discovered' => [ 'int', false ],
     ];
 
     /** @var ?array<string, FullAccountRow> $accountsDb
@@ -122,392 +107,13 @@ class AddressbookManager
     private $abooksDb = null;
 
     /**
-     * Retrieves an addressbook by its database ID.
-     *
-     * @param string $abookId ID of the addressbook
-     * @return Addressbook The addressbook object.
-     * @throws \Exception If no addressbook with the given ID exists for this user.
-     */
-    public function getAddressbook(string $abookId): Addressbook
-    {
-        $infra = Config::inst();
-        $admPrefs = $infra->admPrefs();
-
-        $config = $this->getAddressbookConfig($abookId);
-        $account = $this->getAccountConfig($config["account_id"]);
-        $presetname = $account["presetname"] ?? ""; // empty string is not a valid preset name
-
-        $readonly = !empty($admPrefs->presets[$presetname]["readonly"] ?? '0');
-        $requiredProps = $admPrefs->presets[$presetname]["require_always"] ?? [];
-
-        $config['username'] = Utils::replacePlaceholdersUsername($account["username"]);
-        $config['password'] = Utils::replacePlaceholdersPassword(Utils::decryptPassword($account["password"]));
-
-        $abook = new Addressbook($abookId, $config, $readonly, $requiredProps);
-        return $abook;
-    }
-
-    /**
-     * Retrieves an account configuration (database row) by its database ID.
-     *
-     * @param string $accountId ID of the account
-     * @return FullAccountRow The addressbook config.
-     * @throws \Exception If no account with the given ID exists for this user.
-     */
-    public function getAccountConfig(string $accountId): array
-    {
-        $accounts = $this->getAccounts(false);
-
-        // check that this addressbook ID actually refers to one of the user's addressbooks
-        if (!isset($accounts[$accountId])) {
-            throw new \Exception("No carddav account with ID $accountId");
-        }
-
-        return $accounts[$accountId];
-    }
-
-    /**
-     * Retrieves an addressbook configuration (database row) by its database ID.
-     *
-     * @param string $abookId ID of the addressbook
-     * @return FullAbookRow The addressbook config.
-     * @throws \Exception If no addressbook with the given ID exists for this user.
-     */
-    public function getAddressbookConfig(string $abookId): array
-    {
-        $abooks = $this->getAddressbooks(false);
-
-        // check that this addressbook ID actually refers to one of the user's addressbooks
-        if (!isset($abooks[$abookId])) {
-            throw new \Exception("No carddav addressbook with ID $abookId");
-        }
-
-        return $abooks[$abookId];
-    }
-
-    /**
-     * Updates some settings of an account in the database.
-     *
-     * If the given account ID does not refer to an account of the logged in user, nothing is changed.
-     *
-     * @param string $accountId ID of the account
-     * @param AccountSettings $pa Array with the settings to update
-     */
-    public function updateAccount(string $accountId, array $pa): void
-    {
-        // encrypt the password before storing it
-        if (isset($pa['password'])) {
-            $pa['password'] = Utils::encryptPassword($pa['password']);
-        }
-
-        // optional fields
-        $qf = [];
-        $qv = [];
-
-        foreach (array_keys(self::ACCOUNT_TEMPLATE) as $f) {
-            if (isset($pa[$f])) {
-                $v = $pa[$f];
-
-                $qf[] = $f;
-                if (is_bool($v)) {
-                    $qv[] = $v ? '1' : '0';
-                } else {
-                    $qv[] = (string) $v;
-                }
-            }
-        }
-
-        $userId = (string) $_SESSION['user_id'];
-        if (!empty($qf) && !empty($userId)) {
-            $db = Config::inst()->db();
-            $db->update(['id' => $accountId, 'user_id' => $userId], $qf, $qv, "accounts");
-            $this->accountsDb = null;
-        }
-    }
-
-    /**
-     * Updates some settings of an addressbook in the database.
-     *
-     * If the given addresbook ID does not refer to an addressbook of the logged in user, nothing is changed.
-     *
-     * @param string $abookId ID of the addressbook
-     * @param AbookSettings $pa Array with the settings to update
-     */
-    public function updateAddressbook(string $abookId, array $pa): void
-    {
-        // optional fields
-        $qf = [];
-        $qv = [];
-
-        foreach (array_keys(self::ABOOK_TEMPLATE) as $f) {
-            if (isset($pa[$f])) {
-                $v = $pa[$f];
-
-                $qf[] = $f;
-                if (is_bool($v)) {
-                    $qv[] = $v ? '1' : '0';
-                } else {
-                    $qv[] = (string) $v;
-                }
-            }
-        }
-
-        $accountIds = array_column($this->getAccounts(false), 'id');
-        if (!empty($qf) && !empty($accountIds)) {
-            $db = Config::inst()->db();
-            $db->update(['id' => $abookId, 'account_id' => $accountIds], $qf, $qv, "addressbooks");
-            $this->abooksDb = null;
-        }
-    }
-
-    /**
-     * Deletes the given account from the database.
-     * @param string $accountId ID of the account
-     */
-    public function deleteAccount(string $accountId): void
-    {
-        $infra = Config::inst();
-        $logger = $infra->logger();
-        $db = $infra->db();
-
-        try {
-            $db->startTransaction(false);
-
-            // getAccountConfig() throws an exception if the ID is invalid / no account of the current user
-            $this->getAccountConfig($accountId);
-
-            $abookIds = array_column(
-                array_filter(
-                    $this->getAddressbooks(false),
-                    function (array $v) use ($accountId): bool {
-                        return $v["account_id"] == $accountId;
-                    }
-                ),
-                'id'
-            );
-
-            // we explicitly delete all data belonging to the account, since
-            // cascaded deletes are not supported by all database backends
-            foreach ($abookIds as $abookId) {
-                $this->deleteAddressbook($abookId);
-            }
-
-            $db->delete($accountId, 'accounts');
-
-            $db->endTransaction();
-        } catch (\Exception $e) {
-            $logger->error("Could not delete account " . $e->getMessage());
-            $db->rollbackTransaction();
-            throw $e;
-        } finally {
-            $this->abooksDb = null;
-        }
-    }
-
-    /**
-     * Deletes the given addressbook from the database.
-     * @param string $abookId ID of the addressbook
-     * @param bool   $skipTransaction If true, perform the operations without starting a transaction. Useful if the
-     *                                operation is called as part of an enclosing transaction.
-     */
-    public function deleteAddressbook(string $abookId, bool $skipTransaction = false): void
-    {
-        $infra = Config::inst();
-        $logger = $infra->logger();
-        $db = $infra->db();
-
-        try {
-            if (!$skipTransaction) {
-                $db->startTransaction(false);
-            }
-
-            // we explicitly delete all data belonging to the addressbook, since
-            // cascaded deletes are not supported by all database backends
-            // ...custom subtypes
-            $db->delete(['abook_id' => $abookId], 'xsubtypes');
-
-            // ...groups and memberships
-            /** @psalm-var list<string> $delgroups */
-            $delgroups = array_column($db->get(['abook_id' => $abookId], ['id'], 'groups'), "id");
-            if (!empty($delgroups)) {
-                $db->delete(['group_id' => $delgroups], 'group_user');
-            }
-
-            $db->delete(['abook_id' => $abookId], 'groups');
-
-            // ...contacts
-            $db->delete(['abook_id' => $abookId], 'contacts');
-
-            $db->delete($abookId, 'addressbooks');
-
-            if (!$skipTransaction) {
-                $db->endTransaction();
-            }
-        } catch (\Exception $e) {
-            $logger->error("Could not delete addressbook: " . $e->getMessage());
-            if (!$skipTransaction) {
-                $db->rollbackTransaction();
-            }
-            throw $e;
-        } finally {
-            $this->abooksDb = null;
-        }
-    }
-
-    /**
-     * Inserts a new account into the database.
-     * @param AccountSettings $pa Array with the settings for the new account
-     * @return string Database ID of the newly created account
-     */
-    public function insertAccount(array $pa): string
-    {
-        $db = Config::inst()->db();
-
-        // check parameters
-        if (isset($pa['password'])) {
-            $pa['password'] = Utils::encryptPassword($pa['password']);
-        }
-        $pa['user_id'] = (string) $_SESSION['user_id'];
-
-        // required fields
-        $qf = ['name','username','password','url','user_id'];
-        $qv = [];
-        foreach ($qf as $f) {
-            if (!isset($pa[$f])) {
-                throw new \Exception("Required parameter $f not provided for new addressbook");
-            }
-            $v = $pa[$f];
-            if (is_bool($v)) {
-                $qv[] = $v ? '1' : '0';
-            } else {
-                $qv[] = (string) $pa[$f];
-            }
-        }
-
-        // optional fields
-        $qfo = ['active','presetname','rediscover_time'];
-        foreach ($qfo as $f) {
-            if (isset($pa[$f])) {
-                $qf[] = $f;
-
-                $v = $pa[$f];
-                if (is_bool($v)) {
-                    $qv[] = $v ? '1' : '0';
-                } else {
-                    $qv[] = (string) $pa[$f];
-                }
-            }
-        }
-
-        $accountId = $db->insert("accounts", $qf, [$qv]);
-        $this->accountsDb = null;
-        return $accountId;
-    }
-
-    /**
-     * Inserts a new addressbook into the database.
-     * @param AbookSettings $pa Array with the settings for the new addressbook
-     * @return string Database ID of the newly created addressbook
-     */
-    public function insertAddressbook(array $pa): string
-    {
-        $db = Config::inst()->db();
-
-        // required fields
-        $qf = ['name','url','account_id'];
-        $qv = [];
-        foreach ($qf as $f) {
-            if (!isset($pa[$f])) {
-                throw new \Exception("Required parameter $f not provided for new addressbook");
-            }
-            $v = $pa[$f];
-            if (is_bool($v)) {
-                $qv[] = $v ? '1' : '0';
-            } else {
-                $qv[] = (string) $pa[$f];
-            }
-        }
-
-        // optional fields
-        $qfo = ['active','use_categories','refresh_time','sync_token','discovered'];
-        foreach ($qfo as $f) {
-            if (isset($pa[$f])) {
-                $qf[] = $f;
-
-                $v = $pa[$f];
-                if (is_bool($v)) {
-                    $qv[] = $v ? '1' : '0';
-                } else {
-                    $qv[] = (string) $pa[$f];
-                }
-            }
-        }
-
-        $abookId = $db->insert("addressbooks", $qf, [$qv]);
-        $this->abooksDb = null;
-        return $abookId;
-    }
-
-    /**
-     * Determines the addressbooks to add for a given URI.
-     *
-     * We perform discovery to determine all the user's addressbooks.
-     *
-     * If the given URI might point to an addressbook directly (i.e. it has a non-empty path), we check if it is
-     * contained in the discovered addressbooks. If it is not, we check if it actually points to an addressbook. If it
-     * does, we add ONLY this addressbook, not the discovered ones.
-     *
-     * We need to perform the discovery to determine where the user's own addressbooks live (addressbook home).
-     *
-     * See https://github.com/mstilkerich/rcmcarddav/issues/339 for rationale.
-     *
-     * @param Account $account The account to discover the addressbooks for. The discovery URI is assumed as user input.
-     * @return list<AddressbookCollection> The determined addressbooks, possible empty.
-     */
-    public function determineAddressbooksToAdd(Account $account): array
-    {
-        $infra = Config::inst();
-        $logger = $infra->logger();
-
-        $uri = $account->getDiscoveryUri();
-
-        $discover = $infra->makeDiscoveryService();
-        $abooks = $discover->discoverAddressbooks($account);
-
-        foreach ($abooks as $abook) {
-            // If the discovery URI points to an addressbook that was also discovered, we use the discovered results
-            // We deliberately only compare the path components, as the server part may contain a port (or not) or even
-            // be a different server name after discovery, but the path part should be "unique enough"
-            if (Utils::compareUrlPaths($uri, $abook->getUri())) {
-                return $abooks;
-            }
-        }
-
-        // If the discovery URI points to an addressbook that is not part of the discovered ones, we only use that
-        // addressbook
-        try {
-            // FIXME replace this with an option for admin/user to manually add additional addressbooks to an account
-            $directAbook = $infra->makeWebDavResource($uri, $account);
-            if ($directAbook instanceof AddressbookCollection) {
-                $logger->debug("Only adding non-individual addressbook $uri");
-                return [ $directAbook ];
-            }
-        } catch (\Exception $e) {
-            // it is expected that we might have an error here if the URI given for discovery does not refer to an
-            // accessible WebDAV resource
-        }
-
-        return $abooks;
-    }
-
-    /**
-     * Returns all the user's accounts, optionally filtered.
+     * Returns the IDs of all the user's accounts, optionally filtered.
      *
      * @param $activeOnly If true, only the active accounts of the user are returned.
      * @param $presetsOnly If true, only the accounts created from an admin preset are returned.
-     * @return array<string, FullAccountRow>
+     * @return list<string> The IDs of the user's accounts.
      */
-    public function getAccounts(bool $activeOnly = true, bool $presetsOnly = false): array
+    public function getAccountIds(bool $activeOnly = true, bool $presetsOnly = false): array
     {
         $db = Config::inst()->db();
 
@@ -529,28 +135,132 @@ class AddressbookManager
 
         if ($presetsOnly) {
             $result = array_filter($result, function (array $v): bool {
-                return !empty($v["presetname"]);
+                return (strlen($v["presetname"] ?? "") > 0);
             });
         }
 
-        return $result;
+        return array_column($result, 'id');
     }
 
     /**
-     * Returns all the user's addressbooks, optionally filtered.
+     * Retrieves an account configuration (database row) by its database ID.
      *
-     * @param $activeOnly If true, only the active addressbooks of the user are returned.
-     * @param $presetsOnly If true, only the addressbooks created from an admin preset are returned.
-     * @return array<string, FullAbookRow>
+     * @param string $accountId ID of the account
+     * @return FullAccountRow The addressbook config.
+     * @throws \Exception If no account with the given ID exists for this user.
      */
-    public function getAddressbooks(bool $activeOnly = true, bool $presetsOnly = false): array
+    public function getAccountConfig(string $accountId): array
+    {
+        // make sure the cache is loaded
+        $this->getAccountIds(false);
+
+        // check that this addressbook ID actually refers to one of the user's addressbooks
+        if (isset($this->accountsDb[$accountId])) {
+            return $this->accountsDb[$accountId];
+        }
+
+        throw new \Exception("No carddav account with ID $accountId");
+    }
+
+    /**
+     * Inserts a new account into the database.
+     *
+     * @param AccountSettings $pa Array with the settings for the new account
+     * @return string Database ID of the newly created account
+     */
+    public function insertAccount(array $pa): string
     {
         $db = Config::inst()->db();
 
-        $allAccountIds = array_keys($this->getAccounts(false));
-        $accounts = $this->getAccounts($activeOnly, $presetsOnly);
+        // check parameters
+        if (isset($pa['password'])) {
+            $pa['password'] = Utils::encryptPassword($pa['password']);
+        }
+
+        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ACCOUNT_SETTINGS, true);
+
+        $cols[] = 'user_id';
+        $vals[] = (string) $_SESSION['user_id'];
+
+        $accountId = $db->insert("accounts", $cols, [$vals]);
+        $this->accountsDb = null;
+        return $accountId;
+    }
+
+    /**
+     * Updates some settings of an account in the database.
+     *
+     * If the given account ID does not refer to an account of the logged in user, nothing is changed.
+     *
+     * @param string $accountId ID of the account
+     * @param AccountSettings $pa Array with the settings to update
+     */
+    public function updateAccount(string $accountId, array $pa): void
+    {
+        // encrypt the password before storing it
+        if (isset($pa['password'])) {
+            $pa['password'] = Utils::encryptPassword($pa['password']);
+        }
+
+        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ACCOUNT_SETTINGS, false);
+
+        $userId = (string) $_SESSION['user_id'];
+        if (!empty($cols) && !empty($userId)) {
+            $db = Config::inst()->db();
+            $db->update(['id' => $accountId, 'user_id' => $userId], $cols, $vals, "accounts");
+            $this->accountsDb = null;
+        }
+    }
+
+    /**
+     * Deletes the given account from the database.
+     * @param string $accountId ID of the account
+     */
+    public function deleteAccount(string $accountId): void
+    {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
+
+        try {
+            $db->startTransaction(false);
+
+            // getAccountConfig() throws an exception if the ID is invalid / no account of the current user
+            $this->getAccountConfig($accountId);
+
+            $abookIds = array_column($this->getAddressbookConfigsForAccount($accountId), 'id');
+
+            // we explicitly delete all data belonging to the account, since
+            // cascaded deletes are not supported by all database backends
+            $this->deleteAddressbooks($abookIds);
+
+            $db->delete($accountId, 'accounts');
+
+            $db->endTransaction();
+        } catch (\Exception $e) {
+            $logger->error("Could not delete account " . $e->getMessage());
+            $db->rollbackTransaction();
+            throw $e;
+        } finally {
+            $this->accountsDb = null;
+            $this->abooksDb = null;
+        }
+    }
+
+    /**
+     * Returns the IDs of all the user's addressbooks, optionally filtered.
+     *
+     * @psalm-assert !null $this->abooksDb
+     * @param bool $activeOnly If true, only the active addressbooks of the user are returned.
+     * @param bool $presetsOnly If true, only the addressbooks created from an admin preset are returned.
+     * @return list<string>
+     */
+    public function getAddressbookIds(bool $activeOnly = true, bool $presetsOnly = false): array
+    {
+        $db = Config::inst()->db();
 
         if (!isset($this->abooksDb)) {
+            $allAccountIds = $this->getAccountIds(false);
             $this->abooksDb = [];
             /** @var FullAbookRow $abookrow */
             foreach ($db->get(['account_id' => $allAccountIds], [], 'addressbooks') as $abookrow) {
@@ -558,9 +268,15 @@ class AddressbookManager
             }
         }
 
-        $result = array_filter($this->abooksDb, function (array $v) use ($accounts): bool {
-            return isset($accounts[$v["account_id"]]);
-        });
+        $result = $this->abooksDb;
+
+        // filter out the addressbooks of the accounts matching the filter conditions
+        if ($activeOnly || $presetsOnly) {
+            $accountIds = $this->getAccountIds($activeOnly, $presetsOnly);
+            $result = array_filter($result, function (array $v) use ($accountIds): bool {
+                return in_array($v["account_id"], $accountIds);
+            });
+        }
 
         if ($activeOnly) {
             $result = array_filter($result, function (array $v): bool {
@@ -568,7 +284,171 @@ class AddressbookManager
             });
         }
 
-        return $result;
+        return array_column($result, 'id');
+    }
+
+    /**
+     * Retrieves an addressbook configuration (database row) by its database ID.
+     *
+     * @param string $abookId ID of the addressbook
+     * @return FullAbookRow The addressbook config.
+     * @throws \Exception If no addressbook with the given ID exists for this user.
+     */
+    public function getAddressbookConfig(string $abookId): array
+    {
+        // make sure the cache is loaded
+        $this->getAddressbookIds(false);
+
+        // check that this addressbook ID actually refers to one of the user's addressbooks
+        if (isset($this->abooksDb[$abookId])) {
+            return $this->abooksDb[$abookId];
+        }
+
+        throw new \Exception("No carddav addressbook with ID $abookId");
+    }
+
+    /**
+     * Returns the addressbooks for the given account.
+     *
+     * @param string $accountId
+     * @return array<string, FullAbookRow> The addressbook configs, indexed by addressbook id.
+     */
+    public function getAddressbookConfigsForAccount(string $accountId): array
+    {
+        // make sure the cache is filled
+        $this->getAddressbookIds(false);
+
+        $abooks = array_filter(
+            $this->abooksDb,
+            function (array $v) use ($accountId): bool {
+                return $v["account_id"] == $accountId;
+            }
+        );
+
+        return $abooks;
+    }
+
+    /**
+     * Retrieves an addressbook by its database ID.
+     *
+     * @param string $abookId ID of the addressbook
+     * @return Addressbook The addressbook object.
+     * @throws \Exception If no addressbook with the given ID exists for this user.
+     */
+    public function getAddressbook(string $abookId): Addressbook
+    {
+        $infra = Config::inst();
+        $admPrefs = $infra->admPrefs();
+
+        $config = $this->getAddressbookConfig($abookId);
+        $account = $this->getAccountConfig($config["account_id"]);
+
+        if (isset($account["presetname"])) {
+            $preset = $admPrefs->getPreset($account["presetname"], $config['url']);
+            $readonly = $preset["readonly"];
+            $requiredProps = $preset["require_always"];
+        } else {
+            $readonly = false;
+            $requiredProps = [];
+        }
+
+        $config['username'] = Utils::replacePlaceholdersUsername($account["username"]);
+        $config['password'] = Utils::replacePlaceholdersPassword(Utils::decryptPassword($account["password"]));
+
+        $abook = new Addressbook($abookId, $config, $readonly, $requiredProps);
+        return $abook;
+    }
+
+    /**
+     * Inserts a new addressbook into the database.
+     * @param AbookSettings $pa Array with the settings for the new addressbook
+     * @return string Database ID of the newly created addressbook
+     */
+    public function insertAddressbook(array $pa): string
+    {
+        $db = Config::inst()->db();
+
+        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ABOOK_SETTINGS, true);
+        $abookId = $db->insert("addressbooks", $cols, [$vals]);
+        $this->abooksDb = null;
+        return $abookId;
+    }
+
+    /**
+     * Updates some settings of an addressbook in the database.
+     *
+     * If the given addresbook ID does not refer to an addressbook of the logged in user, nothing is changed.
+     *
+     * @param string $abookId ID of the addressbook
+     * @param AbookSettings $pa Array with the settings to update
+     */
+    public function updateAddressbook(string $abookId, array $pa): void
+    {
+        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ABOOK_SETTINGS, false);
+
+        $accountIds = $this->getAccountIds(false);
+        if (!empty($cols) && !empty($accountIds)) {
+            $db = Config::inst()->db();
+            $db->update(['id' => $abookId, 'account_id' => $accountIds], $cols, $vals, "addressbooks");
+            $this->abooksDb = null;
+        }
+    }
+
+    /**
+     * Deletes the given addressbooks from the database.
+     *
+     * @param list<string> $abookIds IDs of the addressbooks
+     * @param bool $skipTransaction If true, perform the operations without starting a transaction. Useful if the
+     *                                operation is called as part of an enclosing transaction.
+     * @throws \Exception If any of the given addressbook IDs does not refer to an addressbook of the user.
+     */
+    public function deleteAddressbooks(array $abookIds, bool $skipTransaction = false): void
+    {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $db = $infra->db();
+
+        try {
+            if (!$skipTransaction) {
+                $db->startTransaction(false);
+            }
+
+            $userAbookIds = $this->getAddressbookIds(false);
+            if (count(array_diff($abookIds, $userAbookIds)) > 0) {
+                throw new \Exception("request with IDs not referring to addressbooks of current user");
+            }
+
+            // we explicitly delete all data belonging to the addressbook, since
+            // cascaded deletes are not supported by all database backends
+            // ...custom subtypes
+            $db->delete(['abook_id' => $abookIds], 'xsubtypes');
+
+            // ...groups and memberships
+            /** @psalm-var list<string> $delgroups */
+            $delgroups = array_column($db->get(['abook_id' => $abookIds], ['id'], 'groups'), "id");
+            if (!empty($delgroups)) {
+                $db->delete(['group_id' => $delgroups], 'group_user');
+            }
+
+            $db->delete(['abook_id' => $abookIds], 'groups');
+
+            // ...contacts
+            $db->delete(['abook_id' => $abookIds], 'contacts');
+
+            $db->delete(['id' => $abookIds], 'addressbooks');
+
+            if (!$skipTransaction) {
+                $db->endTransaction();
+            }
+        } catch (\Exception $e) {
+            $logger->error("Could not delete addressbooks: " . $e->getMessage());
+            if (!$skipTransaction) {
+                $db->rollbackTransaction();
+            }
+            throw $e;
+        } finally {
+            $this->abooksDb = null;
+        }
     }
 
     /**
@@ -609,6 +489,47 @@ class AddressbookManager
                 false
             );
         }
+    }
+
+    /**
+     * Prepares the row for a database insert or update operation from addressbook / account fields.
+     *
+     * Optionally checks that the given $settings contain values for all mandatory fields.
+     *
+     * @param array<string, null|string|int|bool> $settings
+     *   The settings and their values.
+     * @param array<string,SettingSpecification> $fieldspec
+     *   The field specifications. Note that only fields that are part of this specification will be taken from
+     *   $settings, others are ignored.
+     * @param bool $checkMandatory
+     *   If true, the function verifies that all mandatory fields are included in $settings (if not: throws exception)
+     *
+     * @return array{list<string>, list<string>}
+     *   An array with two members: The first is an array of column names for insert/update. The second is the matching
+     *   array of values.
+     */
+    private function prepareDbRow(array $settings, array $fieldspec, bool $checkMandatory): array
+    {
+        $cols = []; // column names
+        $vals = []; // columns values
+
+        foreach ($fieldspec as $col => $spec) {
+            [ $type, $mandatory ] = $spec;
+
+            if (isset($settings[$col])) {
+                $cols[] = $col;
+
+                if ($type == 'bool') {
+                    $vals[] = ($settings[$col] ? '1' : '0');
+                } else {
+                    $vals[] = (string) $settings[$col];
+                }
+            } elseif ($mandatory && $checkMandatory) {
+                throw new \Exception(__METHOD__ . ": Mandatory field $col missing");
+            }
+        }
+
+        return [ $cols, $vals ];
     }
 }
 

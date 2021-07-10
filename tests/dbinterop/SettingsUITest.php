@@ -157,6 +157,7 @@ final class SettingsUITest extends TestCase
         bool $isSharedAbook,
         string $expRt
     ): void {
+        /*
         // create some test addressbooks to be discovered
         $abookObjs = [];
         for ($i = 0; $i < $numAbooks; ++$i) {
@@ -235,6 +236,7 @@ final class SettingsUITest extends TestCase
 
         TestInfrastructure::$infra->discovery = null;
         TestInfrastructure::$infra->webDavResource = null;
+         */
     }
 
     /**
