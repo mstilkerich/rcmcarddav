@@ -38,6 +38,7 @@ use rcube_addressbook;
 /**
  * @psalm-import-type FullAccountRow from AbstractDatabase
  * @psalm-import-type FullAbookRow from AbstractDatabase
+ * @psalm-import-type AddressbookOptions from Addressbook
  * @psalm-import-type SaveData from DataConversion
  */
 final class AddressbookTest extends TestCase
@@ -77,7 +78,8 @@ final class AddressbookTest extends TestCase
         $abookcfg = $db->lookup("42", [], 'addressbooks');
         /** @var FullAccountRow */
         $accountcfg = $db->lookup($abookcfg['id'], [], 'accounts');
-        $abookcfg = $cfgOverride + $abookcfg;
+        /** @psalm-var AddressbookOptions */
+        $abookcfg = $cfgOverride + $abookcfg + $accountcfg;
 
         $abook = new Addressbook("42", $abookcfg, false, $reqCols);
         $davobj = $this->createStub(AddressbookCollection::class);
@@ -118,7 +120,9 @@ final class AddressbookTest extends TestCase
         $abookcfg = $db->lookup("42", [], 'addressbooks');
         /** @var FullAccountRow */
         $accountcfg = $db->lookup($abookcfg['id'], [], 'accounts');
-        $roAbook = new Addressbook("42", $abookcfg + $accountcfg, true, []);
+        /** @psalm-var AddressbookOptions */
+        $abookOptions = $abookcfg + $accountcfg;
+        $roAbook = new Addressbook("42", $abookOptions, true, []);
         $this->assertSame(true, $roAbook->readonly);
     }
 
