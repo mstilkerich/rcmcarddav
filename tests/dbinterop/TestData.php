@@ -141,6 +141,7 @@ final class TestData
     private static $tables = [
         // table name,            table columns to insert
         [ "users", self::USERS_COLUMNS ],
+        [ "carddav_accounts", self::ACCOUNTS_COLUMNS ],
         [ "carddav_addressbooks", self::ADDRESSBOOKS_COLUMNS ],
         [ "carddav_contacts", self::CONTACTS_COLUMNS ],
         [ "carddav_groups", self::GROUPS_COLUMNS ],
@@ -207,7 +208,7 @@ final class TestData
                 [ $dt, $di ] = $val;
                 TestCase::assertTrue(
                     isset(self::$data[$dt][$di]["id"]),
-                    "Reference to $dt[$di] cannot be resolved"
+                    "Reference to {$dt}[$di] cannot be resolved"
                 );
                 $val = self::$data[$dt][$di]["id"];
             }

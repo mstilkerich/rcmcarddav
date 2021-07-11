@@ -79,7 +79,9 @@ final class DatabaseTest extends TestCase
         TestData::initDatabase(true);
 
         // insert test data rows
-        $abookRow = [ "Test", "u1", "p1", "https://contacts.example.com/u1/empty/", [ "users", 0 ], "" ];
+        $accountRow = [ "Test", "u1", "p1", "https://contacts.example.com/", [ "users", 0 ] ];
+        $accountId = TestData::insertRow('carddav_accounts', TestData::ACCOUNTS_COLUMNS, $accountRow);
+        $abookRow = [ "Test", "https://contacts.example.com/u1/empty/", $accountId, "" ];
         self::$abookId = TestData::insertRow('carddav_addressbooks', TestData::ADDRESSBOOKS_COLUMNS, $abookRow);
 
         foreach (self::$rows as &$row) {
