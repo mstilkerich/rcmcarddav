@@ -244,7 +244,8 @@ class UI
                 $abMgr = $this->abMgr;
                 $abookrow = $abMgr->getAddressbookConfig($abookId);
                 $account = $abMgr->getAccountConfig($abookrow["account_id"]);
-                $newset = $this->getAddressbookSettingsFromPOST($account["presetname"]);
+                $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookrow['url']);
+                $newset = $this->getAddressbookSettingsFromPOST(self::UI_FORM_ABOOK, $fixedAttributes);
                 $abMgr->updateAddressbook($abookId, $newset);
             } catch (\Exception $e) {
                 $logger->error("Error saving carddav preferences: " . $e->getMessage());
@@ -422,53 +423,61 @@ class UI
      *
      * For fixed settings of preset addressbooks, no setting values will be contained.
      *
-     * Boolean settings will always be present in the result, since there is no way to differentiate whether a checkbox
-     * was not checked or the value was not submitted at all - so the absence of a boolean setting is considered as a
-     * false value for the setting.
-     *
-     * @param ?string $presetName Name of the preset the addressbook belongs to; null for user-defined addressbook.
+     * @param FormSpec $formSpec Specification of the settings form
+     * @param list<string> $fixedAttributes A list of non-changeable settings by choice of the admin
      * @return AbookSettings An array with addressbook column keys and their setting.
      */
-    private function getAddressbookSettingsFromPOST(?string $presetName = null): array
+    private function getAddressbookSettingsFromPOST(array $formSpec, array $fixedAttributes): array
     {
-        return [];
-        /* TODO use the FORM spec to check for valid values plus fixedAttributes
         $infra = Config::inst();
-        $admPrefs = $infra->admPrefs();
+        $logger = $infra->logger();
         $rc = $infra->rc();
 
+        // Fill $result with all values that have been POSTed
         $result = [];
+        foreach (array_column($formSpec, 'fields') as $fields) {
+            foreach ($fields as $fieldSpec) {
+                [ , $fieldKey, $uiType ] = $fieldSpec;
 
-        // Fill $result with all values that have been POSTed; for unset boolean values, false is assumed
-        foreach (array_keys(AddressbookManager::ABOOK_TEMPLATE) as $attr) {
-            // fixed settings for preset addressbooks are ignored
-            if ($admPrefs->noOverrideAllowed($attr, $presetName)) {
-                continue;
-            }
-            if ($attr == "active" || $attr == "discovered") {
-                // FIXME restrict to settings included in the form
-                continue;
-            }
-
-            $value = $rc->inputValue($attr, false);
-
-            if (is_bool(AddressbookManager::ABOOK_TEMPLATE[$attr])) {
-                $result[$attr] = (bool) $value;
-            } else {
-                if (isset($value)) {
-                    if ($attr == "refresh_time") {
-                        try {
-                            $result["refresh_time"] = Utils::parseTimeParameter($value);
-                        } catch (\Exception $e) {
-                            // leave the value unchanged
-                        }
-                    } else {
-                        $result[$attr] = $value;
-                    }
+                // Check that the attribute may be overridden
+                if (in_array($fieldKey, $fixedAttributes)) {
+                    continue;
                 }
+
+                $fieldValue = $rc->inputValue($fieldKey, false);
+                if (!isset($fieldValue)) {
+                    continue;
+                }
+
+                // some types require data conversion / validation
+                switch ($uiType) {
+                    case 'plain':
+                    case 'datetime':
+                        // These are readonly form elements that cannot be set
+                        continue 2;
+
+                    case 'timestr':
+                        try {
+                            $fieldValue = Utils::parseTimeParameter($fieldValue);
+                        } catch (\Exception $e) {
+                            // ignore format error, keep old value
+                            continue 2;
+                        }
+                        break;
+
+                    case 'radio':
+                        $allowedValues = array_column($fieldSpec[3] ?? [], 0);
+                        if (!in_array($fieldValue, $allowedValues)) {
+                            // ignore not allowed value
+                            $logger->warning("Not allowed value $fieldValue POSTed for $fieldKey (ignored)");
+                            continue 2;
+                        }
+                        break;
+                }
+
+                $result[$fieldKey] = $fieldValue;
             }
         }
-         */
 
         /** @psalm-var AbookSettings */
         return $result;
