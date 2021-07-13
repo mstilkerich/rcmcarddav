@@ -280,9 +280,14 @@ class carddav extends rcube_plugin
                         $username = self::replacePlaceholdersUsername($preset['username']);
                         $url = self::replacePlaceholdersUrl($preset['url']);
                         $password = self::replacePlaceholdersPassword($preset['password']);
+                        try {
+                            $account = Config::makeAccount($url, $username, $password, null);
+                        } catch (\Exception $e) {
+                            $logger->info("Skip adding preset for $username: required bearer token not available");
+                            continue;
+                        }
 
                         $logger->info("Adding preset for $username at URL $url");
-                        $account = Config::makeAccount($url, $username, $password, null);
                         $abooks = $this->determineAddressbooksToAdd($account);
 
                         foreach ($abooks as $abook) {
