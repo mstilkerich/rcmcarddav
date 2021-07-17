@@ -109,11 +109,10 @@ class AddressbookManager
     /**
      * Returns the IDs of all the user's accounts, optionally filtered.
      *
-     * @param $activeOnly If true, only the active accounts of the user are returned.
      * @param $presetsOnly If true, only the accounts created from an admin preset are returned.
      * @return list<string> The IDs of the user's accounts.
      */
-    public function getAccountIds(bool $activeOnly = true, bool $presetsOnly = false): array
+    public function getAccountIds(bool $presetsOnly = false): array
     {
         $db = Config::inst()->db();
 
@@ -126,12 +125,6 @@ class AddressbookManager
         }
 
         $result = $this->accountsDb;
-
-        if ($activeOnly) {
-            $result = array_filter($result, function (array $v): bool {
-                return $v["active"] == "1";
-            });
-        }
 
         if ($presetsOnly) {
             $result = array_filter($result, function (array $v): bool {
@@ -152,7 +145,7 @@ class AddressbookManager
     public function getAccountConfig(string $accountId): array
     {
         // make sure the cache is loaded
-        $this->getAccountIds(false);
+        $this->getAccountIds();
 
         // check that this addressbook ID actually refers to one of the user's addressbooks
         if (isset($this->accountsDb[$accountId])) {
@@ -260,7 +253,7 @@ class AddressbookManager
         $db = Config::inst()->db();
 
         if (!isset($this->abooksDb)) {
-            $allAccountIds = $this->getAccountIds(false);
+            $allAccountIds = $this->getAccountIds();
             $this->abooksDb = [];
             /** @var FullAbookRow $abookrow */
             foreach ($db->get(['account_id' => $allAccountIds], [], 'addressbooks') as $abookrow) {
@@ -271,8 +264,8 @@ class AddressbookManager
         $result = $this->abooksDb;
 
         // filter out the addressbooks of the accounts matching the filter conditions
-        if ($activeOnly || $presetsOnly) {
-            $accountIds = $this->getAccountIds($activeOnly, $presetsOnly);
+        if ($presetsOnly) {
+            $accountIds = $this->getAccountIds($presetsOnly);
             $result = array_filter($result, function (array $v) use ($accountIds): bool {
                 return in_array($v["account_id"], $accountIds);
             });
@@ -386,7 +379,7 @@ class AddressbookManager
     {
         [ $cols, $vals ] = $this->prepareDbRow($pa, self::ABOOK_SETTINGS, false);
 
-        $accountIds = $this->getAccountIds(false);
+        $accountIds = $this->getAccountIds();
         if (!empty($cols) && !empty($accountIds)) {
             $db = Config::inst()->db();
             $db->update(['id' => $abookId, 'account_id' => $accountIds], $cols, $vals, "addressbooks");

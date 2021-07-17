@@ -11,7 +11,6 @@ CREATE TABLE TABLE_PREFIXcarddav_accounts (
 	username VARCHAR(255) NOT NULL,
 	password TEXT NOT NULL,
 	url TEXT,
-	active SMALLINT NOT NULL DEFAULT 1,
 	user_id integer NOT NULL REFERENCES TABLE_PREFIXusers (user_id) ON DELETE CASCADE ON UPDATE CASCADE,
 	last_discovered BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the addressbooks were last discovered
 	rediscover_time INT NOT NULL DEFAULT 86400, -- time span (seconds) after that the addressbooks will be rediscovered, default 1d

@@ -149,7 +149,7 @@ class UI
         }
 
         $abMgr = $this->abMgr;
-        $accountIds = $abMgr->getAccountIds(false);
+        $accountIds = $abMgr->getAccountIds();
 
         $accounts = [];
         foreach ($accountIds as $accountId) {

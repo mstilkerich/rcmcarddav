@@ -87,7 +87,7 @@ final class CarddavTest extends TestCase
         foreach (TestData::$data["carddav_addressbooks"] as $abookrow) {
             $this->assertTrue(isset($abookrow["id"]));
             $id = "carddav_" . $abookrow["id"];
-            $this->assertArrayHasKey($id, $res["sources"]);
+            $this->assertArrayHasKey($id, $res["sources"], print_r($res, true));
 
             $this->assertEquals($abookrow[0], $res["sources"][$id]["name"]);
             $this->assertFalse($res["sources"][$id]["readonly"]);

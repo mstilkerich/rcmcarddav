@@ -34,7 +34,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  * Represents the administrative settings of the plugin.
  *
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
- * @psalm-type ConfigurablePresetAttr = 'name'|'username'|'password'|'url'|'accountActive'|'rediscover_time'
+ * @psalm-type ConfigurablePresetAttr = 'name'|'username'|'password'|'url'|'rediscover_time'
  *                                      'active'|'refresh_time'|'use_categories'
  *
  * @psalm-type PresetExtraAbook = array{
@@ -51,7 +51,6 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *     username: string,
  *     password: string,
  *     url: ?string,
- *     accountActive: bool,
  *     rediscover_time: int,
  *     hide: bool,
  *     active: bool,
@@ -103,7 +102,6 @@ class AdminSettings
         'username' => [ 'string', false, '' ],
         'password' => [ 'string', false, '' ],
         'url' => [ 'string', false, null ],
-        'accountActive' => [ 'bool', false, true ],
         'rediscover_time' => [ 'timestr', false, '24:0:0' ],
         'hide' => [ 'bool', false, false ],
         'extra_addressbooks' => [ 'skip', false, null ],
@@ -120,7 +118,6 @@ class AdminSettings
         'username'        => ['account','username'],
         'password'        => ['account','password'],
         'url'             => ['account','url'], // addressbook URL cannot be updated, only discovery URI
-        'accountActive'   => ['account','active'],
         'rediscover_time' => ['account','rediscover_time'],
         'active'          => ['addressbook','active'],
         'refresh_time'    => ['addressbook','refresh_time'],
@@ -246,7 +243,7 @@ class AdminSettings
             $userId = (string) $_SESSION['user_id'];
 
             // Get all existing accounts of this user that have been created from presets
-            $accountIds = $abMgr->getAccountIds(false, true);
+            $accountIds = $abMgr->getAccountIds(true);
             $existingPresets = [];
             foreach ($accountIds as $accountId) {
                 $account = $abMgr->getAccountConfig($accountId);
