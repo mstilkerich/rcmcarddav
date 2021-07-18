@@ -123,7 +123,7 @@ interface RcmInterface
      */
     public function setPageTitle(string $title): void;
 
-        /**
+    /**
      * Register a template object handler
      *
      * @param string $name Object name
