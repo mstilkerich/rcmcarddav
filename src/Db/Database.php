@@ -251,13 +251,14 @@ class Database extends AbstractDatabase
         $dbh = $this->dbHandle;
         $logger = $this->logger;
         $queries_raw = file_get_contents($migrationScript);
-        // strip comments (note: . does not match newline without the s modifier)
-        $queries_raw = preg_replace('/-- .*/m', '', $queries_raw);
 
         if ($queries_raw === false) {
             $logger->error("Failed to read migration script: $migrationScript - aborting");
             return false;
         }
+
+        // strip comments (note: . does not match newline without the s modifier)
+        $queries_raw = preg_replace('/-- .*/m', '', $queries_raw);
 
         $queryCount = preg_match_all('/.+?;/s', $queries_raw, $queries);
         $logger->info("Found $queryCount queries in $migrationScript");
