@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
+use MStilkerich\Tests\CardDavAddressbook4Roundcube\Utils;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
@@ -47,8 +48,8 @@ final class DatabaseTest extends TestCase
     /** @var AbstractDatabase */
     private static $db;
 
-    /** @var AbstractDatabase Database used for the schema migration test */
-    private static $migtestdb;
+    /** @var TestData */
+    private static $testData;
 
     /** @var list<list<?string>> Test data, abook_id is auto-appended */
     private static $rows = [
@@ -59,34 +60,25 @@ final class DatabaseTest extends TestCase
         [ "Max Mustermann", "max0@muster.de", "Max", "Mustermann", "vcard", "123", "uri5", "5" ],
     ];
 
-    /** @var int */
-    private static $cnt;
-
-    /** @var string */
-    private static $abookId;
-
     public static function setUpBeforeClass(): void
     {
-        self::$cnt = 0;
-
-        $dbsettings = TestInfrastructureDB::dbSettings();
-        [, $migdb_dsnw] = $dbsettings;
-        self::$migtestdb = TestInfrastructureDB::initDatabase($migdb_dsnw);
-
+        // Initialize database
         self::$db = self::setDbHandle();
         TestInfrastructure::init(self::$db);
-
-        TestData::initDatabase(true);
+        self::$testData = new TestData(TestInfrastructureDB::getDbHandle());
+        $testData = self::$testData;
+        $testData->initDatabase(true);
 
         // insert test data rows
-        $accountRow = [ "Test", "u1", "p1", "https://contacts.example.com/", [ "users", 0 ] ];
-        $accountId = TestData::insertRow('carddav_accounts', TestData::ACCOUNTS_COLUMNS, $accountRow);
+        $testData->setCacheKeyPrefix('DatabaseTest');
+        $accountRow = [ "Test", "u1", "p1", "https://contacts.example.com/", [ "users", 0, 'builtin' ] ];
+        $accountId = $testData->insertRow('carddav_accounts', TestData::ACCOUNTS_COLUMNS, $accountRow);
         $abookRow = [ "Test", "https://contacts.example.com/u1/empty/", $accountId, "" ];
-        self::$abookId = TestData::insertRow('carddav_addressbooks', TestData::ADDRESSBOOKS_COLUMNS, $abookRow);
+        $abookId = $testData->insertRow('carddav_addressbooks', TestData::ADDRESSBOOKS_COLUMNS, $abookRow);
 
         foreach (self::$rows as &$row) {
-            $row[] = self::$abookId;
-            TestData::insertRow('carddav_contacts', self::COMPARE_COLS, $row);
+            $row[] = $abookId;
+            $testData->insertRow('carddav_contacts', self::COMPARE_COLS, $row);
         }
     }
 
@@ -95,6 +87,7 @@ final class DatabaseTest extends TestCase
         // set a fresh DB handle to ensure we have no open transactions from a previous test
         self::$db = self::setDbHandle();
         TestInfrastructure::$infra->setDb(self::$db);
+        self::$testData->setDbHandle(TestInfrastructureDB::getDbHandle());
     }
 
     public function tearDown(): void
@@ -105,8 +98,10 @@ final class DatabaseTest extends TestCase
 
     private static function setDbHandle(): AbstractDatabase
     {
-        $dbsettings = TestInfrastructureDB::dbSettings();
-        return TestInfrastructureDB::initDatabase($dbsettings[0]);
+        // create a new rcube_db handle for database access
+        [ $dsnw ] = TestInfrastructureDB::dbSettings();
+        $db = TestInfrastructureDB::initDatabase($dsnw);
+        return $db;
     }
 
     /**
@@ -399,40 +394,6 @@ final class DatabaseTest extends TestCase
     }
 
     /**
-     * Tests the schema migration.
-     *
-     * Note that the actual schema comparison is performed outside PHP unit by the surrounding make recipe.
-     */
-    public function testSchemaMigrationYieldsCurrentSchema(): void
-    {
-        $db = self::$migtestdb;
-        $scriptdir = __DIR__ . "/../../dbmigrations";
-
-        // Preconditions
-        $this->assertDirectoryExists("$scriptdir/INIT-currentschema");
-        $exception = null;
-        try {
-            $db->get([], [], 'migrations');
-        } catch (DatabaseException $e) {
-            $exception = $e;
-        }
-
-        $this->assertNotNull($exception);
-        TestInfrastructure::logger()->expectMessage('error', 'carddav_migrations');
-
-        // Perform the migrations - will trigger the error message about missing table again
-        $db->checkMigrations("", $scriptdir);
-        TestInfrastructure::logger()->expectMessage('error', 'carddav_migrations');
-
-        $rows = $db->get([], [], 'migrations');
-        $migsdone = array_column($rows, 'filename');
-        sort($migsdone);
-
-        $migsavail = array_map('basename', glob("$scriptdir/0???-*"));
-        $this->assertSame($migsavail, $migsdone);
-    }
-
-    /**
      * Tests that rollback of a transaction undos the changes of the transaction.
      */
     public function testTransactionRollbackWorks(): void
@@ -441,13 +402,14 @@ final class DatabaseTest extends TestCase
         $recsOrig = array_column($db->get([], ['id'], 'contacts'), 'id');
         sort($recsOrig);
 
+        $abookId = self::$testData->getRowId('carddav_addressbooks', 0, 'DatabaseTest');
         $db->startTransaction(false);
         $testrow = array_merge(
             ['TransactionRollbackTest'],
             array_fill(0, count(self::COMPARE_COLS) - 2, ''),
-            [ self::$abookId ]
+            [ $abookId ]
         );
-        $newid = TestData::insertRow('carddav_contacts', self::COMPARE_COLS, $testrow);
+        $newid = self::$testData->insertRow('carddav_contacts', self::COMPARE_COLS, $testrow);
         $recsInside = array_column($db->get([], ['id'], 'contacts'), 'id');
         sort($recsInside);
 
@@ -479,19 +441,6 @@ final class DatabaseTest extends TestCase
         $this->expectExceptionMessage("Cannot start nested transaction");
         $db->startTransaction(false);
     }
-
-    /**
-     * Tests that an exception is thrown on attempt to start a nested transaction.
-    public function testExceptionOnNestedTransactionBeginDirect(): void
-    {
-        $dbh = TestInfrastructureDB::getDbHandle();
-        $dbh->startTransaction();
-
-        // now try to start another transaction
-        $this->expectException(DatabaseException::class);
-        $dbh->startTransaction();
-    }
-     */
 
     public static function errStartTransaction(Database $db): void
     {
@@ -635,10 +584,11 @@ final class DatabaseTest extends TestCase
         $expErrMsg = $GLOBALS["TEST_DBTYPE"] == "postgres" ? 'read-only' : 'READ ONLY' /* mysql */;
 
         $db = self::$db;
+        $abookId = self::$testData->getRowId('carddav_addressbooks', 0, 'DatabaseTest');
 
         $db->startTransaction();
         $testrow = array_fill(0, count(self::COMPARE_COLS) - 1, '');
-        $testrow[] = self::$abookId;
+        $testrow[] = $abookId;
 
         try {
             $ret = $db->insert('contacts', self::COMPARE_COLS, [$testrow]);

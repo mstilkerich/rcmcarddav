@@ -69,7 +69,7 @@ final class SettingsUITest extends TestCase
         $rc->postInputs = [];
 
         // reset DB data after each test
-        TestData::initDatabase();
+        //TestData::initDatabase();
     }
 
     public function tearDown(): void

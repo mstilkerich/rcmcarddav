@@ -39,13 +39,17 @@ final class DatabaseCollationsTest extends TestCase
     /** @var AbstractDatabase */
     private static $db;
 
+    /** @var TestData */
+    private static $testData;
+
     public static function setUpBeforeClass(): void
     {
         $dbsettings = TestInfrastructureDB::dbSettings();
         $db_dsnw = $dbsettings[0];
         self::$db = TestInfrastructureDB::initDatabase($db_dsnw);
         TestInfrastructure::init(self::$db);
-        TestData::initDatabase();
+        self::$testData = new TestData(TestInfrastructureDB::getDbHandle());
+        self::$testData->initDatabase();
     }
 
     public function setUp(): void
@@ -67,12 +71,12 @@ final class DatabaseCollationsTest extends TestCase
                 'carddav_xsubtypes',
                 TestData::XSUBTYPES_COLUMNS,
                 [
-                    [ "email", "custommail", [ "carddav_addressbooks", 1 ] ],
-                    [ "phone", "customphone", [ "carddav_addressbooks", 1 ] ],
-                    [ "address", "customaddress", [ "carddav_addressbooks", 1 ] ],
-                    [ "Email" , "customMail", [ "carddav_addressbooks", 1 ] ],
-                    [ "Phone" , "customPhone", [ "carddav_addressbooks", 1 ] ],
-                    [ "Address" , "customAddress", [ "carddav_addressbooks", 1 ] ],
+                    [ "email", "custommail", [ "carddav_addressbooks", 1, 'builtin' ] ],
+                    [ "phone", "customphone", [ "carddav_addressbooks", 1, 'builtin' ] ],
+                    [ "address", "customaddress", [ "carddav_addressbooks", 1, 'builtin' ] ],
+                    [ "Email" , "customMail", [ "carddav_addressbooks", 1, 'builtin' ] ],
+                    [ "Phone" , "customPhone", [ "carddav_addressbooks", 1, 'builtin' ] ],
+                    [ "Address" , "customAddress", [ "carddav_addressbooks", 1, 'builtin' ] ],
                 ]
             ],
             'migrations' => [
@@ -87,7 +91,7 @@ final class DatabaseCollationsTest extends TestCase
                 TestData::CONTACTS_COLUMNS,
                 [
                     [
-                        [ "carddav_addressbooks", 1 ],
+                        [ "carddav_addressbooks", 1, 'builtin' ],
                         "Max Mustermann",
                         "max@mustermann.com, max.mustermann@company.com",
                         "Max",
@@ -100,7 +104,7 @@ final class DatabaseCollationsTest extends TestCase
                         "2459ca8d-1b8e-465e-8e88-1034dc87c2ec-TEST"
                     ],
                     [
-                        [ "carddav_addressbooks", 1 ],
+                        [ "carddav_addressbooks", 1, 'builtin' ],
                         "Max Mustermann",
                         "max@mustermann.com, max.mustermann@company.com",
                         "Max",
@@ -119,7 +123,7 @@ final class DatabaseCollationsTest extends TestCase
                 TestData::GROUPS_COLUMNS,
                 [
                     [
-                        [ "carddav_addressbooks", 1 ],
+                        [ "carddav_addressbooks", 1, 'builtin' ],
                         "Test Gruppe Vcard-style",
                         "FIXME INVALID VCARD",
                         "ex-etag-1234",
@@ -127,7 +131,7 @@ final class DatabaseCollationsTest extends TestCase
                         "11b98f71-ada1-4a28-b6ab-28ad09be0203-TEST"
                     ],
                     [
-                        [ "carddav_addressbooks", 1 ],
+                        [ "carddav_addressbooks", 1, 'builtin' ],
                         "Test Gruppe Vcard-style",
                         "FIXME INVALID VCARD",
                         "ex-etag-1234",
@@ -135,7 +139,7 @@ final class DatabaseCollationsTest extends TestCase
                         "11B98f71-ada1-4a28-b6ab-28ad09be0203" // different case
                     ],
                     [
-                        [ "carddav_addressbooks", 1 ],
+                        [ "carddav_addressbooks", 1, 'builtin' ],
                         "Test Gruppe 2 CATEGORIES-style",
                         null,
                         null,
@@ -159,11 +163,13 @@ final class DatabaseCollationsTest extends TestCase
     public function testUniqueConstraintCaseSensitive(string $tbl, array $cols, array $datarows): void
     {
         $db = self::$db;
+        self::$testData->setCacheKeyPrefix('uniqueDataProviderDiffcase');
+
         foreach ($datarows as $row) {
             $tblshort = preg_replace('/^carddav_/', '', $tbl);
             $this->assertNotNull($tblshort);
 
-            TestData::insertRow($tbl, $cols, $row);
+            self::$testData->insertRow($tbl, $cols, $row);
             $row2 = $db->lookup(array_combine($cols, $row), $cols, $tblshort);
             $this->assertEquals(array_combine($cols, $row), $row2, "Inserted row not same as in DB");
         }
@@ -179,7 +185,7 @@ final class DatabaseCollationsTest extends TestCase
                 'carddav_contacts',
                 TestData::CONTACTS_COLUMNS,
                 [
-                    [ "carddav_addressbooks", 1 ],
+                    [ "carddav_addressbooks", 1, 'builtin' ],
                     "Hans Wurst",
                     "hans.wurst@example.com",
                     "Hans",
@@ -209,11 +215,12 @@ final class DatabaseCollationsTest extends TestCase
     public function testEqualsOperatorIsCaseSensitive(string $tbl, array $cols, array $row, array $uccols): void
     {
         $db = self::$db;
+        self::$testData->setCacheKeyPrefix('equalsDataProviderDiffcase');
 
         $tblshort = preg_replace('/^carddav_/', '', $tbl);
         $this->assertNotNull($tblshort);
 
-        TestData::insertRow($tbl, $cols, $row);
+        self::$testData->insertRow($tbl, $cols, $row);
 
         // insert row with specified columns uppercased
         $rowuc = $row;
@@ -221,7 +228,7 @@ final class DatabaseCollationsTest extends TestCase
             $this->assertIsString($rowuc[$idx]);
             $rowuc[$idx] = strtoupper($rowuc[$idx]);
         }
-        $rowucId = TestData::insertRow($tbl, $cols, $rowuc);
+        $rowucId = self::$testData->insertRow($tbl, $cols, $rowuc);
 
         // check that select with equals on any uppercase column returns only the new uppercased record
         foreach ($uccols as $idx) {
@@ -241,7 +248,7 @@ final class DatabaseCollationsTest extends TestCase
                 'carddav_contacts',
                 TestData::CONTACTS_COLUMNS,
                 [
-                    [ "carddav_addressbooks", 1 ],
+                    [ "carddav_addressbooks", 1, 'builtin' ],
                     "Jane Doe",
                     "jane@doe.com",
                     "Jane",
@@ -273,11 +280,12 @@ final class DatabaseCollationsTest extends TestCase
     public function testIlikeSelectorIsCaseInsensitive(string $tbl, array $cols, array $row, array $uccols): void
     {
         $db = self::$db;
+        self::$testData->setCacheKeyPrefix('ilikeDataProviderDiffcase');
 
         $tblshort = preg_replace('/^carddav_/', '', $tbl);
         $this->assertNotNull($tblshort);
 
-        $rowId = TestData::insertRow($tbl, $cols, $row);
+        $rowId = self::$testData->insertRow($tbl, $cols, $row);
 
         // insert row with specified columns uppercased
         $rowuc = $row;
@@ -290,7 +298,7 @@ final class DatabaseCollationsTest extends TestCase
                 $rowuc[$idx] = $rowuc[$idx] . "-" . bin2hex(random_bytes(5));
             }
         }
-        $rowucId = TestData::insertRow($tbl, $cols, $rowuc);
+        $rowucId = self::$testData->insertRow($tbl, $cols, $rowuc);
 
         // check that select with equals on any uppercase column returns only the new uppercased record
         $expectedIds = [$rowId, $rowucId];

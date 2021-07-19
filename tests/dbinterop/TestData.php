@@ -30,11 +30,18 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @psalm-type TestDataKeyRef = array{string, int}
+ * This class provides functionality to manage data in test databases.
+ *
+ * It allows to clear tables and insert rows into tables. For row insertion, it remembers the assigned row ID by the
+ * database and enables to resolve foreign key references in subsequently inserted rows.
+ *
+ * @psalm-type TestDataKeyRef = array{0: string, 1: int, 2?: string}
  * @psalm-type TestDataRowWithKeyRef = array<int, null|string|TestDataKeyRef>
  * @psalm-type TestDataRowWithId = array{id?: string} & array<int, null|string>
  * @psalm-type TestDataRow = array<int, null|string>
  * @psalm-type TestDataTableDef = list<string>
+ * @psalm-type TableName = string
+ * @psalm-type CacheKeyPrefix = string
  */
 final class TestData
 {
@@ -63,12 +70,12 @@ final class TestData
 
     /** @var array<string, list<TestDataRowWithKeyRef>> Data to initialize the tables with.
      *             Keys are table names, values are arrays of value arrays, each of which contains the data for one row.
-     *             The value arrays must match the column descriptions in self::$tables.
+     *             The value arrays must match the column descriptions in self::TABLES.
      *             To reference the primary key of a record in a different table, insert an array as value where the
      *             first value names the target table, the second value the index in the initialization data of that
      *             table of the record that should be referenced.
      */
-    private const INITDATA = [
+    public const INITDATA = [
         "users" => [
             ["testuser@example.com", "mail.example.com"],
         ],
@@ -132,13 +139,10 @@ final class TestData
         ],
     ];
 
-    /** @var array<string, list<TestDataRowWithId>> Data to initialize the tables with. */
-    public static $data;
-
     /** @var list<array{string, TestDataTableDef}> List of tables to initialize and their columns.
      *             Tables will be initialized in the order given here. Initialization data is taken from self::INITDATA.
      */
-    private static $tables = [
+    private const TABLES = [
         // table name,            table columns to insert
         [ "users", self::USERS_COLUMNS ],
         [ "carddav_accounts", self::ACCOUNTS_COLUMNS ],
@@ -150,24 +154,44 @@ final class TestData
     ];
 
     /**
+     * @var array<TableName, array<CacheKeyPrefix, list<string>>> Remember DB ids for inserted rows.
+     */
+    private $idCache = [];
+
+    /** @var \rcube_db */
+    private $dbh;
+
+    /** @var string A prefix used in creating cache keys. Used to decouple indexes from multiple test data sets. */
+    private $cacheKeyPrefix = 'builtin';
+
+    public function __construct(\rcube_db $dbh)
+    {
+        $this->dbh = $dbh;
+    }
+
+    public function setDbHandle(\rcube_db $dbh): void
+    {
+        $this->dbh = $dbh;
+    }
+
+    /**
      * Initializes the database with the test data.
      *
-     * It initializes all tables listed in self::$tables in the given order. Table data is cleared in reverse order
+     * It initializes all tables listed in self::TABLES in the given order. Table data is cleared in reverse order
      * listed before inserting of data is started.
      *
      * @param bool $skipInitData If true, only the users table is populated, the carddav tables are left empty.
      */
-    public static function initDatabase(bool $skipInitData = false): void
+    public function initDatabase(bool $skipInitData = false): void
     {
-        $dbh = TestInfrastructureDB::getDbHandle();
-
-        foreach (array_column(array_reverse(self::$tables), 0) as $tbl) {
-            $dbh->query("DELETE FROM " . $dbh->table_name($tbl));
-            TestCase::assertNull($dbh->is_error(), "Error clearing table $tbl " . $dbh->is_error());
+        foreach (array_column(array_reverse(self::TABLES), 0) as $tbl) {
+            $this->purgeTable($tbl);
         }
 
-        self::$data = [];
-        foreach (self::$tables as $tbldesc) {
+        $this->idCache = [];
+        $this->setCacheKeyPrefix('builtin');
+
+        foreach (self::TABLES as $tbldesc) {
             [ $tbl, $cols ] = $tbldesc;
             TestCase::assertArrayHasKey($tbl, self::INITDATA, "No init data for table $tbl");
 
@@ -175,15 +199,14 @@ final class TestData
                 continue;
             }
 
-            self::$data[$tbl] = [];
             foreach (self::INITDATA[$tbl] as $row) {
-                $id = self::insertRow($tbl, $cols, $row);
-                $row["id"] = $id;
-                self::$data[$tbl][] = $row;
+                $this->insertRow($tbl, $cols, $row);
             }
         }
 
-        $_SESSION["user_id"] = self::$data["users"][0]["id"];
+        $userId = $this->idCache['users']['builtin'][0] ?? null;
+        TestCase::assertIsString($userId);
+        $_SESSION["user_id"] = $userId;
     }
 
     /**
@@ -192,9 +215,10 @@ final class TestData
      * @param-out TestDataRow $row
      * @return string ID of the inserted row
      */
-    public static function insertRow(string $tbl, array $cols, array &$row): string
+    public function insertRow(string $tbl, array $cols, array &$row): string
     {
-        $dbh = TestInfrastructureDB::getDbHandle();
+        $dbh = $this->dbh;
+
         $cols = array_map([$dbh, "quote_identifier"], $cols);
         TestCase::assertCount(count($cols), $row, "Column count mismatch of $tbl row " . print_r($row, true));
 
@@ -205,13 +229,11 @@ final class TestData
         $newrow = [];
         foreach ($row as $val) {
             if (is_array($val)) {
-                [ $dt, $di ] = $val;
-                TestCase::assertTrue(
-                    isset(self::$data[$dt][$di]["id"]),
-                    "Reference to {$dt}[$di] cannot be resolved"
-                );
-                $val = self::$data[$dt][$di]["id"];
+                // resolve foreign key reference
+                [ $dtbl, $didx ] = $val;
+                $val = $this->getRowId($dtbl, $didx, $val[2] ?? null);
             }
+
             $newrow[] = $val;
         }
         $row = $newrow;
@@ -220,8 +242,38 @@ final class TestData
         TestCase::assertNull($dbh->is_error(), "Error inserting row to $tbl: " . $dbh->is_error());
         $id = $dbh->insert_id($tbl);
         TestCase::assertIsString($id, "Error acquiring ID for last inserted row on $tbl: " . $dbh->is_error());
-
+        $this->idCache[$tbl][$this->cacheKeyPrefix][] = $id;
         return $id;
+    }
+
+    /**
+     * Purges all rows from the given table.
+     */
+    public function purgeTable(string $tbl): void
+    {
+        $dbh = $this->dbh;
+        $dbh->query("DELETE FROM " . $dbh->table_name($tbl));
+        TestCase::assertNull($dbh->is_error(), "Error clearing table $tbl " . $dbh->is_error());
+        unset($this->idCache[$tbl]);
+    }
+
+    public function setCacheKeyPrefix(string $prefix): void
+    {
+        $this->cacheKeyPrefix = $prefix;
+    }
+
+    public function getRowId(string $tbl, int $idx, ?string $prefix = null): string
+    {
+        if (!isset($prefix)) {
+            $prefix = $this->cacheKeyPrefix;
+        }
+
+        TestCase::assertTrue(
+            isset($this->idCache[$tbl][$prefix][$idx]),
+            "Reference to {$prefix}.{$tbl}[$idx] cannot be resolved"
+        );
+
+        return $this->idCache[$tbl][$prefix][$idx];
     }
 }
 

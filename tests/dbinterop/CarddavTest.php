@@ -47,6 +47,9 @@ use carddav;
  */
 final class CarddavTest extends TestCase
 {
+    /** @var TestData */
+    private static $testData;
+
     public static function setUpBeforeClass(): void
     {
         // Set a session password so that encryption/decryption of password with scheme "encrypted" works
@@ -62,7 +65,8 @@ final class CarddavTest extends TestCase
         TestInfrastructure::init($db);
 
         // Setup test data in the  DB
-        TestData::initDatabase();
+        self::$testData = new TestData(TestInfrastructureDB::getDbHandle());
+        self::$testData->initDatabase();
     }
 
     public function setUp(): void
@@ -84,11 +88,10 @@ final class CarddavTest extends TestCase
 
         $this->assertArrayHasKey("foobar", $res["sources"], "Other addressbooks not preserved in list");
 
-        foreach (TestData::$data["carddav_addressbooks"] as $abookrow) {
-            $this->assertTrue(isset($abookrow["id"]));
-            $id = "carddav_" . $abookrow["id"];
-            $this->assertArrayHasKey($id, $res["sources"], print_r($res, true));
+        foreach (TestData::INITDATA["carddav_addressbooks"] as $idx => $abookrow) {
+            $id = "carddav_" . self::$testData->getRowId("carddav_addressbooks", $idx);
 
+            $this->assertArrayHasKey($id, $res["sources"], print_r($res, true));
             $this->assertEquals($abookrow[0], $res["sources"][$id]["name"]);
             $this->assertFalse($res["sources"][$id]["readonly"]);
             $this->assertTrue($res["sources"][$id]["autocomplete"]);
