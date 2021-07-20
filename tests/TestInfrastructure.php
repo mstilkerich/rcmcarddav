@@ -217,6 +217,66 @@ final class TestInfrastructure
         $prop->setAccessible(true);
         $prop->setValue($obj, $value);
     }
+
+    /**
+     * Recursively copies the given directory to the given destination.
+     *
+     * The destination must not exist yet.
+     */
+    public static function copyDir(string $src, string $dst): void
+    {
+        TestCase::assertDirectoryIsReadable($src, "Source directory $src cannot be read");
+        TestCase::assertDirectoryDoesNotExist($dst, "Destination directory $dst already exists");
+
+        // create destination
+        TestCase::assertTrue(mkdir($dst, 0755, true), "Destination directory $dst could not be created");
+
+        // process all directory entries in source
+        $dirh = opendir($src);
+        TestCase::assertIsResource($dirh, "Source directory could not be opened");
+        while (false !== ($entry = readdir($dirh))) {
+            if ($entry != "." && $entry != "..") {
+                $entryp = "$src/$entry";
+                $targetp = "$dst/$entry";
+
+                if (is_dir($entryp)) {
+                    self::copyDir($entryp, $targetp);
+                } elseif (is_file($entryp)) {
+                    TestCase::assertTrue(copy($entryp, $targetp), "Copy failed: $entryp -> $targetp");
+                } else {
+                    TestCase::assertFalse(true, "$entryp: copyDir only supports files/directories");
+                }
+            }
+        }
+        closedir($dirh);
+    }
+
+    /**
+     * Recursively deletes the given directory.
+     */
+    public static function rmDirRecursive(string $dir): void
+    {
+        TestCase::assertDirectoryIsWritable($dir, "Target directory $dir not writeable");
+
+        // 1: purge directory contents
+        $dirh = opendir($dir);
+        TestCase::assertIsResource($dirh, "Target directory could not be opened");
+        while (false !== ($entry = readdir($dirh))) {
+            if ($entry != "." && $entry != "..") {
+                $entryp = "$dir/$entry";
+
+                if (is_dir($entryp)) {
+                    self::rmDirRecursive($entryp);
+                } else {
+                    TestCase::assertTrue(unlink($entryp), "Unlink failed: $entryp");
+                }
+            }
+        }
+        closedir($dirh);
+
+        // 2: delete directory
+        TestCase::assertTrue(rmdir($dir), "rmdir failed: $dir");
+    }
 }
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120:ft=php

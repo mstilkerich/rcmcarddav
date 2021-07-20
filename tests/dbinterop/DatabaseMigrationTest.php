@@ -26,7 +26,6 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\Utils;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
@@ -270,12 +269,12 @@ final class DatabaseMigrationTest extends TestCase
     private function prepareMigScriptDir(string $migScriptDir, array $migs): void
     {
         if (file_exists($migScriptDir)) {
-            Utils::rmDirRecursive($migScriptDir);
+            TestInfrastructure::rmDirRecursive($migScriptDir);
         }
 
         TestCase::assertTrue(mkdir($migScriptDir, 0755, true), "Directory $migScriptDir could not be created");
         foreach ($migs as $mig) {
-            Utils::copyDir(self::SCRIPTDIR . "/$mig", "$migScriptDir/$mig");
+            TestInfrastructure::copyDir(self::SCRIPTDIR . "/$mig", "$migScriptDir/$mig");
         }
     }
 
