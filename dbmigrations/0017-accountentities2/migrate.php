@@ -134,8 +134,8 @@ class Migration0017 implements DBMigrationInterface
                     $accountName = preg_replace("/ \(.*\)/", "", $abook0["name"], 1, $replacementCount);
                     if ($replacementCount > 0) {
                         $accountNameQuoted = preg_quote($accountName);
-                        foreach ($abookRows as &$abookRow) {
-                            $abookRow["name"] = preg_replace(
+                        foreach ($abookRows as $idx => $abookRow) {
+                            $abookRows[$idx]["name"] = preg_replace(
                                 "/^$accountNameQuoted \((.*)\)/",
                                 '$1',
                                 $abookRow["name"]
