@@ -198,7 +198,11 @@ class Migration0017 implements DBMigrationInterface
         $urlComp = \Sabre\Uri\parse($url);
         [ $parent ] = \Sabre\Uri\split($urlComp["path"] ?? "");
         $urlComp["path"] = (string) $parent;
-        return \Sabre\Uri\build($urlComp);
+        $parentUrl = \Sabre\Uri\build($urlComp);
+        if ($parentUrl[-1] != '/') {
+            $parentUrl .= '/';
+        }
+        return $parentUrl;
     }
 }
 
