@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_accounts (
 
 	presetname   TEXT,                  -- presetname
 
+	UNIQUE(user_id,presetname),
+
 	-- not enforced by sqlite < 3.6.19
 	FOREIGN KEY(user_id) REFERENCES TABLE_PREFIXusers(user_id) ON DELETE CASCADE ON UPDATE CASCADE
 );

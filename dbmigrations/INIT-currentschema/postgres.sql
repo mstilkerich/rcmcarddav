@@ -15,9 +15,11 @@ CREATE TABLE TABLE_PREFIXcarddav_accounts (
 	last_discovered BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the addressbooks were last discovered
 	rediscover_time INT NOT NULL DEFAULT 86400, -- time span (seconds) after that the addressbooks will be rediscovered, default 1d
 
-	presetname VARCHAR(255) -- presetname
+	presetname VARCHAR(255), -- presetname
+
+	UNIQUE(user_id,presetname)
 );
-CREATE INDEX TABLE_PREFIXcarddav_accounts_user_id_idx ON TABLE_PREFIXcarddav_accounts(user_id);
+-- Note: no separate index on user_id, the UNIQUE index can be used
 
 -- Addressbooks table
 CREATE SEQUENCE TABLE_PREFIXcarddav_addressbooks_seq

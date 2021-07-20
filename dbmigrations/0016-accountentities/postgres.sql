@@ -15,9 +15,10 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_accounts (
 	last_discovered BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the addressbooks were last discovered
 	rediscover_time INT NOT NULL DEFAULT 86400, -- time span (seconds) after that the addressbooks will be rediscovered, default 1d
 
-	presetname VARCHAR(255) -- presetname
+	presetname VARCHAR(255), -- presetname
+
+	UNIQUE(user_id,presetname)
 );
-CREATE INDEX IF NOT EXISTS TABLE_PREFIXcarddav_accounts_user_id_idx ON TABLE_PREFIXcarddav_accounts(user_id);
 
 -- Add discovered column
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks ADD COLUMN IF NOT EXISTS discovered SMALLINT NOT NULL DEFAULT 1;
