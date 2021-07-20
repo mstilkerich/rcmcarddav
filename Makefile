@@ -72,7 +72,7 @@ define EXECDBSCRIPT_mysql
 sed -e 's/TABLE_PREFIX//g' <$(2) | $(MYSQL) --show-warnings $(1)
 endef
 define EXECDBSCRIPT_sqlite3
-sed -e 's/TABLE_PREFIX//g' <$(2) | sqlite3 $(1)
+sed -e 's/TABLE_PREFIX//g' -e 's/-- .*//' <$(2) | sqlite3 $(1)
 endef
 
 define CREATEDB_postgres
