@@ -110,19 +110,39 @@ final class DatabaseMigrationTest extends TestCase
                     'table' => 'carddav_addressbooks',
                     'cols' => [
                         'name', 'username', 'password', 'url', 'active',
-                        'user_id',
-                        'last_updated', 'refresh_time', 'sync_token', 'presetname', 'use_categories',
+                        'user_id', 'last_updated', 'refresh_time', 'sync_token', 'presetname', 'use_categories',
                     ],
                     'rows' => [
                         [
                             'Nextcloud (Personal)', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/personal', '1',
-                            [ 'users', 0, '0000-dbinit' ],
-                            '1626690000', '1234', 'sync@123', null, '1'
+                            [ 'users', 0, '0000-dbinit' ], '1626690000', '1234', 'sync@123', null, '1'
                         ],
                         [
                             'Nextcloud (Work)', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/work/', '0',
-                            [ 'users', 0, '0000-dbinit' ],
-                            '1626690010', '4321', 'sync@321', null, '0'
+                            [ 'users', 0, '0000-dbinit' ], '1626690010', '4321', 'sync@321', null, '0'
+                        ],
+                        // user 0 has some extra addressbooks from a preset with same data as manually added ones
+                        [
+                            'Nextcloud (Personal)', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/personal', '1',
+                            [ 'users', 0, '0000-dbinit' ], '1626690000', '1234', 'sync@123', 'admPreset', '1'
+                        ],
+                        [
+                            'Nextcloud  (Shared)', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/shared', '1',
+                            [ 'users', 0, '0000-dbinit' ], '1626690000', '1234', 'sync@234', 'admPreset', '1'
+                        ],
+                        // user 1 has the same addressbooks, but separate accounts must be created
+                        [
+                            'Nextcloud (Personal)', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/personal', '1',
+                            [ 'users', 1, '0000-dbinit' ], '1626690000', '1234', 'sync@123', null, '1'
+                        ],
+                        [
+                            'Nextcloud (Work)', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/work/', '0',
+                            [ 'users', 1, '0000-dbinit' ], '1626690010', '4321', 'sync@321', null, '0'
+                        ],
+                        // user 1 has another addressbook
+                        [
+                            'Radicale', 'ruser', 'rpass', 'https://radicale.example.com/dav/book1/', '1',
+                            [ 'users', 1, '0000-dbinit' ], '1626680010', '5432', 'sync@Radicale1', null, '0'
                         ],
                     ],
                 ],
@@ -137,14 +157,24 @@ final class DatabaseMigrationTest extends TestCase
                     'table' => 'carddav_accounts',
                     'cols' => [
                         'name', 'username', 'password', 'url',
-                        'user_id',
-                        'last_discovered', 'rediscover_time', 'presetname',
+                        'user_id', 'last_discovered', 'rediscover_time', 'presetname',
                     ],
                     'rows' => [
                         [
                             'Nextcloud', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/',
-                            [ 'users', 0, '0000-dbinit' ],
-                            '0', '86400', null
+                            [ 'users', 0, '0000-dbinit' ], '0', '86400', null
+                        ],
+                        [
+                            'Nextcloud', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/',
+                            [ 'users', 0, '0000-dbinit' ], '0', '86400', 'admPreset'
+                        ],
+                        [
+                            'Nextcloud', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/',
+                            [ 'users', 1, '0000-dbinit' ], '0', '86400', null
+                        ],
+                        [
+                            'Radicale', 'ruser', 'rpass', 'https://radicale.example.com/dav/',
+                            [ 'users', 1, '0000-dbinit' ], '0', '86400', null
                         ],
                     ],
                 ],
@@ -152,19 +182,36 @@ final class DatabaseMigrationTest extends TestCase
                     'table' => 'carddav_addressbooks',
                     'cols' => [
                         'name', 'url', 'active',
-                        'account_id',
-                        'last_updated', 'refresh_time', 'sync_token', 'use_categories',
+                        'account_id', 'last_updated', 'refresh_time', 'sync_token', 'use_categories',
                     ],
                     'rows' => [
                         [
                             'Personal', 'https://nc.cloud.com/c/personal', '1',
-                            [ 'carddav_accounts', 0, '<checkRows>' ],
-                            '1626690000', '1234', 'sync@123', '1'
+                            [ 'carddav_accounts', 0, '<checkRows>' ], '1626690000', '1234', 'sync@123', '1'
                         ],
                         [
                             'Work', 'https://nc.cloud.com/c/work/', '0',
-                            [ 'carddav_accounts', 0, '<checkRows>' ],
-                            '1626690010', '4321', 'sync@321', '0'
+                            [ 'carddav_accounts', 0, '<checkRows>' ], '1626690010', '4321', 'sync@321', '0'
+                        ],
+                        [
+                            'Personal', 'https://nc.cloud.com/c/personal', '1',
+                            [ 'carddav_accounts', 1, '<checkRows>' ], '1626690000', '1234', 'sync@123', '1'
+                        ],
+                        [
+                            'Nextcloud  (Shared)', 'https://nc.cloud.com/c/shared', '1',
+                            [ 'carddav_accounts', 1, '<checkRows>' ], '1626690000', '1234', 'sync@234', '1'
+                        ],
+                        [
+                            'Personal', 'https://nc.cloud.com/c/personal', '1',
+                            [ 'carddav_accounts', 2, '<checkRows>' ], '1626690000', '1234', 'sync@123', '1'
+                        ],
+                        [
+                            'Work', 'https://nc.cloud.com/c/work/', '0',
+                            [ 'carddav_accounts', 2, '<checkRows>' ], '1626690010', '4321', 'sync@321', '0'
+                        ],
+                        [
+                            'Radicale', 'https://radicale.example.com/dav/book1/', '1',
+                            [ 'carddav_accounts', 3, '<checkRows>' ], '1626680010', '5432', 'sync@Radicale1', '0'
                         ],
                     ],
                 ],
