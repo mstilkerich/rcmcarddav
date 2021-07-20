@@ -33,6 +33,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 /**
  * @psalm-import-type TestDataTableDef from TestData
  * @psalm-import-type TestDataRowWithKeyRef from TestData
+ * @psalm-import-type TestDataRow from TestData
  */
 final class DatabaseCollationsTest extends TestCase
 {

@@ -36,12 +36,23 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\DbAndCondition;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\DbOrCondition;
 
 /**
- * @psalm-import-type DbConditions from AbstractDatabase
- * @psalm-import-type DbGetResults from AbstractDatabase
- * @psalm-import-type FullAbookRow from AbstractDatabase
+ * @psalm-import-type TestDataRow from TestData
+ * @psalm-import-type TestDataRowWithKeyRef from TestData
+ * @psalm-import-type TestDataKeyRef from TestData
+ *
+ * @psalm-type InsertRowsSpec = array{
+ *   table: string,
+ *   cols: list<string>,
+ *   rows: list<TestDataRowWithKeyRef>,
+ * }
+ * @psalm-type MigtestDatasetSpec = array{
+ *   insertRows?: list<InsertRowsSpec>,
+ * }
  */
 final class DatabaseMigrationTest extends TestCase
 {
+    private const SCRIPTDIR = __DIR__ . "/../../dbmigrations";
+
     /** @var TestData */
     private static $testData;
 
@@ -74,8 +85,24 @@ final class DatabaseMigrationTest extends TestCase
     /**
      * Contains test data for migrations. It contains rows that are inserted to the DB before performing the migration,
      * and the expected rows that are expected after the migration.
+     *
+     * @var array<string, MigtestDatasetSpec>
      */
     private const MIGTEST_DATASETS = [
+        // Initially, the DB is empty. Even the carddav tables do not exist yet. Insert some roundcube users.
+        '0000-dbinit' => [
+            'insertRows' => [
+                [
+                    'table' => 'users',
+                    'cols' => TestData::USERS_COLUMNS,
+                    'rows' => [
+                        ["testuser@example.com", "mail.example.com"],
+                        ["another@user.com", "hermes.example.com"],
+                    ],
+                ],
+            ],
+        ],
+
         '0016-accountentities' => [
             // these rows are inserted before the migration is executed
             // datasets need to match the DB schema before the migration
@@ -90,18 +117,61 @@ final class DatabaseMigrationTest extends TestCase
                     'rows' => [
                         [
                             'Nextcloud (Personal)', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/personal', '1',
-                            [ 'users', 0, 'builtin' ],
+                            [ 'users', 0, '0000-dbinit' ],
                             '1626690000', '1234', 'sync@123', null, '1'
                         ],
                         [
-                            'Nextcloud (Work)', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/work', '0',
-                            [ 'users', 0, 'builtin' ],
+                            'Nextcloud (Work)', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/work/', '0',
+                            [ 'users', 0, '0000-dbinit' ],
                             '1626690010', '4321', 'sync@321', null, '0'
                         ],
                     ],
                 ],
             ],
         ],
+
+        '0017-accountentities2' => [
+            // these rows are checked against the listed values after the migration has been executed.
+            // only the listed columns are checked
+            'checkRows' => [
+                [
+                    'table' => 'carddav_accounts',
+                    'cols' => [
+                        'name', 'username', 'password', 'url',
+                        'user_id',
+                        'last_discovered', 'rediscover_time', 'presetname',
+                    ],
+                    'rows' => [
+                        [
+                            'Nextcloud', 'ncuser', 'ncpass', 'https://nc.cloud.com/c/',
+                            [ 'users', 0, '0000-dbinit' ],
+                            '0', '86400', null
+                        ],
+                    ],
+                ],
+                [
+                    'table' => 'carddav_addressbooks',
+                    'cols' => [
+                        'name', 'url', 'active',
+                        'account_id',
+                        'last_updated', 'refresh_time', 'sync_token', 'use_categories',
+                    ],
+                    'rows' => [
+                        [
+                            'Personal', 'https://nc.cloud.com/c/personal', '1',
+                            [ 'carddav_accounts', 0, '<checkRows>' ],
+                            '1626690000', '1234', 'sync@123', '1'
+                        ],
+                        [
+                            'Work', 'https://nc.cloud.com/c/work/', '0',
+                            [ 'carddav_accounts', 0, '<checkRows>' ],
+                            '1626690010', '4321', 'sync@321', '0'
+                        ],
+                    ],
+                ],
+            ],
+        ],
+
     ];
 
     /**
@@ -111,8 +181,7 @@ final class DatabaseMigrationTest extends TestCase
      */
     public function migrationsProvider(): array
     {
-        $scriptdir = __DIR__ . "/../../dbmigrations";
-        $migsavail = array_map('basename', glob("$scriptdir/0???-*"));
+        $migsavail = array_map('basename', glob(self::SCRIPTDIR . "/0???-*"));
 
         $result = [];
         $miglist = [];
@@ -139,36 +208,18 @@ final class DatabaseMigrationTest extends TestCase
     public function testSchemaMigrationWorks(array $migs): void
     {
         $db = self::$db;
-        $scriptdir = __DIR__ . "/../../dbmigrations";
         $migScriptDir = __DIR__ . "/../../testreports/migtestScripts";
+        $mig = $migs[count($migs) - 1];
 
-        // Preconditions
-        $this->assertDirectoryExists("$scriptdir/INIT-currentschema");
+        // check preconditions
+        $this->checkTestPreconditions($migs);
 
-        // For the first migration, the carddav tables are expected to not exist yet
-        // For later migrations, it is expected that the preceding ones have already been executed
-        $exception = null;
-        try {
-            $rows = $db->get([], [], 'migrations');
-            $migsdone = array_column($rows, 'filename');
-            sort($migsdone);
-            $this->assertSame(array_slice($migs, 0, -1), $migsdone);
-        } catch (DatabaseException $e) {
-            $exception = $e;
-        }
+        // prepare migration script directory
+        $this->prepareMigScriptDir($migScriptDir, $migs);
 
-        if (count($migs) <= 1) {
-            $this->assertNotNull($exception);
-            TestInfrastructure::logger()->expectMessage('error', 'carddav_migrations');
-        }
-
-        // Prepare a directory containing only the migrations expected for this run
-        if (file_exists($migScriptDir)) {
-            Utils::rmDirRecursive($migScriptDir);
-        }
-        TestCase::assertTrue(mkdir($migScriptDir, 0755, true), "Directory $migScriptDir could not be created");
-        foreach ($migs as $mig) {
-            Utils::copyDir("$scriptdir/$mig", "$migScriptDir/$mig");
+        // prepare test data
+        if (isset(self::MIGTEST_DATASETS[$mig]['insertRows'])) {
+            $this->insertRows($mig, self::MIGTEST_DATASETS[$mig]['insertRows']);
         }
 
         // Perform the migrations - may trigger the error message about missing table again
@@ -177,10 +228,178 @@ final class DatabaseMigrationTest extends TestCase
             TestInfrastructure::logger()->expectMessage('error', 'carddav_migrations');
         }
 
-        $rows = $db->get([], [], 'migrations');
-        $migsdone = array_column($rows, 'filename');
-        sort($migsdone);
-        $this->assertSame($migs, $migsdone);
+        $migsDone = $this->getDoneMigrations();
+        $this->assertSame($migs, $migsDone);
+
+        // check proper data conversion if defined
+        if (isset(self::MIGTEST_DATASETS[$mig]['checkRows'])) {
+            $this->checkResultRows($mig, self::MIGTEST_DATASETS[$mig]['checkRows']);
+        }
+    }
+
+    /**
+     * Checks preconditions of testSchemaMigrationWorks.
+     *
+     * @param list<string> $migs List of migrations.
+     */
+    private function checkTestPreconditions(array $migs): void
+    {
+        $this->assertDirectoryExists(self::SCRIPTDIR . "/INIT-currentschema");
+
+        // For the first migration, the carddav tables are expected to not exist yet
+        // For later migrations, it is expected that the preceding ones have already been executed
+        $exception = null;
+        try {
+            $migsDone = $this->getDoneMigrations();
+            $this->assertSame(array_slice($migs, 0, -1), $migsDone);
+        } catch (DatabaseException $e) {
+            $exception = $e;
+        }
+
+        if (count($migs) <= 1) {
+            $this->assertNotNull($exception);
+            TestInfrastructure::logger()->expectMessage('error', 'carddav_migrations');
+        }
+    }
+
+    /**
+     * Prepare a directory containing only the migrations expected for this run.
+     *
+     * @param list<string> $migs List of migrations to copy to the directory.
+     */
+    private function prepareMigScriptDir(string $migScriptDir, array $migs): void
+    {
+        if (file_exists($migScriptDir)) {
+            Utils::rmDirRecursive($migScriptDir);
+        }
+
+        TestCase::assertTrue(mkdir($migScriptDir, 0755, true), "Directory $migScriptDir could not be created");
+        foreach ($migs as $mig) {
+            Utils::copyDir(self::SCRIPTDIR . "/$mig", "$migScriptDir/$mig");
+        }
+    }
+
+    /**
+     * Inserts the test data before executing a migration.
+     * @param list<InsertRowsSpec> $insertRowsSpec
+     */
+    private function insertRows(string $mig, array $insertRowsSpec): void
+    {
+        self::$testData->setCacheKeyPrefix($mig);
+
+        foreach ($insertRowsSpec as $tblSpec) {
+            [ 'table' => $tbl, 'cols' => $cols, 'rows' => $rows ] = $tblSpec;
+
+            foreach ($rows as $row) {
+                self::$testData->insertRow($tbl, $cols, $row);
+            }
+        }
+    }
+
+    /**
+     * Gets a sorted list of migrations that have been recorded as done in the carddav_migrations table.
+     *
+     * @return list<string>
+     */
+    private function getDoneMigrations(): array
+    {
+        $db = self::$db;
+        /** @var list<array{filename: string}> $rows */
+        $rows = $db->get([], ['filename'], 'migrations');
+        $migsDone = array_column($rows, 'filename');
+        sort($migsDone);
+        return $migsDone;
+    }
+
+    /**
+     * Checks the given rows after a migration has been performed.
+     *
+     * For foreign key references, the special key prefix <checkRows> can be used to refer to a row that has been
+     * checked by this function earlier. Otherwise foreign key references are resolved as defined by the TestData class.
+     *
+     * @param list<InsertRowsSpec> $checkRowsSpec
+     */
+    private function checkResultRows(string $mig, array $checkRowsSpec): void
+    {
+        $db = self::$db;
+
+        foreach ($checkRowsSpec as $specIdx => &$tblSpec) {
+            [ 'table' => $tbl, 'cols' => $cols, 'rows' => $rows ] = $tblSpec;
+            $tblshort = preg_replace('/^carddav_/', '', $tbl);
+
+            // get the records contained in the DB and normalize them in representation and order
+            $records = $db->get([], [], $tblshort);
+            $records = TestInfrastructure::xformDatabaseResultToRowList($cols, $records, false);
+            $records = TestInfrastructure::sortRowList($records);
+
+            // resolve foreign key references in the rows; this only works if the target is from a table that has been
+            // checked in an earlier iteration of this loop
+            $expRows = [];
+            foreach ($rows as $row) {
+                $resolvedRow = [];
+
+                foreach ($row as $value) {
+                    if (is_array($value)) {
+                        $value = $this->resolveFkRef($mig, $checkRowsSpec, $value, $specIdx);
+                    }
+                    $resolvedRow[] = $value;
+                }
+                $expRows[] = $resolvedRow;
+            }
+
+            // store resolved rows to enable later resolving of internal references
+            $tblSpec['rows'] = $expRows;
+
+            // bring the expected rows to sorted form
+            $expRows = TestInfrastructure::sortRowList($expRows);
+
+            // finally: compare the expected rows equal the actual ones
+            $this->assertEquals(
+                $expRows,
+                $records,
+                "checkRows failed $mig / $tbl: Exp: " . print_r($expRows, true) . "; got: " . print_r($records, true)
+            );
+        }
+        unset($tblSpec);
+    }
+
+    /**
+     * Resolves a foreign key reference.
+     * @param list<InsertRowsSpec> $checkRowsSpec
+     * @param TestDataKeyRef $fkRef
+     */
+    private function resolveFkRef(string $mig, array $checkRowsSpec, array $fkRef, int $specIdx): string
+    {
+        // record at which index in $checkRowsSpec we find the entry for a given table
+        $tblToIndex = [];
+        foreach ($checkRowsSpec as $idx => $tblSpec) {
+            $tblToIndex[$tblSpec['table']] = $idx;
+        }
+
+        [ $dtbl, $didx ] = $fkRef;
+        $prefix = $fkRef[2] ?? $mig;
+        $dtblshort = preg_replace('/^carddav_/', '', $dtbl);
+
+        if ($prefix == '<checkRows>') {
+            $this->assertArrayHasKey($dtbl, $tblToIndex);
+            $tblIdx = $tblToIndex[$dtbl];
+            $this->assertLessThan(
+                $specIdx,
+                $tblIdx,
+                "internal references are only allowed to earlier listed tables"
+            );
+
+            $dCols = $checkRowsSpec[$tblIdx]['cols'];
+            /** @psalm-var TestDataRow $dRow We know this has already been resolved */
+            $dRow = $checkRowsSpec[$tblIdx]['rows'][$didx];
+            /** @psalm-var array{id: string} */
+            $row = self::$db->lookup(array_combine($dCols, $dRow), ['id'], $dtblshort);
+            $dbId = $row['id'];
+        } else {
+            $dbId = self::$testData->getRowId($dtbl, $didx, $prefix);
+        }
+
+        return $dbId;
     }
 }
 

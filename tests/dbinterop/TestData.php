@@ -37,7 +37,6 @@ use PHPUnit\Framework\TestCase;
  *
  * @psalm-type TestDataKeyRef = array{0: string, 1: int, 2?: string}
  * @psalm-type TestDataRowWithKeyRef = array<int, null|string|TestDataKeyRef>
- * @psalm-type TestDataRowWithId = array{id?: string} & array<int, null|string>
  * @psalm-type TestDataRow = array<int, null|string>
  * @psalm-type TestDataTableDef = list<string>
  * @psalm-type TableName = string
@@ -210,6 +209,8 @@ final class TestData
     }
 
     /**
+     * Inserts the given row with test data into the DB, and resolves foreign key references within the row.
+     *
      * @param TestDataTableDef $cols
      * @param TestDataRowWithKeyRef $row
      * @param-out TestDataRow $row

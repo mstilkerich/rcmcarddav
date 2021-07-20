@@ -37,8 +37,6 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\DbOrCondition;
 
 /**
  * @psalm-import-type DbConditions from AbstractDatabase
- * @psalm-import-type DbGetResults from AbstractDatabase
- * @psalm-import-type FullAbookRow from AbstractDatabase
  */
 final class DatabaseTest extends TestCase
 {
@@ -80,6 +78,7 @@ final class DatabaseTest extends TestCase
             $row[] = $abookId;
             $testData->insertRow('carddav_contacts', self::COMPARE_COLS, $row);
         }
+        unset($row);
     }
 
     public function setUp(): void
