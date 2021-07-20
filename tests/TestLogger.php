@@ -142,6 +142,7 @@ class TestLogger extends AbstractLogger
                 break;
             }
         }
+        unset($recMsg);
 
         TestCase::assertTrue($found, "The expected log entry containing '$expMsg' with level $expLevel was not found");
     }

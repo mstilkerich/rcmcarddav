@@ -343,6 +343,7 @@ class JsonDatabase extends AbstractDatabase
                 }
             }
         }
+        unset($row);
 
         return $rowsAffected;
     }
@@ -354,7 +355,7 @@ class JsonDatabase extends AbstractDatabase
 
         $rowsAffected = 0;
         $newRows = [];
-        foreach ($this->data[$table] as &$row) {
+        foreach ($this->data[$table] as $row) {
             if ($this->checkRowMatch($conditions, $row)) {
                 ++$rowsAffected;
             } else {
@@ -541,8 +542,8 @@ class JsonDatabase extends AbstractDatabase
         }
 
         // Restrict to selected columns
-        foreach ($filteredRows as &$row) {
-            $row = array_intersect_key($row, $columns);
+        foreach ($filteredRows as $idx => $row) {
+            $filteredRows[$idx] = array_intersect_key($row, $columns);
         }
 
         // COUNT
