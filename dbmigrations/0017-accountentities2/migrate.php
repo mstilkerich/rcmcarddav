@@ -36,12 +36,13 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\DBMigrationInterface;
  * Initializes the carddav_accounts table from the carddav_addressbooks table using a heuristic to identify which
  * addressbooks belong to the same account.
  *
- * Addressbooks are considered to belong to the same account if:
- *   - user_id, username and presetname are the same
- *   - The addressbook home (i.e. parent collection, addressbook URI without last component) is the same.
- *   - Note: we do not check the password because to decrypt it we might need the password of the respective user. We
- *     cannot compare encrypted passwords. However, the same username on the same server should always refer to the same
- *     server account.
+ * Addressbooks are considered to belong to the same account if they belong to the same user_id, and either:
+ *   - a) They are created from the same preset (presetname is the same, but not NULL), or
+ *   - b) username, and the addressbook home (i.e. parent collection, addressbook URI w/o last component) is the same
+ *
+ * Note: we do not check the password because to decrypt it we might need the password of the respective user. We cannot
+ * compare encrypted passwords. However, the same username on the same server should always refer to the same server
+ * account.
  *
  * @psalm-type FullAbookRow = array{
  *     id: string, user_id: string, name: string,
