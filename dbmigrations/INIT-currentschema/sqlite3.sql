@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_accounts (
 	-- not enforced by sqlite < 3.6.19
 	FOREIGN KEY(user_id) REFERENCES TABLE_PREFIXusers(user_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
-CREATE INDEX TABLE_PREFIXcarddav_accounts_user_id_idx ON TABLE_PREFIXcarddav_accounts(user_id);
+-- Note: no separate index on user_id, the UNIQUE index can be used
 
 -- table to store the configured address books
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
