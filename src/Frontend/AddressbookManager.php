@@ -255,9 +255,12 @@ class AddressbookManager
         if (!isset($this->abooksDb)) {
             $allAccountIds = $this->getAccountIds();
             $this->abooksDb = [];
-            /** @var FullAbookRow $abookrow */
-            foreach ($db->get(['account_id' => $allAccountIds], [], 'addressbooks') as $abookrow) {
-                $this->abooksDb[$abookrow["id"]] = $abookrow;
+
+            if (!empty($allAccountIds)) {
+                /** @var FullAbookRow $abookrow */
+                foreach ($db->get(['account_id' => $allAccountIds], [], 'addressbooks') as $abookrow) {
+                    $this->abooksDb[$abookrow["id"]] = $abookrow;
+                }
             }
         }
 
@@ -400,6 +403,10 @@ class AddressbookManager
         $infra = Config::inst();
         $logger = $infra->logger();
         $db = $infra->db();
+
+        if (empty($abookIds)) {
+            return;
+        }
 
         try {
             if (!$skipTransaction) {
