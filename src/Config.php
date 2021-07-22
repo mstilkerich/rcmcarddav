@@ -58,7 +58,7 @@ class Config
 
     /**
      * The admin settings configured in the config.inc.php file.
-     * @var ?AdminSettings
+     * @var AdminSettings
      */
     protected $admPrefs;
 
@@ -87,6 +87,7 @@ class Config
     {
         $this->logger = new RoundcubeLogger("carddav", LogLevel::ERROR);
         $this->httpLogger = new RoundcubeLogger("carddav_http", LogLevel::ERROR);
+        $this->admPrefs = new AdminSettings(__DIR__ . '/../config.inc.php', $this->logger, $this->httpLogger);
 
         $rcube = rcube::get_instance();
         $this->db = new Database($this->logger, $rcube->db);
@@ -120,16 +121,8 @@ class Config
         return $this->rc;
     }
 
-    public function admPrefs(?AdminSettings $admPrefs = null): AdminSettings
+    public function admPrefs(): AdminSettings
     {
-        if (!isset($this->admPrefs)) {
-            if (isset($admPrefs)) {
-                $this->admPrefs = $admPrefs;
-            } else {
-                throw new \Exception("Roundcube admin prefs not initialized");
-            }
-        }
-
         return $this->admPrefs;
     }
 

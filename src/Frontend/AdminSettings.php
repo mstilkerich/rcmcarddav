@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
 
+use Psr\Log\LoggerInterface;
 use MStilkerich\CardDavClient\Account;
 use MStilkerich\CardDavAddressbook4Roundcube\{Config, RoundcubeLogger};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
@@ -149,14 +150,11 @@ class AdminSettings
 
     /**
      * Initializes AdminSettings from a config.inc.php file, using default values if that file is not available.
+     *
      * @param string $configfile Path of the config.inc.php file to load.
      */
-    public function __construct(string $configfile)
+    public function __construct(string $configfile, LoggerInterface $logger, LoggerInterface $httpLogger)
     {
-        $infra = Config::inst();
-        $logger = $infra->logger();
-        $httpLogger = $infra->httpLogger();
-
         $prefs = [];
         if (file_exists($configfile)) {
             include($configfile);
@@ -200,7 +198,7 @@ class AdminSettings
                 continue;
             }
 
-            $this->addPreset($presetName, $preset);
+            $this->addPreset($presetName, $preset, $logger);
         }
     }
 
@@ -234,9 +232,8 @@ class AdminSettings
     /**
      * Creates / updates / deletes preset addressbooks.
      */
-    public function initPresets(AddressbookManager $abMgr): void
+    public function initPresets(AddressbookManager $abMgr, Config $infra): void
     {
-        $infra = Config::inst();
         $logger = $infra->logger();
 
         try {
@@ -395,10 +392,8 @@ class AdminSettings
     /**
      * Adds the given preset from config.inc.php to $this->presets.
      */
-    private function addPreset(string $presetName, array $preset): void
+    private function addPreset(string $presetName, array $preset, LoggerInterface $logger): void
     {
-        $logger = Config::inst()->logger();
-
         try {
             /** @psalm-var Preset Checked by parsePresetArray() */
             $result = $this->parsePresetArray(self::PRESET_SETTINGS, $preset);

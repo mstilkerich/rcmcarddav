@@ -26,7 +26,6 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\Utils;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;

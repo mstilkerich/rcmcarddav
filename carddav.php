@@ -96,15 +96,12 @@ class carddav extends rcube_plugin implements RcmInterface
 
         // This supports a self-contained tarball installation of the plugin, at the risk of having conflicts with other
         // versions of the library installed in the global roundcube vendor directory (-> use not recommended)
-        if (file_exists(dirname(__FILE__) . "/vendor/autoload.php")) {
-            include_once dirname(__FILE__) . "/vendor/autoload.php";
+        if (file_exists(__DIR__ . "/vendor/autoload.php")) {
+            include_once __DIR__ . "/vendor/autoload.php";
         }
 
         $infra = Config::inst();
         $infra->rc($this);
-
-        $admPrefs = new AdminSettings(dirname(__FILE__) . "/config.inc.php");
-        $infra->admPrefs($admPrefs);
 
         $this->abMgr = new AddressbookManager();
     }
@@ -283,7 +280,7 @@ class carddav extends rcube_plugin implements RcmInterface
         try {
             $logger->debug(__METHOD__);
 
-            $scriptDir = dirname(__FILE__) . "/dbmigrations/";
+            $scriptDir = __DIR__ . "/dbmigrations/";
             $config = rcube::get_instance()->config;
             $dbprefix = (string) $config->get('db_prefix', "");
             $db->checkMigrations($dbprefix, $scriptDir);
@@ -292,7 +289,7 @@ class carddav extends rcube_plugin implements RcmInterface
         }
 
         // Initialize presets
-        $admPrefs->initPresets($this->abMgr);
+        $admPrefs->initPresets($this->abMgr, $infra);
     }
 
     /**

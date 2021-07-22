@@ -30,14 +30,16 @@ use PHPUnit\Framework\TestCase;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
+use MStilkerich\CardDavAddressbook4Roundcube\Frontend\AdminSettings;
 use rcube_cache;
 
 class Config extends \MStilkerich\CardDavAddressbook4Roundcube\Config
 {
-    public function __construct(AbstractDatabase $db, TestLogger $logger)
+    public function __construct(AbstractDatabase $db, TestLogger $logger, AdminSettings $admPrefs)
     {
         $this->logger = $logger;
         $this->httpLogger = $logger;
+        $this->admPrefs = $admPrefs;
         $this->db = $db;
         $this->rc = new RcmAdapterStub();
     }

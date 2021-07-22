@@ -45,12 +45,16 @@ final class TestInfrastructure
      *
      * This includes the creation of test-specific logger and roundcube adapter interface.
      */
-    public static function init(AbstractDatabase $db): void
+    public static function init(AbstractDatabase $db, ?string $admSettingsPath = null): void
     {
-        self::$infra = new Config($db, self::logger());
+        if (!isset($admSettingsPath)) {
+            $admSettingsPath = __DIR__ . "/../config.inc.php.dist";
+        }
+
+        $logger = self::logger();
+        $admPrefs = new AdminSettings($admSettingsPath, $logger, $logger);
+        self::$infra = new Config($db, $logger, $admPrefs);
         \MStilkerich\CardDavAddressbook4Roundcube\Config::$inst = self::$infra;
-        $admPrefs = new AdminSettings(dirname(__FILE__) . "/../config.inc.php.dist");
-        self::$infra->admPrefs($admPrefs);
     }
 
     public static function logger(): TestLogger
