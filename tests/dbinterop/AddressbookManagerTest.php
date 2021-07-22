@@ -119,7 +119,7 @@ final class AddressbookManagerTest extends TestCase
 
     /**
      * Tests that the correct account IDs for a user can be retrieved.
-     * @param list<int> $expAbookIdxs
+     * @param list<int> $expAccountIdxs
      * @dataProvider userIdProviderAcc
      */
     public function testAllAccountIdsCanBeRetrieved(int $userIdx, bool $presetOnly, array $expAccountIdxs): void
