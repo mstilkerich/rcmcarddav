@@ -77,6 +77,8 @@ final class TestData
     public const INITDATA = [
         "users" => [
             ["testuser@example.com", "mail.example.com"],
+            ["otheruser@example.com", "mail.example.com"],
+            ["userWithoutAddressbooks@example.com", "mail.example.com"],
         ],
         "carddav_accounts" => [
             [ "First Account", "u1", "p1", "https://contacts.example.com/", [ "users", 0 ] ],
