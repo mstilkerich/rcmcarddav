@@ -1,5 +1,5 @@
 .phpunit.result.cache
-config.inc.php
+./config.inc.php
 /vendor
 composer.*
 *.tgz
