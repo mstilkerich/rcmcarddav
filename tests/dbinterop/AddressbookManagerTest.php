@@ -221,7 +221,7 @@ final class AddressbookManagerTest extends TestCase
 
         $abMgr = new AddressbookManager();
         $cfg = $abMgr->getAccountConfig($accountId);
-        $this->diffRow($cfg, self::ACCOUNT_COLS, self::ACCOUNT_ROWS[$accountIdx]);
+        $this->compareRow($cfg, self::ACCOUNT_COLS, self::ACCOUNT_ROWS[$accountIdx]);
     }
 
     /** @return array<string, array{int,bool}> */
@@ -255,7 +255,47 @@ final class AddressbookManagerTest extends TestCase
 
         $abMgr = new AddressbookManager();
         $cfg = $abMgr->getAddressbookConfig($abookId);
-        $this->diffRow($cfg, self::ABOOK_COLS, self::ABOOK_ROWS[$abookIdx]);
+        $this->compareRow($cfg, self::ABOOK_COLS, self::ABOOK_ROWS[$abookIdx]);
+    }
+
+    /**
+     * Tests that the addressbook configurations for a given account are provided correctly.
+     *
+     * @param bool $validId Indicates if the given account refers to a valid account of the user. If not, an
+     *                      exception is expected.
+     *
+     * @dataProvider accountIdProviderForCfgTest
+     */
+    public function testAddressbookConfigForAccountCorrectlyProvided(int $accountIdx, bool $validId): void
+    {
+        $accountId = self::$testData->getRowId('carddav_accounts', $accountIdx);
+
+        if (!$validId) {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage("No carddav account with ID $accountId");
+        }
+
+        $abMgr = new AddressbookManager();
+        $cfgs = $abMgr->getAddressbookConfigsForAccount($accountId);
+
+        $accountIdRefIdx = array_search('account_id', self::ABOOK_COLS);
+        $this->assertIsInt($accountIdRefIdx);
+        $this->assertTrue($validId, "No exception thrown for getAddressbookConfigsForAccount on other user's account");
+
+        $testDataAbooksById = [];
+        foreach (self::ABOOK_ROWS as $idx => $row) {
+            $this->assertIsArray($row[$accountIdRefIdx]);
+            if ($row[$accountIdRefIdx][1] == $accountIdx) {
+                $row[$accountIdRefIdx] = $accountId;
+                $row = array_combine(self::ABOOK_COLS, $row);
+
+                $abookId = self::$testData->getRowId('carddav_addressbooks', $idx);
+                $row['id'] = $abookId;
+                $testDataAbooksById[$abookId] = $row;
+            }
+        }
+
+        $this->assertEquals($testDataAbooksById, $cfgs, "Returned addressbook configs for account not as expected");
     }
 
     /**
@@ -265,7 +305,7 @@ final class AddressbookManagerTest extends TestCase
      * @param list<string> $cols
      * @param TestDataRowWithKeyRef $testDataRow
      */
-    private function diffRow(array $dbRow, array $cols, array $testDataRow): void
+    private function compareRow(array $dbRow, array $cols, array $testDataRow): void
     {
         foreach ($cols as $idx => $col) {
             if (is_array($testDataRow[$idx])) {

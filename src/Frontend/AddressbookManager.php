@@ -313,6 +313,9 @@ class AddressbookManager
      */
     public function getAddressbookConfigsForAccount(string $accountId): array
     {
+        // make sure the given account is an account of this user - otherwise, an exception is thrown
+        $this->getAccountConfig($accountId);
+
         // make sure the cache is filled
         $this->getAddressbookIds(false);
 
