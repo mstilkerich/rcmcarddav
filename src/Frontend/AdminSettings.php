@@ -318,8 +318,6 @@ class AdminSettings
     private function updatePresetSettings(string $presetName, string $accountId, AddressbookManager $abMgr): void
     {
         $account = $abMgr->getAccountConfig($accountId);
-        // decrypt password so that the comparison works
-        $account['password'] = Utils::decryptPassword($account['password']);
         $this->updatePresetObject($account, 'account', $presetName, $abMgr);
 
         $abooks = $abMgr->getAddressbookConfigsForAccount($accountId);

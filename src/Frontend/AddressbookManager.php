@@ -149,7 +149,9 @@ class AddressbookManager
 
         // check that this addressbook ID actually refers to one of the user's addressbooks
         if (isset($this->accountsDb[$accountId])) {
-            return $this->accountsDb[$accountId];
+            $accountCfg = $this->accountsDb[$accountId];
+            $accountCfg["password"] = Utils::decryptPassword($accountCfg["password"]);
+            return $accountCfg;
         }
 
         throw new \Exception("No carddav account with ID $accountId");
@@ -349,7 +351,7 @@ class AddressbookManager
         }
 
         $config['username'] = Utils::replacePlaceholdersUsername($account["username"]);
-        $config['password'] = Utils::replacePlaceholdersPassword(Utils::decryptPassword($account["password"]));
+        $config['password'] = Utils::replacePlaceholdersPassword($account["password"]);
 
         $abook = new Addressbook($abookId, $config, $readonly, $requiredProps);
         return $abook;
