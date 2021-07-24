@@ -32,7 +32,8 @@ use MStilkerich\CardDavAddressbook4Roundcube\Frontend\AddressbookManager;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 
 /**
- * @psalm-import-type DbConditions from AbstractDatabase
+ * @psalm-import-type DbGetResult from AbstractDatabase
+ * @psalm-import-type TestDataRowWithKeyRef from TestData
  */
 final class AddressbookManagerTest extends TestCase
 {
@@ -87,6 +88,12 @@ final class AddressbookManagerTest extends TestCase
 
         // insert test data
         foreach (self::ACCOUNT_ROWS as $row) {
+            // store the password base64 encoded so we can test it is decrypted by addressbook manager
+            $passwordIdx = array_search('password', self::ACCOUNT_COLS);
+            TestCase::assertIsInt($passwordIdx);
+            TestCase::assertIsString($row[$passwordIdx]);
+            $row[$passwordIdx] = '{BASE64}' . base64_encode($row[$passwordIdx]);
+
             $testData->insertRow('carddav_accounts', self::ACCOUNT_COLS, $row);
         }
         foreach (self::ABOOK_ROWS as $row) {
@@ -180,6 +187,94 @@ final class AddressbookManagerTest extends TestCase
         sort($abookIdsExp);
 
         $this->assertEquals($abookIdsExp, $abookIds, "AbMgr failed to return correct list of addressbook ids");
+    }
+
+
+    /** @return array<string, array{int,bool}> */
+    public function accountIdProviderForCfgTest(): array
+    {
+        return [
+            'Custom account' => [ 0, true ],
+            'Preset account' => [ 1, true ],
+            'Account of different user' => [ 3, false ],
+        ];
+    }
+
+    /**
+     * Tests that the account configuration is provided as expected.
+     *
+     * Specifically, the password must be decrypted.
+     *
+     * @param bool $validId Indicates if the given account refers to a valid account of the user. If not, an exception
+     *                      is expected.
+     *
+     * @dataProvider accountIdProviderForCfgTest
+     */
+    public function testAccountConfigCorrectlyProvided(int $accountIdx, bool $validId): void
+    {
+        $accountId = self::$testData->getRowId('carddav_accounts', $accountIdx);
+
+        if (!$validId) {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage("No carddav account with ID $accountId");
+        }
+
+        $abMgr = new AddressbookManager();
+        $cfg = $abMgr->getAccountConfig($accountId);
+        $this->diffRow($cfg, self::ACCOUNT_COLS, self::ACCOUNT_ROWS[$accountIdx]);
+    }
+
+    /** @return array<string, array{int,bool}> */
+    public function abookIdProviderForCfgTest(): array
+    {
+        return [
+            'Custom addressbook' => [ 0, true ],
+            'Custom addressbook (inactive)' => [ 1, true ],
+            'Preset addressbook' => [ 2, true ],
+            'Preset addressbook (inactive)' => [ 3, true ],
+            'Addressbook of other user' => [ 4, false ],
+        ];
+    }
+
+    /**
+     * Tests that the addressbook configuration is provided as expected.
+     *
+     * @param bool $validId Indicates if the given addressbook refers to a valid account of the user. If not, an
+     *                      exception is expected.
+     *
+     * @dataProvider abookIdProviderForCfgTest
+     */
+    public function testAddressbookConfigCorrectlyProvided(int $abookIdx, bool $validId): void
+    {
+        $abookId = self::$testData->getRowId('carddav_addressbooks', $abookIdx);
+
+        if (!$validId) {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage("No carddav addressbook with ID $abookId");
+        }
+
+        $abMgr = new AddressbookManager();
+        $cfg = $abMgr->getAddressbookConfig($abookId);
+        $this->diffRow($cfg, self::ABOOK_COLS, self::ABOOK_ROWS[$abookIdx]);
+    }
+
+    /**
+     * Compares a row from the test data with a row from the Database.
+     *
+     * @param DbGetResult $dbRow
+     * @param list<string> $cols
+     * @param TestDataRowWithKeyRef $testDataRow
+     */
+    private function diffRow(array $dbRow, array $cols, array $testDataRow): void
+    {
+        foreach ($cols as $idx => $col) {
+            if (is_array($testDataRow[$idx])) {
+                [ $dtbl, $didx ] = $testDataRow[$idx];
+                $prefix = $testDataRow[$idx][2] ?? null;
+                $testDataRow[$idx] = self::$testData->getRowId($dtbl, $didx, $prefix);
+            }
+            $this->assertEquals($testDataRow[$idx], $dbRow[$col], "Unexpected value for $col in database row");
+        }
     }
 }
 
