@@ -27,12 +27,15 @@ declare(strict_types=1);
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
 use PHPUnit\Framework\TestCase;
+use MStilkerich\CardDavAddressbook4Roundcube\Config;
+use MStilkerich\CardDavAddressbook4Roundcube\Addressbook;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use MStilkerich\CardDavAddressbook4Roundcube\Frontend\AddressbookManager;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 
 /**
  * @psalm-import-type DbGetResult from AbstractDatabase
+ * @psalm-import-type TestDataKeyRef from TestData
  * @psalm-import-type TestDataRowWithKeyRef from TestData
  */
 final class AddressbookManagerTest extends TestCase
@@ -79,7 +82,7 @@ final class AddressbookManagerTest extends TestCase
         // Initialize database
         [ $dsnw ] = TestInfrastructureDB::dbSettings();
         self::$db = TestInfrastructureDB::initDatabase($dsnw);
-        TestInfrastructure::init(self::$db);
+        TestInfrastructure::init(self::$db, __DIR__ . '/data/AddressbookManagerTest/config.inc.php');
 
         self::$testData = new TestData(TestInfrastructureDB::getDbHandle());
         $testData = self::$testData;
@@ -239,7 +242,7 @@ final class AddressbookManagerTest extends TestCase
     /**
      * Tests that the addressbook configuration is provided as expected.
      *
-     * @param bool $validId Indicates if the given addressbook refers to a valid account of the user. If not, an
+     * @param bool $validId Indicates if the given addressbook belongs to a valid account of the user. If not, an
      *                      exception is expected.
      *
      * @dataProvider abookIdProviderForCfgTest
@@ -256,6 +259,53 @@ final class AddressbookManagerTest extends TestCase
         $abMgr = new AddressbookManager();
         $cfg = $abMgr->getAddressbookConfig($abookId);
         $this->compareRow($cfg, self::ABOOK_COLS, self::ABOOK_ROWS[$abookIdx]);
+    }
+
+    /**
+     * Tests that the addressbook object is provided as expected.
+     *
+     * @param bool $validId Indicates if the given addressbook belongs to a valid account of the user. If not, an
+     *                      exception is expected.
+     *
+     * @dataProvider abookIdProviderForCfgTest
+     */
+    public function testAddressbookCorrectlyProvided(int $abookIdx, bool $validId): void
+    {
+        $abookId = self::$testData->getRowId('carddav_addressbooks', $abookIdx);
+
+        if (!$validId) {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage("No carddav addressbook with ID $abookId");
+        }
+
+        // attempt to fetch the addressbook instance
+        $abMgr = new AddressbookManager();
+        $abook = $abMgr->getAddressbook($abookId);
+        $this->assertTrue($validId, "Expected exception on invalid addressbook it was not thrown");
+        $this->assertInstanceOf(Addressbook::class, $abook);
+
+        // if that worked, check the properties of the addressbook
+        $abookTd = array_combine(self::ABOOK_COLS, self::$testData->resolveFkRefsInRow(self::ABOOK_ROWS[$abookIdx]));
+        $this->assertIsString($abookTd['account_id']);
+        $accountCfg = $abMgr->getAccountConfig($abookTd['account_id']);
+
+        $readonly = false;
+        $requiredProps = [];
+        if (isset($accountCfg["presetname"])) {
+            $admPrefs = Config::inst()->admPrefs();
+            $presetCfg = $admPrefs->getPreset($accountCfg["presetname"], $abookTd["url"]);
+            [ 'readonly' => $readonly, 'require_always' => $requiredProps ] = $presetCfg;
+        }
+
+        $this->assertSame($abookId, $abook->getId(), "Addressbook ID mismatch");
+        $this->assertSame($abookTd['name'], $abook->get_name(), "Addressbook name mismatch");
+        $this->assertEquals($abookTd['refresh_time'], $abook->getRefreshTime(), "Addressbook refresh time mismatch");
+        $this->assertSame($readonly, $abook->readonly, "Addressbook readonly mismatch");
+        $this->assertSame(
+            TestInfrastructure::getPrivateProperty($abook, 'requiredProps'),
+            $requiredProps,
+            "Addressbook requires properties mismatch"
+        );
     }
 
     /**
@@ -309,9 +359,7 @@ final class AddressbookManagerTest extends TestCase
     {
         foreach ($cols as $idx => $col) {
             if (is_array($testDataRow[$idx])) {
-                [ $dtbl, $didx ] = $testDataRow[$idx];
-                $prefix = $testDataRow[$idx][2] ?? null;
-                $testDataRow[$idx] = self::$testData->getRowId($dtbl, $didx, $prefix);
+                $testDataRow[$idx] = self::$testData->resolveFkRef($testDataRow[$idx]);
             }
             $this->assertEquals($testDataRow[$idx], $dbRow[$col], "Unexpected value for $col in database row");
         }

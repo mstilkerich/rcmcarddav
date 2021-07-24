@@ -208,6 +208,11 @@ final class TestData
         $userId = $this->idCache['users']['builtin'][0] ?? null;
         TestCase::assertIsString($userId);
         $_SESSION["user_id"] = $userId;
+
+        // we need to set these session variables in case the placeholder replacement functions for username/password
+        // are invoked by the test execution
+        $_SESSION["username"] = self::INITDATA['users'][0][0];
+        $_SESSION["password"] = \rcube::get_instance()->encrypt('test');
     }
 
     /**
@@ -277,6 +282,34 @@ final class TestData
         );
 
         return $this->idCache[$tbl][$prefix][$idx];
+    }
+
+    /**
+     * @param TestDataKeyRef $fkRef
+     */
+    public function resolveFkRef(array $fkRef): string
+    {
+        [ $dtbl, $didx ] = $fkRef;
+        $prefix = $fkRef[2] ?? null;
+        return $this->getRowId($dtbl, $didx, $prefix);
+    }
+
+    /**
+     * Resolves foreign key references in a row of test data.
+     * @param TestDataRowWithKeyRef $row
+     * @return TestDataRow
+     */
+    public function resolveFkRefsInRow(array $row): array
+    {
+        $result = [];
+        foreach ($row as $cell) {
+            if (is_array($cell)) {
+                $result[] = $this->resolveFkRef($cell);
+            } else {
+                $result[] = $cell;
+            }
+        }
+        return $result;
     }
 }
 

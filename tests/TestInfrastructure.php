@@ -223,6 +223,18 @@ final class TestInfrastructure
     }
 
     /**
+     * @param object $obj
+     * @return mixed $value
+     */
+    public static function getPrivateProperty($obj, string $propName)
+    {
+        $class = get_class($obj);
+        $prop = new \ReflectionProperty($class, $propName);
+        $prop->setAccessible(true);
+        return $prop->getValue($obj);
+    }
+
+    /**
      * Recursively copies the given directory to the given destination.
      *
      * The destination must not exist yet.
