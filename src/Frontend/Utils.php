@@ -39,13 +39,13 @@ class Utils
 {
     public static function replacePlaceholdersUsername(string $username): string
     {
-        $rcube = rcube::get_instance();
         $rcusername = (string) $_SESSION['username'];
+        $rcusernameParts = explode('@', $rcusername, 2);
 
         $username = strtr($username, [
             '%u' => $rcusername,
-            '%l' => $rcube->user->get_username('local'),
-            '%d' => $rcube->user->get_username('domain'),
+            '%l' => $rcusernameParts[0],
+            '%d' => $rcusernameParts[1] ?? '',
             // %V parses username for macosx, replaces periods and @ by _, work around bugs in contacts.app
             '%V' => strtr($rcusername, "@.", "__")
         ]);
