@@ -358,6 +358,127 @@ final class AddressbookManagerTest extends TestCase
         $this->assertEquals($testDataAbooksById, $cfgs, "Returned addressbook configs for account not as expected");
     }
 
+    /** @return array<string, array{array<string, null|string|int|TestDataKeyRef>, bool}> */
+    public function accountInsertDataProvider(): array
+    {
+        return [
+            'All properties specified' => [
+                [
+                    'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass', 'url' => 'foo.com',
+                    'rediscover_time' => 500, 'presetname' => null
+                ],
+                false
+            ],
+            'Only mandatory properties specified' => [
+                [ 'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass' ],
+                false
+            ],
+            'Include user_id of a different user' => [
+                [
+                    'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
+                    'user_id' => [ 'users', 1, 'builtin' ]
+                ],
+                false
+            ],
+            'Include extra properties that must not be set (both unknown and unsettable ones)' => [
+                [
+                    'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
+                    // not settable
+                    'last_discovered' => '100', 'user_id' => 5,
+                    // not existing
+                    'extraattribute' => 'foo',
+                ],
+                false
+            ],
+            'Lacks mandatory attribute (name)' => [
+                [ 'username' => 'newusr', 'password' => 'newpass' ], true
+            ],
+            'Lacks mandatory attribute (username)' => [
+                [ 'name' => 'New Account', 'password' => 'newpass' ], true
+            ],
+            'Lacks mandatory attribute (password)' => [
+                [ 'name' => 'New Account', 'username' => 'newusr' ], true
+            ],
+        ];
+    }
+    /**
+     * Tests that insertion of a new account works.
+     *
+     * This must consider that the new account is also returned in subsequent invocations of getAccountIds().
+     * It must also consider that the DB row is created as expected, including the proper default values for optional
+     * columns if omitted.
+     *
+     * Password must be stored according to the encryption scheme in the DB.
+     *
+     * It must not be possible to insert an account for a different user.
+     *
+     * @param array<string, null|string|int|TestDataKeyRef> $accSettings
+     * @dataProvider accountInsertDataProvider
+     */
+    public function testAccountIsInsertedProperly(array $accSettings, bool $missMandatory): void
+    {
+        // resolve foreign key references
+        $accSettings = $this->resolveFkRefsInRow($accSettings);
+        if (isset($accSettings['user_id'])) {
+            $this->assertNotEquals(self::$userId, $accSettings['user_id'], "Test should attempt insert for other user");
+        }
+
+        if ($missMandatory) {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage("Mandatory field");
+        }
+
+        $abMgr = new AddressbookManager();
+        $accountsIdsBefore = $abMgr->getAccountIds();
+
+        // insert the new account
+        /** @psalm-suppress ArgumentTypeCoercion For test purposes, we may feed invalid data */
+        $accountId = $abMgr->insertAccount($accSettings);
+        $this->assertFalse($missMandatory, "Expected exception was not thrown for missing mandatory attributes");
+        $accountIdsAfter = $abMgr->getAccountIds();
+
+        // check that new account is reported with getAccountIds
+        $this->assertCount(
+            count($accountsIdsBefore) + 1,
+            $accountIdsAfter,
+            "new accounts not one element more than before insert"
+        );
+        $this->assertSame(
+            [$accountId],
+            array_values(array_diff($accountIdsAfter, $accountsIdsBefore)),
+            "getAccountIds did not return new account"
+        );
+
+        // check that the row in the database is as expected
+        $dbRow = self::$db->lookup($accountId, [], 'accounts');
+        $this->assertIsString($accSettings['password']);
+        $expDbRow = $accSettings;
+        unset($expDbRow['extraattribute']);
+        $expDbRow['id'] = $accountId;
+        $expDbRow['user_id'] = self::$userId;
+        $expDbRow['password'] = '{BASE64}' . base64_encode($accSettings['password']);
+
+        $expDbRow['url'] = $accSettings['url'] ?? null;
+        $expDbRow['rediscover_time'] = $accSettings['rediscover_time'] ?? '86400';
+        $expDbRow['presetname'] = $accSettings['presetname'] ?? null;
+        $expDbRow['last_discovered'] = '0'; // cannot be set with insertAccount
+
+        foreach ($expDbRow as $idx => $val) {
+            if (is_int($val)) {
+                $expDbRow[$idx] = (string) $val;
+            }
+        }
+        $this->assertEquals($expDbRow, $dbRow, "Row not stored as expected in database");
+
+        // check that the account can also be retrieved using getAccountConfig
+        $accountCfg = $abMgr->getAccountConfig($accountId);
+        $expDbRow['password'] = $accSettings['password'];
+        $this->assertEquals($expDbRow, $accountCfg, "New account config not returned as expected");
+
+        // clean up
+        self::$db->delete($accountId, 'accounts');
+    }
+
     /**
      * Compares a row from the test data with a row from the Database.
      *
@@ -373,6 +494,24 @@ final class AddressbookManagerTest extends TestCase
             }
             $this->assertEquals($testDataRow[$idx], $dbRow[$col], "Unexpected value for $col in database row");
         }
+    }
+
+    /**
+     * Resolves foreign key references in an associative row of test data.
+     * @param array<string, null|int|string|TestDataKeyRef> $row
+     * @return array<string, null|int|string>
+     */
+    private function resolveFkRefsInRow(array $row): array
+    {
+        $result = [];
+        foreach ($row as $idx => $cell) {
+            if (is_array($cell)) {
+                $result[$idx] = self::$testData->resolveFkRef($cell);
+            } else {
+                $result[$idx] = $cell;
+            }
+        }
+        return $result;
     }
 }
 
