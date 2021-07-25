@@ -57,6 +57,7 @@ final class AddressbookManagerTest extends TestCase
         [ "Custom Account", "u1", "p1", "https://contacts.example.com/", [ "users", 0, 'builtin' ], null ],
         [ "Preset Account", "%u", "%p", "https://contacts.example.com/", [ "users", 0, 'builtin' ], "admpreset" ],
         [ "Account w/o addressbooks", "u1", "p1", "https://contacts.example.com/", [ "users", 0, 'builtin' ], null ],
+        [ "Removed preset", "user", "pass", "https://rm.example.com/", [ "users", 0, 'builtin' ], "rmpreset" ],
         [ "U2 Custom Account", "usr2", "pass", "http://ex.com/abooks", [ "users", 1, 'builtin' ], null ],
         [ "U2 Preset Account", "%u", "%p", "https://contacts.example.com/", [ "users", 1, 'builtin' ], "admpreset" ],
     ];
@@ -73,8 +74,9 @@ final class AddressbookManagerTest extends TestCase
         [ "CA2", "https://contacts.example.com/a2", '0', '123', '100', 'a2@3', '0', '0', [ "carddav_accounts", 0 ] ],
         [ "PA1", "https://contacts.example.com/a1", '1', '123', '100', 'a1@1', '1', '1', [ "carddav_accounts", 1 ] ],
         [ "PA2", "https://contacts.example.com/a2", '0', '123', '100', 'a2@1', '0', '0', [ "carddav_accounts", 1 ] ],
-        [ "U2-CA1", "https://contacts.example.com/a1", '1', '123', '100', 'a1@1', '1', '1', [ "carddav_accounts", 3 ] ],
-        [ "U2-PA1", "https://contacts.example.com/a1", '1', '123', '100', 'a1@1', '0', '0', [ "carddav_accounts", 4 ] ],
+        [ "RM1", "https://rm.example.com/rm1", '1', '123', '100', 'rm1@1', '1', '1', [ "carddav_accounts", 3 ] ],
+        [ "U2-CA1", "https://contacts.example.com/a1", '1', '123', '100', 'a1@1', '1', '1', [ "carddav_accounts", 4 ] ],
+        [ "U2-PA1", "https://contacts.example.com/a1", '1', '123', '100', 'a1@1', '0', '0', [ "carddav_accounts", 5 ] ],
     ];
 
     public static function setUpBeforeClass(): void
@@ -122,8 +124,8 @@ final class AddressbookManagerTest extends TestCase
     public function userIdProviderAcc(): array
     {
         return [
-            'All accounts of user' => [ 0, false,  [ 0, 1, 2 ] ],
-            'Preset accounts of user' => [ 0, true,  [ 1 ] ],
+            'All accounts of user' => [ 0, false,  [ 0, 1, 2, 3 ] ],
+            'Preset accounts of user' => [ 0, true,  [ 1, 3 ] ],
         ];
     }
 
@@ -156,10 +158,10 @@ final class AddressbookManagerTest extends TestCase
     public function userIdProvider(): array
     {
         return [
-            'All addressbooks of user' => [ 0, false, false,  [ 0, 1, 2, 3 ] ],
-            'Active addressbooks of user' => [ 0, true, false,  [ 0, 2 ] ],
-            'Preset addressbooks of user' => [ 0, false, true,  [ 2, 3 ] ],
-            'Active preset addressbooks of user' => [ 0, true, true,  [ 2 ] ],
+            'All addressbooks of user' => [ 0, false, false,  [ 0, 1, 2, 3, 4 ] ],
+            'Active addressbooks of user' => [ 0, true, false,  [ 0, 2, 4 ] ],
+            'Preset addressbooks of user' => [ 0, false, true,  [ 2, 3, 4 ] ],
+            'Active preset addressbooks of user' => [ 0, true, true,  [ 2, 4 ] ],
             'User without addressbooks' => [ 2, false, false,  [ ] ],
         ];
     }
@@ -199,7 +201,8 @@ final class AddressbookManagerTest extends TestCase
         return [
             'Custom account' => [ 0, true ],
             'Preset account' => [ 1, true ],
-            'Account of different user' => [ 3, false ],
+            'Removed preset account' => [ 3, true ],
+            'Account of different user' => [ 4, false ],
         ];
     }
 
@@ -235,7 +238,8 @@ final class AddressbookManagerTest extends TestCase
             'Custom addressbook (inactive)' => [ 1, true ],
             'Preset addressbook' => [ 2, true ],
             'Preset addressbook (inactive)' => [ 3, true ],
-            'Addressbook of other user' => [ 4, false ],
+            'Removed preset addressbook' => [ 4, true ],
+            'Addressbook of other user' => [ 5, false ],
         ];
     }
 
@@ -292,9 +296,15 @@ final class AddressbookManagerTest extends TestCase
         $readonly = false;
         $requiredProps = [];
         if (isset($accountCfg["presetname"])) {
-            $admPrefs = Config::inst()->admPrefs();
-            $presetCfg = $admPrefs->getPreset($accountCfg["presetname"], $abookTd["url"]);
-            [ 'readonly' => $readonly, 'require_always' => $requiredProps ] = $presetCfg;
+            $presetName = $accountCfg["presetname"];
+
+            if ($presetName == "rmpreset") {
+                $readonly = true;
+            } else {
+                $admPrefs = Config::inst()->admPrefs();
+                $presetCfg = $admPrefs->getPreset($accountCfg["presetname"], $abookTd["url"]);
+                [ 'readonly' => $readonly, 'require_always' => $requiredProps ] = $presetCfg;
+            }
         }
 
         $this->assertSame($abookId, $abook->getId(), "Addressbook ID mismatch");
