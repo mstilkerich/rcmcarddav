@@ -486,7 +486,7 @@ final class AddressbookManagerTest extends TestCase
             'All properties specified' => [
                 [
                     'name' => 'New Abook', 'url' => 'https://c.ex.com/abook1/', 'active' => true,
-                    'refresh_time' => 500, 'use_categories' => false, 'discovered' => true,
+                    'refresh_time' => 500, 'use_categories' => false, 'discovered' => true, 'sync_token' => 's@123',
                     'account_id' => ['carddav_accounts', 0]
                 ],
                 null
@@ -494,7 +494,7 @@ final class AddressbookManagerTest extends TestCase
             'Strings for booleans' => [
                 [
                     'name' => 'New Abook', 'url' => 'https://c.ex.com/abook1/', 'active' => '2',
-                    'refresh_time' => 500, 'use_categories' => '0', 'discovered' => '1',
+                    'refresh_time' => 500, 'use_categories' => '0', 'discovered' => '1', 'sync_token' => 's@123',
                     'account_id' => ['carddav_accounts', 0]
                 ],
                 null
@@ -502,37 +502,51 @@ final class AddressbookManagerTest extends TestCase
             'Ints for booleans' => [
                 [
                     'name' => 'New Abook', 'url' => 'https://c.ex.com/abook1/', 'active' => 2,
-                    'refresh_time' => 500, 'use_categories' => 1, 'discovered' => 0,
+                    'refresh_time' => 500, 'use_categories' => 1, 'discovered' => 0, 'sync_token' => 's@123',
                     'account_id' => ['carddav_accounts', 0]
                 ],
                 null
             ],
             'Only mandatory properties specified' => [
-                [ 'name' => 'New Account', 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 0] ],
+                [
+                    'name' => 'New Account', 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 0],
+                    'sync_token' => 's@123',
+                ],
                 null
             ],
             'Include account_id of a different user' => [
-                [ 'name' => 'New Abook', 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 4] ],
+                [
+                    'name' => 'New Abook', 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 4],
+                    'sync_token' => 's@123',
+                ],
                 'No carddav account with ID'
             ],
             'Include extra properties that must not be set (both unknown and unsettable ones)' => [
                 [
                     'name' => 'New Account', 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 0],
+                    'sync_token' => 's@123',
                     // not settable
-                    'last_updated' => '100', 'sync_token' => 's@123',
+                    'last_updated' => '100',
                     // not existing
                     'extraattribute' => 'foo',
                 ],
                 null
             ],
             'Lacks mandatory attribute (name)' => [
-                [ 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 0] ], 'Mandatory field'
+                [ 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 0], 'sync_token' => 's@123' ],
+                'Mandatory field'
             ],
             'Lacks mandatory attribute (url)' => [
-                [ 'name' => 'New Account', 'account_id' => ['carddav_accounts', 0] ], 'Mandatory field'
+                [ 'name' => 'New Account', 'account_id' => ['carddav_accounts', 0], 'sync_token' => 's@123' ],
+                'Mandatory field'
             ],
-            'Lacks mandatory attribute (accout_id)' => [
-                [ 'name' => 'New Account', 'url' => 'https://c.ex.com/a1/' ], 'Mandatory field'
+            'Lacks mandatory attribute (account_id)' => [
+                [ 'name' => 'New Account', 'url' => 'https://c.ex.com/a1/', 'sync_token' => 's@123' ],
+                'Mandatory field'
+            ],
+            'Lacks mandatory attribute (sync_token)' => [
+                [ 'name' => 'New Account', 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 0] ],
+                'Mandatory field'
             ],
         ];
     }
@@ -562,7 +576,6 @@ final class AddressbookManagerTest extends TestCase
         $notSettable = [
             // not settable by insert with initial values
             'last_updated' => '0',
-            'sync_token' => '',
         ];
 
         // resolve foreign key references

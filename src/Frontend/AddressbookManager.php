@@ -56,7 +56,8 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *     active?: bool,
  *     use_categories?: bool,
  *     refresh_time?: int,
- *     discovered?: bool
+ *     discovered?: bool,
+ *     sync_token?: string
  * }
  *
  * @psalm-import-type FullAccountRow from AbstractDatabase
@@ -94,6 +95,7 @@ class AddressbookManager
         'use_categories' => [ 'bool', false ],
         'refresh_time' => [ 'int', false ],
         'discovered' => [ 'int', false ],
+        'sync_token' => [ 'string', true ],
     ];
 
     /** @var ?array<string, FullAccountRow> $accountsDb
