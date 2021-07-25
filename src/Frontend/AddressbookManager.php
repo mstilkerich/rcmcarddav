@@ -376,6 +376,10 @@ class AddressbookManager
         $db = Config::inst()->db();
 
         [ $cols, $vals ] = $this->prepareDbRow($pa, self::ABOOK_SETTINGS, true);
+
+        // getAccountConfig() throws an exception if the ID is invalid / no account of the current user
+        $this->getAccountConfig($pa['account_id'] ?? '');
+
         $abookId = $db->insert("addressbooks", $cols, [$vals]);
         $this->abooksDb = null;
         return $abookId;
