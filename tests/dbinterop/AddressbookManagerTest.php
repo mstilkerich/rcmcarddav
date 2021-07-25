@@ -358,7 +358,7 @@ final class AddressbookManagerTest extends TestCase
         $this->assertEquals($testDataAbooksById, $cfgs, "Returned addressbook configs for account not as expected");
     }
 
-    /** @return array<string, array{array<string, null|string|int|TestDataKeyRef>, bool}> */
+    /** @return array<string, array{array<string, null|string|int|TestDataKeyRef>, ?string}> */
     public function accountInsertDataProvider(): array
     {
         return [
@@ -367,40 +367,41 @@ final class AddressbookManagerTest extends TestCase
                     'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass', 'url' => 'foo.com',
                     'rediscover_time' => 500, 'presetname' => null
                 ],
-                false
+                null
             ],
             'Only mandatory properties specified' => [
                 [ 'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass' ],
-                false
+                null
             ],
             'Include user_id of a different user' => [
                 [
                     'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
                     'user_id' => [ 'users', 1, 'builtin' ]
                 ],
-                false
+                null
             ],
             'Include extra properties that must not be set (both unknown and unsettable ones)' => [
                 [
-                    'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
+                    'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass', 'presetname' => 'pres',
                     // not settable
                     'last_discovered' => '100', 'user_id' => 5,
                     // not existing
                     'extraattribute' => 'foo',
                 ],
-                false
+                null
             ],
             'Lacks mandatory attribute (name)' => [
-                [ 'username' => 'newusr', 'password' => 'newpass' ], true
+                [ 'username' => 'newusr', 'password' => 'newpass' ], 'Mandatory field'
             ],
             'Lacks mandatory attribute (username)' => [
-                [ 'name' => 'New Account', 'password' => 'newpass' ], true
+                [ 'name' => 'New Account', 'password' => 'newpass' ], 'Mandatory field'
             ],
             'Lacks mandatory attribute (password)' => [
-                [ 'name' => 'New Account', 'username' => 'newusr' ], true
+                [ 'name' => 'New Account', 'username' => 'newusr' ], 'Mandatory field'
             ],
         ];
     }
+
     /**
      * Tests that insertion of a new account works.
      *
@@ -415,17 +416,29 @@ final class AddressbookManagerTest extends TestCase
      * @param array<string, null|string|int|TestDataKeyRef> $accSettings
      * @dataProvider accountInsertDataProvider
      */
-    public function testAccountIsInsertedProperly(array $accSettings, bool $missMandatory): void
+    public function testAccountIsInsertedProperly(array $accSettings, ?string $expExceptionMsg): void
     {
+        $defaults = [
+            // optional attributes with default values
+            'url' => null,
+            'rediscover_time' => '86400',
+            'presetname' => null,
+        ];
+        $notSettable = [
+            // not settable by insert with initial values
+            'last_discovered' => '0',
+            'user_id' => self::$userId,
+        ];
+
         // resolve foreign key references
         $accSettings = $this->resolveFkRefsInRow($accSettings);
         if (isset($accSettings['user_id'])) {
             $this->assertNotEquals(self::$userId, $accSettings['user_id'], "Test should attempt insert for other user");
         }
 
-        if ($missMandatory) {
+        if (isset($expExceptionMsg)) {
             $this->expectException(\Exception::class);
-            $this->expectExceptionMessage("Mandatory field");
+            $this->expectExceptionMessage($expExceptionMsg);
         }
 
         $abMgr = new AddressbookManager();
@@ -434,7 +447,7 @@ final class AddressbookManagerTest extends TestCase
         // insert the new account
         /** @psalm-suppress ArgumentTypeCoercion For test purposes, we may feed invalid data */
         $accountId = $abMgr->insertAccount($accSettings);
-        $this->assertFalse($missMandatory, "Expected exception was not thrown for missing mandatory attributes");
+        $this->assertNull($expExceptionMsg, "Expected exception was not thrown for missing mandatory attributes");
         $accountIdsAfter = $abMgr->getAccountIds();
 
         // check that new account is reported with getAccountIds
@@ -443,31 +456,18 @@ final class AddressbookManagerTest extends TestCase
             $accountIdsAfter,
             "new accounts not one element more than before insert"
         );
-        $this->assertSame(
-            [$accountId],
-            array_values(array_diff($accountIdsAfter, $accountsIdsBefore)),
+        $this->assertEqualsCanonicalizing(
+            array_merge($accountsIdsBefore, [$accountId]),
+            $accountIdsAfter,
             "getAccountIds did not return new account"
         );
 
         // check that the row in the database is as expected
         $dbRow = self::$db->lookup($accountId, [], 'accounts');
         $this->assertIsString($accSettings['password']);
-        $expDbRow = $accSettings;
-        unset($expDbRow['extraattribute']);
+        $expDbRow = $this->prepRowForDbRowComparison($accSettings, $defaults, $notSettable, []);
         $expDbRow['id'] = $accountId;
-        $expDbRow['user_id'] = self::$userId;
         $expDbRow['password'] = '{BASE64}' . base64_encode($accSettings['password']);
-
-        $expDbRow['url'] = $accSettings['url'] ?? null;
-        $expDbRow['rediscover_time'] = $accSettings['rediscover_time'] ?? '86400';
-        $expDbRow['presetname'] = $accSettings['presetname'] ?? null;
-        $expDbRow['last_discovered'] = '0'; // cannot be set with insertAccount
-
-        foreach ($expDbRow as $idx => $val) {
-            if (is_int($val)) {
-                $expDbRow[$idx] = (string) $val;
-            }
-        }
         $this->assertEquals($expDbRow, $dbRow, "Row not stored as expected in database");
 
         // check that the account can also be retrieved using getAccountConfig
@@ -477,6 +477,180 @@ final class AddressbookManagerTest extends TestCase
 
         // clean up
         self::$db->delete($accountId, 'accounts');
+    }
+
+    /** @return array<string, array{array<string, null|string|bool|int|TestDataKeyRef>, ?string}> */
+    public function abookInsertDataProvider(): array
+    {
+        return [
+            'All properties specified' => [
+                [
+                    'name' => 'New Abook', 'url' => 'https://c.ex.com/abook1/', 'active' => true,
+                    'refresh_time' => 500, 'use_categories' => false, 'discovered' => true,
+                    'account_id' => ['carddav_accounts', 0]
+                ],
+                null
+            ],
+            'Strings for booleans' => [
+                [
+                    'name' => 'New Abook', 'url' => 'https://c.ex.com/abook1/', 'active' => '2',
+                    'refresh_time' => 500, 'use_categories' => '0', 'discovered' => '1',
+                    'account_id' => ['carddav_accounts', 0]
+                ],
+                null
+            ],
+            'Ints for booleans' => [
+                [
+                    'name' => 'New Abook', 'url' => 'https://c.ex.com/abook1/', 'active' => 2,
+                    'refresh_time' => 500, 'use_categories' => 1, 'discovered' => 0,
+                    'account_id' => ['carddav_accounts', 0]
+                ],
+                null
+            ],
+            'Only mandatory properties specified' => [
+                [ 'name' => 'New Account', 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 0] ],
+                null
+            ],
+            'Include account_id of a different user' => [
+                [ 'name' => 'New Abook', 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 4] ],
+                'No carddav account with ID'
+            ],
+            'Include extra properties that must not be set (both unknown and unsettable ones)' => [
+                [
+                    'name' => 'New Account', 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 0],
+                    // not settable
+                    'last_updated' => '100', 'sync_token' => 's@123',
+                    // not existing
+                    'extraattribute' => 'foo',
+                ],
+                null
+            ],
+            'Lacks mandatory attribute (name)' => [
+                [ 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 0] ], 'Mandatory field'
+            ],
+            'Lacks mandatory attribute (url)' => [
+                [ 'name' => 'New Account', 'account_id' => ['carddav_accounts', 0] ], 'Mandatory field'
+            ],
+            'Lacks mandatory attribute (accout_id)' => [
+                [ 'name' => 'New Account', 'url' => 'https://c.ex.com/a1/' ], 'Mandatory field'
+            ],
+        ];
+    }
+
+    /**
+     * Tests that insertion of a new addressbook works.
+     *
+     * This must consider that the new addressbook is also returned in subsequent invocations of getAddressbookIds().
+     * It must also consider that the DB row is created as expected, including the proper default values for optional
+     * columns if omitted.
+     *
+     * It must not be possible to insert an addressbook for an account of a different user.
+     *
+     * @param array<string, null|string|int|bool|TestDataKeyRef> $abookSettings
+     * @dataProvider abookInsertDataProvider
+     */
+    public function testAddressbookIsInsertedProperly(array $abookSettings, ?string $expExceptionMsg): void
+    {
+        $boolAttrs = [ 'active', 'use_categories', 'discovered' ];
+        $defaults = [
+            // optional attributes with default values
+            'active' => '1',
+            'refresh_time' => '3600',
+            'use_categories' => '0',
+            'discovered' => '1',
+        ];
+        $notSettable = [
+            // not settable by insert with initial values
+            'last_updated' => '0',
+            'sync_token' => '',
+        ];
+
+        // resolve foreign key references
+        $abookSettings = $this->resolveFkRefsInRow($abookSettings);
+
+        if (isset($expExceptionMsg)) {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage($expExceptionMsg);
+        }
+
+        $abMgr = new AddressbookManager();
+        $abookIdsBefore = $abMgr->getAddressbookIds();
+
+        // insert the new addressbook
+        /** @psalm-suppress InvalidArgument For test purposes, we may feed invalid data */
+        $abookId = $abMgr->insertAddressbook($abookSettings);
+        $this->assertNull($expExceptionMsg, "Expected exception was not thrown");
+        $abookIdsAfter = $abMgr->getAddressbookIds();
+
+        // check that new addressbooks is reported with getAddressbookIds
+        $this->assertCount(
+            count($abookIdsBefore) + 1,
+            $abookIdsAfter,
+            "new addressbooks not one element more than before insert"
+        );
+        $this->assertEqualsCanonicalizing(
+            array_merge($abookIdsBefore, [$abookId]),
+            $abookIdsAfter,
+            "getAddressbookIds did not return new addressbook $abookId"
+        );
+
+        // check that the row in the database is as expected
+        $dbRow = self::$db->lookup($abookId, [], 'addressbooks');
+        $expDbRow = $this->prepRowForDbRowComparison($abookSettings, $defaults, $notSettable, $boolAttrs);
+        $expDbRow['id'] = $abookId;
+        $this->assertEquals($expDbRow, $dbRow, "Row not stored as expected in database");
+
+        // check that the addressbook can also be retrieved using getAccountConfig
+        $abookCfg = $abMgr->getAddressbookConfig($abookId);
+        $this->assertEquals($expDbRow, $abookCfg, "New addressbook config not returned as expected");
+
+        // clean up
+        self::$db->delete($abookId, 'addressbooks');
+    }
+
+    /**
+     * Prepares a settings array as passed to insertAddressbook/insertAccount for comparison with the resulting db row.
+     *
+     * - All attributes are converted to string types
+     * - Default values for optional attributes are added
+     * - Initial values for not settable attributes are added
+     * - Boolean attributes are normalized to '0' or '1'
+     * - Unsets the special attribute 'extraattribute' used by this test for unsupported extra attribute
+     *
+     * @param array<string, null|string|int|bool> $row
+     * @param array<string, ?string> $defaults
+     * @param array<string, ?string> $notSettable
+     * @param list<string> $boolAttrs
+     * @return array<string, ?string>
+     */
+    private function prepRowForDbRowComparison(array $row, array $defaults, array $notSettable, array $boolAttrs): array
+    {
+        unset($row['extraattribute']);
+
+        foreach ($defaults as $attr => $defaultVal) {
+            $row[$attr] = $row[$attr] ?? $defaultVal;
+        }
+
+        foreach ($notSettable as $attr => $initVal) {
+            $row[$attr] = $initVal;
+        }
+
+        $result = [];
+
+        // normalize bools, convert all attributes to string
+        foreach ($row as $attr => $val) {
+            if (isset($val)) {
+                if (in_array($attr, $boolAttrs)) {
+                    $val = ($val ? '1' : '0');
+                }
+
+                $result[$attr] = (string) $val;
+            } else {
+                $result[$attr] = null;
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -498,8 +672,8 @@ final class AddressbookManagerTest extends TestCase
 
     /**
      * Resolves foreign key references in an associative row of test data.
-     * @param array<string, null|int|string|TestDataKeyRef> $row
-     * @return array<string, null|int|string>
+     * @param array<string, null|int|string|bool|TestDataKeyRef> $row
+     * @return array<string, null|int|string|bool>
      */
     private function resolveFkRefsInRow(array $row): array
     {
