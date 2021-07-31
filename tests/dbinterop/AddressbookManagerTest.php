@@ -34,6 +34,8 @@ use MStilkerich\CardDavAddressbook4Roundcube\Frontend\AddressbookManager;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 
 /**
+ * @psalm-import-type FullAccountRow from AbstractDatabase
+ * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type DbGetResult from AbstractDatabase
  * @psalm-import-type TestDataKeyRef from TestData
  * @psalm-import-type TestDataRowWithKeyRef from TestData
@@ -85,7 +87,10 @@ final class AddressbookManagerTest extends TestCase
         [ $dsnw ] = TestInfrastructureDB::dbSettings();
         self::$db = TestInfrastructureDB::initDatabase($dsnw);
         TestInfrastructure::init(self::$db, __DIR__ . '/data/AddressbookManagerTest/config.inc.php');
+    }
 
+    public function setUp(): void
+    {
         self::$testData = new TestData(TestInfrastructureDB::getDbHandle());
         $testData = self::$testData;
         $testData->initDatabase(true);
@@ -105,11 +110,8 @@ final class AddressbookManagerTest extends TestCase
             $testData->insertRow('carddav_addressbooks', self::ABOOK_COLS, $row);
         }
 
+        // must be called after testData->initDatabase, because initDatabase sets the SESSION variable
         self::$userId = (string) $_SESSION['user_id'];
-    }
-
-    public function setUp(): void
-    {
     }
 
     public function tearDown(): void
@@ -365,7 +367,7 @@ final class AddressbookManagerTest extends TestCase
             'All properties specified' => [
                 [
                     'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass', 'url' => 'foo.com',
-                    'rediscover_time' => 500, 'presetname' => null
+                    'rediscover_time' => 500, 'last_discovered' => '100', 'presetname' => null
                 ],
                 null
             ],
@@ -384,7 +386,7 @@ final class AddressbookManagerTest extends TestCase
                 [
                     'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass', 'presetname' => 'pres',
                     // not settable
-                    'last_discovered' => '100', 'user_id' => 5,
+                    'user_id' => 5,
                     // not existing
                     'extraattribute' => 'foo',
                 ],
@@ -422,11 +424,11 @@ final class AddressbookManagerTest extends TestCase
             // optional attributes with default values
             'url' => null,
             'rediscover_time' => '86400',
+            'last_discovered' => '0',
             'presetname' => null,
         ];
         $notSettable = [
             // not settable by insert with initial values
-            'last_discovered' => '0',
             'user_id' => self::$userId,
         ];
 
@@ -479,6 +481,136 @@ final class AddressbookManagerTest extends TestCase
         self::$db->delete($accountId, 'accounts');
     }
 
+    /**
+     * @return array<
+     *     string,
+     *     array{
+     *         TestDataKeyRef,
+     *         array<string, null|string|int|TestDataKeyRef>,
+     *         ?FullAccountRow,
+     *         ?string
+     *     }
+     * >
+     */
+    public function accountUpdateDataProvider(): array
+    {
+        $account0Base = array_combine(self::ACCOUNT_COLS, self::ACCOUNT_ROWS[0]);
+
+        // these IDs are filled by the test
+        $account0Base = array_merge($account0Base, [ 'id' => '0', 'user_id' => '0' ]);
+
+        // defaults that are not part of the test data row
+        $account0Base = array_merge($account0Base, [ 'rediscover_time' => '86400', 'last_discovered' => '0' ]);
+
+        /** @psalm-var FullAccountRow $account0Base */
+
+        return [
+            'All updateable properties updated' => [
+                [ 'carddav_accounts', 0 ],
+                [
+                    'name' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass', 'url' => 'cdav.com',
+                    'rediscover_time' => 5000, 'last_discovered' => 1000
+                ],
+                [
+                    'id' => '0', 'user_id' => '0', // these IDs are filled by the test
+                    'name' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass', 'url' => 'cdav.com',
+                    'rediscover_time' => '5000', 'last_discovered' => '1000', 'presetname' => null
+                ],
+                null
+            ],
+            'Nothing updated' => [
+                [ 'carddav_accounts', 0 ],
+                [ ],
+                $account0Base,
+                null
+            ],
+            'Only a single property updated' => [
+                [ 'carddav_accounts', 0 ],
+                [ 'last_discovered' => 554433 ],
+                [ 'last_discovered' => '554433' ] + $account0Base,
+                null
+            ],
+            'Try to update account to different user ID' => [
+                [ 'carddav_accounts', 0 ],
+                [ 'user_id' => ['users', 1, 'builtin'] ],
+                // user_id is expected to be a not settable property, so no update should be performed and no exception
+                // is expected, as this would require special handling of the user_id.
+                $account0Base,
+                null
+            ],
+            'Try changing not updateable attribute (presetname)' => [
+                [ 'carddav_accounts', 0 ],
+                [ 'presetname' => 'foo' ],
+                // preset can only be set on insert, but not updated afterwards - exception expected
+                null,
+                "Attempt to update non-updateable field presetname"
+            ],
+            'Try to update account with an extra unknown attribute' => [
+                [ 'carddav_accounts', 0 ],
+                [ 'extraattribute' => 'foo' ],
+                $account0Base,
+                null
+            ],
+        ];
+    }
+
+    /**
+     * Tests that update of an account works.
+     *
+     * This must consider that the updated account config is also returned in subsequent invocations of
+     * getAccountConfig().
+     *
+     * Password must be stored according to the encryption scheme in the DB.
+     *
+     * It must not be possible to change the user_id to that of a different user.
+     *
+     * It must not be possible the update an account of a different user.
+     *
+     * @param TestDataKeyRef $accountFkRef
+     * @param array<string, null|string|int|TestDataKeyRef> $accUpd
+     * @param ?FullAccountRow $accExpResult
+     * @dataProvider accountUpdateDataProvider
+     */
+    public function testAccountIsUpdatedProperly(
+        array $accountFkRef,
+        array $accUpd,
+        ?array $accExpResult,
+        ?string $expExceptionMsg
+    ): void {
+        // resolve foreign key references
+        $accountId = self::$testData->resolveFkRef($accountFkRef);
+
+        $accUpd = $this->resolveFkRefsInRow($accUpd);
+
+        if (isset($accUpd['user_id'])) {
+            $this->assertNotEquals(self::$userId, $accUpd['user_id'], "Test should attempt update to other user");
+        }
+
+        if (isset($expExceptionMsg)) {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage($expExceptionMsg);
+        }
+
+        $abMgr = new AddressbookManager();
+
+        // update the account
+        /** @psalm-suppress ArgumentTypeCoercion For test purposes, we may feed invalid data */
+        $abMgr->updateAccount($accountId, $accUpd);
+        $this->assertNull($expExceptionMsg, "Expected exception was not thrown for missing mandatory attributes");
+        $this->assertNotNull($accExpResult, "Expected result was not defined");
+        $accExpResult['id'] = $accountId;
+        $accExpResult['user_id'] = self::$userId;
+
+        // check that the updated account can also be retrieved using getAccountConfig
+        $accountCfg = $abMgr->getAccountConfig($accountId);
+        $this->assertEquals($accExpResult, $accountCfg, "New account config not returned as expected");
+
+        // check that the row in the database is as expected
+        $dbRow = self::$db->lookup($accountId, [], 'accounts');
+        $accExpResult['password'] = '{BASE64}' . base64_encode($accExpResult['password']);
+        $this->assertEquals($accExpResult, $dbRow, "Row not stored as expected in database");
+    }
+
     /** @return array<string, array{array<string, null|string|bool|int|TestDataKeyRef>, ?string}> */
     public function abookInsertDataProvider(): array
     {
@@ -487,6 +619,7 @@ final class AddressbookManagerTest extends TestCase
                 [
                     'name' => 'New Abook', 'url' => 'https://c.ex.com/abook1/', 'active' => true,
                     'refresh_time' => 500, 'use_categories' => false, 'discovered' => true, 'sync_token' => 's@123',
+                    'last_updated' => 100,
                     'account_id' => ['carddav_accounts', 0]
                 ],
                 null
@@ -525,8 +658,7 @@ final class AddressbookManagerTest extends TestCase
                 [
                     'name' => 'New Account', 'url' => 'https://c.ex.com/a1/', 'account_id' => ['carddav_accounts', 0],
                     'sync_token' => 's@123',
-                    // not settable
-                    'last_updated' => '100',
+                    // not settable - currently none
                     // not existing
                     'extraattribute' => 'foo',
                 ],
@@ -570,12 +702,12 @@ final class AddressbookManagerTest extends TestCase
             // optional attributes with default values
             'active' => '1',
             'refresh_time' => '3600',
+            'last_updated' => '0',
             'use_categories' => '0',
             'discovered' => '1',
         ];
         $notSettable = [
             // not settable by insert with initial values
-            'last_updated' => '0',
         ];
 
         // resolve foreign key references
