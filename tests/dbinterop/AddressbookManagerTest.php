@@ -754,6 +754,131 @@ final class AddressbookManagerTest extends TestCase
     }
 
     /**
+     * @return array<
+     *     string,
+     *     array{
+     *         TestDataKeyRef,
+     *         array<string, null|bool|string|int|TestDataKeyRef>,
+     *         ?FullAbookRow,
+     *         ?string
+     *     }
+     * >
+     */
+    public function abookUpdateDataProvider(): array
+    {
+        $abook0Base = array_combine(self::ABOOK_COLS, self::ABOOK_ROWS[0]);
+
+        // these IDs are filled by the test
+        $abook0Base = array_merge($abook0Base, [ 'id' => '0' ]);
+
+        /** @psalm-var FullAbookRow $abook0Base */
+
+        return [
+            'All updateable properties updated' => [
+                [ 'carddav_addressbooks', 0 ],
+                [
+                    'name' => 'Updated Abook', 'active' => false, 'last_updated' => 998877, 'refresh_time' => 42,
+                    'sync_token' => 'abc', 'use_categories' => false,
+                ],
+                [
+                    'name' => 'Updated Abook', 'active' => '0', 'last_updated' => '998877', 'refresh_time' => '42',
+                    'sync_token' => 'abc', 'use_categories' => '0',
+                ] + $abook0Base,
+                null
+            ],
+            'Nothing updated' => [
+                [ 'carddav_addressbooks', 0 ],
+                [ ],
+                $abook0Base,
+                null
+            ],
+            'Only a single property updated' => [
+                [ 'carddav_addressbooks', 0 ],
+                [ 'last_updated' => 923 ],
+                [ 'last_updated' => '923' ] + $abook0Base,
+                null
+            ],
+            'Try changing not updateable attribute (url)' => [
+                [ 'carddav_addressbooks', 0 ],
+                [ 'url' => 'http://a.com/abook1' ],
+                null,
+                "Attempt to update non-updateable field url"
+            ],
+            'Try changing not updateable attribute (discovered)' => [
+                [ 'carddav_addressbooks', 0 ],
+                [ 'discovered' => '0' ],
+                null,
+                "Attempt to update non-updateable field discovered"
+            ],
+            'Try changing not updateable attribute (account_id - same user)' => [
+                [ 'carddav_addressbooks', 0 ],
+                [ 'account_id' => ['carddav_accounts', 1] ],
+                null,
+                "Attempt to update non-updateable field account_id"
+            ],
+            'Try changing not updateable attribute (account_id - other user)' => [
+                [ 'carddav_addressbooks', 0 ],
+                [ 'account_id' => ['carddav_accounts', 5] ],
+                null,
+                "Attempt to update non-updateable field account_id"
+            ],
+            'Try to update addressbook with an extra unknown attribute' => [
+                [ 'carddav_addressbooks', 0 ],
+                [ 'extraattribute' => 'foo' ],
+                $abook0Base,
+                null
+            ],
+        ];
+    }
+
+    /**
+     * Tests that update of an addressbook works.
+     *
+     * This must consider that the updated addressbook config is also returned in subsequent invocations of
+     * getAddressbookConfig().
+     *
+     * It must not be possible to change non-updateable settings, especially account_id.
+     *
+     * @param TestDataKeyRef $abookFkRef
+     * @param array<string, null|string|bool|int|TestDataKeyRef> $abookUpd
+     * @param ?FullAbookRow $abookExpResult
+     * @dataProvider abookUpdateDataProvider
+     */
+    public function testAddressbookIsUpdatedProperly(
+        array $abookFkRef,
+        array $abookUpd,
+        ?array $abookExpResult,
+        ?string $expExceptionMsg
+    ): void {
+        // resolve foreign key references
+        $abookId = self::$testData->resolveFkRef($abookFkRef);
+
+        $abookUpd = $this->resolveFkRefsInRow($abookUpd);
+
+        if (isset($expExceptionMsg)) {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage($expExceptionMsg);
+        }
+
+        $abMgr = new AddressbookManager();
+
+        // update the addressbook
+        /** @psalm-suppress InvalidArgument For test purposes, we may feed invalid data */
+        $abMgr->updateAddressbook($abookId, $abookUpd);
+        $this->assertNull($expExceptionMsg, "Expected exception was not thrown for missing mandatory attributes");
+        $this->assertNotNull($abookExpResult, "Expected result was not defined");
+        $abookExpResult = $this->resolveFkRefsInRow($abookExpResult);
+        $abookExpResult['id'] = $abookId;
+
+        // check that the updated addressbook can also be retrieved using getAddressbookConfig
+        $abookCfg = $abMgr->getAddressbookConfig($abookId);
+        $this->assertEquals($abookExpResult, $abookCfg, "New addressbook config not returned as expected");
+
+        // check that the row in the database is as expected
+        $dbRow = self::$db->lookup($abookId, [], 'addressbooks');
+        $this->assertEquals($abookExpResult, $dbRow, "Row not stored as expected in database");
+    }
+    /**
      * Prepares a settings array as passed to insertAddressbook/insertAccount for comparison with the resulting db row.
      *
      * - All attributes are converted to string types
