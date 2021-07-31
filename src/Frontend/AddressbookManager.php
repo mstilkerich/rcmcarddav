@@ -31,21 +31,22 @@ use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 /**
- * Describes for each database field of an addressbook / account: type, mandatory on insert
- * @psalm-type SettingSpecification = array{'int'|'string'|'bool', bool}
+ * Describes for each database field of an addressbook / account: type, mandatory on insert, updateable
+ * @psalm-type SettingSpecification = array{'int'|'string'|'bool', bool, bool}
  *
  * The data types AccountSettings / AbookSettings describe the attributes of an account / addressbook row in the
  * corresponding DB table, that can be used for inserting / updating the addressbook. Contrary to the  FullAccountRow /
  * FullAbookRow types:
  *   - all keys are optional (for use of update of individual columns, others are not specified)
  *   - DB managed columns (particularly: id) are missing
- *   - Columns not to be updated by the user / admin are missing (e.g., last_updated)
+ *
  * @psalm-type AccountSettings = array{
  *     name?: string,
  *     username?: string,
  *     password?: string,
  *     url?: ?string,
  *     rediscover_time?: int,
+ *     last_discovered?: int,
  *     active?: bool,
  *     presetname?: string
  * }
@@ -56,6 +57,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *     active?: bool,
  *     use_categories?: bool,
  *     refresh_time?: int,
+ *     last_updated?: int,
  *     discovered?: bool,
  *     sync_token?: string
  * }
@@ -72,13 +74,14 @@ class AddressbookManager
      *      methods.
      */
     private const ACCOUNT_SETTINGS = [
-        'name' => [ 'string', true ],
-        'username' => [ 'string', true ],
-        'password' => [ 'string', true ],
-        'url' => [ 'string', false ], // discovery URI can be NULL, disables discovery
-        'rediscover_time' => [ 'int', false ],
-        'active' => [ 'bool', false ],
-        'presetname' => [ 'string', false ],
+        'name' => [ 'string', true, true ],
+        'username' => [ 'string', true, true ],
+        'password' => [ 'string', true, true ],
+        'url' => [ 'string', false, true ], // discovery URI can be NULL, disables discovery
+        'rediscover_time' => [ 'int', false, true ],
+        'last_discovered' => [ 'int', false, true ],
+        'active' => [ 'bool', false, true ],
+        'presetname' => [ 'string', false, false ],
     ];
 
     /**
@@ -88,14 +91,15 @@ class AddressbookManager
      *      / updateAddressbook() methods.
      */
     private const ABOOK_SETTINGS = [
-        'account_id' => [ 'string', true ],
-        'name' => [ 'string', true ],
-        'url' => [ 'string', true ],
-        'active' => [ 'bool', false ],
-        'use_categories' => [ 'bool', false ],
-        'refresh_time' => [ 'int', false ],
-        'discovered' => [ 'int', false ],
-        'sync_token' => [ 'string', true ],
+        'account_id' => [ 'string', true, false ],
+        'name' => [ 'string', true, true ],
+        'url' => [ 'string', true, false ],
+        'active' => [ 'bool', false, true ],
+        'use_categories' => [ 'bool', false, true ],
+        'refresh_time' => [ 'int', false, true ],
+        'last_updated' => [ 'int', false, true ],
+        'discovered' => [ 'int', false, false ],
+        'sync_token' => [ 'string', true, true ],
     ];
 
     /** @var ?array<string, FullAccountRow> $accountsDb
@@ -482,8 +486,7 @@ class AddressbookManager
             // To avoid unneccessary work followed by roll back with other time-triggered refreshes, we temporarily
             // set the last_updated time such that the next due time will be five minutes from now
             $ts_delay = time() + 300 - $abook->getRefreshTime();
-            $db = $infra->db();
-            $db->update($abook->getId(), ["last_updated"], [(string) $ts_delay], "addressbooks");
+            $this->updateAddressbook($abook->getId(), ["last_updated" => $ts_delay]);
             $duration = $abook->resync();
 
             $rc->showMessage(
@@ -518,30 +521,36 @@ class AddressbookManager
      * @param array<string,SettingSpecification> $fieldspec
      *   The field specifications. Note that only fields that are part of this specification will be taken from
      *   $settings, others are ignored.
-     * @param bool $checkMandatory
-     *   If true, the function verifies that all mandatory fields are included in $settings (if not: throws exception)
+     * @param bool $isInsert
+     *   True if the row is prepared for insertion, false if row is prepared for update. For insert, the row will be
+     *   checked to include all mandatory attributes. For update, the row will be checked to not include non-updateable
+     *   attributes.
      *
      * @return array{list<string>, list<string>}
      *   An array with two members: The first is an array of column names for insert/update. The second is the matching
      *   array of values.
      */
-    private function prepareDbRow(array $settings, array $fieldspec, bool $checkMandatory): array
+    private function prepareDbRow(array $settings, array $fieldspec, bool $isInsert): array
     {
         $cols = []; // column names
         $vals = []; // columns values
 
         foreach ($fieldspec as $col => $spec) {
-            [ $type, $mandatory ] = $spec;
+            [ $type, $mandatory, $updateable ] = $spec;
 
             if (isset($settings[$col])) {
-                $cols[] = $col;
+                if ($isInsert || $updateable) {
+                    $cols[] = $col;
 
-                if ($type == 'bool') {
-                    $vals[] = ($settings[$col] ? '1' : '0');
+                    if ($type == 'bool') {
+                        $vals[] = ($settings[$col] ? '1' : '0');
+                    } else {
+                        $vals[] = (string) $settings[$col];
+                    }
                 } else {
-                    $vals[] = (string) $settings[$col];
+                    throw new \Exception(__METHOD__ . ": Attempt to update non-updateable field $col");
                 }
-            } elseif ($mandatory && $checkMandatory) {
+            } elseif ($mandatory && $isInsert) {
                 throw new \Exception(__METHOD__ . ": Mandatory field $col missing");
             }
         }
