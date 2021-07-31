@@ -44,7 +44,6 @@ use Psr\Log\LoggerInterface;
  *     username: string,
  *     password: string,
  *     url: string,
- *     active: numeric-string,
  *     last_discovered: numeric-string,
  *     rediscover_time: numeric-string,
  *     presetname: ?string
@@ -63,6 +62,7 @@ use Psr\Log\LoggerInterface;
  * }
  *
  * @psalm-import-type SaveDataFromDC from \MStilkerich\CardDavAddressbook4Roundcube\DataConversion
+ * @psalm-import-type SaveDataMultiField from \MStilkerich\CardDavAddressbook4Roundcube\DataConversion
  */
 abstract class AbstractDatabase
 {
@@ -208,7 +208,8 @@ abstract class AbstractDatabase
         $email_keys = preg_grep('/^email(:|$)/', array_keys($save_data));
         $email_addrs = [];
         foreach ($email_keys as $email_key) {
-            $email_addrs = array_merge($email_addrs, (array) $save_data[$email_key]);
+            /** @psalm-var SaveDataMultiField $save_data[$email_key] */
+            $email_addrs = array_merge($email_addrs, $save_data[$email_key]);
         }
         $save_data['email'] = implode(', ', $email_addrs);
 

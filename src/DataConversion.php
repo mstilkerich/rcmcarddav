@@ -39,6 +39,8 @@ use rcube_utils;
  * @psalm-type SaveDataAddressField = array<string,string>
  * @psalm-type SaveData = array{
  *     name?: string,
+ *     firstname?: string,
+ *     surname?: string,
  *     cuid?: string,
  *     kind?: string,
  *     ID?: string,
@@ -60,6 +62,8 @@ use rcube_utils;
  *
  * @psalm-type SaveDataFromDC = array{
  *     name: string,
+ *     firstname?: string,
+ *     surname?: string,
  *     kind: string,
  *     cuid?: string,
  *     ID?: string,
@@ -1082,6 +1086,7 @@ class DataConversion
         $dname = [];
         foreach (["firstname", "surname"] as $attr) {
             if (!empty($save_data[$attr])) {
+                /** @psalm-var string */
                 $dname[] = $save_data[$attr];
             }
         }
