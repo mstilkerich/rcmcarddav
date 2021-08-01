@@ -220,7 +220,6 @@ class AddressbookManager
     public function deleteAccount(string $accountId): void
     {
         $infra = Config::inst();
-        $logger = $infra->logger();
         $db = $infra->db();
 
         try {
@@ -233,13 +232,12 @@ class AddressbookManager
 
             // we explicitly delete all data belonging to the account, since
             // cascaded deletes are not supported by all database backends
-            $this->deleteAddressbooks($abookIds);
+            $this->deleteAddressbooks($abookIds, true);
 
             $db->delete($accountId, 'accounts');
 
             $db->endTransaction();
         } catch (\Exception $e) {
-            $logger->error("Could not delete account " . $e->getMessage());
             $db->rollbackTransaction();
             throw $e;
         } finally {
@@ -422,7 +420,6 @@ class AddressbookManager
     public function deleteAddressbooks(array $abookIds, bool $skipTransaction = false): void
     {
         $infra = Config::inst();
-        $logger = $infra->logger();
         $db = $infra->db();
 
         if (empty($abookIds)) {
@@ -462,7 +459,6 @@ class AddressbookManager
                 $db->endTransaction();
             }
         } catch (\Exception $e) {
-            $logger->error("Could not delete addressbooks: " . $e->getMessage());
             if (!$skipTransaction) {
                 $db->rollbackTransaction();
             }
