@@ -64,6 +64,9 @@ final class TestData
     /** @var TestDataTableDef Column names of the carddav_groups table */
     public const GROUPS_COLUMNS = [ "abook_id", "name", "vcard", "etag", "uri", "cuid" ];
 
+    /** @var TestDataTableDef Column names of the carddav_group_user table */
+    public const GROUP_USER_COLUMNS = [ "group_id", "contact_id" ];
+
     /** @var TestDataTableDef Column names of the carddav_migrations table */
     public const MIGRATIONS_COLUMNS = [ "filename" ];
 
@@ -102,6 +105,19 @@ final class TestData
                 "/u2/small/maxmuster.vcf",
                 "2459ca8d-1b8e-465e-8e88-1034dc87c2ec"
             ],
+            [
+                [ "carddav_addressbooks", 1 ],
+                "Albert Wesker",
+                "aw@umbrella.com",
+                "Albert",
+                "Wesker",
+                "Umbrella",
+                "INDIVIDUAL",
+                "FIXME INVALID VCARD",
+                "ex-etag-123",
+                "/u2/small/wesker.vcf",
+                "uidWesker"
+            ],
         ],
         "carddav_groups" => [
             [
@@ -119,6 +135,12 @@ final class TestData
                 null,
                 null,
                 null
+            ],
+        ],
+        "carddav_group_user" => [
+            [
+                [ "carddav_groups", 0 ],
+                [ "carddav_contacts", 1 ],
             ],
         ],
         "carddav_xsubtypes" => [
@@ -150,6 +172,7 @@ final class TestData
         [ "carddav_addressbooks", self::ADDRESSBOOKS_COLUMNS ],
         [ "carddav_contacts", self::CONTACTS_COLUMNS ],
         [ "carddav_groups", self::GROUPS_COLUMNS ],
+        [ "carddav_group_user", self::GROUP_USER_COLUMNS ],
         [ "carddav_xsubtypes", self::XSUBTYPES_COLUMNS ],
         [ "carddav_migrations", self::MIGRATIONS_COLUMNS ],
     ];
@@ -248,10 +271,14 @@ final class TestData
 
         $dbh->query($sql, $row);
         TestCase::assertNull($dbh->is_error(), "Error inserting row to $tbl: " . $dbh->is_error());
+        /** @psalm-var string|false */
         $id = $dbh->insert_id($tbl);
-        TestCase::assertIsString($id, "Error acquiring ID for last inserted row on $tbl: " . $dbh->is_error());
-        $this->idCache[$tbl][$this->cacheKeyPrefix][] = $id;
-        return $id;
+        if (is_string($id)) { // not all tables have an ID column
+            $this->idCache[$tbl][$this->cacheKeyPrefix][] = $id;
+            return $id;
+        }
+
+        return "";
     }
 
     /**

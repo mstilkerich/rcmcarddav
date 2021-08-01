@@ -7,6 +7,9 @@
   these would be provided as writeable addressbooks, as the admin `readonly` setting is no longer available. Note that
   the readonly setting is not considered a security option but an interface tweak. To prevent users from modifying an
   addressbook, the proper way is to configure this by the permissions on the CardDAV server side.
+- Enable foreign key constraints for SQLite3 database; note that this affects not only this plugin, but roundcube itself
+  and other plugins as well. I suppose it should not be a problem and is the standard behavior with other DB backends,
+  too.
 
 ## Version 4.1.1 (to 4.1.0)
 - Fix: A fatal error would be raised when a password could not be decrypted, only on photo download. This would not be

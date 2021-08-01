@@ -238,7 +238,6 @@ final class DatabaseCollationsTest extends TestCase
         }
     }
 
-
     /**
      * @return array<string, array{string, TestDataTableDef, TestDataRowWithKeyRef, array<positive-int,?string>}>
      */
