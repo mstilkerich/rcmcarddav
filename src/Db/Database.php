@@ -67,7 +67,8 @@ class Database extends AbstractDatabase
         $this->dbHandle = $dbh;
 
         if ($dbh->db_provider == "sqlite") {
-            $ret = $dbh->query("PRAGMA foreign_keys = ON");
+            $dbh->query("PRAGMA foreign_keys = ON");
+            // don't care if this fails
         }
     }
 
