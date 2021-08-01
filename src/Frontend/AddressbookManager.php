@@ -472,39 +472,16 @@ class AddressbookManager
      * Resyncs the given addressbook and displays a popup message about duration.
      *
      * @param Addressbook $abook The addressbook object
+     * @return int The duration in seconds that the sync took
      */
-    public function resyncAddressbook(Addressbook $abook): void
+    public function resyncAddressbook(Addressbook $abook): int
     {
-        $infra = Config::inst();
-        $rc = $infra->rc();
-
-        try {
-            // To avoid unneccessary work followed by roll back with other time-triggered refreshes, we temporarily
-            // set the last_updated time such that the next due time will be five minutes from now
-            $ts_delay = time() + 300 - $abook->getRefreshTime();
-            $this->updateAddressbook($abook->getId(), ["last_updated" => $ts_delay]);
-            $duration = $abook->resync();
-
-            $rc->showMessage(
-                $rc->locText(
-                    'cd_msg_synchronized',
-                    [ 'name' => $abook->get_name(), 'duration' => (string) $duration ]
-                ),
-                'notice',
-                false
-            );
-        } catch (\Exception $e) {
-            $logger = $infra->logger();
-            $logger->error("Failed to sync addressbook: {$e->getMessage()}");
-            $rc->showMessage(
-                $rc->locText(
-                    'cd_msg_syncfailed',
-                    [ 'name' => $abook->get_name(), 'errormsg' => $e->getMessage() ]
-                ),
-                'warning',
-                false
-            );
-        }
+        // To avoid unneccessary work followed by roll back with other time-triggered refreshes, we temporarily
+        // set the last_updated time such that the next due time will be five minutes from now
+        $ts_delay = time() + 300 - $abook->getRefreshTime();
+        $this->updateAddressbook($abook->getId(), ["last_updated" => $ts_delay]);
+        $duration = $abook->resync();
+        return $duration;
     }
 
     /**
