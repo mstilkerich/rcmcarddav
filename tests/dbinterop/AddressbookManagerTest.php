@@ -1002,6 +1002,42 @@ final class AddressbookManagerTest extends TestCase
     }
 
     /**
+     * Tests that addressbook manager properly delegates a resync to the backend addressbook.
+     *
+     * As a specific, addressbook manager is expected to move the last_updated DB settings 5 minutes into the future to
+     * reduce the chance of parallel resyncs on the same addressbook.
+     */
+    public function testAddressbookResyncProperlyDelegated(): void
+    {
+        $expDuration = 12;
+        $expRefreshTime = 200;
+
+        // we use addressbook 1 for testing
+        $abookId = self::$testData->resolveFkRef(['carddav_addressbooks', 1]);
+
+        // create an addressbook mock
+        $abook = $this->createMock(Addressbook::class);
+        $abook->expects($this->once())->method("getId")->will($this->returnValue($abookId));
+        $abook->expects($this->once())->method("getRefreshTime")->will($this->returnValue($expRefreshTime));
+
+        // we expect that the resync method of the backend addressbook is called
+        $abook->expects($this->once())
+               ->method("resync")
+               ->will($this->returnValue($expDuration));
+
+        // Call the test method
+        $abMgr = new AddressbookManager();
+        $this->assertEquals($expDuration, $abMgr->resyncAddressbook($abook));
+
+        // now the database should have a last_updated value 5 minutes in the future, plus the refresh time
+        [ 'last_updated' => $lastUpdated] = self::$db->lookup($abookId, ['last_updated'], 'addressbooks');
+        $this->assertIsString($lastUpdated);
+        $lastUpdated = intval($lastUpdated);
+        $lastUpdatedExpected = time() + 300 - $expRefreshTime;
+        $this->assertLessThanOrEqual(1 /* tolerance */, $lastUpdatedExpected - intval($lastUpdated));
+    }
+
+    /**
      * Prepares a settings array as passed to insertAddressbook/insertAccount for comparison with the resulting db row.
      *
      * - All attributes are converted to string types
