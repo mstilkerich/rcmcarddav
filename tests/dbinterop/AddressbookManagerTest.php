@@ -444,7 +444,7 @@ final class AddressbookManagerTest extends TestCase
         }
 
         $abMgr = new AddressbookManager();
-        $accountsIdsBefore = $abMgr->getAccountIds();
+        $accountIdsBefore = $abMgr->getAccountIds();
 
         // insert the new account
         /** @psalm-suppress ArgumentTypeCoercion For test purposes, we may feed invalid data */
@@ -454,12 +454,12 @@ final class AddressbookManagerTest extends TestCase
 
         // check that new account is reported with getAccountIds
         $this->assertCount(
-            count($accountsIdsBefore) + 1,
+            count($accountIdsBefore) + 1,
             $accountIdsAfter,
             "new accounts not one element more than before insert"
         );
         $this->assertEqualsCanonicalizing(
-            array_merge($accountsIdsBefore, [$accountId]),
+            array_merge($accountIdsBefore, [$accountId]),
             $accountIdsAfter,
             "getAccountIds did not return new account"
         );
@@ -476,9 +476,6 @@ final class AddressbookManagerTest extends TestCase
         $accountCfg = $abMgr->getAccountConfig($accountId);
         $expDbRow['password'] = $accSettings['password'];
         $this->assertEquals($expDbRow, $accountCfg, "New account config not returned as expected");
-
-        // clean up
-        self::$db->delete($accountId, 'accounts');
     }
 
     /**
@@ -719,13 +716,13 @@ final class AddressbookManagerTest extends TestCase
         }
 
         $abMgr = new AddressbookManager();
-        $abookIdsBefore = $abMgr->getAddressbookIds();
+        $abookIdsBefore = $abMgr->getAddressbookIds(false);
 
         // insert the new addressbook
         /** @psalm-suppress InvalidArgument For test purposes, we may feed invalid data */
         $abookId = $abMgr->insertAddressbook($abookSettings);
         $this->assertNull($expExceptionMsg, "Expected exception was not thrown");
-        $abookIdsAfter = $abMgr->getAddressbookIds();
+        $abookIdsAfter = $abMgr->getAddressbookIds(false);
 
         // check that new addressbooks is reported with getAddressbookIds
         $this->assertCount(
@@ -748,9 +745,6 @@ final class AddressbookManagerTest extends TestCase
         // check that the addressbook can also be retrieved using getAccountConfig
         $abookCfg = $abMgr->getAddressbookConfig($abookId);
         $this->assertEquals($expDbRow, $abookCfg, "New addressbook config not returned as expected");
-
-        // clean up
-        self::$db->delete($abookId, 'addressbooks');
     }
 
     /**
@@ -878,6 +872,135 @@ final class AddressbookManagerTest extends TestCase
         $dbRow = self::$db->lookup($abookId, [], 'addressbooks');
         $this->assertEquals($abookExpResult, $dbRow, "Row not stored as expected in database");
     }
+
+    /**
+     * @return array<string, array{TestDataKeyRef, ?string}>
+     */
+    public function accountDeleteDataProvider(): array
+    {
+        return [
+            'Valid account of user' => [ ['carddav_accounts', 0], null ],
+            'Account of different user' => [ ['carddav_accounts', 5], 'No carddav account with ID' ],
+        ];
+    }
+
+    /**
+     * Tests that deletion of an account works.
+     *
+     * @param TestDataKeyRef $accountFkRef
+     * @dataProvider accountDeleteDataProvider
+     */
+    public function testAccountIsDeletedProperly(array $accountFkRef, ?string $expExceptionMsg): void
+    {
+        // resolve foreign key references
+        $accountId = self::$testData->resolveFkRef($accountFkRef);
+
+        if (isset($expExceptionMsg)) {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage($expExceptionMsg);
+        }
+
+        $abMgr = new AddressbookManager();
+        $accountIdsBefore = $abMgr->getAccountIds();
+
+        // delete the account
+        $abMgr->deleteAccount($accountId);
+        $this->assertNull($expExceptionMsg, "Expected exception was not thrown for invalid account id argument");
+        $this->assertEmpty(self::$db->get($accountId, [], 'accounts'));
+        $this->assertEmpty(self::$db->get(['account_id' => $accountId], [], 'addressbooks'));
+
+        // check that account IDs returned now lack the account ID
+        $accountIdsAfter = $abMgr->getAccountIds();
+        $this->assertCount(count($accountIdsBefore) - 1, $accountIdsAfter, "There should be one account ID less now");
+        $this->assertEquals([$accountId], array_values(array_diff($accountIdsBefore, $accountIdsAfter)));
+
+        // check that the deleted account cannot be retrieved anymore
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('No carddav account with ID');
+        $abMgr->getAccountConfig($accountId);
+    }
+
+    /**
+     * @return array<string, array{list<int>, ?string}>
+     */
+    public function abookDeleteDataProvider(): array
+    {
+        return [
+            'Valid addressbooks of user' => [ [0], null ],
+            '2 valid addressbooks of user' => [ [0,1], null ],
+            'Addressbook of other user' => [ [6], 'request with IDs not referring to addressbooks of current user' ],
+            'Mixed valid/invalid IDs' => [ [0,6], 'request with IDs not referring to addressbooks of current user' ],
+            'Empty delete list' => [ [], null ],
+        ];
+    }
+
+    /**
+     * Tests that deletion of addressbooks works.
+     *
+     * @param list<int> $abookFkIdxs
+     * @dataProvider abookDeleteDataProvider
+     */
+    public function testAddressbookIsDeletedProperly(array $abookFkIdxs, ?string $expExceptionMsg): void
+    {
+        $abookIds = [];
+
+        // insert some contacts / groups; to save some work, we use rows of the standard test data which add entries to
+        // addressbook with index 1
+        $testTables = [
+            [ "carddav_contacts", TestData::CONTACTS_COLUMNS ],
+            [ "carddav_groups", TestData::GROUPS_COLUMNS ],
+            [ "carddav_group_user", TestData::GROUP_USER_COLUMNS ]
+        ];
+
+        foreach ($testTables as [$tbl, $cols]) {
+            foreach (TestData::INITDATA[$tbl] as $row) {
+                self::$testData->insertRow($tbl, $cols, $row);
+            }
+        }
+
+        // resolve foreign key references
+        foreach ($abookFkIdxs as $abookFkIdx) {
+            $abookIds[] = self::$testData->resolveFkRef(['carddav_addressbooks', $abookFkIdx]);
+        }
+
+        if (isset($expExceptionMsg)) {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage($expExceptionMsg);
+        }
+
+        $abMgr = new AddressbookManager();
+        $abookIdsBefore = $abMgr->getAddressbookIds(false);
+
+        // delete the addressbooks
+        $abMgr->deleteAddressbooks($abookIds);
+        $this->assertNull($expExceptionMsg, "Expected exception was not thrown for invalid abook id argument");
+        if (!empty($abookIds)) {
+            $this->assertEmpty(self::$db->get(['id' => $abookIds], [], 'addressbooks'));
+            $this->assertEmpty(self::$db->get(['abook_id' => $abookIds], [], 'contacts'));
+            $this->assertEmpty(self::$db->get(['abook_id' => $abookIds], [], 'groups'));
+            $this->assertEmpty(self::$db->get(['abook_id' => $abookIds], [], 'xsubtypes'));
+        }
+
+        // check that addressbook IDs returned now lack the deleted addressbooks' IDs
+        $abookIdsAfter = $abMgr->getAddressbookIds(false);
+        $this->assertCount(
+            count($abookIdsBefore) - count($abookIds),
+            $abookIdsAfter,
+            "The new list of addressbook IDs should be smaller by the amount of deleted addressbooks than the old list"
+        );
+        $this->assertEqualsCanonicalizing($abookIds, array_diff($abookIdsBefore, $abookIdsAfter));
+
+        // check that the deleted addressbooks cannot be retrieved anymore
+        // we use a loop to handle the case that no addressbooks were deleted
+        foreach ($abookIds as $abookId) {
+            // should fail on first loop iteration
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessage('No carddav addressbook with ID');
+            $abMgr->getAddressbookConfig($abookId);
+            $this->assertFalse(true, "No exception was thrown when querying the first addressbook");
+        }
+    }
+
     /**
      * Prepares a settings array as passed to insertAddressbook/insertAccount for comparison with the resulting db row.
      *
