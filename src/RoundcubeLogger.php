@@ -62,7 +62,7 @@ class RoundcubeLogger extends AbstractLogger
     private $logfile;
 
     /** @var int $loglevel The minimum log level for that messages are reported */
-    private $loglevel;
+    private $loglevel = self::LOGLEVELS[LogLevel::ERROR];
 
     /** @var bool $redact If true, attempt to redact confidential information from HTTP logs */
     private $redact;
@@ -79,7 +79,7 @@ class RoundcubeLogger extends AbstractLogger
      *
      * @param string $loglevel One of the Psr\Log\LogLevel constants for log levels.
      */
-    final public function setLogLevel(string $loglevel): void
+    public function setLogLevel(string $loglevel): void
     {
         if (isset(self::LOGLEVELS[$loglevel])) {
             $this->loglevel = self::LOGLEVELS[$loglevel];

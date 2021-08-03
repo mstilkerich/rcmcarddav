@@ -83,13 +83,13 @@ class AdminSettings
      */
     private const PRESET_SETTINGS_EXTRA_ABOOK = [
         // type, mandatory, default value
-        'url' => [ 'string', true, null ],
-        'active' => [ 'bool', false, true ],
-        'readonly' => [ 'bool', false, false, null ],
-        'refresh_time' => [ 'timestr', false, '1:0:0' ],
-        'use_categories' => [ 'bool', false, true ],
-        'fixed' => [ 'string[]', false, [], null ],
-        'require_always' => [ 'string[]', false, [], null ],
+        'url'            => [ 'string',   true,  null ],
+        'active'         => [ 'bool',     false, true ],
+        'readonly'       => [ 'bool',     false, false ],
+        'refresh_time'   => [ 'timestr',  false, 3600 ],
+        'use_categories' => [ 'bool',     false, true ],
+        'fixed'          => [ 'string[]', false, [] ],
+        'require_always' => [ 'string[]', false, [] ],
     ];
 
     /**
@@ -99,13 +99,13 @@ class AdminSettings
      */
     private const PRESET_SETTINGS = [
         // type, mandatory, default value
-        'name' => [ 'string', true, null ],
-        'username' => [ 'string', false, '' ],
-        'password' => [ 'string', false, '' ],
-        'url' => [ 'string', false, null ],
-        'rediscover_time' => [ 'timestr', false, '24:0:0' ],
-        'hide' => [ 'bool', false, false ],
-        'extra_addressbooks' => [ 'skip', false, null ],
+        'name'               => [ 'string',  true,  null ],
+        'username'           => [ 'string',  false, '' ],
+        'password'           => [ 'string',  false, '' ],
+        'url'                => [ 'string',  false, null ],
+        'rediscover_time'    => [ 'timestr', false, 86400 ],
+        'hide'               => [ 'bool',    false, false ],
+        'extra_addressbooks' => [ 'skip',    false, null ],
     ] + self::PRESET_SETTINGS_EXTRA_ABOOK;
 
     /**
@@ -226,6 +226,7 @@ class AdminSettings
             $preset = $preset['extra_addressbooks'][$xabookUrl] + $preset;
         }
 
+        unset($preset['extra_addressbooks']);
         return $preset;
     }
 
