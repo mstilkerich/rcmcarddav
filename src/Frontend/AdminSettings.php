@@ -60,7 +60,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *     use_categories: bool,
  *     fixed: list<ConfigurablePresetAttr>,
  *     require_always: list<string>,
- *     extra_addressbooks: array<string, PresetExtraAbook>,
+ *     extra_addressbooks?: array<string, PresetExtraAbook>,
  * }
  *
  * @psalm-type SettingSpecification=array{'timestr'|'string'|'bool'|'string[]'|'skip', bool, int|string|bool|array|null}
