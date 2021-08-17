@@ -285,6 +285,40 @@ final class AdminSettingsTest extends TestCase
                 },
                 "required setting url is not set"
             ],
+            'Invalid preset, wrong type (extraabooks not an array)' => [
+                function (array $prefs): array {
+                    TestCase::assertIsArray($prefs['_GLOBAL']);
+                    $prefs['Invalid'] = [ 'name' => 'Test', 'extra_addressbooks' => "example.com" ];
+                    return $prefs;
+                },
+                function (array $expPrefs): array {
+                    // invalid preset must be ignored
+                    return $expPrefs;
+                },
+                function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
+                },
+                "setting extra_addressbooks must be an array"
+            ],
+            'Invalid preset, wrong type (extraabooks[x] not an array)' => [
+                function (array $prefs): array {
+                    TestCase::assertIsArray($prefs['_GLOBAL']);
+                    $prefs['Invalid'] = [
+                        'name' => 'Test',
+                        'extra_addressbooks' => [
+                            ['url' => 'foo.com'],
+                            "example.com"
+                        ]
+                    ];
+                    return $prefs;
+                },
+                function (array $expPrefs): array {
+                    // invalid preset must be ignored
+                    return $expPrefs;
+                },
+                function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
+                },
+                "setting extra_addressbooks\[1\] must be an array"
+            ],
         ];
 
         foreach (['username', 'password', 'url', 'rediscover_time', 'refresh_time'] as $stringAttr) {
