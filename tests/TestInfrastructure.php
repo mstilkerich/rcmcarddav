@@ -77,6 +77,15 @@ final class TestInfrastructure
         return $phpArray;
     }
 
+    public static function readPhpPrefsArray(string $phpIncFile): array
+    {
+        $prefs = [];
+        if (file_exists($phpIncFile)) {
+            include($phpIncFile);
+        }
+        return $prefs;
+    }
+
     public static function readVCard(string $vcfFile): VCard
     {
         TestCase::assertFileIsReadable($vcfFile);

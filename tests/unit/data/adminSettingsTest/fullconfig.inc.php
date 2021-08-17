@@ -1,8 +1,8 @@
 <?php
 
 // use non-default values for all of these
-$prefs['_GLOBAL']['fixed'] = true;
-$prefs['_GLOBAL']['hide_preferences'] = true;
+$prefs['_GLOBAL']['fixed'] = 1;
+$prefs['_GLOBAL']['hide_preferences'] = "enable";
 $prefs['_GLOBAL']['pwstore_scheme'] = 'plain';
 
 $prefs['_GLOBAL']['loglevel'] = \Psr\Log\LogLevel::DEBUG;
@@ -19,8 +19,8 @@ $prefs['Preset1'] = [
 
     // Auto-discovered addressbook attributes
     //// optional attributes
-    'active'       =>  false,
-    'readonly'     =>  true,
+    'active'       =>  "0",
+    'readonly'     =>  "1",
     'refresh_time' => '2',
     'use_categories' => false,
 
