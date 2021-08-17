@@ -173,10 +173,16 @@ class AdminSettings
         $this->forbidCustomAddressbooks = ($prefs['_GLOBAL']['fixed'] ?? false) ? true : false;
         $this->hidePreferences = ($prefs['_GLOBAL']['hide_preferences'] ?? false) ? true : false;
 
-        foreach (['loglevel' => $logger, 'loglevel_http' => $httpLogger] as $setting => $logger) {
-            if (isset($prefs['_GLOBAL'][$setting]) && is_string($prefs['_GLOBAL'][$setting])) {
-                if ($logger instanceof RoundcubeLogger) {
-                    $logger->setLogLevel($prefs['_GLOBAL'][$setting]);
+        foreach (['loglevel' => $logger, 'loglevel_http' => $httpLogger] as $setting => $cfgdLogger) {
+            if ( ($cfgdLogger instanceof RoundcubeLogger) && isset($prefs['_GLOBAL'][$setting]) ) {
+                try {
+                    if (is_string($prefs['_GLOBAL'][$setting])) {
+                        $cfgdLogger->setLogLevel($prefs['_GLOBAL'][$setting]);
+                    } else {
+                        throw new \Exception("admin preference $setting must be a string");
+                    }
+                } catch (\Exception $e) {
+                    $logger->error("Cannot set configured loglevel: " . $e->getMessage());
                 }
             }
         }

@@ -70,8 +70,13 @@ class RoundcubeLogger extends AbstractLogger
     public function __construct(string $logfile, string $loglevel = LogLevel::ERROR, bool $redact = true)
     {
         $this->logfile = $logfile;
-        $this->setLogLevel($loglevel);
         $this->redact = $redact;
+
+        try {
+            $this->setLogLevel($loglevel);
+        } catch (\Exception $e) {
+            $this->error($e->getMessage());
+        }
     }
 
     /**
@@ -84,7 +89,7 @@ class RoundcubeLogger extends AbstractLogger
         if (isset(self::LOGLEVELS[$loglevel])) {
             $this->loglevel = self::LOGLEVELS[$loglevel];
         } else {
-            throw new \Exception("Logger instantiated with unknown loglevel");
+            throw new \Exception("Attempt to set unknown loglevel for RoundcubeLogger");
         }
     }
 
