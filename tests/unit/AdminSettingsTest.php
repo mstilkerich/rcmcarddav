@@ -243,7 +243,106 @@ final class AdminSettingsTest extends TestCase
                 },
                 "A preset key must be a non-empty string - ignoring preset"
             ],
+            'Invalid preset key (not an array)' => [
+                function (array $prefs): array {
+                    TestCase::assertIsArray($prefs['_GLOBAL']);
+                    $prefs['Invalid'] = false;
+                    return $prefs;
+                },
+                function (array $expPrefs): array {
+                    // invalid preset must be ignored
+                    return $expPrefs;
+                },
+                function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
+                },
+                "preset definition must be an array"
+            ],
+            'Invalid preset, mandatory attribute missing (name)' => [
+                function (array $prefs): array {
+                    TestCase::assertIsArray($prefs['_GLOBAL']);
+                    $prefs['Invalid'] = [ 'url' => 'example.com' ];
+                    return $prefs;
+                },
+                function (array $expPrefs): array {
+                    // invalid preset must be ignored
+                    return $expPrefs;
+                },
+                function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
+                },
+                "required setting name is not set"
+            ],
+            'Invalid preset, mandatory attribute missing (extraabook.url)' => [
+                function (array $prefs): array {
+                    TestCase::assertIsArray($prefs['_GLOBAL']);
+                    $prefs['Invalid'] = [ 'name' => 'Test', 'extra_addressbooks' => [['active' => true]] ];
+                    return $prefs;
+                },
+                function (array $expPrefs): array {
+                    // invalid preset must be ignored
+                    return $expPrefs;
+                },
+                function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
+                },
+                "required setting url is not set"
+            ],
         ];
+
+        foreach (['username', 'password', 'url', 'rediscover_time', 'refresh_time'] as $stringAttr) {
+            $ret["Wrong type for string attribute ($stringAttr)"] = [
+                function (array $prefs) use ($stringAttr): array {
+                    TestCase::assertIsArray($prefs['_GLOBAL']);
+                    $prefs['Invalid'] = [ 'name' => 'Invalid', $stringAttr => 1 ];
+                    return $prefs;
+                },
+                function (array $expPrefs): array {
+                    // invalid preset must be ignored
+                    return $expPrefs;
+                },
+                function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
+                },
+                "setting $stringAttr must be a string"
+            ];
+        }
+
+        foreach (['rediscover_time', 'refresh_time'] as $timeStrAttr) {
+            $ret["Wrong type for timestring attribute ($timeStrAttr)"] = [
+                function (array $prefs) use ($timeStrAttr): array {
+                    TestCase::assertIsArray($prefs['_GLOBAL']);
+                    $prefs['Invalid'] = [ 'name' => 'Invalid', $timeStrAttr => 'foo' ];
+                    return $prefs;
+                },
+                function (array $expPrefs): array {
+                    // invalid preset must be ignored
+                    return $expPrefs;
+                },
+                function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
+                },
+                "Time string foo could not be parsed"
+            ];
+        }
+
+        foreach (['fixed', 'require_always'] as $strArrayAttr) {
+            foreach ([ true, 'foo', 1, [ 'foo', 1 ] ] as $idx => $errVal) {
+                $ret["Wrong type for string array attribute ($strArrayAttr $idx)"] = [
+                    function (array $prefs) use ($strArrayAttr, $errVal): array {
+                        TestCase::assertIsArray($prefs['_GLOBAL']);
+                        $prefs['Invalid'] = [ 'name' => 'Invalid', $strArrayAttr => $errVal ];
+                        return $prefs;
+                    },
+                    function (array $expPrefs): array {
+                        // invalid preset must be ignored
+                        return $expPrefs;
+                    },
+                    function (
+                        AdminSettings $_admPrefs,
+                        RoundcubeLogger $_rcLogger,
+                        RoundcubeLogger $_rcLoggerHttp
+                    ): void {
+                    },
+                    is_array($errVal) ? "must be string" : "setting $strArrayAttr must be array"
+                ];
+            }
+        }
 
         return $ret;
     }

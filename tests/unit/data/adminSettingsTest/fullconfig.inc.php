@@ -49,8 +49,6 @@ $prefs['Preset1'] = [
 
 $prefs['Minimal'] = [
     'name'         =>  'Minimal Preset with required values only',
-    'username'     =>  'umin',
-    'password'     =>  'pmin',
 ];
 
 $prefs['OnlyShared'] = [

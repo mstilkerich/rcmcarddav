@@ -41,8 +41,8 @@
 		},
 		"Minimal": {
 			"name": "Minimal Preset with required values only",
-			"username": "umin",
-			"password": "pmin",
+			"username": "",
+			"password": "",
 			"url": null,
 			"rediscover_time": 86400,
 			"hide": false,
