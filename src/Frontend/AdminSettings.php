@@ -170,8 +170,8 @@ class AdminSettings
             }
         }
 
-        $this->forbidCustomAddressbooks = ($prefs['_GLOBAL']['fixed'] ?? false) ? true : false;
-        $this->hidePreferences = ($prefs['_GLOBAL']['hide_preferences'] ?? false) ? true : false;
+        $this->forbidCustomAddressbooks = !empty($prefs['_GLOBAL']['fixed'] ?? false);
+        $this->hidePreferences = !empty($prefs['_GLOBAL']['hide_preferences'] ?? false);
 
         foreach (['loglevel' => $logger, 'loglevel_http' => $httpLogger] as $setting => $cfgdLogger) {
             if ( ($cfgdLogger instanceof RoundcubeLogger) && isset($prefs['_GLOBAL'][$setting]) ) {
@@ -466,11 +466,7 @@ class AdminSettings
                         break;
 
                     case 'bool':
-                        if (is_bool($preset[$attr])) {
-                            $result[$attr] = $preset[$attr];
-                        } else {
-                            throw new \Exception("setting $attr must be boolean");
-                        }
+                        $result[$attr] = !empty($preset[$attr]);
                         break;
 
                     case 'string[]':
