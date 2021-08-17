@@ -174,13 +174,9 @@ class AdminSettings
         $this->hidePreferences = !empty($prefs['_GLOBAL']['hide_preferences'] ?? false);
 
         foreach (['loglevel' => $logger, 'loglevel_http' => $httpLogger] as $setting => $cfgdLogger) {
-            if ( ($cfgdLogger instanceof RoundcubeLogger) && isset($prefs['_GLOBAL'][$setting]) ) {
+            if (($cfgdLogger instanceof RoundcubeLogger) && isset($prefs['_GLOBAL'][$setting])) {
                 try {
-                    if (is_string($prefs['_GLOBAL'][$setting])) {
-                        $cfgdLogger->setLogLevel($prefs['_GLOBAL'][$setting]);
-                    } else {
-                        throw new \Exception("admin preference $setting must be a string");
-                    }
+                    $cfgdLogger->setLogLevel((string) $prefs['_GLOBAL'][$setting]);
                 } catch (\Exception $e) {
                     $logger->error("Cannot set configured loglevel: " . $e->getMessage());
                 }
