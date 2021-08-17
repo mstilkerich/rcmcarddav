@@ -132,7 +132,7 @@ final class AdminSettingsTest extends TestCase
      */
     public function errorsInAdminConfigProvider(): array
     {
-        return [
+        $ret = [
             'Invalid loglevel value' => [
                 function (array $prefs): array {
                     TestCase::assertIsArray($prefs['_GLOBAL']);
@@ -201,7 +201,51 @@ final class AdminSettingsTest extends TestCase
                 },
                 'unknown loglevel'
             ],
+            'Invalid pwstore scheme' => [
+                function (array $prefs): array {
+                    TestCase::assertIsArray($prefs['_GLOBAL']);
+                    $prefs['_GLOBAL']['pwstore_scheme'] = 'foo';
+                    return $prefs;
+                },
+                function (array $expPrefs): array {
+                    $expPrefs['pwStoreScheme'] = 'encrypted'; // default should be used
+                    return $expPrefs;
+                },
+                function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
+                },
+                "Invalid pwStoreScheme foo in config.inc.php - using default 'encrypted'"
+            ],
+            'Invalid preset key (empty string)' => [
+                function (array $prefs): array {
+                    TestCase::assertIsArray($prefs['_GLOBAL']);
+                    $prefs[''] = [ 'name' => 'Invalid' ];
+                    return $prefs;
+                },
+                function (array $expPrefs): array {
+                    // invalid preset must be ignored
+                    return $expPrefs;
+                },
+                function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
+                },
+                "A preset key must be a non-empty string - ignoring preset"
+            ],
+            'Invalid preset key (integer)' => [
+                function (array $prefs): array {
+                    TestCase::assertIsArray($prefs['_GLOBAL']);
+                    $prefs[0] = [ 'name' => 'Invalid' ];
+                    return $prefs;
+                },
+                function (array $expPrefs): array {
+                    // invalid preset must be ignored
+                    return $expPrefs;
+                },
+                function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
+                },
+                "A preset key must be a non-empty string - ignoring preset"
+            ],
         ];
+
+        return $ret;
     }
 
     /**
@@ -216,8 +260,9 @@ final class AdminSettingsTest extends TestCase
      *
      * The following errors are tested:
      *
-     * - wrong data type for a global configuration setting
-     * - wrong data type for a preset configuration setting
+     * - wrong data type for a global configuration setting - except bool, where we interpret different types according
+     *                                                        to PHP's understanding of true/false
+     * - wrong data type for a preset configuration setting - except bool, see above
      * - wrong value for a configuration setting (e.g. non-existent loglevel, invalid time string)
      *
      * As basis, we use a valid configuration and inject one error at a time.

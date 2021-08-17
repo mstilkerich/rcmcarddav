@@ -161,12 +161,14 @@ class AdminSettings
         }
 
         // Extract global preferences
-        if (isset($prefs['_GLOBAL']['pwstore_scheme']) && is_string($prefs['_GLOBAL']['pwstore_scheme'])) {
-            $scheme = $prefs['_GLOBAL']['pwstore_scheme'];
+        if (isset($prefs['_GLOBAL']['pwstore_scheme'])) {
+            $scheme = (string) $prefs['_GLOBAL']['pwstore_scheme'];
 
             if (in_array($scheme, self::PWSTORE_SCHEMES)) {
                 /** @var PasswordStoreScheme $scheme */
                 $this->pwStoreScheme = $scheme;
+            } else {
+                $logger->error("Invalid pwStoreScheme $scheme in config.inc.php - using default 'encrypted'");
             }
         }
 

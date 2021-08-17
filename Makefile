@@ -45,7 +45,7 @@ phpcompatcheck:
 	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/ tests/
 
 psalmanalysis: tests/dbinterop/DatabaseAccounts.php
-	vendor/bin/psalm --no-cache --shepherd --report=testreports/psalm.txt --report-show-info=true --no-progress
+	vendor/bin/psalm --no-cache --shepherd --report=testreports/psalm.txt --report-show-info=true --no-progress --output-format=pylint
 
 # Example usage for non-HEAD version: RELEASE_VERSION=v4.1.0 make tarball
 .PHONY: tarball
