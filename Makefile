@@ -59,7 +59,7 @@ tarball:
 	@# Fetch a clean state of all dependencies
 	composer create-project --repository='{"type":"vcs", "url":"file://$(PWD)" }' -q --no-dev --no-plugins roundcube/carddav releases/carddav $(RELEASE_VERSION)
 	@# Force a Guzzle version compatible with roundcube 1.5
-	cd releases/carddav && composer require -q --update-no-dev 'guzzlehttp/guzzle:^6.5.5'
+	cd releases/carddav && composer require -q --update-no-dev --update-with-dependencies 'guzzlehttp/guzzle:^6.5.5'
 	@# Append dependencies to the tar
 	tar -C releases --owner 0 --group 0 -rf releases/carddav-$(RELEASE_VERSION).tar carddav/vendor
 	@# gzip the tarball
