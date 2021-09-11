@@ -1130,6 +1130,7 @@ class DataConversion
         $dname = [];
         foreach (["firstname", "surname"] as $attr) {
             if (!empty($save_data[$attr])) {
+                /** @psalm-var string */
                 $dname[] = $save_data[$attr];
             }
         }
