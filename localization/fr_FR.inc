@@ -14,5 +14,10 @@ $labels = Array(
 	'cd_err_noabfound'=> "Aucun carnet d'adresses trouvé",
 	'cd_enabled'=>'Activé',
 	'cd_disabled'=>'Désactivé',
+	'cd_lastupdate_time'=>'Dernière mise-à-jour',
+	'cd_resync' => "Forcer la synchronisation immédiate avec le serveur",
+	'cd_msg_synchronized' => 'Le carnet d\'adresses $name a été synchronisé (Cela a duré $duration secondes)',
+	'cd_msg_syncfailed' => 'La synchronisation du carnet d\'adresses $name a échoué: $errormsg',
+	'cd_frompreset' => ' (à partir du préréglage _PRESETNAME_)',
 );
 ?>
