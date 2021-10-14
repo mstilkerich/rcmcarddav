@@ -1227,8 +1227,6 @@ class Addressbook extends rcube_addressbook
         } catch (\Exception $e) {
             $logger->error("Errors occurred during the refresh of addressbook " . $this->id . ": $e");
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
-
-            $db->rollbackTransaction();
         }
 
         return $duration;
