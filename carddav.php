@@ -1416,15 +1416,33 @@ class carddav extends rcube_plugin
             $duration = $abook->resync();
 
             $rcube = \rcube::get_instance();
-            $rcube->output->show_message(
-                $this->gettext([
-                    'name' => 'cd_msg_synchronized',
-                    'vars' => [
-                        'name' => $abook->get_name(),
-                        'duration' => $duration,
-                    ]
-                ])
-            );
+
+            if ($duration >= 0) {
+                $rcube->output->show_message(
+                    $this->gettext([
+                        'name' => 'cd_msg_synchronized',
+                        'vars' => [
+                            'name' => $abook->get_name(),
+                            'duration' => $duration,
+                        ]
+                    ])
+                );
+            } else {
+                /** @psalm-var null|array{message:string, type:int} */
+                $errorArray = $abook->get_error();
+                $errmsg = $errorArray['message'] ?? '';
+
+                $rcube->output->show_message(
+                    $this->gettext([
+                        'name' => 'cd_msg_syncfailed',
+                        'vars' => [
+                            'name' => $abook->get_name(),
+                            'errormsg' => $errmsg,
+                        ]
+                    ]),
+                    'error'
+                );
+            }
         } catch (\Exception $e) {
             $logger = Config::inst()->logger();
             $logger->error("Failed to sync addressbook: " . $e->getMessage());

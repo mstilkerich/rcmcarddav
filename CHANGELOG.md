@@ -1,5 +1,11 @@
 # Changelog for RCMCardDAV
 
+## Version 4.2.1 (to 4.2.0)
+
+- Updated french translation (#355)
+- Fix: Display error message when the sync fails (instead of showing a success message with a duration of -1 seconds)
+
+
 ## Version 4.2.0 (to 4.1.2)
 
 - New: Support OAUTH2 authentication in a single-sign-on setup in conjunction with roundcube 1.5 OAUTH2 authentication.
