@@ -5,6 +5,8 @@
 - Updated french translation (#355)
 - Fix: Display error message when the sync fails (instead of showing a success message with a duration of -1 seconds)
 - Fix: Display error message when a card cannot be updated because it changed on the server since the last sync.
+- Fix #356: Don't create group vcards with duplicate members, don't fail to process them if we receive one from the
+  server
 
 ## Version 4.2.0 (to 4.1.2)
 
