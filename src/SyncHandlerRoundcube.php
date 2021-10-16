@@ -438,7 +438,9 @@ class SyncHandlerRoundcube implements SyncHandler
             } else {
                 $memberId = $this->localCardsByUID[$mbrc[2]] ?? null;
                 if (isset($memberId)) {
-                    $memberIds[] = $memberId;
+                    if (!in_array($memberId, $memberIds)) {
+                        $memberIds[] = $memberId;
+                    }
                 } else {
                     $logger->warning("cannot find DB ID for group member: $mbrc[2]");
                 }
