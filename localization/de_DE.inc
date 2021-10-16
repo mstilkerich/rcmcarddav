@@ -16,7 +16,10 @@ $labels = Array(
 	'cd_disabled' => 'Inaktiv',
 	'cd_lastupdate_time'=>'Zuletzt aktualisiert',
 	'cd_resync' => "Sofortige Synchronisation mit dem Server erzwingen",
-	'cd_frompreset' => ' (aus Vorgabe _PRESETNAME_)',
+	'cd_clearcache' => "Lokale Kopie des Adressbuchs löschen (der nächste Sync lädt die Daten komplett neu)",
+	'cd_msg_synchronized' => 'CardDAV-Adressbuch $name synchronisiert (Dauer $duration Sekunden)',
+	'cd_msg_syncfailed' => 'Sync des CardDAV-Adressbuchs $name fehlgeschlagen: $errormsg',
+	'cd_frompreset' => ' (aus Voreinstellung _PRESETNAME_)',
 	'cd_etagmismatch' => 'Update fehlgeschlagen, da Adressobjekt serverseitig modifiziert wurde',
 );
 ?>

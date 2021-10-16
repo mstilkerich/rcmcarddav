@@ -16,6 +16,7 @@ $labels = Array(
 	'cd_disabled' => 'Disabled',
 	'cd_lastupdate_time'=>'Time of last update',
 	'cd_resync' => "Force immediate synchronization with server",
+	'cd_clearcache' => "Delete locally cached data for this addressbook (next resync starts from scratch)",
 	'cd_msg_synchronized' => 'CardDAV addressbook $name synchronized (Took $duration seconds)',
 	'cd_msg_syncfailed' => 'Sync of CardDAV addressbook $name failed: $errormsg',
 	'cd_frompreset' => ' (from preset _PRESETNAME_)',

@@ -7,6 +7,9 @@
 - Fix: Display error message when a card cannot be updated because it changed on the server since the last sync.
 - Fix #356: Don't create group vcards with duplicate members, don't fail to process them if we receive one from the
   server
+- New: Action in the preferences to clear the local cache of an addressbook, to allow a full sync from scratch. This is
+  meant to fix errors in the local state that cannot be repaired from incremental syncs, as might be the result of issue
+  #356.
 
 ## Version 4.2.0 (to 4.1.2)
 

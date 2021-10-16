@@ -557,6 +557,12 @@ class carddav extends rcube_plugin
                     $newset = $this->getAddressbookSettingsFromPOST($abookId, $abookrow["presetname"]);
                     $this->updateAddressbook($abookId, $newset);
 
+                    // first clear the local cache if requested
+                    if (isset($_POST["${abookId}_cd_clearcache"])) {
+                        $this->deleteAddressbook($abookId, true);
+                    }
+
+                    // then perform a resync if requested
                     if (isset($_POST["${abookId}_cd_resync"])) {
                         [ 'instance' => $backend ] = $this->getAddressbook(['id' => "carddav_$abookId"]);
                         if ($backend instanceof Addressbook) {
@@ -1015,13 +1021,20 @@ class carddav extends rcube_plugin
             'name' => $blockheader
         ];
 
-        if (empty($presetName) && preg_match('/^\d+$/', $abookId)) {
-            $checkbox = new html_checkbox(['name' => $abookId . '_cd_delete', 'value' => 1]);
-            $content_delete = $checkbox->show("0");
-            $retval['options'][] = ['title' => rcube::Q($this->gettext('cd_delete')), 'content' => $content_delete];
-        }
-
         if ($abookId != "new") {
+            if (empty($presetName)) {
+                $checkbox = new html_checkbox(['name' => $abookId . '_cd_delete', 'value' => 1]);
+                $content_delete = $checkbox->show("0");
+                $retval['options'][] = ['title' => rcube::Q($this->gettext('cd_delete')), 'content' => $content_delete];
+            }
+
+            $checkbox = new html_checkbox(['name' => $abookId . '_cd_clearcache', 'value' => 1]);
+            $content_clearcache = $checkbox->show("0");
+            $retval['options'][] = [
+                'title' => rcube::Q($this->gettext('cd_clearcache')),
+                'content' => $content_clearcache
+            ];
+
             $checkbox = new html_checkbox(['name' => $abookId . '_cd_resync', 'value' => 1]);
             $content_resync = $checkbox->show("0");
             $retval['options'][] = ['title' => rcube::Q($this->gettext('cd_resync')), 'content' => $content_resync];
@@ -1105,7 +1118,14 @@ class carddav extends rcube_plugin
         return $result;
     }
 
-    private function deleteAddressbook(string $abookId): void
+    /**
+     * Deletes an addressbook from the local database, fully or only its address data.
+     *
+     * @param string $abookId ID of the target addressbook
+     * @param bool $dataOnly If true, only the cached address data is deleted and the sync reset to initial state.
+     *                       If false, the addressbook is fully removed from the database.
+     */
+    private function deleteAddressbook(string $abookId, bool $dataOnly = false): void
     {
         $infra = Config::inst();
         $logger = $infra->logger();
@@ -1131,7 +1151,11 @@ class carddav extends rcube_plugin
             // ...contacts
             $db->delete(['abook_id' => $abookId], 'contacts');
 
-            $db->delete($abookId, 'addressbooks');
+            if ($dataOnly) {
+                $db->update($abookId, ["last_updated", "sync_token"], ["0", ""], "addressbooks");
+            } else {
+                $db->delete($abookId, 'addressbooks');
+            }
 
             $db->endTransaction();
         } catch (\Exception $e) {
