@@ -438,7 +438,10 @@ class SyncHandlerRoundcube implements SyncHandler
             } else {
                 $memberId = $this->localCardsByUID[$mbrc[2]] ?? null;
                 if (isset($memberId)) {
-                    if (!in_array($memberId, $memberIds)) {
+                    if (in_array($memberId, $memberIds)) {
+                        // remove duplicate from vcard
+                        $card->remove($mbr);
+                    } else {
                         $memberIds[] = $memberId;
                     }
                 } else {

@@ -994,14 +994,15 @@ class Addressbook extends rcube_addressbook
         try {
             $davAbook = $this->getCardDavObj();
 
-            if (!is_array($ids)) {
+            if (is_string($ids)) {
+                /** @psalm-var list<string> */
                 $ids = explode(self::SEPARATOR, $ids);
             }
 
             $db->startTransaction();
 
             /**
-             * get current DB data
+             * get current DB data for contacts to add
              * @var array{uri: ?string, name: string, etag: ?string, vcard: ?string} $group
              */
             $group = $db->lookup(
@@ -1009,6 +1010,18 @@ class Addressbook extends rcube_addressbook
                 ['name', 'uri', 'etag', 'vcard'],
                 'groups'
             );
+
+            /**
+             * get contacts that already belong to the group
+             * @psalm-var list<string> $currentMembers
+             */
+            $currentMembers = array_column(
+                $db->get(['group_id' => $group_id], ['contact_id'], 'group_user'),
+                'contact_id'
+            );
+
+            // remove ids of contacts that already belong to the group
+            $ids = array_values(array_diff($ids, $currentMembers));
 
             // if vcard is set, this group is based on a KIND=group VCard
             if (isset($group['vcard'])) {

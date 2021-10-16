@@ -109,7 +109,7 @@
 			"id": 504,
 			"abook_id": 42,
 			"name": "The Night Watch",
-			"vcard": ["file", "nightwatch.vcf"],
+			"vcard": ["file", "nightwatch.vcf_cleaned"],
 			"etag": "etag@nightwatch_2",
 			"uri": "/book42/nightwatch.vcf",
 			"cuid": "3C6D22DA-E6B0-46F3-A56B-3C7C17DB5889"
