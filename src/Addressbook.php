@@ -1023,6 +1023,10 @@ class Addressbook extends rcube_addressbook
             // remove ids of contacts that already belong to the group
             $ids = array_values(array_diff($ids, $currentMembers));
 
+            if (empty($ids)) {
+                return 0;
+            }
+
             // if vcard is set, this group is based on a KIND=group VCard
             if (isset($group['vcard'])) {
                 /** @var list<array{id: numeric-string, cuid: string}> $contacts */
