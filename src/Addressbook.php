@@ -32,10 +32,10 @@ use Sabre\VObject\Component\VCard;
 use rcube_addressbook;
 use rcube_result_set;
 use rcube_utils;
+use rcube;
 use MStilkerich\CardDavClient\{Account, AddressbookCollection};
 use MStilkerich\CardDavClient\Services\{Discovery, Sync};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
-use carddav;
 
 /**
  * @psalm-import-type FullAbookRow from AbstractDatabase
@@ -544,9 +544,16 @@ class Addressbook extends rcube_addressbook
             $vcard = $this->dataConverter->fromRoundcube($save_cols, $vcard);
 
             $davAbook = $this->getCardDavObj();
-            $davAbook->updateCard($contact['uri'], $vcard, $contact['etag']);
+            $etag = $davAbook->updateCard($contact['uri'], $vcard, $contact['etag']);
 
             $this->resync();
+
+            // if the ETag is null, the update failed because of a precondition check; we performed a resync above, so a
+            // subsequent update is more likely to succeed
+            if ($etag === null) {
+                $this->set_error(rcube_addressbook::ERROR_SAVING, $this->gettext('cd_etagmismatch'));
+                return false;
+            }
 
             return true;
         } catch (\Exception $e) {
@@ -915,6 +922,8 @@ class Addressbook extends rcube_addressbook
         $logger = $infra->logger();
 
         try {
+            $ret = $newname;
+
             $logger->info("rename_group($group_id, $newname)");
             $db = $infra->db();
             $davAbook = $this->getCardDavObj();
@@ -931,7 +940,10 @@ class Addressbook extends rcube_addressbook
                 $vcard->FN = $newname;
                 $vcard->N  = [$newname,"","","",""];
 
-                $davAbook->updateCard($group["uri"], $vcard, $group["etag"]);
+                if ($davAbook->updateCard($group["uri"], $vcard, $group["etag"]) === null) {
+                    $this->set_error(rcube_addressbook::ERROR_SAVING, $this->gettext('cd_etagmismatch'));
+                    $ret = false;
+                }
             } else { // CATEGORIES-type group
                 $oldname = $group["name"];
                 $contact_ids = $this->getContactIdsForGroup($group_id);
@@ -952,7 +964,7 @@ class Addressbook extends rcube_addressbook
             }
 
             $this->resync();
-            return $newname;
+            return $ret;
         } catch (\Exception $e) {
             $logger->error("rename_group($group_id, $newname): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
@@ -1018,7 +1030,10 @@ class Addressbook extends rcube_addressbook
                     }
                 }
 
-                $davAbook->updateCard($group['uri'], $vcard, $group['etag']);
+                if ($davAbook->updateCard($group['uri'], $vcard, $group['etag']) === null) {
+                    $added = 0;
+                    $this->set_error(rcube_addressbook::ERROR_SAVING, $this->gettext('cd_etagmismatch'));
+                }
 
             // if vcard is not set, this group comes from the CATEGORIES property of the contacts it comprises
             } else {
@@ -1118,7 +1133,7 @@ class Addressbook extends rcube_addressbook
                         return false;
                     }
                 );
-                /** @var int $deleted Reference from the closure appears to confuse psalm */
+                /** @psalm-var int $deleted Reference from the closure appears to confuse psalm */
             }
 
             $this->resync();
@@ -1127,6 +1142,7 @@ class Addressbook extends rcube_addressbook
             $this->set_error(self::ERROR_SAVING, $e->getMessage());
 
             $db->rollbackTransaction();
+            return 0;
         }
 
         return $deleted;
@@ -1561,7 +1577,9 @@ class Addressbook extends rcube_addressbook
 
         if ($deleted > 0) {
             $davAbook = $this->getCardDavObj();
-            $davAbook->updateCard($group['uri'], $vcard, $group['etag']);
+            if ($davAbook->updateCard($group['uri'], $vcard, $group['etag']) === null) {
+                $deleted = 0;
+            }
         }
 
         return $deleted;
@@ -1761,6 +1779,18 @@ class Addressbook extends rcube_addressbook
         }
 
         return $filterMatches > 0;
+    }
+
+
+    /**
+     * Get a localized text from roundcube.
+     *
+     * This function is temporary in this class and meant to be removed with v5.
+     */
+    private function gettext(string $label): string
+    {
+        $rcube = rcube::get_instance();
+        return rcube::Q($rcube->gettext($label, 'carddav'));
     }
 }
 
