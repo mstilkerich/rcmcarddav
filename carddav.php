@@ -1074,32 +1074,30 @@ class carddav extends rcube_plugin
 
             if (is_bool(self::ABOOK_TEMPLATE[$attr])) {
                 $result[$attr] = (bool) $value;
-            } else {
-                if (isset($value)) {
-                    if ($attr == "refresh_time") {
-                        try {
-                            $result["refresh_time"] = self::parseTimeParameter($value);
-                        } catch (\Exception $e) {
-                            // will use the DB default for new addressbooks, or leave the value unchanged for existing
-                            // ones
-                        }
-                    } elseif ($attr == "url") {
-                        $value = trim($value);
-                        if (!empty($value)) {
-                            // FILTER_VALIDATE_URL requires the scheme component, default to https if not specified
-                            if (strpos($value, "://") === false) {
-                                $value = "https://$value";
-                            }
-                        }
-                        $result["url"] = $value;
-                    } elseif ($attr == "password") {
-                        // Password is only updated if not empty
-                        if (!empty($value)) {
-                            $result["password"] = $value;
-                        }
-                    } else {
-                        $result[$attr] = $value;
+            } elseif (is_string($value)) {
+                if ($attr == "refresh_time") {
+                    try {
+                        $result["refresh_time"] = self::parseTimeParameter($value);
+                    } catch (\Exception $e) {
+                        // will use the DB default for new addressbooks, or leave the value unchanged for existing
+                        // ones
                     }
+                } elseif ($attr == "url") {
+                    $value = trim($value);
+                    if (!empty($value)) {
+                        // FILTER_VALIDATE_URL requires the scheme component, default to https if not specified
+                        if (strpos($value, "://") === false) {
+                            $value = "https://$value";
+                        }
+                    }
+                    $result["url"] = $value;
+                } elseif ($attr == "password") {
+                    // Password is only updated if not empty
+                    if (!empty($value)) {
+                        $result["password"] = $value;
+                    }
+                } else {
+                    $result[$attr] = $value;
                 }
             }
         }
