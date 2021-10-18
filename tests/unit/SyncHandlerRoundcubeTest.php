@@ -57,6 +57,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *      - With members provided in later Change invocations
  *      - With members already locally available, but not changed
  *      - With duplicate members in a VCard-style group (part of increment1/nightwatch.vcf)
+ *      - With duplicate members in a CATEGORIES-style group (part of increment1/cersei.vcf)
  *      - Error: With member UIDs that are unknown
  * Deleted: URI
  *      - Existing contact card
