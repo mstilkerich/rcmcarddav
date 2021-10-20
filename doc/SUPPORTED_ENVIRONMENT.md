@@ -8,9 +8,9 @@ work, but have not been tested.
 The latest patchlevel of roundcube is supported for all branches of roundcube still supported by the roundcube project.
 
 These currently are:
-  - Version 1.2 LTS
-  - Version 1.3 (old stable)
-  - Version 1.4 (stable)
+  - Version 1.3
+  - Version 1.4
+  - Version 1.5
 
 Note that version 1.2 of roundcube will produce many PHP warnings in the log files (independent of this plugin). I
 recommend using the latest stable roundcube version, which the plugin is most tested with.
