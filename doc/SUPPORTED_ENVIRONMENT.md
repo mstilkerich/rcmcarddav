@@ -12,8 +12,9 @@ These currently are:
   - Version 1.4
   - Version 1.5
 
-Note that version 1.2 of roundcube will produce many PHP warnings in the log files (independent of this plugin). I
-recommend using the latest stable roundcube version, which the plugin is most tested with.
+I recommend using the latest stable roundcube version, which the plugin is most tested with.
+
+RCMCardDAV may work with older versions of roundcube, but is not supported.
 
 ## Databases
 
