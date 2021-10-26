@@ -45,6 +45,7 @@ inside that tarball for the appropriate instructions.
 - Log out of Roundcube!
   This is important because RCMCardDAV runs its database initialisation / update procedure only when a user logs in!
 - Download the release tarball from [here](https://github.com/mstilkerich/rcmcarddav/releases)
+  - Note: The correct tarball is named `carddav-vX.Y.Z.tar.gz`. Do not use the "Source code" tar.gz or zip files, these are only exports of the repository. Unfortunately, github creates these automatically for each release.
 - Extract the tarball to the roundcube/plugins directory (assuming roundcube is installed at `/var/lib/roundcube`)
   `cd /var/lib/roundcube/plugins && tar xvzf /tmp/carddav-v4.1.0.tar.gz`
 - [Configure](#configuration) the plugin if needed.
