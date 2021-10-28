@@ -68,7 +68,7 @@ class carddav extends rcube_plugin
      *
      * During development, it is set to the last release and added the suffix +dev.
      */
-    private const PLUGIN_VERSION = 'v4.2.2';
+    private const PLUGIN_VERSION = 'v4.2.3+dev';
 
     /**
      * Information about this plugin that is queried by roundcube.
