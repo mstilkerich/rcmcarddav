@@ -1325,8 +1325,15 @@ class carddav extends rcube_plugin
     private function getDesKey(): string
     {
         $rcube = rcube::get_instance();
-        $imap_password = $rcube->decrypt((string) $_SESSION['password']);
 
+        // if the user logged in via OAuth, we do not have a password to use for encryption / decryption of carddav
+        // passwords; roundcube sets SESSION[password] to the encrypted 'Bearer <accesstoken>', so we need to
+        // specifically check if oauth is used for login
+        if (isset($_SESSION['oauth_token'])) {
+            throw new \Exception("No password available to use for encryption because user logged in via OAuth2");
+        }
+
+        $imap_password = $rcube->decrypt((string) $_SESSION['password']);
         if ($imap_password === false || strlen($imap_password) == 0) {
             throw new \Exception("No password available to use for encryption");
         }

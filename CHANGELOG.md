@@ -1,5 +1,12 @@
 # Changelog for RCMCardDAV
 
+## Version 4.2.2 (to 4.2.1)
+
+- Fix: Detect login via OAuth and prevent usage of `encrypted` password scheme in this case. The passwords encrypted
+  cannot be decrypted anymore when the access token changes. In case such passwords have already been stored to the DB,
+  the user must enter and save the password via the preferences again. In case of an admin preset where the password is
+  marked as a `fixed` field, the password should be updated on next login of the user.
+
 ## Version 4.2.1 (to 4.2.0)
 
 - Updated French translation (#355)

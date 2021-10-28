@@ -60,7 +60,8 @@ The password scheme is configured in `$prefs['_GLOBAL']['pwstore_scheme']`. The 
 - `encrypted` (DEFAULT):  The password is encrypted with the cipher method configured in roundcube
   (`$config['cipher_method']`), but using the user's roundcube password as encryption key. Similarly, if the user
   changes their roundcube/IMAP password, the CardDAV password cannot be decrypted anymore and needs to be entered in the
-  settings again.
+  settings again. Note: If a password-less login method (OAuth2, Kerberos) is used, this encryption scheme cannot be
+  used as no password for the encryption is available.
 
 When the password scheme setting is changed, only passwords stored/updated after the change of the setting will be
 stored with the new scheme.
