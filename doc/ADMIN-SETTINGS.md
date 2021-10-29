@@ -149,8 +149,8 @@ added, resulting in deletion of the existing addressbooks from the database and 
           added. That means, even if the URL points to an individual addressbook that belongs to the user, all other
           addressbooks of the user are added as well.
 
-All addressbooks found will be added. The URL is fixed after creation of an addressbook
-          and cannot currently be updated automatically. You can use the same placeholders as for the username field.
+All addressbooks found will be added. The URL is fixed after creation of an addressbook and cannot currently be updated
+automatically. You can use the same placeholders as for the username field.
 
 ### Required parameters unless password-less authentication is used (e.g. Kerberos)
  - `username`: CardDAV username to access the addressbook.
@@ -222,15 +222,16 @@ $prefs['Work'] = [
 
 ### Creation and Updates
 
-Preconfigured addressbooks are processed after the user has logged into roundcube.
+Preconfigured addressbooks are processed when the user logs into roundcube.
 
-- If the user has no addressbooks for a preset (identified by the Presetname), an addressbook discovery will be
-  performed using the information stored with the preset. All discovered addressbooks are added, except for the special
-  case of shared/public addressbooks (see documentation of the `url` preset parameter).
-- If the user has addressbooks created from a preset that no longer exists (again, identified by the Presetname), the
+- An addressbook discovery is performed for each preset, using the information stored with the preset.
+  - Newly found addressbooks are added, except for the special case of shared/public addressbooks (see documentation of
+    the `url` preset parameter).
+  - For addressbooks already stored in rcmccarddav, all fields that the admin listed in the `fixed` setting of the
+    corresponding preset are updated. Other fields are not updated, since they may have been modified by the user.
+  - Addressbooks stored in rcmccarddav that cannot be discovered anymore are deleted.
+- If the user has addressbooks created from a preset that no longer exists (identified by the Presetname), the
   addressbooks are deleted from the database.
-- Otherwise, all fields that the admin listed in the `fixed` setting of the corresponding preset are updated. Other
-  fields are not updated, since they may have been modified by the user.
 
 __WARNING__: The URL is currently fixed after creation of an addressbook and can neither be changed by the admin, nor by
 the user. This is because one or more addressbook can be created for each preset, based on the result of discovery. The

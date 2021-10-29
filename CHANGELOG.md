@@ -1,5 +1,12 @@
 # Changelog for RCMCardDAV
 
+## Version 4.3.0 (to 4.2.2)
+
+- New: For preset addressbooks, are re-discovery is performed upon every login. This means that newly added addressbooks
+  on the server are discovered and added, whereas addressbooks that have been removed from the server are also removed
+  from roundcube. For manually-added addressbooks, this will require changes to the rcmcarddav data model, which is
+  planned for version 5.
+
 ## Version 4.2.2 (to 4.2.1)
 
 - Fix: Detect login via OAuth and prevent usage of `encrypted` password scheme in this case. The passwords encrypted

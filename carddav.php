@@ -246,6 +246,7 @@ class carddav extends rcube_plugin
     {
         $infra = Config::inst();
         $logger = $infra->logger();
+        $rcUserId = (string) $_SESSION['user_id'];
 
         try {
             $logger->debug(__METHOD__);
@@ -256,60 +257,64 @@ class carddav extends rcube_plugin
             // Group the addressbooks by their preset
             $existing_presets = [];
             foreach ($existing_abooks as $abookrow) {
-                /** @var string $pn Not null because filtered by getAddressbooks() */
-                $pn = $abookrow['presetname'];
-                if (!key_exists($pn, $existing_presets)) {
-                    $existing_presets[$pn] = [];
+                /** @var string $presetname Not null because filtered by getAddressbooks() */
+                $presetname = $abookrow['presetname'];
+                if (!key_exists($presetname, $existing_presets)) {
+                    $existing_presets[$presetname] = [];
                 }
-                $existing_presets[$pn][] = $abookrow;
+                $existing_presets[$presetname][$abookrow['url']] = $abookrow;
             }
 
             // Walk over the current presets configured by the admin and add, update or delete addressbooks
             foreach ($this->presets as $presetname => $preset) {
-                // addressbooks exist for this preset => update settings
-                if (key_exists($presetname, $existing_presets)) {
-                    if (!empty($preset['fixed'])) {
-                        $this->updatePresetAddressbooks($preset, $existing_presets[$presetname]);
-                    }
-                    unset($existing_presets[$presetname]);
-                } else { // create new
-                    $preset['presetname'] = $presetname;
-                    $abname = $preset['name'];
+                $preset['presetname'] = $presetname;
+                $abname = $preset['name'];
 
+                try {
+                    // first discover all the current addressbooks on the server for this preset
+                    $username = self::replacePlaceholdersUsername($preset['username']);
+                    $url = self::replacePlaceholdersUrl($preset['url']);
+                    $password = self::replacePlaceholdersPassword($preset['password']);
                     try {
-                        $username = self::replacePlaceholdersUsername($preset['username']);
-                        $url = self::replacePlaceholdersUrl($preset['url']);
-                        $password = self::replacePlaceholdersPassword($preset['password']);
-                        try {
-                            $account = Config::makeAccount($url, $username, $password, null);
-                        } catch (\Exception $e) {
-                            $logger->info("Skip adding preset for $username: required bearer token not available");
-                            continue;
-                        }
+                        $account = Config::makeAccount($url, $username, $password, null);
+                    } catch (\Exception $e) {
+                        $logger->info("Skip adding preset for $rcUserId: required bearer token not available");
+                        continue;
+                    }
+                    $abooks = $this->determineAddressbooksToAdd($account);
 
-                        $logger->info("Adding preset for $username at URL $url");
-                        $abooks = $this->determineAddressbooksToAdd($account);
+                    // insert all newly discovered addressbooks, update those already present in the DB
+                    foreach ($abooks as $abook) {
+                        $url = $abook->getUri();
+                        $existing_preset = $existing_presets[$presetname][$url] ?? null;
+                        if (isset($existing_preset)) {
+                            $logger->debug("Updating preset ($presetname) addressbook $url for $rcUserId");
+                            $this->updatePresetAddressbook($preset, $existing_preset);
 
-                        foreach ($abooks as $abook) {
+                            // delete from existing_presets list so we know it was processed
+                            unset($existing_presets[$presetname][$url]);
+                        } else {
+                            $logger->info("Inserting preset ($presetname) addressbook $url for $rcUserId");
                             if ($preset['carddav_name_only']) {
                                 $preset['name'] = $abook->getName();
                             } else {
                                 $preset['name'] = "$abname (" . $abook->getName() . ')';
                             }
 
-                            $preset['url'] = $abook->getUri();
+                            $preset['url'] = $url;
                             $this->insertAddressbook($preset);
                         }
-                    } catch (\Exception $e) {
-                        $logger->error("Error adding addressbook from preset $presetname: {$e->getMessage()}");
                     }
+                } catch (\Exception $e) {
+                    $logger->error("Error adding addressbook from preset $presetname: {$e->getMessage()}");
                 }
             }
 
-            // delete existing preset addressbooks that were removed by admin
-            foreach ($existing_presets as $ep) {
-                $logger->info("Deleting preset addressbooks for " . (string) $_SESSION['user_id']);
+            // delete existing preset addressbooks that were removed by admin or do not exist on server anymore
+            foreach ($existing_presets as $presetname => $ep) {
                 foreach ($ep as $abookrow) {
+                    $url = $abookrow['url'];
+                    $logger->info("Deleting preset ($presetname) addressbook $url for $rcUserId");
                     $this->deleteAddressbook($abookrow['id']);
                 }
             }
@@ -837,52 +842,50 @@ class carddav extends rcube_plugin
     }
 
     /**
-     * Updates the fixed fields of addressbooks derived from presets against the current admin settings.
+     * Updates the fixed fields of a preset addressbook derived from presets against the current admin settings.
      * @param Preset $preset
-     * @param list<FullAbookRow> $existing_abooks for the given preset
+     * @param FullAbookRow $abookrow Database row of an existing addressbook for the preset
      */
-    private function updatePresetAddressbooks(array $preset, array $existing_abooks): void
+    private function updatePresetAddressbook(array $preset, array $abookrow): void
     {
         if (!is_array($preset["fixed"] ?? "")) {
             return;
         }
 
-        foreach ($existing_abooks as $abookrow) {
-            // decrypt password so that the comparison works
-            $abookrow['password'] = $this->decryptPassword($abookrow['password']);
+        // decrypt password so that the comparison works
+        $abookrow['password'] = $this->decryptPassword($abookrow['password']);
 
-            // update only those attributes marked as fixed by the admin
-            // otherwise there may be user changes that should not be destroyed
-            $pa = [];
+        // update only those attributes marked as fixed by the admin
+        // otherwise there may be user changes that should not be destroyed
+        $pa = [];
 
-            foreach ($preset['fixed'] as $k) {
-                if (isset($abookrow[$k]) && isset($preset[$k])) {
-                    // only update the name if it is used
-                    if ($k === 'name') {
-                        if (!$preset['carddav_name_only']) {
-                            $fullname = $abookrow['name'];
-                            $cnpos = strpos($fullname, ' (');
-                            if ($cnpos === false && $preset['name'] != $fullname) {
-                                $pa['name'] = $preset['name'];
-                            } elseif ($cnpos !== false && $preset['name'] != substr($fullname, 0, $cnpos)) {
-                                $pa['name'] = $preset['name'] . substr($fullname, $cnpos);
-                            }
+        foreach ($preset['fixed'] as $k) {
+            if (isset($abookrow[$k]) && isset($preset[$k])) {
+                // only update the name if it is used
+                if ($k === 'name') {
+                    if (!$preset['carddav_name_only']) {
+                        $fullname = $abookrow['name'];
+                        $cnpos = strpos($fullname, ' (');
+                        if ($cnpos === false && $preset['name'] != $fullname) {
+                            $pa['name'] = $preset['name'];
+                        } elseif ($cnpos !== false && $preset['name'] != substr($fullname, 0, $cnpos)) {
+                            $pa['name'] = $preset['name'] . substr($fullname, $cnpos);
                         }
-                    } elseif ($k === 'url') {
-                        // the URL cannot be automatically updated, as it was discovered and normally will
-                        // not exactly match the discovery URI. Resetting it to the discovery URI would
-                        // break the addressbook record
-                    } elseif ($abookrow[$k] != $preset[$k]) {
-                        $pa[$k] = $preset[$k];
                     }
+                } elseif ($k === 'url') {
+                    // the URL cannot be automatically updated, as it was discovered and normally will
+                    // not exactly match the discovery URI. Resetting it to the discovery URI would
+                    // break the addressbook record
+                } elseif ($abookrow[$k] != $preset[$k]) {
+                    $pa[$k] = $preset[$k];
                 }
             }
+        }
 
-            // only update if something changed
-            if (!empty($pa)) {
-                /** @psalm-var AbookSettings $pa */
-                $this->updateAddressbook($abookrow['id'], $pa);
-            }
+        // only update if something changed
+        if (!empty($pa)) {
+            /** @psalm-var AbookSettings $pa */
+            $this->updateAddressbook($abookrow['id'], $pa);
         }
     }
 
