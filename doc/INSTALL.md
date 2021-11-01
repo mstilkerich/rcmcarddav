@@ -10,6 +10,16 @@ There is two ways to install the plugin.
 
 After installation, you may optionally [configure](#configuration) the plugin.
 
+## Prerequisites
+
+- When using MySQL 5.7.7 / Maria DB 10.2.1 or older, the following configuration settings are needed in the database
+  server. Note that these are also required by roundcube, and are the default settings if you use newer versions than
+  those listed above.
+  - `innodb_large_prefix=1`
+  - `innodb_file_per_table=1`
+  - `innodb_file_format=Barracuda`
+  - `innodb_default_row_format=dynamic`
+
 ## Installation using composer
 
 The recommended and supported method of installation is by using composer.
@@ -44,7 +54,9 @@ inside that tarball for the appropriate instructions.
 
 - Log out of Roundcube!
   This is important because RCMCardDAV runs its database initialisation / update procedure only when a user logs in!
-- Download the release tarball from [here](releases/)
+- Download the release tarball from [here](https://github.com/mstilkerich/rcmcarddav/releases)
+  - Note: The correct tarball is named `carddav-vX.Y.Z.tar.gz`. Do not use the "Source code" tar.gz or zip files, these
+    are only exports of the repository. Unfortunately, github creates these automatically for each release.
 - Extract the tarball to the roundcube/plugins directory (assuming roundcube is installed at `/var/lib/roundcube`)
   `cd /var/lib/roundcube/plugins && tar xvzf /tmp/carddav-v4.1.0.tar.gz`
 - [Configure](#configuration) the plugin if needed.

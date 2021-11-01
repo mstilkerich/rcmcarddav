@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_accounts (
 	PRIMARY KEY(id),
 	UNIQUE INDEX(user_id,presetname),
 	FOREIGN KEY (user_id) REFERENCES TABLE_PREFIXusers(user_id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+) ROW_FORMAT=DYNAMIC ENGINE = InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 -- table to store the configured address books
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
 	-- otherwise, the migrated schema uses carddav_addressbooks_ibfk_2 (because carddav_addressbooks_ibfk_1 is still
 	-- used for the user_id foreign key in migration 0016), whereas the initial schema uses carddav_addressbooks_ibfk_1
 	CONSTRAINT carddav_addressbooks_ibfk_account_id FOREIGN KEY (account_id) REFERENCES TABLE_PREFIXcarddav_accounts(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+) ROW_FORMAT=DYNAMIC ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_contacts (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_contacts (
 	UNIQUE INDEX(uri,abook_id),
 	UNIQUE INDEX(cuid,abook_id),
 	FOREIGN KEY (abook_id) REFERENCES TABLE_PREFIXcarddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+) ROW_FORMAT=DYNAMIC ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_xsubtypes (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_xsubtypes (
 	PRIMARY KEY(id),
 	UNIQUE INDEX(typename,subtype,abook_id),
 	FOREIGN KEY (abook_id) REFERENCES TABLE_PREFIXcarddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+) ROW_FORMAT=DYNAMIC ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_groups (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_groups (
 	UNIQUE INDEX(cuid,abook_id),
 
 	FOREIGN KEY (abook_id) REFERENCES TABLE_PREFIXcarddav_addressbooks(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+) ROW_FORMAT=DYNAMIC ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_group_user (
 	group_id   INT UNSIGNED NOT NULL,
@@ -91,11 +91,11 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_group_user (
 	PRIMARY KEY(group_id,contact_id),
 	FOREIGN KEY(group_id) REFERENCES TABLE_PREFIXcarddav_groups(id) ON DELETE CASCADE ON UPDATE CASCADE,
 	FOREIGN KEY(contact_id) REFERENCES TABLE_PREFIXcarddav_contacts(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+) ROW_FORMAT=DYNAMIC ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_migrations (
 	`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	`filename` VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
 	`processed_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	UNIQUE INDEX(`filename`)
-) ENGINE = InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+) ROW_FORMAT=DYNAMIC ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;

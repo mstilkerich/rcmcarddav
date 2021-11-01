@@ -28,6 +28,11 @@ A (hopefully growing) documentation for various topics is found in the [doc](doc
 - Database migration happens automatically.
 - If you want more verbose than default logging, this must now be configured in `config.inc.php`. See the distributed
   file `config.inc.php.dist` for examples.
+- For MySQL / Maria DB: If your database was created with MySQL 5.7.8 / MariaDB 10.2.1 or earlier, it likely uses the
+  `COMPACT` row format. This makes a DB migration fail, because the index size is exceeded. Migration 12 since
+  rcmcarddav 4.3.0 converts the row format to the current default `DYNAMIC`, but some additional settings are required
+  in the MySQL / Maria DB configuration for increase the index key limit to 3072 bytes. See [INSTALL.md](doc/INSTALL.md)
+  for these settings.
 
 ### Upgrading from 2.0.x
 

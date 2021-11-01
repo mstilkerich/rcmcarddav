@@ -113,7 +113,7 @@ jobs:
         with:
           php-version: '8.0'
       - name: Set MySQL settings
-        if: ${{ matrix.mysql-version }} == 'mysql:5.6'
+        if: ${{ matrix.mysql-version == 'mysql:5.6' }}
         run: cat .github/configs/mysqlsettings.sql | docker exec -i mysql mysql -uroot -proot
       - name: Database interoperability tests for MySQL
         run: make tests-mysql

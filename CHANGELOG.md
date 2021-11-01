@@ -1,6 +1,6 @@
 # Changelog for RCMCardDAV
 
-## Version 5.0.0 (to 4.1.2)
+## Version 5.0.0 (to 4.3.0)
 - Replace UI. The new UI is located directly in roundcube settings as a main section, not a subsection of `Preferences`.
 - Presets: Removed option `carddav_name_only`. It makes no sense with the separation of accounts / addressbooks anymore.
 - Presets: Addressbooks of a removed preset are provided as readonly until their deletion upon next login. Previously,
@@ -10,6 +10,54 @@
 - Enable foreign key constraints for SQLite3 database; note that this affects not only this plugin, but roundcube itself
   and other plugins as well. I suppose it should not be a problem and is the standard behavior with other DB backends,
   too.
+
+## Version 4.3.0 (to 4.2.2)
+
+- New: For preset addressbooks, are re-discovery is performed upon every login. This means that newly added addressbooks
+  on the server are discovered and added, whereas addressbooks that have been removed from the server are also removed
+  from roundcube. For manually-added addressbooks, this will require changes to the rcmcarddav data model, which is
+  planned for version 5.
+- MySQL: Convert potentially used row format COMPACT (was default up to MySQL 5.7.8, Maria DB 10.2.1) to DYANMIC in
+  migration 12, which would otherwise fail (Fixes #362). It requires some other settings that have to be configured in
+  the MySQL server configuration additionally, all of which are also defaults since MySQL 5.7.7 / Maria DB 10.2.2.
+
+## Version 4.2.2 (to 4.2.1)
+
+- Fix: Detect login via OAuth and prevent usage of `encrypted` password scheme in this case. The passwords encrypted
+  cannot be decrypted anymore when the access token changes. In case such passwords have already been stored to the DB,
+  the user must enter and save the password via the preferences again. In case of an admin preset where the password is
+  marked as a `fixed` field, the password should be updated on next login of the user.
+
+## Version 4.2.1 (to 4.2.0)
+
+- Updated French translation (#355)
+- Updated German translation
+- Fix: Display error message when the sync fails (instead of showing a success message with a duration of -1 seconds)
+- Fix: Display error message when a card cannot be updated because it changed on the server since the last sync.
+- Fix #356: Don't create group vcards with duplicate members, don't fail to process them if we receive one from the
+  server
+- New: Action in the preferences to clear the local cache of an addressbook, to allow a full sync from scratch. This is
+  meant to fix errors in the local state that cannot be repaired from incremental syncs, as might be the result of issue
+  #356.
+
+## Version 4.2.0 (to 4.1.2)
+
+- New: Support OAUTH2 authentication in a single-sign-on setup in conjunction with roundcube 1.5 OAUTH2 authentication.
+  This enables to use the bearer token acquired during login by roundcube to also be used to authenticate with the
+  CardDAV server. It is currently not possible to add addressbooks using a custom OAUTH2 provider, i.e. a different one
+  than that used to log into roundcube.
+- Fix #348: Load the carddav plugin in the calendar task. This enables usage of carddav addressbooks within the calendar
+  plugin, for example for the purpose of the birthday calendar.
+
+## Version 4.1.2 (to 4.1.1)
+- Fix #345: Crash during cropping of photos with `X-ABCROP-RECTANGLE` parameter when error occurred during crop, e.g.
+  picture format not supported by php-gd.
+- New: When exporting a VCard from a carddav addressbook, the export is now handled by rcmcarddav. The exported
+  card is exactly the card on the server, including any properties not supported by roundcube / rcmcarddav. The only
+  exception is the photo property: photos referenced by URI will be downloaded and stored inside the card; photos with
+  `X-ABCROP-RECTANGLE` will be stored cropped. This is to improve interoperability with the importing application.
+- Fix #345: When exporting a VCard from a carddav addressbook, the PHOTO property in the exported card contained an
+  invalid value.
 
 ## Version 4.1.1 (to 4.1.0)
 - Fix: A fatal error would be raised when a password could not be decrypted, only on photo download. This would not be

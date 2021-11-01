@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_accounts (
 	PRIMARY KEY(id),
 	UNIQUE INDEX(user_id,presetname),
 	FOREIGN KEY (user_id) REFERENCES TABLE_PREFIXusers(user_id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+) ROW_FORMAT=DYNAMIC ENGINE = InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 -- Add discovered column
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks ADD `discovered` INT NOT NULL DEFAULT '1' AFTER `use_categories`;
