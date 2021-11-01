@@ -1,3 +1,22 @@
+/*
+ * Convert the ROW_FORMAT to DYNAMIC. This, in combination with some other settings, which
+ * are nowadays default values (from MySQL 5.7.9, Maria DB 10.2.2), allows for index prefixes
+ * up to 3072 bytes. The compact format only allows up to 767 bytes.
+ *
+ * If the 767 limit applies, the UNIQUE indexes re-created below containing URI fields
+ * in their key could theoretically exceed the limit, and thus MySQL will fail with an
+ * error.
+ *
+ * See https://github.com/mstilkerich/rcmcarddav/issues/362
+ */
+ALTER TABLE TABLE_PREFIXcarddav_addressbooks ROW_FORMAT=DYNAMIC;
+ALTER TABLE TABLE_PREFIXcarddav_contacts ROW_FORMAT=DYNAMIC;
+ALTER TABLE TABLE_PREFIXcarddav_xsubtypes ROW_FORMAT=DYNAMIC;
+ALTER TABLE TABLE_PREFIXcarddav_groups ROW_FORMAT=DYNAMIC;
+ALTER TABLE TABLE_PREFIXcarddav_group_user ROW_FORMAT=DYNAMIC;
+ALTER TABLE TABLE_PREFIXcarddav_migrations ROW_FORMAT=DYNAMIC;
+
+
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks MODIFY `name` VARCHAR(64) NOT NULL;
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks MODIFY `username` VARCHAR(255) NOT NULL;
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks MODIFY `password` TEXT NOT NULL;

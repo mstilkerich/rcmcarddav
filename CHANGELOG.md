@@ -6,6 +6,9 @@
   on the server are discovered and added, whereas addressbooks that have been removed from the server are also removed
   from roundcube. For manually-added addressbooks, this will require changes to the rcmcarddav data model, which is
   planned for version 5.
+- MySQL: Convert potentially used row format COMPACT (was default up to MySQL 5.7.8, Maria DB 10.2.1) to DYANMIC in
+  migration 12, which would otherwise fail (Fixes #362). It requires some other settings that have to be configured in
+  the MySQL server configuration additionally, all of which are also defaults since MySQL 5.7.7 / Maria DB 10.2.2.
 
 ## Version 4.2.2 (to 4.2.1)
 
