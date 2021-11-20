@@ -33,7 +33,7 @@ Per default, both log levels are set to `ERROR`.
 
 The administrator can limit the feature set offered by the plugin for ordinary users using the following settings.
 
-- `$prefs['_GLOBAL']['fixed']`: If true, user's are not able to add custom addressbooks (Default: false)
+- `$prefs['_GLOBAL']['fixed']`: If true, users are not able to add custom addressbooks (Default: false)
    This option only affects custom addressbooks. Preset addressbooks (see below) are not affected. If the user already
    created custom addressbooks and the admin then changes this setting to true, the user will still be able to
    edit/delete their previously created addressbooks, but not add new ones anymore.
@@ -43,7 +43,7 @@ The administrator can limit the feature set offered by the plugin for ordinary u
 
 ## Password storing scheme
 
-The plugin need's to store the user's CardDAV passwords in the roundcube database, except for the special case where the
+The plugin needs to store the user's CardDAV passwords in the roundcube database, except for the special case where the
 CardDAV password is the same as the user's roundcube / IMAP password (see [placeholder substitution for
 passwords](#password). There is different options on how the passwords can be stored, with different degrees of
 convenience and privacy. For all variants, the administrators of the server generally needs to be trusted, as they would
@@ -76,12 +76,12 @@ addressbooks preconfigured by the admin. The available substitutions depend on t
 In the username and URL fields, the following substitutions are available:
 
  - `%u`: Replaced by the full roundcube username
- - `%l`: Replaced by the local part of the roundcube username if it is an email address
-       : (Example: Roundcube username theuser@example.com - %l is replaced with theuser)
- - `%d`: Replaced by the domain part of the roundcube username if it is an email address
-         (Example: Roundcube username theuser@example.com - %d is replaced with example.com)
- - `%V`: Replaced by the roundcube username, with @ and . characters substituted by _.
-         (Example: Roundcube username user.name@example.com - %V is replaced with user_name_example_com)
+ - `%l`: Replaced by the local part of the roundcube username if it is an email address.
+         (Example: Roundcube username `theuser@example.com` - `%l` is replaced with `theuser`)
+ - `%d`: Replaced by the domain part of the roundcube username if it is an email address.
+         (Example: Roundcube username `theuser@example.com` - `%d` is replaced with `example.com`)
+ - `%V`: Replaced by the roundcube username, with `@` and `.` characters substituted by `_`.
+         (Example: Roundcube username `user.name@example.com` - `%V` is replaced with `user_name_example_com`)
 
 ### Password
 
@@ -99,8 +99,8 @@ having their password stored in the roundcube database at all.
 ## Preconfigured Addressbooks (Presets)
 
 Preconfigured addressbook (a.k.a. _presets_) enable the administrator to configure addressbooks that are automatically
-added to a user's account on their first login. Furthermore, it is possible to have the settings of preconfigured
-addressbooks updated automatically.
+added to a user's account on their first login, and optionally re-discovered upon subsequent logins. Furthermore, it is
+possible to have the settings of preconfigured addressbooks updated automatically.
 
 A preconfigured addressbook configuration looks like this:
 
@@ -118,6 +118,7 @@ $prefs['<Presetname>'] = [
     'active'       =>  <true or false>,
     'readonly'     =>  <true or false>,
     'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
+    'rediscover_mode' => '<One of: none|fulldiscovery',
 
     // attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset
     'fixed'        =>  [ < 0 or more of the other attribute keys > ],
@@ -183,6 +184,18 @@ automatically. You can use the same placeholders as for the username field.
              members. This may be useful if you have shared, read-only addressbooks with a lot of contacts that do not
              have an email address. The following are supported: name, email, firstname, surname
  - `hide`: Whether this preset should be hidden from the CardDAV listing on the preferences page.
+ - `rediscover_mode`: Whether this preset should be re-discovered upon every login. This allows to detect new and
+             deleted addressbooks at the server side, but comes at the expense of extra communication upon every login.
+             Therefore the admin can choose whether such re-discovery should happen or not on a per-preset basis. The
+             update of `fixed` settings works independently of this setting.
+             The following values are possible (default: `fulldiscovery`):
+   - `none`: When addressbooks for the preset are present for the user logging in, no re-discovery will be performed.
+             This was the behavior of RCMCardDAV <4.3.0. When the admin knows that the set of addressbooks at the
+             server is fixed (the user cannot create/delete addressbooks at the server), this setting reduces network
+             traffic and does not unneccessarily slow down the login of the user. Another situation where this settings
+             makes sense is if the preset specifies a shared/public addressbook (see description of `url`).
+   - `fulldiscovery`: A full rediscovery is attempted on every login. New addressbooks at the server are added, and
+             addressbooks that do not exist at the server anymore are removed from roundcube.
 
 ### Examples
 
@@ -224,23 +237,15 @@ $prefs['Work'] = [
 
 Preconfigured addressbooks are processed when the user logs into roundcube.
 
-- An addressbook discovery is performed for each preset, using the information stored with the preset.
+- An addressbook discovery is performed for each preset, using the information stored with the preset. Depending on the
+  `rediscover_mode` setting, the discovery is performed on every login or only when no addressbooks for the preset are
+  available for the user.
   - Newly found addressbooks are added, except for the special case of shared/public addressbooks (see documentation of
     the `url` preset parameter).
-  - For addressbooks already stored in rcmccarddav, all fields that the admin listed in the `fixed` setting of the
-    corresponding preset are updated. Other fields are not updated, since they may have been modified by the user.
-  - Addressbooks stored in rcmccarddav that cannot be discovered anymore are deleted.
+  - Addressbooks stored in RCMCardDAV that cannot be discovered anymore are deleted.
+- For addressbooks already stored in RCMCardDAV, all fields that the admin listed in the `fixed` setting of the
+  corresponding preset are updated. Other fields are not updated, since they may have been modified by the user.
 - If the user has addressbooks created from a preset that no longer exists (identified by the Presetname), the
   addressbooks are deleted from the database.
-
-__WARNING__: The URL is currently fixed after creation of an addressbook and can neither be changed by the admin, nor by
-the user. This is because one or more addressbook can be created for each preset, based on the result of discovery. The
-URLs of these addressbook may be different from the URL entered by the admin. Therefore, no attempt to update the URL
-field is done. If you change the URL, you currently have two options:
-1. If the new URL is a variation of the old one (e.g. hostname change), you can run an SQL UPDATE query directly in the
-   database to adopt all addressbooks.
-2. If the new URL is not easily derivable from the old one, change the key of the preset and change the URL.
-   Addressbooks belonging to the old preset will be deleted upon the next login of the user and freshly created.
-
 
 <!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->

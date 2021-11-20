@@ -45,7 +45,8 @@ use Sabre\VObject\Component\VCard;
  *     fixed: list<ConfigurablePresetAttribute>,
  *     require_always: list<string>,
  *     hide: bool,
- *     carddav_name_only: bool
+ *     carddav_name_only: bool,
+ *     rediscover_mode: 'none' | 'fulldiscovery',
  * }
  * @psalm-type AbookSettings = array{
  *     name?: string,
@@ -110,6 +111,7 @@ class carddav extends rcube_plugin
         'hide' => false,
         'fixed' => [],
         'require_always' => [],
+        'rediscover_mode' => 'fulldiscovery',
     ];
 
     /** @var PasswordStoreScheme encryption scheme */
@@ -251,59 +253,78 @@ class carddav extends rcube_plugin
         try {
             $logger->debug(__METHOD__);
 
-            // Get all existing addressbooks of this user that have been created from presets
-            $existing_abooks = $this->getAddressbooks(false, true);
-
             // Group the addressbooks by their preset
-            $existing_presets = [];
-            foreach ($existing_abooks as $abookrow) {
-                /** @var string $presetname Not null because filtered by getAddressbooks() */
+            $localAbookRowsByPreset = [];
+            foreach ($this->getAddressbooks(false, true) as $abookrow) {
+                /** @psalm-var string $presetname Not null because filtered by getAddressbooks() */
                 $presetname = $abookrow['presetname'];
-                if (!key_exists($presetname, $existing_presets)) {
-                    $existing_presets[$presetname] = [];
-                }
-                $existing_presets[$presetname][$abookrow['url']] = $abookrow;
+                $localAbookRowsByPreset[$presetname][$abookrow['url']] = $abookrow;
             }
 
-            // Walk over the current presets configured by the admin and add, update or delete addressbooks
+            // Walk over the current presets configured by the admin and add or update addressbooks
             foreach ($this->presets as $presetname => $preset) {
                 $preset['presetname'] = $presetname;
-                $abname = $preset['name'];
 
                 try {
-                    // first discover all the current addressbooks on the server for this preset
-                    $username = self::replacePlaceholdersUsername($preset['username']);
-                    $url = self::replacePlaceholdersUrl($preset['url']);
-                    $password = self::replacePlaceholdersPassword($preset['password']);
-                    try {
-                        $account = Config::makeAccount($url, $username, $password, null);
-                    } catch (\Exception $e) {
-                        $logger->info("Skip adding preset for $rcUserId: required bearer token not available");
-                        continue;
+                    // determine the rediscovery mode
+                    if (isset($localAbookRowsByPreset[$presetname])) {
+                        $rediscoverMode = $preset['rediscover_mode'];
+
+                        // record all known addressbooks for this preset for update of fixed settings in case we do not
+                        // perform discovery. If we do discover, this will be overwritten.
+                        $updateAbookRows = $localAbookRowsByPreset[$presetname];
+                    } else {
+                        // if we don't have any addressbooks for the preset, force performing a full discovery
+                        $rediscoverMode = 'fulldiscovery';
+                        $updateAbookRows = [];
                     }
-                    $abooks = $this->determineAddressbooksToAdd($account);
 
-                    // insert all newly discovered addressbooks, update those already present in the DB
-                    foreach ($abooks as $abook) {
-                        $url = $abook->getUri();
-                        $existing_preset = $existing_presets[$presetname][$url] ?? null;
-                        if (isset($existing_preset)) {
-                            $logger->debug("Updating preset ($presetname) addressbook $url for $rcUserId");
-                            $this->updatePresetAddressbook($preset, $existing_preset);
+                    if ($rediscoverMode == 'fulldiscovery') {
+                        // discover the addressbooks at the server
+                        $username = self::replacePlaceholdersUsername($preset['username']);
+                        $url = self::replacePlaceholdersUrl($preset['url']);
+                        $password = self::replacePlaceholdersPassword($preset['password']);
+                        try {
+                            $account = Config::makeAccount($url, $username, $password, null);
+                        } catch (\Exception $e) {
+                            $logger->info("Skip adding preset for $rcUserId: required bearer token not available");
+                            continue;
+                        }
+                        $abooks = $this->determineAddressbooksToAdd($account);
 
-                            // delete from existing_presets list so we know it was processed
-                            unset($existing_presets[$presetname][$url]);
-                        } else {
-                            $logger->info("Inserting preset ($presetname) addressbook $url for $rcUserId");
-                            if ($preset['carddav_name_only']) {
-                                $preset['name'] = $abook->getName();
-                            } else {
-                                $preset['name'] = "$abname (" . $abook->getName() . ')';
+                        // insert all newly discovered addressbooks, record those already present in the DB for update
+                        $updateAbookRows = [];
+                        foreach ($abooks as $abook) {
+                            $url = $abook->getUri();
+
+                            // determine name for the addressbook
+                            $abookName = $abook->getName();
+                            if (!$preset['carddav_name_only']) {
+                                $abookName = $preset['name'] . " ($abookName)";
                             }
 
-                            $preset['url'] = $url;
-                            $this->insertAddressbook($preset);
+                            $abookrow = $localAbookRowsByPreset[$presetname][$url] ?? null;
+                            if (isset($abookrow)) {
+                                $abookrow['srvname'] = $abookName;
+                                $updateAbookRows[] = $abookrow;
+                            } else {
+                                $logger->info("Inserting new addressbook for preset $presetname at $url for $rcUserId");
+                                $abookrow = $preset;
+                                $abookrow['url'] = $url;
+                                $abookrow['name'] = $abookName;
+                                $this->insertAddressbook($abookrow);
+                            }
                         }
+                    }
+
+                    // Update the fixed prefs in all addressbooks that we already knew locally
+                    foreach ($updateAbookRows as $abookrow) {
+                        $url = $abookrow['url'];
+                        $logger->debug("Updating preset ($presetname) addressbook $url for $rcUserId");
+                        $this->updatePresetAddressbook($preset, $abookrow);
+
+                        // delete from localAbookRowsByPreset list so we know it was processed
+                        unset($localAbookRowsByPreset[$presetname][$url]);
                     }
                 } catch (\Exception $e) {
                     $logger->error("Error adding addressbook from preset $presetname: {$e->getMessage()}");
@@ -311,7 +332,7 @@ class carddav extends rcube_plugin
             }
 
             // delete existing preset addressbooks that were removed by admin or do not exist on server anymore
-            foreach ($existing_presets as $presetname => $ep) {
+            foreach ($localAbookRowsByPreset as $presetname => $ep) {
                 foreach ($ep as $abookrow) {
                     $url = $abookrow['url'];
                     $logger->info("Deleting preset ($presetname) addressbook $url for $rcUserId");
@@ -863,14 +884,26 @@ class carddav extends rcube_plugin
             if (isset($abookrow[$k]) && isset($preset[$k])) {
                 // only update the name if it is used
                 if ($k === 'name') {
-                    if (!$preset['carddav_name_only']) {
-                        $fullname = $abookrow['name'];
-                        $cnpos = strpos($fullname, ' (');
-                        if ($cnpos === false && $preset['name'] != $fullname) {
-                            $pa['name'] = $preset['name'];
-                        } elseif ($cnpos !== false && $preset['name'] != substr($fullname, 0, $cnpos)) {
-                            $pa['name'] = $preset['name'] . substr($fullname, $cnpos);
+                    $newname = $abookrow['name'];
+
+                    // if we performed a rediscovery, we have the desired name including the current server-side name in
+                    // the srvname field of $abookrow - use it
+                    if (isset($abookrow['srvname'])) {
+                        $newname = (string) $abookrow['srvname'];
+
+                    // otherwise we can only update the admin-configured name of the addressbook
+                    // AdminName (ServersideName)
+                    } elseif (!$preset['carddav_name_only']) {
+                        $cnpos = strpos($newname, ' (');
+                        if ($cnpos === false && $preset['name'] != $newname) {
+                            $newname = $preset['name'];
+                        } elseif ($cnpos !== false && $preset['name'] != substr($newname, 0, $cnpos)) {
+                            $newname = $preset['name'] . substr($newname, $cnpos);
                         }
+                    }
+
+                    if ($abookrow['name'] != $newname) {
+                        $pa['name'] = $newname;
                     }
                 } elseif ($k === 'url') {
                     // the URL cannot be automatically updated, as it was discovered and normally will
@@ -1312,7 +1345,13 @@ class carddav extends rcube_plugin
                     }
                 } else {
                     if (isset($preset[$attr]) && is_string($preset[$attr])) {
-                        $result[$attr] = $preset[$attr];
+                        $value = $preset[$attr];
+
+                        if (($attr == 'rediscover_mode') && (!in_array($value, [ 'none', 'fulldiscovery' ]))) {
+                            $logger->error("Preset $presetname: invalid value for setting $attr");
+                        } else {
+                            $result[$attr] = $value;
+                        }
                     }
                 }
             }

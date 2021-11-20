@@ -46,6 +46,7 @@ $prefs['<Presetname>'] = [
     'active'       =>  <true or false>,
     'readonly'     =>  <true or false>,
     'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
+    'rediscover_mode' => '<One of: none|fulldiscovery',
 
     // attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset
     'fixed'        =>  [ < 0 or more of the other attribute keys > ],
