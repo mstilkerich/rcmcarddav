@@ -1,34 +1,52 @@
+# Directory of a roundcube working tree or release extract
 ROUNDCUBEDIR=roundcubemail
+
+# A list of the database types for which to execute the tests
+# For each DBTYPE listed here, the following macros need to be defined:
+# - TESTDB_$(DBTYPE): Name of the test database
+# - MIGTESTDB_$(DBTYPE): Name of the database for the schema migrations test
+# - EXECDBSCRIPT_$(DBTYPE): Command to execute an SQL script
+# - CREATEDB_$(DBTYPE): Command to create a database
+# - DUMPTBL_$(DBTYPE): Command to dump the schema of the rcmcarddav tables
 DBTYPES=postgres sqlite3 mysql
+
 TESTDB_sqlite3=testreports/test.db
 MIGTESTDB_sqlite3=testreports/migtest.db
+
 TESTDB_mysql=rcmcarddavtest
 MIGTESTDB_mysql=rcmcarddavmigtest
+
 TESTDB_postgres=rcmcarddavtest
 MIGTESTDB_postgres=rcmcarddavmigtest
+
+# A list of the DB tables of the rcmcarddav plugin
 CD_TABLES=$(foreach tbl,accounts addressbooks contacts groups group_user xsubtypes migrations,carddav_$(tbl))
+
+# Where to store the generated API phpdoc documentation (doc target)
 DOCDIR := doc/api/
+
+# Version of a release to build a tarball for (tarball target), e.g. v4.3.0
+# Normally this is automatically set to build a tarball from the current tagged HEAD
 RELEASE_VERSION ?= $(shell git tag --points-at HEAD)
 
-# This environment variable is set on github actions
-# If not defined, it is expected that the root user can authenticate via unix socket auth
-ifeq ($(MYSQL_PASSWORD),)
-	MYSQL := sudo mysql
-	MYSQLDUMP := sudo mysqldump
-else
-	MYSQL := mysql -u root
-	MYSQLDUMP := mysqldump -u root
-endif
+# MYSQL_CMD_PREFIX can be used to run the command inside a docker container
+# For simplicity, we assume an isolated test database that we can directly access as the root user with no sensitive password
+# The following environment variables are assumed for MYSQL:
+#   - MYSQL_PASSWORD: Password of the MySQL root user
+#   - MYSQL_CMD_PREFIX: Prefix to use for all mysql commands (intended use: docker exec)
+MYSQL     := $(MYSQL_CMD_PREFIX) mysql -u root -p"$$MYSQL_PASSWORD"
+MYSQLDUMP := $(MYSQL_CMD_PREFIX) mysqldump -u root -p"$$MYSQL_PASSWORD"
 
-# This environment variable is set on github actions
-# If not defined, it is expected that the root user can authenticate via unix socket auth
-ifeq ($(POSTGRES_PASSWORD),)
-	PG_CREATEDB := sudo -u postgres createdb
-	PG_DROPDB	:= sudo -u postgres dropdb
-else
-	PG_CREATEDB := createdb
-	PG_DROPDB	:= dropdb
-endif
+# POSTGRES_CMD_PREFIX can be used to run the command inside a docker container
+# For simplicity, we assume an isolated test database that we can directly access as the postgres user with no sensitive password
+# The following environment variables are assumed for PostgreSQL
+#   - PGHOST: Hostname/IP of the postgres server
+#   - PGUSER: Username to use (this user needs permissions to create / drop databases, typically this is postgres)
+#   - POSTGRES_CMD_PREFIX: Prefix to use for all postgres commands (intended use: docker exec)
+PG_CREATEDB := $(POSTGRES_CMD_PREFIX) createdb
+PG_DROPDB	:= $(POSTGRES_CMD_PREFIX) dropdb
+PG_DUMP     := $(POSTGRES_CMD_PREFIX) pg_dump
+PSQL        := $(POSTGRES_CMD_PREFIX) psql
 
 .PHONY: all stylecheck phpcompatcheck staticanalyses psalmanalysis tests verification doc
 
@@ -66,29 +84,29 @@ tarball:
 	gzip releases/carddav-$(RELEASE_VERSION).tar
 
 define EXECDBSCRIPT_postgres
-sed -e 's/TABLE_PREFIX//g' <$(2) | psql -U rcmcarddavtest $(1)
+sed -e 's/TABLE_PREFIX//g' $(2) | $(PSQL) $(1)
 endef
 define EXECDBSCRIPT_mysql
-sed -e 's/TABLE_PREFIX//g' <$(2) | $(MYSQL) --show-warnings $(1)
+sed -e 's/TABLE_PREFIX//g' $(2) | $(MYSQL) --show-warnings $(1)
 endef
 define EXECDBSCRIPT_sqlite3
-sed -e 's/TABLE_PREFIX//g' -e 's/-- .*//' <$(2) | sqlite3 $(1)
+sed -e 's/TABLE_PREFIX//g' -e 's/-- .*//' $(2) | sqlite3 $(1)
 endef
 
 define CREATEDB_postgres
 $(PG_DROPDB) --if-exists $(TESTDB_postgres)
-$(PG_CREATEDB) -O rcmcarddavtest -E UNICODE $(TESTDB_postgres)
+$(PG_CREATEDB) -E UNICODE $(TESTDB_postgres)
 $(call EXECDBSCRIPT_postgres,$(TESTDB_postgres),$(ROUNDCUBEDIR)/SQL/postgres.initial.sql)
 $(PG_DROPDB) --if-exists $(MIGTESTDB_postgres)
-$(PG_CREATEDB) -O rcmcarddavtest -E UNICODE $(MIGTESTDB_postgres)
+$(PG_CREATEDB) -E UNICODE $(MIGTESTDB_postgres)
 $(call EXECDBSCRIPT_postgres,$(MIGTESTDB_postgres),$(ROUNDCUBEDIR)/SQL/postgres.initial.sql)
 endef
 define CREATEDB_mysql
 $(MYSQL) --show-warnings -e 'DROP DATABASE IF EXISTS $(TESTDB_mysql);'
-$(MYSQL) --show-warnings -e 'CREATE DATABASE $(TESTDB_mysql) /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;' -e 'GRANT ALL PRIVILEGES ON $(TESTDB_mysql).* TO rcmcarddavtest@localhost;'
+$(MYSQL) --show-warnings -e 'CREATE DATABASE $(TESTDB_mysql) /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;'
 $(call EXECDBSCRIPT_mysql,$(TESTDB_mysql),$(ROUNDCUBEDIR)/SQL/mysql.initial.sql)
 $(MYSQL) --show-warnings -e 'DROP DATABASE IF EXISTS $(MIGTESTDB_mysql);'
-$(MYSQL) --show-warnings -e 'CREATE DATABASE $(MIGTESTDB_mysql) /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;' -e 'GRANT ALL PRIVILEGES ON $(MIGTESTDB_mysql).* TO rcmcarddavtest@localhost;'
+$(MYSQL) --show-warnings -e 'CREATE DATABASE $(MIGTESTDB_mysql) /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;'
 $(call EXECDBSCRIPT_mysql,$(MIGTESTDB_mysql),$(ROUNDCUBEDIR)/SQL/mysql.initial.sql)
 endef
 define CREATEDB_sqlite3
@@ -100,7 +118,7 @@ $(call EXECDBSCRIPT_sqlite3,$(MIGTESTDB_sqlite3),$(ROUNDCUBEDIR)/SQL/sqlite.init
 endef
 
 define DUMPTBL_postgres
-pg_dump -U rcmcarddavtest --no-owner -s $(foreach tbl,$(CD_TABLES),-t $(tbl)) $(1) >$(2)
+$(PG_DUMP) --no-owner -s $(foreach tbl,$(CD_TABLES),-t $(tbl)) $(1) >$(2)
 endef
 define DUMPTBL_mysql
 $(MYSQLDUMP) --skip-comments --skip-dump-date --no-data $(1) $(CD_TABLES) | sed 's/ AUTO_INCREMENT=[0-9]\+//g' >$(2)
