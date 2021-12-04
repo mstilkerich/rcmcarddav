@@ -13,9 +13,10 @@ jobs:
     env:
       XDEBUG_MODE: coverage
       MYSQL_PASSWORD: root
-      POSTGRES_PASSWORD: postgres
+      MYSQL_CMD_PREFIX: "docker exec -i mysql"
       PGHOST: localhost
       PGUSER: postgres
+      POSTGRES_CMD_PREFIX: "docker exec -i -e PGUSER=postgres postgres"
 
     services:
       postgres:
@@ -29,6 +30,18 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+
+      mysql:
+        image: mysql
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 3306:3306
 
     steps:
       - name: Set up PHP
@@ -46,17 +59,6 @@ jobs:
           path: roundcubemail
           repository: mstilkerich/roundcubemail
           ref: 'rcmcarddav_ci'
-      - name: Copy config files
-        run: |
-          cp -v .github/workflows/ci-cfg/.??* ~/
-          chmod 600 ~/.pgpass ~/.mylogin.cnf
-      - name: Set up MySQL
-        run: |
-          sudo systemctl start mysql.service
-          echo "CREATE USER 'rcmcarddavtest'@'localhost' IDENTIFIED BY 'rcmcarddavtest';" | mysql -u root
-      - name: Set up Postgres
-        run: |
-          psql --username=postgres -c "create role rcmcarddavtest with login password 'rcmcarddavtest';"
       - name: Install dependencies
         run: composer update --no-interaction --no-progress
       - name: Check code style compliance with PSR12
