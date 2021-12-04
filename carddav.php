@@ -168,7 +168,9 @@ class carddav extends rcube_plugin implements RcmInterface
 
     public function inputValue(string $id, bool $allowHtml, int $source = rcube_utils::INPUT_POST): ?string
     {
-        return rcube_utils::get_input_value($id, $source, $allowHtml);
+        $value = rcube_utils::get_input_value($id, $source, $allowHtml);
+
+        return is_string($value) ? $value : null;
     }
 
     public function showMessage(string $msg, string $msgType = 'notice', $override = false, $timeout = 0): void
