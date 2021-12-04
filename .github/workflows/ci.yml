@@ -72,10 +72,10 @@ jobs:
         run: make psalmanalysis
       - name: Database interoperability tests for SQLite3
         run: make tests-sqlite3
-      - name: Database interoperability tests for MySQL
-        run: make tests-mysql
       - name: Database interoperability tests for Postgres
         run: make tests-postgres
+      - name: Database interoperability tests for MySQL
+        run: make tests-mysql
       - name: Check test datasets have a description
         run: make checktestspecs
       - name: Run unit tests
