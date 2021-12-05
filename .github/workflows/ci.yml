@@ -28,6 +28,10 @@ jobs:
         run: make checktestspecs
 
   unittests:
+    strategy:
+      matrix:
+        php-version: ['7.1', '8.0', '8.1']
+
     runs-on: ubuntu-20.04
 
     env:
@@ -39,7 +43,7 @@ jobs:
       - name: Set up CI environment
         uses: ./.github/actions/setup
         with:
-          php-version: '8.0'
+          php-version: ${{ matrix.php-version }}
       - name: Run unit tests
         run: make unittests
       - name: Upload unit test coverage reports to codecov.io
