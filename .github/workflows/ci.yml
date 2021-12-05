@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
       - name: Set up CI environment
         uses: ./.github/actions/setup
         with:
@@ -32,6 +34,8 @@ jobs:
       XDEBUG_MODE: coverage
 
     steps:
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
       - name: Set up CI environment
         uses: ./.github/actions/setup
         with:
@@ -53,6 +57,8 @@ jobs:
       XDEBUG_MODE: coverage
 
     steps:
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
       - name: Set up CI environment
         uses: ./.github/actions/setup
         with:
@@ -90,6 +96,8 @@ jobs:
           - 3306:3306
 
     steps:
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
       - name: Set up CI environment
         uses: ./.github/actions/setup
         with:
@@ -128,6 +136,8 @@ jobs:
           - 5432:5432
 
     steps:
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
       - name: Set up CI environment
         uses: ./.github/actions/setup
         with:
