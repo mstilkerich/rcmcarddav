@@ -8,31 +8,113 @@ on:
       - new_ui
 
 jobs:
-  buildtest:
+  staticanalyses:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+          tools: composer:v2
+          extensions: gd, xdebug, curl
+          coverage: xdebug
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
+      - name: Checkout roundcubemail
+        uses: actions/checkout@v2
+        with:
+          path: roundcubemail
+          repository: mstilkerich/roundcubemail
+          ref: 'rcmcarddav_ci'
+      - name: Install dependencies
+        run: composer update --no-interaction --no-progress
+      - name: Check code style compliance with PSR12
+        run: make stylecheck
+      - name: Check code compatibility with minimum supported PHP version
+        run: make phpcompatcheck
+      - name: Run psalm static analysis
+        run: make psalmanalysis
+      - name: Check test datasets have a description
+        run: make checktestspecs
+
+  unittests:
+    runs-on: ubuntu-20.04
+
+    env:
+      XDEBUG_MODE: coverage
+
+    steps:
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+          tools: composer:v2
+          extensions: gd, xdebug, curl
+          coverage: xdebug
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
+      - name: Checkout roundcubemail
+        uses: actions/checkout@v2
+        with:
+          path: roundcubemail
+          repository: mstilkerich/roundcubemail
+          ref: 'rcmcarddav_ci'
+      - name: Install dependencies
+        run: composer update --no-interaction --no-progress
+      - name: Run unit tests
+        run: make unittests
+      - name: Upload unit test coverage reports to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          file: testreports/unit/clover.xml
+          flags: unittests
+          name: RCMCardDAV unit test coverage
+          fail_ci_if_error: false
+
+  dbinterop-sqlite3:
+    runs-on: ubuntu-20.04
+
+    env:
+      XDEBUG_MODE: coverage
+
+    steps:
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+          tools: composer:v2
+          extensions: gd, xdebug, curl
+          coverage: xdebug
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
+      - name: Checkout roundcubemail
+        uses: actions/checkout@v2
+        with:
+          path: roundcubemail
+          repository: mstilkerich/roundcubemail
+          ref: 'rcmcarddav_ci'
+      - name: Install dependencies
+        run: composer update --no-interaction --no-progress
+      - name: Database interoperability tests for SQLite3
+        run: make tests-sqlite3
+      - name: Upload DB interoperability test coverage reports to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          file: testreports/dbinterop-sqlite3/clover.xml
+          flags: dbinterop-sqlite3
+          name: RCMCardDAV SQLite3 database interoperability test coverage
+          fail_ci_if_error: false
+
+  dbinterop-mysql:
     runs-on: ubuntu-20.04
 
     env:
       XDEBUG_MODE: coverage
       MYSQL_PASSWORD: root
       MYSQL_CMD_PREFIX: "docker exec -i mysql"
-      PGHOST: localhost
-      PGUSER: postgres
-      POSTGRES_CMD_PREFIX: "docker exec -i -e PGUSER=postgres postgres"
 
     services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-          --name postgres
-        ports:
-          - 5432:5432
-
       mysql:
         image: mysql
         env:
@@ -64,33 +146,63 @@ jobs:
           ref: 'rcmcarddav_ci'
       - name: Install dependencies
         run: composer update --no-interaction --no-progress
-      - name: Check code style compliance with PSR12
-        run: make stylecheck
-      - name: Check code compatibility with minimum supported PHP version
-        run: make phpcompatcheck
-      - name: Run psalm static analysis
-        run: make psalmanalysis
-      - name: Database interoperability tests for SQLite3
-        run: make tests-sqlite3
-      - name: Database interoperability tests for Postgres
-        run: make tests-postgres
       - name: Database interoperability tests for MySQL
         run: make tests-mysql
-      - name: Check test datasets have a description
-        run: make checktestspecs
-      - name: Run unit tests
-        run: make unittests
-      - name: Upload unit test coverage reports to codecov.io
-        uses: codecov/codecov-action@v1
-        with:
-          file: testreports/unit/clover.xml
-          flags: unittests
-          name: RCMCardDAV unit test coverage
-          fail_ci_if_error: false
       - name: Upload DB interoperability test coverage reports to codecov.io
         uses: codecov/codecov-action@v1
         with:
-          files: testreports/dbinterop-sqlite3/clover.xml,testreports/dbinterop-mysql/clover.xml,testreports/dbinterop-postgres/clover.xml
-          flags: dbinterop
-          name: RCMCardDAV database interoperability test coverage
+          file: testreports/dbinterop-mysql/clover.xml
+          flags: dbinterop-mysql
+          name: RCMCardDAV MySQL database interoperability test coverage
+          fail_ci_if_error: false
+
+  dbinterop-postgres:
+    runs-on: ubuntu-20.04
+
+    env:
+      XDEBUG_MODE: coverage
+      PGHOST: localhost
+      PGUSER: postgres
+      POSTGRES_CMD_PREFIX: "docker exec -i -e PGUSER=postgres postgres"
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --name postgres
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+          tools: composer:v2
+          extensions: gd, xdebug, curl
+          coverage: xdebug
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
+      - name: Checkout roundcubemail
+        uses: actions/checkout@v2
+        with:
+          path: roundcubemail
+          repository: mstilkerich/roundcubemail
+          ref: 'rcmcarddav_ci'
+      - name: Install dependencies
+        run: composer update --no-interaction --no-progress
+      - name: Database interoperability tests for Postgres
+        run: make tests-postgres
+      - name: Upload DB interoperability test coverage reports to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          file: testreports/dbinterop-postgres/clover.xml
+          flags: dbinterop-postgres
+          name: RCMCardDAV PostgreSQL database interoperability test coverage
           fail_ci_if_error: false
