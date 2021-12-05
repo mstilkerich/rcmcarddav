@@ -139,6 +139,7 @@ tests-$(1): tests/dbinterop/phpunit-$(1).xml tests/dbinterop/DatabaseAccounts.ph
 	@echo "      EXECUTING DBINTEROP TESTS FOR DB $(1)"
 	@echo  ==========================================================
 	@echo
+	@mkdir -p testreports
 	@[ -f tests/dbinterop/DatabaseAccounts.php ] || { echo "Create tests/dbinterop/DatabaseAccounts.php from template tests/dbinterop/DatabaseAccounts.php.dist to execute tests"; exit 1; }
 	$$(call CREATEDB_$(1))
 	$$(call EXECDBSCRIPT_$(1),$(TESTDB_$(1)),dbmigrations/INIT-currentschema/$(1).sql)
