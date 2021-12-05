@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Set up CI environment
-        uses: .github/actions/setup
+        uses: ./.github/actions/setup
         with:
           php-version: '8.0'
       - name: Check code style compliance with PSR12
@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: Set up CI environment
-        uses: .github/actions/setup
+        uses: ./.github/actions/setup
         with:
           php-version: '8.0'
       - name: Run unit tests
@@ -54,7 +54,7 @@ jobs:
 
     steps:
       - name: Set up CI environment
-        uses: .github/actions/setup
+        uses: ./.github/actions/setup
         with:
           php-version: '8.0'
       - name: Database interoperability tests for SQLite3
@@ -91,7 +91,7 @@ jobs:
 
     steps:
       - name: Set up CI environment
-        uses: .github/actions/setup
+        uses: ./.github/actions/setup
         with:
           php-version: '8.0'
       - name: Database interoperability tests for MySQL
@@ -129,7 +129,7 @@ jobs:
 
     steps:
       - name: Set up CI environment
-        uses: .github/actions/setup
+        uses: ./.github/actions/setup
         with:
           php-version: '8.0'
       - name: Database interoperability tests for Postgres
