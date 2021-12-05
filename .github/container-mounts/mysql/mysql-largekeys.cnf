@@ -1,4 +1,0 @@
-[mysqld]
-innodb_large_prefix=1
-innodb_file_per_table=1
-innodb_file_format=Barracuda

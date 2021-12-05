@@ -112,6 +112,8 @@ jobs:
         uses: ./.github/actions/setup
         with:
           php-version: '8.0'
+      - name: Set MySQL settings
+        run: cat .github/configs/mysqlsettings.sql | docker exec -i mysql mysql -uroot -proot
       - name: Database interoperability tests for MySQL
         run: make tests-mysql
       - name: Upload DB interoperability test coverage reports to codecov.io
@@ -149,8 +151,6 @@ jobs:
           --name postgres
         ports:
           - 5432:5432
-        volumes:
-          - ${{ github.workspace }}/.github/container-mounts/mysql:/etc/mysql/conf.d
 
     steps:
       - name: Checkout rcmcarddav
