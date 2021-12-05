@@ -23,3 +23,4 @@ runs:
           ref: 'rcmcarddav_ci'
       - name: Install dependencies
         run: composer update --no-interaction --no-progress
+        shell: bash
