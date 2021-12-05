@@ -12,23 +12,10 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+      - name: Set up CI environment
+        uses: .github/actions/setup
         with:
           php-version: '8.0'
-          tools: composer:v2
-          extensions: gd, xdebug, curl
-          coverage: xdebug
-      - name: Checkout rcmcarddav
-        uses: actions/checkout@v2
-      - name: Checkout roundcubemail
-        uses: actions/checkout@v2
-        with:
-          path: roundcubemail
-          repository: mstilkerich/roundcubemail
-          ref: 'rcmcarddav_ci'
-      - name: Install dependencies
-        run: composer update --no-interaction --no-progress
       - name: Check code style compliance with PSR12
         run: make stylecheck
       - name: Check code compatibility with minimum supported PHP version
@@ -45,23 +32,10 @@ jobs:
       XDEBUG_MODE: coverage
 
     steps:
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+      - name: Set up CI environment
+        uses: .github/actions/setup
         with:
           php-version: '8.0'
-          tools: composer:v2
-          extensions: gd, xdebug, curl
-          coverage: xdebug
-      - name: Checkout rcmcarddav
-        uses: actions/checkout@v2
-      - name: Checkout roundcubemail
-        uses: actions/checkout@v2
-        with:
-          path: roundcubemail
-          repository: mstilkerich/roundcubemail
-          ref: 'rcmcarddav_ci'
-      - name: Install dependencies
-        run: composer update --no-interaction --no-progress
       - name: Run unit tests
         run: make unittests
       - name: Upload unit test coverage reports to codecov.io
@@ -79,23 +53,10 @@ jobs:
       XDEBUG_MODE: coverage
 
     steps:
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+      - name: Set up CI environment
+        uses: .github/actions/setup
         with:
           php-version: '8.0'
-          tools: composer:v2
-          extensions: gd, xdebug, curl
-          coverage: xdebug
-      - name: Checkout rcmcarddav
-        uses: actions/checkout@v2
-      - name: Checkout roundcubemail
-        uses: actions/checkout@v2
-        with:
-          path: roundcubemail
-          repository: mstilkerich/roundcubemail
-          ref: 'rcmcarddav_ci'
-      - name: Install dependencies
-        run: composer update --no-interaction --no-progress
       - name: Database interoperability tests for SQLite3
         run: make tests-sqlite3
       - name: Upload DB interoperability test coverage reports to codecov.io
@@ -129,23 +90,10 @@ jobs:
           - 3306:3306
 
     steps:
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+      - name: Set up CI environment
+        uses: .github/actions/setup
         with:
           php-version: '8.0'
-          tools: composer:v2
-          extensions: gd, xdebug, curl
-          coverage: xdebug
-      - name: Checkout rcmcarddav
-        uses: actions/checkout@v2
-      - name: Checkout roundcubemail
-        uses: actions/checkout@v2
-        with:
-          path: roundcubemail
-          repository: mstilkerich/roundcubemail
-          ref: 'rcmcarddav_ci'
-      - name: Install dependencies
-        run: composer update --no-interaction --no-progress
       - name: Database interoperability tests for MySQL
         run: make tests-mysql
       - name: Upload DB interoperability test coverage reports to codecov.io
@@ -180,23 +128,10 @@ jobs:
           - 5432:5432
 
     steps:
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+      - name: Set up CI environment
+        uses: .github/actions/setup
         with:
           php-version: '8.0'
-          tools: composer:v2
-          extensions: gd, xdebug, curl
-          coverage: xdebug
-      - name: Checkout rcmcarddav
-        uses: actions/checkout@v2
-      - name: Checkout roundcubemail
-        uses: actions/checkout@v2
-        with:
-          path: roundcubemail
-          repository: mstilkerich/roundcubemail
-          ref: 'rcmcarddav_ci'
-      - name: Install dependencies
-        run: composer update --no-interaction --no-progress
       - name: Database interoperability tests for Postgres
         run: make tests-postgres
       - name: Upload DB interoperability test coverage reports to codecov.io
