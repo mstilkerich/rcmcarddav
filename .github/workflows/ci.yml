@@ -149,6 +149,8 @@ jobs:
           --name postgres
         ports:
           - 5432:5432
+        volumes:
+          - ${{ github.workspace }}/.github/container-mounts/mysql:/etc/mysql/conf.d
 
     steps:
       - name: Checkout rcmcarddav
