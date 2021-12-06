@@ -1,5 +1,12 @@
+-- For MySQL 5.6, we need to put the server in strict mode to add the NOT NULL constraint to a foreign key column
+SET @SAVE_sql_mode = @@sql_mode;
+SET @@sql_mode = 'STRICT_ALL_TABLES';
+
 -- Set NOT NULL constraint on account_id column
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks MODIFY account_id INT(10) UNSIGNED NOT NULL;
+
+-- Restore original sql mode
+SET @@sql_mode = @SAVE_sql_mode;
 
 -- Drop not needed columns from addressbooks table
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks DROP username;
