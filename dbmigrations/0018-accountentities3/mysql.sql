@@ -6,22 +6,10 @@ ALTER TABLE TABLE_PREFIXcarddav_addressbooks DROP username;
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks DROP password;
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks DROP presetname;
 
--- Drop the user_id column including its foreign key constraint; this requires fiddling out
--- the constraint name in MySQL. The following is thankfully taken from
--- https://stackoverflow.com/a/46541719
-
-SET @constraint_name = (
-    SELECT constraint_name
-    FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-    WHERE TABLE_NAME = 'TABLE_PREFIXcarddav_addressbooks'
-        AND COLUMN_NAME = 'user_id'
-        AND CONSTRAINT_SCHEMA = DATABASE()
-        AND referenced_table_name = 'TABLE_PREFIXusers'
-        AND referenced_column_name = 'user_id');
-
-SET @s = concat('alter table TABLE_PREFIXcarddav_addressbooks drop foreign key ', @constraint_name);
-PREPARE stmt FROM @s;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
+-- The below constraint name is hard-coded for simplicity; it is auto-selected by MySQL
+-- so in theory it might not have that name and the query would fail. However, I cannot
+-- think of why the name would be different.
+-- In case it is not, the actual name can be found via the following query for manual cleanup:
+-- SELECT constraint_name from information_schema.key_column_usage where table_name='carddav_addressbooks' and column_name='user_id' and constraint_schema=DATABASE() and referenced_table_name='users' and referenced_column_name = 'user_id';
+ALTER TABLE TABLE_PREFIXcarddav_addressbooks DROP FOREIGN KEY carddav_addressbooks_ibfk_1;
 ALTER TABLE TABLE_PREFIXcarddav_addressbooks DROP user_id;
