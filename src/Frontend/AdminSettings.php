@@ -274,6 +274,7 @@ class AdminSettings
                         $account['presetname'] = $presetName;
                         $abookTmpl = $this->makeDbObjFromPreset('addressbook', $preset);
                         $abookTmpl["account_id"] = $abMgr->insertAccount($account);
+                        $abookTmpl["sync_token"] = '';
 
                         // Auto-discovery if discovery URI is set
                         if (isset($preset['url'])) {
