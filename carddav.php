@@ -114,18 +114,18 @@ class carddav extends rcube_plugin implements RcmInterface
         $rcmail = \rcmail::get_instance();
         $rcTask = $rcmail->task;
         $rcAction = $rcmail->action;
-        $infra->logger()->debug(__METHOD__ . ", $rcTask, $rcAction");
+        $logger->debug(__METHOD__ . ", $rcTask, $rcAction");
 
         try {
             $rc = $infra->rc();
             $rc->addHook('login_after', [$this, 'afterLogin']);
 
+            // initialize carddavclient library
+            MStilkerich\CardDavClient\Config::init($logger, $infra->httpLogger());
+
             if (!isset($_SESSION['user_id'])) {
                 return;
             }
-
-            // initialize carddavclient library
-            MStilkerich\CardDavClient\Config::init($logger, $infra->httpLogger());
 
             $rc->addTexts('localization/');
 
