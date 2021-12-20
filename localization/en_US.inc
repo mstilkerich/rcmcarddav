@@ -20,6 +20,11 @@ $labels = Array(
 	'cd_msg_syncfailed' => 'Sync of CardDAV addressbook $name failed: $errormsg',
 	'cd_frompreset' => ' (from preset _PRESETNAME_)',
 
+	'accountname' => 'Name of the account',
+	'discoveryurl' => 'Discovery URL',
+	'rediscover_time' => 'Rediscovery interval (hours)',
+	'lastdiscovered_time' => 'Time of last addressbook discovery',
+
 	'changeactive' => 'Toggle addressbook active',
 	'activatingabook' => 'Activating addressbook...',
 	'deactivatingabook' => 'Deactivating addressbook...',
@@ -29,6 +34,7 @@ $labels = Array(
 	'abookproperties' => 'Addressbook properties',
 	'basicinfo' => 'Basic information',
 	'syncinfo' => 'Synchronization',
+	'discoveryinfo' => 'Addressbook discovery',
 	'miscsettings' => 'Miscellaneous settings',
 	'newgroupstype' => 'Type of new contact groups',
 	'grouptype_vcard' => 'Separate KIND=group (RFC6350) VCards for new groups (best compatibility with Apple applications)',

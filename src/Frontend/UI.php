@@ -31,7 +31,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Config;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 /**
- * @psalm-type UiFieldType = 'text'|'plain'|'datetime'|'timestr'|'radio'
+ * @psalm-type UiFieldType = 'text'|'plain'|'datetime'|'timestr'|'radio'|'password'
  * @psalm-type SettingFieldSpec = array{0: string, 1: string, 2: UiFieldType, 3?: list<array{string,string}>}
  * @psalm-type FieldSetSpec = array{label: string, fields: list<SettingFieldSpec>}
  * @psalm-type FormSpec = list<FieldSetSpec>
@@ -41,6 +41,26 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  */
 class UI
 {
+    /** @var FormSpec UI_FORM_ACCOUNT */
+    private const UI_FORM_ACCOUNT = [
+        [
+            'label' => 'basicinfo',
+            'fields' => [
+                [ 'accountname', 'name', 'text' ],
+                [ 'discoveryurl', 'url', 'plain' ],
+                [ 'cd_username', 'username', 'text' ],
+                [ 'cd_password', 'password', 'password' ],
+            ]
+        ],
+        [
+            'label' => 'discoveryinfo',
+            'fields' => [
+                [ 'rediscover_time', 'rediscover_time', 'timestr' ],
+                [ 'lastdiscovered_time', 'last_discovered', 'datetime' ],
+            ]
+        ],
+    ];
+
     /** @var FormSpec UI_FORM_ABOOK */
     private const UI_FORM_ABOOK = [
         [
@@ -330,7 +350,7 @@ class UI
                 } else {
                     $fieldValue = $rc->locText('never');
                 }
-                // fall through to plain
+                return \rcube::Q($fieldValue);
 
             case 'plain':
                 return \rcube::Q($fieldValue);
@@ -345,6 +365,15 @@ class UI
                     'name' => $fieldKey,
                     'type' => $uiType,
                     'value' => $fieldValue,
+                    'disabled' => $readonly,
+                ]);
+                return $input->show();
+
+            case 'password':
+                $input = new \html_inputfield([
+                    'name' => $fieldKey,
+                    'type' => $uiType,
+                    'value' => '', // don't pass the password to the UI form
                     'disabled' => $readonly,
                 ]);
                 return $input->show();
@@ -412,7 +441,38 @@ class UI
     // ACTIONS: Rediscover, Delete, Add manual addressbook
     public function tmplAccountDetails(array $attrib): string
     {
+        $infra = Config::inst();
+        $rc = $infra->rc();
+        $logger = $infra->logger();
         $out = '';
+
+        try {
+            // Note: accountid is provided as GET (account selection) or POST parameter (settings form)
+            $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GP);
+            if (isset($accountId)) {
+                $account = $this->abMgr->getAccountConfig($accountId);
+
+                $fixedAttributes = $this->getFixedSettings($account['presetname']);
+
+                // HIDDEN FIELDS
+                $accountIdField = new \html_hiddenfield(['name' => "accountid", 'value' => $accountId]);
+                $out .= $accountIdField->show();
+
+                $out .= $this->makeSettingsForm(self::UI_FORM_ACCOUNT, $account, $fixedAttributes, $attrib);
+
+                $out = $rc->requestForm(
+                    [
+                        'task' => 'settings',
+                        'action' => 'plugin.carddav.accountdetails',
+                        'method' => 'post',
+                    ] + $attrib,
+                    $out
+                );
+            }
+        } catch (\Exception $e) {
+            $logger->error($e->getMessage());
+        }
+
         return $out;
     }
 

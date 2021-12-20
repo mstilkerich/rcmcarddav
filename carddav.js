@@ -45,6 +45,12 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
             function() { rcmail.carddav_save_abook(); },
             true // enable
         );
+    } else if (rcmail.env.action == 'plugin.carddav.accountdetails') {
+        rcmail.register_command(
+            'plugin.carddav-save-account',
+            function() { rcmail.carddav_save_account(); },
+            true // enable
+        );
     }
 });
 
@@ -102,6 +108,11 @@ rcube_webmail.prototype.carddav_reset_active = function(abook, state)
 rcube_webmail.prototype.carddav_save_abook = function()
 {
     $('form[name="addressbookdetails"]').submit();
+};
+
+rcube_webmail.prototype.carddav_save_abook = function()
+{
+    $('form[name="accountdetails"]').submit();
 };
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120
