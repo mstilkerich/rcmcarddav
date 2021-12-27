@@ -44,6 +44,11 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
             function() { rcmail.carddav_create_account(); },
             true
         );
+        rcmail.register_command(
+            'carddav-delete-account',
+            function() { rcmail.carddav_delete_account(); },
+            false
+        );
     } else if (rcmail.env.action == 'plugin.carddav.abookdetails') {
         rcmail.register_command(
             'plugin.carddav-save-abook',
@@ -67,10 +72,15 @@ rcube_webmail.prototype.carddav_ablist_select = function(node)
     if (id.startsWith("_acc")) {
         // Account
         url = '&_action=plugin.carddav.accountdetails&accountid=' + id.substr(4);
+        this.env.carddav_account = id.substr(4);
+        this.enable_command('carddav-delete-account', true);
     } else if (id.startsWith("_abook")) {
         // Addressbook
         url = '&_action=plugin.carddav.abookdetails&abookid=' + id.substr(6);
+        this.env.carddav_abook = id.substr(6);
+        this.enable_command('carddav-delete-account', false);
     } else {
+        this.enable_command('carddav-delete-account', false);
         // unexpected id
         return;
     }
@@ -133,6 +143,18 @@ rcube_webmail.prototype.carddav_create_account = function()
     if (win = this.get_frame_window(this.env.contentframe)) {
         this.env.frame_lock = this.set_busy(true, 'loading');
         win.location.href = this.env.comm_path + '&_framed=1&_action=plugin.carddav.accountdetails&accountid=new';
+    }
+};
+
+// this is called when the Delete Account button is clicked
+rcube_webmail.prototype.carddav_delete_account = function()
+{
+    var win;
+    if (win = this.get_frame_window(this.env.contentframe)) {
+        this.env.frame_lock = this.set_busy(true, 'loading');
+        win.location.href = this.env.comm_path +
+            '&_framed=1&_action=plugin.carddav.delete-account&accountid=' +
+            this.env.carddav_account;
     }
 };
 

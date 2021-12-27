@@ -47,5 +47,7 @@ $labels = Array(
 
 	'btn_add' => 'Add',
 	'btn_addaccount' => 'Add CardDAV account',
+	'btn_delete' => 'Delete',
+	'btn_deleteaccount' => 'Delete CardDAV account',
 );
 ?>

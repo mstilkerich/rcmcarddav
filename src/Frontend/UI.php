@@ -147,6 +147,7 @@ class UI
         $rc->registerAction('plugin.carddav.activateabook', [$this, 'actionChangeAddressbookActive']);
         $rc->registerAction('plugin.carddav.abookdetails', [$this, 'actionAddressbookDetails']);
         $rc->registerAction('plugin.carddav.accountdetails', [$this, 'actionAccountDetails']);
+        $rc->registerAction('plugin.carddav.delete-account', [$this, 'actionAccountDelete']);
         $rc->includeCSS('carddav.css');
         $rc->includeJS("carddav.js");
     }
@@ -316,6 +317,31 @@ class UI
             $rc->setPagetitle($rc->locText('accountproperties'));
             $rc->addTemplateObjHandler('accountdetails', $tmplAccountDetailsFn);
             $rc->sendTemplate('carddav.accountDetails');
+        }
+    }
+
+    /**
+     * This action is invoked to delete an account of the user.
+     */
+    public function actionAccountDelete(): void
+    {
+        $infra = Config::inst();
+        $rc = $infra->rc();
+        $logger = $infra->logger();
+
+        $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GET);
+        if (isset($accountId)) {
+            // POST - Settings saved
+            try {
+                $abMgr = $this->abMgr;
+                $abMgr->deleteAccount($accountId);
+                $rc->showMessage($rc->locText("saveok"), 'confirmation');
+                $rc->clientCommand('carddav_redirect', '');
+                $rc->sendTemplate('iframe');
+            } catch (\Exception $e) {
+                $logger->error("Error saving account preferences: " . $e->getMessage());
+                $rc->showMessage($rc->locText("savefail"), 'error');
+            }
         }
     }
 
