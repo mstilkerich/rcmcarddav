@@ -41,14 +41,15 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *   - DB managed columns (particularly: id) are missing
  *
  * @psalm-type AccountSettings = array{
+ *     id?: string,
  *     name?: string,
  *     username?: string,
  *     password?: string,
  *     url?: ?string,
- *     rediscover_time?: int,
- *     last_discovered?: int,
+ *     rediscover_time?: int | numeric-string,
+ *     last_discovered?: int | numeric-string,
  *     active?: bool,
- *     presetname?: string
+ *     presetname?: ?string
  * }
  * @psalm-type AbookSettings = array{
  *     account_id?: string,
@@ -56,8 +57,8 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *     url?: string,
  *     active?: bool,
  *     use_categories?: bool,
- *     refresh_time?: int,
- *     last_updated?: int,
+ *     refresh_time?: int | numeric-string,
+ *     last_updated?: int | numeric-string,
  *     discovered?: bool,
  *     sync_token?: string
  * }
@@ -466,6 +467,77 @@ class AddressbookManager
         } finally {
             $this->abooksDb = null;
         }
+    }
+
+    /**
+     * Discovers the addressbooks for the given account.
+     *
+     * The given account may be new or already exist in the database. In case of an existing account, it is expected
+     * that the id field in $accountCfg is set to the corresponding ID.
+     *
+     * The function discovers the addressbooks for that account. Upon successful discovery, the account is
+     * inserted/updated in the database, including setting of the last_discovered time. The auto-discovered addressbooks
+     * of an existing account are updated accordingly, i.e. new addressboooks are inserted, and addressbooks that are no
+     * longer discovered are also removed from the local db.
+     *
+     * @param AccountSettings $accountCfg Array with the settings for the new account
+     * @param AbookSettings $abookTmpl Array with default settings for new addressbooks
+     * @return string The database ID of the account
+     *
+     * @throws \Exception If the discovery failed for some reason. In this case, the state in the db remains unchanged.
+     */
+    public function discoverAddressbooks(array $accountCfg, array $abookTmpl): string
+    {
+        $infra = Config::inst();
+
+        if (!isset($accountCfg['url'])) {
+            throw new \Exception('Cannot discover addressbooks for an account lacking a discovery URI');
+        }
+
+        $account = Config::makeAccount(
+            Utils::replacePlaceholdersUrl($accountCfg['url']),
+            Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
+            Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
+            null
+        );
+        $discover = $infra->makeDiscoveryService();
+        $abooks = $discover->discoverAddressbooks($account);
+
+        if (isset($accountCfg['id'])) {
+            $accountId = $accountCfg['id'];
+            $this->updateAccount($accountId, [ 'last_discovered' => time() ]);
+
+            // get locally existing addressbooks for this account
+            $newbooks = []; // AddressbookCollection[] with new addressbooks at the server side
+            $dbbooks = array_column($this->getAddressbookConfigsForAccount($accountId), 'id', 'url');
+            foreach ($abooks as $abook) {
+                $abookUri = $abook->getUri();
+                if (isset($dbbooks[$abookUri])) {
+                    unset($dbbooks[$abookUri]); // remove so we can sort out the deleted ones
+                } else {
+                    $newbooks[] = $abook;
+                }
+            }
+
+            // delete all addressbooks we cannot find on the server anymore
+            $this->deleteAddressbooks(array_values($dbbooks));
+        } else {
+            $accountCfg['last_discovered'] = time();
+            $accountId = $this->insertAccount($accountCfg);
+            $newbooks = $abooks;
+        }
+
+        // store discovered addressbooks
+        $abookTmpl["account_id"] = $accountId;
+        $abookTmpl['discovered'] = true;
+        $abookTmpl['sync_token'] = '';
+        foreach ($newbooks as $abook) {
+            $abookTmpl['name'] = $abook->getName();
+            $abookTmpl['url'] = $abook->getUri();
+            $this->insertAddressbook($abookTmpl);
+        }
+
+        return $accountId;
     }
 
     /**

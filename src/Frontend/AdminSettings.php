@@ -256,49 +256,40 @@ class AdminSettings
 
             // Walk over the current presets configured by the admin and add, update or delete addressbooks
             foreach ($this->presets as $presetName => $preset) {
-                if (isset($existingPresets[$presetName])) {
-                    $accountId = $existingPresets[$presetName];
+                try {
+                    $logger->info("Adding/Updating preset $presetName for user $userId");
 
-                    // Update the extra addressbooks with the current set of the admin
-                    // TODO
+                    if (isset($existingPresets[$presetName])) {
+                        $accountId = $existingPresets[$presetName];
 
-                    // Update the fixed account/addressbook settings with the current admin values
-                    $this->updatePresetSettings($presetName, $accountId, $abMgr);
-                } else {
-                    // If no account exists yet, add a new account for the preset
-                    $logger->info("Adding preset $presetName for user $userId");
+                        // Update the extra addressbooks with the current set of the admin
+                        // TODO
 
-                    try {
-                        // store account
-                        $account = $this->makeDbObjFromPreset('account', $preset);
-                        $account['presetname'] = $presetName;
-                        $abookTmpl = $this->makeDbObjFromPreset('addressbook', $preset);
-                        $abookTmpl["account_id"] = $abMgr->insertAccount($account);
-                        $abookTmpl["sync_token"] = '';
+                        // Update the fixed account/addressbook settings with the current admin values
+                        $this->updatePresetSettings($presetName, $accountId, $abMgr);
+                        $accountCfg = $abMgr->getAccountConfig($accountId);
+                    } else {
+                        $accountCfg = $this->makeDbObjFromPreset('account', $preset);
+                        $accountCfg['presetname'] = $presetName;
+                    }
 
-                        // Auto-discovery if discovery URI is set
-                        if (isset($preset['url'])) {
-                            $username = Utils::replacePlaceholdersUsername($preset['username']);
-                            $password = Utils::replacePlaceholdersPassword($preset['password']);
-                            $discoveryUrl = Utils::replacePlaceholdersUrl($preset['url']);
-                            $account = Config::makeAccount($discoveryUrl, $username, $password, null);
-                            $discover = $infra->makeDiscoveryService();
-                            $abooks = $discover->discoverAddressbooks($account);
-
-                            // store discovered addressbooks
-                            foreach ($abooks as $abook) {
-                                $abookTmpl['name'] = $abook->getName();
-                                $abookTmpl['url'] = $abook->getUri();
-                                $abookTmpl['discovered'] = true;
-                                $abMgr->insertAddressbook($abookTmpl);
-                            }
+                    // Perform auto (re-)discovery
+                    if (isset($preset['url'])) {
+                        if (isset($accountCfg['last_discovered']) && isset($accountCfg['rediscover_time'])) {
+                            $doDiscovery = (($accountCfg['last_discovered'] + $accountCfg['rediscover_time']) < time());
+                        } else {
+                            $doDiscovery = true; // initial discovery for new account
                         }
 
-                        // 2) Create / delete the extra addressbooks for this preset
-                        // TODO
-                    } catch (\Exception $e) {
-                        $logger->error("Error adding preset $presetName for user $userId {$e->getMessage()}");
+                        if ($doDiscovery) {
+                            $abookTmpl = $this->makeDbObjFromPreset('addressbook', $preset);
+                            $abMgr->discoverAddressbooks($accountCfg, $abookTmpl);
+                        }
                     }
+
+                    // TODO Create / delete the extra addressbooks for this preset
+                } catch (\Exception $e) {
+                    $logger->error("Error adding/updating preset $presetName for user $userId {$e->getMessage()}");
                 }
 
                 unset($existingPresets[$presetName]);
@@ -374,9 +365,11 @@ class AdminSettings
     /**
      * Creates a DB object to insert from a preset.
      *
-     * @param 'addressbook'|'account' $type
+     * @psalm-template T as 'addressbook'|'account'
+     * @param T $type
      * @param Preset $preset
      * @return AbookSettings | AccountSettings
+     * @psalm-return (T is 'addressbook' ? AbookSettings : AccountSettings)
      */
     private function makeDbObjFromPreset(string $type, array $preset): array
     {

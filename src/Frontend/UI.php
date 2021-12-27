@@ -38,16 +38,46 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type FullAccountRow from AbstractDatabase
  * @psalm-import-type AbookSettings from AddressbookManager
+ * @psalm-import-type AccountSettings from AddressbookManager
  */
 class UI
 {
+    /** @var FormSpec UI_FORM_NEWACCOUNT */
+    private const UI_FORM_NEWACCOUNT = [
+        [
+            'label' => 'newaccount',
+            'fields' => [
+                [ 'accountname', 'name', 'text' ],
+                [ 'discoveryurl', 'url', 'text' ],
+                [ 'cd_username', 'username', 'text' ],
+                [ 'cd_password', 'password', 'password' ],
+            ]
+        ],
+        [
+            'label' => 'miscsettings',
+            'fields' => [
+                [ 'rediscover_time', 'rediscover_time', 'timestr' ],
+                [ 'cd_refresh_time', 'refresh_time', 'timestr' ],
+                [
+                    'newgroupstype',
+                    'use_categories',
+                    'radio',
+                    [
+                        [ '0', 'grouptype_vcard' ],
+                        [ '1', 'grouptype_categories' ],
+                    ]
+                ],
+            ]
+        ],
+    ];
+
     /** @var FormSpec UI_FORM_ACCOUNT */
     private const UI_FORM_ACCOUNT = [
         [
             'label' => 'basicinfo',
             'fields' => [
                 [ 'accountname', 'name', 'text' ],
-                [ 'discoveryurl', 'url', 'plain' ],
+                [ 'discoveryurl', 'url', 'text' ],
                 [ 'cd_username', 'username', 'text' ],
                 [ 'cd_password', 'password', 'password' ],
             ]
@@ -238,15 +268,53 @@ class UI
         }
     }
 
+    /**
+     * This action is invoked to show the details of an existing account, or to create a new account.
+     */
     public function actionAccountDetails(): void
     {
         $infra = Config::inst();
         $rc = $infra->rc();
+        $logger = $infra->logger();
 
-        $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GET);
+        $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_POST);
+        if (isset($accountId)) {
+            // POST - Settings saved
+            try {
+                $abMgr = $this->abMgr;
+
+                if ($accountId == 'new') {
+                    /** @psalm-var AccountSettings */
+                    $newaccount = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, []);
+                    /** @psalm-var AbookSettings */
+                    $abooksettings = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, []);
+                    $accountId = $abMgr->discoverAddressbooks($newaccount, $abooksettings);
+                    $rc->clientCommand('carddav_redirect', '');
+                    $rc->sendTemplate('iframe');
+                } else {
+                    $account = $abMgr->getAccountConfig($accountId);
+                    $fixedAttributes = $this->getFixedSettings($account['presetname']);
+                    /** @psalm-var AccountSettings */
+                    $newset = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, $fixedAttributes);
+                    $abMgr->updateAccount($accountId, $newset);
+                }
+
+                $rc->showMessage($rc->locText("saveok"), 'confirmation');
+            } catch (\Exception $e) {
+                $logger->error("Error saving account preferences: " . $e->getMessage());
+                $rc->showMessage($rc->locText("savefail"), 'error');
+            }
+        } else {
+            // GET - Account selected in list
+            $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GET);
+        }
 
         if (isset($accountId)) {
-            $rc->addTemplateObjHandler('accountdetails', [$this, 'tmplAccountDetails']);
+            $tmplAccountDetailsFn = function (array $attrib) use ($accountId): string {
+                return $this->tmplAccountDetails($accountId, $attrib);
+            };
+            $rc->setPagetitle($rc->locText('accountproperties'));
+            $rc->addTemplateObjHandler('accountdetails', $tmplAccountDetailsFn);
             $rc->sendTemplate('carddav.accountDetails');
         }
     }
@@ -265,10 +333,11 @@ class UI
                 $abookrow = $abMgr->getAddressbookConfig($abookId);
                 $account = $abMgr->getAccountConfig($abookrow["account_id"]);
                 $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookrow['url']);
-                $newset = $this->getAddressbookSettingsFromPOST(self::UI_FORM_ABOOK, $fixedAttributes);
+                /** @psalm-var AbookSettings */
+                $newset = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, $fixedAttributes);
                 $abMgr->updateAddressbook($abookId, $newset);
             } catch (\Exception $e) {
-                $logger->error("Error saving carddav preferences: " . $e->getMessage());
+                $logger->error("Error saving addressbook preferences: " . $e->getMessage());
             }
         } else {
             // GET - Addressbook selected in list
@@ -286,10 +355,10 @@ class UI
 
     /**
      * @param FormSpec $formSpec Specification of the form
-     * @param FullAbookRow | FullAccountRow $obj The DB row of the object whose settings shall be shown
+     * @param array<string, ?string> $vals Values for the form fields
      * @param list<string> $fixedAttributes A list of non-changeable settings by choice of the admin
      */
-    private function makeSettingsForm(array $formSpec, array $obj, array $fixedAttributes, array $attrib): string
+    private function makeSettingsForm(array $formSpec, array $vals, array $fixedAttributes, array $attrib): string
     {
         $infra = Config::inst();
         $rc = $infra->rc();
@@ -303,7 +372,7 @@ class UI
 
                 $readonly = in_array($fieldKey, $fixedAttributes);
                 $table->add(['class' => 'title'], \html::label(['for' => $fieldKey], $rc->locText($fieldLabel)));
-                $table->add([], $this->uiField($fieldSpec, (string) $obj[$fieldKey], $readonly));
+                $table->add([], $this->uiField($fieldSpec, $vals[$fieldKey] ?? '', $readonly));
             }
 
             $out .= \html::tag(
@@ -439,7 +508,7 @@ class UI
 
     // INFO: name, url, group type, rediscover time, time of last rediscovery
     // ACTIONS: Rediscover, Delete, Add manual addressbook
-    public function tmplAccountDetails(array $attrib): string
+    public function tmplAccountDetails(string $accountId, array $attrib): string
     {
         $infra = Config::inst();
         $rc = $infra->rc();
@@ -447,28 +516,32 @@ class UI
         $out = '';
 
         try {
-            // Note: accountid is provided as GET (account selection) or POST parameter (settings form)
-            $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GP);
-            if (isset($accountId)) {
+            // HIDDEN FIELDS
+            $accountIdField = new \html_hiddenfield(['name' => "accountid", 'value' => $accountId]);
+            $out .= $accountIdField->show();
+
+            if ($accountId == "new") {
+                // default values
+                $account = [
+                    'use_categories' => '1',
+                    'rediscover_time' =>  '86400',
+                    'refresh_time' =>  '3600',
+                ];
+                $out .= $this->makeSettingsForm(self::UI_FORM_NEWACCOUNT, $account, [], $attrib);
+            } else {
                 $account = $this->abMgr->getAccountConfig($accountId);
-
                 $fixedAttributes = $this->getFixedSettings($account['presetname']);
-
-                // HIDDEN FIELDS
-                $accountIdField = new \html_hiddenfield(['name' => "accountid", 'value' => $accountId]);
-                $out .= $accountIdField->show();
-
                 $out .= $this->makeSettingsForm(self::UI_FORM_ACCOUNT, $account, $fixedAttributes, $attrib);
-
-                $out = $rc->requestForm(
-                    [
-                        'task' => 'settings',
-                        'action' => 'plugin.carddav.accountdetails',
-                        'method' => 'post',
-                    ] + $attrib,
-                    $out
-                );
             }
+
+            $out = $rc->requestForm(
+                [
+                    'task' => 'settings',
+                    'action' => 'plugin.carddav.accountdetails',
+                    'method' => 'post',
+                ] + $attrib,
+                $out
+            );
         } catch (\Exception $e) {
             $logger->error($e->getMessage());
         }
@@ -477,17 +550,17 @@ class UI
     }
 
     /**
-     * This function gets the addressbook settings from a POST request.
+     * This function gets the account/addressbook settings from a POST request.
      *
      * The result array will only have keys set for POSTed values.
      *
-     * For fixed settings of preset addressbooks, no setting values will be contained.
+     * For fixed settings of preset accounts/addressbooks, no setting values will be contained.
      *
      * @param FormSpec $formSpec Specification of the settings form
      * @param list<string> $fixedAttributes A list of non-changeable settings by choice of the admin
-     * @return AbookSettings An array with addressbook column keys and their setting.
+     * @return AccountSettings|AbookSettings An array with addressbook column keys and their setting.
      */
-    private function getAddressbookSettingsFromPOST(array $formSpec, array $fixedAttributes): array
+    private function getSettingsFromPOST(array $formSpec, array $fixedAttributes): array
     {
         $infra = Config::inst();
         $logger = $infra->logger();
@@ -504,7 +577,7 @@ class UI
                     continue;
                 }
 
-                $fieldValue = $rc->inputValue($fieldKey, false);
+                $fieldValue = $rc->inputValue($fieldKey, ($uiType == 'password'));
                 if (!isset($fieldValue)) {
                     continue;
                 }
@@ -521,6 +594,7 @@ class UI
                             $fieldValue = Utils::parseTimeParameter($fieldValue);
                         } catch (\Exception $e) {
                             // ignore format error, keep old value
+                            $logger->warning("Format error in timestring parameter $fieldKey: $fieldValue (ignored)");
                             continue 2;
                         }
                         break;
@@ -539,7 +613,7 @@ class UI
             }
         }
 
-        /** @psalm-var AbookSettings */
+        /** @psalm-var AccountSettings|AbookSettings */
         return $result;
     }
 }

@@ -25,6 +25,10 @@ $labels = Array(
 	'rediscover_time' => 'Rediscovery interval (hours)',
 	'lastdiscovered_time' => 'Time of last addressbook discovery',
 
+	'saveok' => 'Settings saved successfully',
+	'savefail' => 'Failed to save settings ($errormsg)',
+
+	'newaccount' => 'Add new CardDAV account',
 	'changeactive' => 'Toggle addressbook active',
 	'activatingabook' => 'Activating addressbook...',
 	'deactivatingabook' => 'Deactivating addressbook...',
@@ -40,5 +44,8 @@ $labels = Array(
 	'grouptype_vcard' => 'Separate KIND=group (RFC6350) VCards for new groups (best compatibility with Apple applications)',
 	'grouptype_categories' => 'Store groups as CATEGORIES inside contact VCards (best compatibility with non-Apple applications)',
 	'never' => 'never',
+
+	'btn_add' => 'Add',
+	'btn_addaccount' => 'Add CardDAV account',
 );
 ?>

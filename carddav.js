@@ -39,6 +39,11 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
             function(props) { rcmail.carddav_activate_abook(props.abookid, props.state); },
             true
         );
+        rcmail.register_command(
+            'carddav-create-account',
+            function() { rcmail.carddav_create_account(); },
+            true
+        );
     } else if (rcmail.env.action == 'plugin.carddav.abookdetails') {
         rcmail.register_command(
             'plugin.carddav-save-abook',
@@ -105,14 +110,30 @@ rcube_webmail.prototype.carddav_reset_active = function(abook, state)
     }
 };
 
+// reloads the page
+rcube_webmail.prototype.carddav_redirect = function(target)
+{
+    (this.is_framed() ? parent : window).location.reload();
+};
+
 rcube_webmail.prototype.carddav_save_abook = function()
 {
     $('form[name="addressbookdetails"]').submit();
 };
 
-rcube_webmail.prototype.carddav_save_abook = function()
+rcube_webmail.prototype.carddav_save_account = function()
 {
     $('form[name="accountdetails"]').submit();
+};
+
+// this is called when the Add Account button is clicked
+rcube_webmail.prototype.carddav_create_account = function()
+{
+    var win;
+    if (win = this.get_frame_window(this.env.contentframe)) {
+        this.env.frame_lock = this.set_busy(true, 'loading');
+        win.location.href = this.env.comm_path + '&_framed=1&_action=plugin.carddav.accountdetails&accountid=new';
+    }
 };
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120
