@@ -31,5 +31,4 @@ namespace MStilkerich\CardDavAddressbook4Roundcube\Db;
  */
 class DatabaseException extends \Exception
 {
-
 }
