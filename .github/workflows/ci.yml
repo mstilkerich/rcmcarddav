@@ -5,35 +5,104 @@ on:
   push:
     branches:
       - master
+      - new_ui
 
 jobs:
-  buildtest:
+  staticanalyses:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
+      - name: Set up CI environment
+        uses: ./.github/actions/setup
+        with:
+          php-version: '8.0'
+      - name: Check code style compliance with PSR12
+        run: make stylecheck
+      - name: Check code compatibility with minimum supported PHP version
+        run: make phpcompatcheck
+      - name: Run psalm static analysis
+        run: make psalmanalysis
+      - name: Check test datasets have a description
+        run: make checktestspecs
+
+  unittests:
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['7.3', '8.0', '8.1']
+
+    runs-on: ubuntu-20.04
+
+    env:
+      XDEBUG_MODE: coverage
+
+    steps:
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
+      - name: Set up CI environment
+        uses: ./.github/actions/setup
+        with:
+          php-version: ${{ matrix.php-version }}
+      - name: Run unit tests
+        run: make unittests
+      - name: Upload unit test coverage reports to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          file: testreports/unit/clover.xml
+          flags: unittests
+          name: RCMCardDAV unit test coverage
+          fail_ci_if_error: false
+
+  dbinterop-sqlite3:
+    runs-on: ubuntu-20.04
+
+    env:
+      XDEBUG_MODE: coverage
+
+    steps:
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
+      - name: Set up CI environment
+        uses: ./.github/actions/setup
+        with:
+          php-version: '8.0'
+      - name: Database interoperability tests for SQLite3
+        run: make tests-sqlite3
+      - name: Upload DB interoperability test coverage reports to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          file: testreports/dbinterop-sqlite3/clover.xml
+          flags: dbinterop-sqlite3
+          name: RCMCardDAV SQLite3 database interoperability test coverage
+          fail_ci_if_error: false
+
+  dbinterop-mysql:
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql-version:
+          - 'mysql:5.6'
+          - 'mysql:5.7'
+          - 'mysql:8'
+          - 'mariadb:10.2'
+          - 'mariadb:10.3'
+          - 'mariadb:10.4'
+          - 'mariadb:10.5'
+          - 'mariadb:10.6'
+          - 'mariadb:10.7'
+
     runs-on: ubuntu-20.04
 
     env:
       XDEBUG_MODE: coverage
       MYSQL_PASSWORD: root
       MYSQL_CMD_PREFIX: "docker exec -i mysql"
-      PGHOST: localhost
-      PGUSER: postgres
-      POSTGRES_CMD_PREFIX: "docker exec -i -e PGUSER=postgres postgres"
 
     services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-          --name postgres
-        ports:
-          - 5432:5432
-
       mysql:
-        image: mysql
+        image: ${{ matrix.mysql-version }}
         env:
           MYSQL_ROOT_PASSWORD: root
         options: >-
@@ -46,50 +115,66 @@ jobs:
           - 3306:3306
 
     steps:
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.0'
-          tools: composer:v2
-          extensions: gd, xdebug, curl
-          coverage: xdebug
       - name: Checkout rcmcarddav
         uses: actions/checkout@v2
-      - name: Checkout roundcubemail
-        uses: actions/checkout@v2
+      - name: Set up CI environment
+        uses: ./.github/actions/setup
         with:
-          path: roundcubemail
-          repository: mstilkerich/roundcubemail
-          ref: 'rcmcarddav_ci'
-      - name: Install dependencies
-        run: composer update --no-interaction --no-progress
-      - name: Check code style compliance with PSR12
-        run: make stylecheck
-      - name: Check code compatibility with minimum supported PHP version
-        run: make phpcompatcheck
-      - name: Run psalm static analysis
-        run: make psalmanalysis
-      - name: Database interoperability tests for SQLite3
-        run: make tests-sqlite3
+          php-version: '8.0'
+      - name: Set MySQL settings
+        if: ${{ matrix.mysql-version == 'mysql:5.6' }}
+        run: cat .github/configs/mysqlsettings.sql | docker exec -i mysql mysql -uroot -proot
       - name: Database interoperability tests for MySQL
         run: make tests-mysql
-      - name: Database interoperability tests for Postgres
-        run: make tests-postgres
-      - name: Check test datasets have a description
-        run: make checktestspecs
-      - name: Run unit tests
-        run: make unittests
-      - name: Upload unit test coverage reports to codecov.io
-        uses: codecov/codecov-action@v1
-        with:
-          file: testreports/unit/clover.xml
-          flags: unittests
-          name: RCMCardDAV unit test coverage
-          fail_ci_if_error: false
       - name: Upload DB interoperability test coverage reports to codecov.io
         uses: codecov/codecov-action@v1
         with:
-          files: testreports/dbinterop-sqlite3/clover.xml,testreports/dbinterop-mysql/clover.xml,testreports/dbinterop-postgres/clover.xml
-          flags: dbinterop
-          name: RCMCardDAV database interoperability test coverage
+          file: testreports/dbinterop-mysql/clover.xml
+          flags: dbinterop-mysql
+          name: RCMCardDAV MySQL database interoperability test coverage
+          fail_ci_if_error: false
+
+  dbinterop-postgres:
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres-version: ['9', '10', '11', '12', '13', '14']
+
+    runs-on: ubuntu-20.04
+
+    env:
+      XDEBUG_MODE: coverage
+      PGHOST: localhost
+      PGUSER: postgres
+      POSTGRES_CMD_PREFIX: "docker exec -i -e PGUSER=postgres postgres"
+
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres-version }}-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --name postgres
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout rcmcarddav
+        uses: actions/checkout@v2
+      - name: Set up CI environment
+        uses: ./.github/actions/setup
+        with:
+          php-version: '8.0'
+      - name: Database interoperability tests for Postgres
+        run: make tests-postgres
+      - name: Upload DB interoperability test coverage reports to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          file: testreports/dbinterop-postgres/clover.xml
+          flags: dbinterop-postgres
+          name: RCMCardDAV PostgreSQL database interoperability test coverage
           fail_ci_if_error: false
