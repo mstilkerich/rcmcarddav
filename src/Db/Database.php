@@ -65,6 +65,11 @@ class Database extends AbstractDatabase
     {
         $this->logger   = $logger;
         $this->dbHandle = $dbh;
+
+        if ($dbh->db_provider == "sqlite") {
+            $dbh->query("PRAGMA foreign_keys = ON");
+            // don't care if this fails
+        }
     }
 
     public function startTransaction(bool $readonly = true): void
