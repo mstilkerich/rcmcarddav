@@ -16,12 +16,12 @@ final class DatabaseAccounts
             "sqlite:///" . __DIR__ . "/../../testreports/migtest.db?mode=0640",
         ],
         "postgres" => [
-            "pgsql://postgres:postgres@localhost/rcmcarddavtest",
-            "pgsql://postgres:postgres@localhost/rcmcarddavmigtest",
+            "pgsql://postgres:postgres@127.0.0.1/rcmcarddavtest",
+            "pgsql://postgres:postgres@127.0.0.1/rcmcarddavmigtest",
         ],
         "mysql" => [
-            "mysql://root:root@localhost/rcmcarddavtest",
-            "mysql://root:root@localhost/rcmcarddavmigtest",
+            "mysql://root:root@127.0.0.1/rcmcarddavtest",
+            "mysql://root:root@127.0.0.1/rcmcarddavmigtest",
         ],
     ];
 }
