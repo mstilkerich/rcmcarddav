@@ -262,6 +262,9 @@ class Database extends AbstractDatabase
             return false;
         }
 
+        // strip comments (note: . does not match newline without the s modifier)
+        $queries_raw = preg_replace('/-- .*/m', '', $queries_raw);
+
         $queryCount = preg_match_all('/.+?;/s', $queries_raw, $queries);
         $logger->info("Found $queryCount queries in $migrationScript");
         if ($queryCount > 0) {
