@@ -1,5 +1,9 @@
 # Changelog for RCMCardDAV
 
+## Version 4.3.0 (to 4.3.0)
+
+- MySQL/PostgreSQL: Increase maximum length limit for addressbook name (Fixes #382)
+
 ## Version 4.3.0 (to 4.2.2)
 
 - New: For preset addressbooks, are re-discovery is performed upon every login by default. This means that newly added

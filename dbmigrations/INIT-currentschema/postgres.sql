@@ -8,7 +8,7 @@ CREATE SEQUENCE TABLE_PREFIXcarddav_addressbooks_seq
 
 CREATE TABLE TABLE_PREFIXcarddav_addressbooks (
 	id integer DEFAULT nextval('TABLE_PREFIXcarddav_addressbooks_seq'::text) PRIMARY KEY,
-	name VARCHAR(64) NOT NULL,
+	name TEXT NOT NULL,
 	username VARCHAR(255) NOT NULL,
 	password TEXT NOT NULL,
 	url TEXT NOT NULL,
