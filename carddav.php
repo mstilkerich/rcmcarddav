@@ -1277,10 +1277,10 @@ class carddav extends rcube_plugin
         $this->forbidCustomAddressbooks = ($prefs['_GLOBAL']['fixed'] ?? false) ? true : false;
         $this->hidePreferences = ($prefs['_GLOBAL']['hide_preferences'] ?? false) ? true : false;
 
-        foreach (['loglevel' => $logger, 'loglevel_http' => $httpLogger] as $setting => $logger) {
+        foreach (['loglevel' => $logger, 'loglevel_http' => $httpLogger] as $setting => $loggerobj) {
             if (isset($prefs['_GLOBAL'][$setting]) && is_string($prefs['_GLOBAL'][$setting])) {
-                if ($logger instanceof RoundcubeLogger) {
-                    $logger->setLogLevel($prefs['_GLOBAL'][$setting]);
+                if ($loggerobj instanceof RoundcubeLogger) {
+                    $loggerobj->setLogLevel($prefs['_GLOBAL'][$setting]);
                 }
             }
         }
