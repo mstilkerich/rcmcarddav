@@ -33,6 +33,8 @@ use Sabre\VObject\Component\VCard;
 /**
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
  * @psalm-type ConfigurablePresetAttribute = 'name'|'url'|'username'|'password'|'active'|'refresh_time'
+ * @psalm-type SpecialAbookType = 'collected_recipients'|'collected_senders'
+ * @psalm-type SpecialAbookMatch = array{preset: string, matchname?: string, matchurl?: string}
  * @psalm-type Preset = array{
  *     name: string,
  *     url: string,
@@ -116,6 +118,9 @@ class carddav extends rcube_plugin
 
     /** @var PasswordStoreScheme encryption scheme */
     private $pwStoreScheme = 'encrypted';
+
+    /** @var array<SpecialAbookType,SpecialAbookMatch> Match settings for special addressbooks */
+    private $specialAbookMatchers = [];
 
     /** @var bool Global preference "fixed" */
     private $forbidCustomAddressbooks = false;
@@ -217,6 +222,10 @@ class carddav extends rcube_plugin
             $config->set('autocomplete_addressbooks', array_merge($sources, $carddav_sources));
             $skin_path = $this->local_skin_path();
             $this->include_stylesheet($skin_path . '/carddav.css');
+
+            foreach ($this->specialAbookMatchers as $type => $matchSettings) {
+                $this->setSpecialAddressbook($type, $matchSettings);
+            }
         } catch (\Exception $e) {
             $logger->error("Could not init rcmcarddav: " . $e->getMessage());
         }
@@ -655,26 +664,32 @@ class carddav extends rcube_plugin
      *                              PRIVATE FUNCTIONS
      **************************************************************************************/
 
-    private static function replacePlaceholdersUsername(string $username): string
+    private static function replacePlaceholdersUsername(string $username, bool $quoteRegExp = false): string
     {
         $rcube = rcube::get_instance();
         $rcusername = (string) $_SESSION['username'];
 
-        $username = strtr($username, [
+        $transTable = [
             '%u' => $rcusername,
             '%l' => $rcube->user->get_username('local'),
             '%d' => $rcube->user->get_username('domain'),
             // %V parses username for macosx, replaces periods and @ by _, work around bugs in contacts.app
             '%V' => strtr($rcusername, "@.", "__")
-        ]);
+        ];
+
+        if ($quoteRegExp) {
+            $transTable = array_map('preg_quote', $transTable);
+        }
+
+        $username = strtr($username, $transTable);
 
         return $username;
     }
 
-    private static function replacePlaceholdersUrl(string $url): string
+    private static function replacePlaceholdersUrl(string $url, bool $quoteRegExp = false): string
     {
         // currently same as for username
-        return self::replacePlaceholdersUsername($url);
+        return self::replacePlaceholdersUsername($url, $quoteRegExp);
     }
 
     private static function replacePlaceholdersPassword(string $password): string
@@ -1304,6 +1319,42 @@ class carddav extends rcube_plugin
 
             $this->addPreset($presetname, $preset);
         }
+
+        // Extract filter for special addressbooks
+        foreach (['collected_recipients', 'collected_senders'] as $setting) {
+            if (isset($prefs['_GLOBAL'][$setting]) && is_array($prefs['_GLOBAL'][$setting])) {
+                $matchSettings = $prefs['_GLOBAL'][$setting];
+
+                if (
+                    isset($matchSettings['preset'])
+                    && is_string($matchSettings['preset'])
+                    && key_exists($matchSettings['preset'], $this->presets)
+                ) {
+                    $presetname = $matchSettings['preset'];
+                    $matchSettings2 = [ 'preset' => $presetname ];
+                    $foundMatchExpr = false;
+                    foreach (['matchname', 'matchurl'] as $matchType) {
+                        if (isset($matchSettings[$matchType]) && is_string($matchSettings[$matchType])) {
+                            $matchexpr = $matchSettings[$matchType];
+                            $matchSettings2[$matchType] = $matchexpr;
+                            $foundMatchExpr = true;
+                        }
+                    }
+
+                    if ($foundMatchExpr) {
+                        if ($this->presets[$presetname]['readonly'] ?? false) {
+                            $logger->error("Cannot use addressbooks from read-only preset $presetname for $setting");
+                        } else {
+                            $this->specialAbookMatchers[$setting] = $matchSettings2;
+                        }
+                    } else {
+                        $logger->error("Setting for $setting must include a match expression");
+                    }
+                } else {
+                    $logger->error("Setting for $setting must include a valid preset attribute");
+                }
+            }
+        }
     }
 
     /**
@@ -1361,6 +1412,47 @@ class carddav extends rcube_plugin
         } catch (\Exception $e) {
             $logger->error("Error in preset $presetname: " . $e->getMessage());
         }
+    }
+
+    /**
+     * Sets one of the special addressbooks supported by roundcube to one of the carddav addressbooks.
+     *
+     * These special addressbooks as of roundcube 1.5 are collected recipients and collected senders. The admin can
+     * configure a match expression for the name or the URL of the addressbook, that is looked for in a specific preset.
+     *
+     * @param SpecialAbookType $type
+     * @param SpecialAbookMatch $matchSettings
+     */
+    private function setSpecialAddressbook(string $type, array $matchSettings): void
+    {
+        $infra = Config::inst();
+        $logger = $infra->logger();
+        $presetname = $matchSettings['preset'];
+
+        // get all addressbooks for that preset
+        $matches = [];
+        foreach ($this->getAddressbooks(true, true) as $abookrow) {
+            if ($abookrow['presetname'] === $presetname) {
+                foreach (['matchname', 'matchurl'] as $matchType) {
+                    $matchexpr = $matchSettings[$matchType] ?? 0;
+                    if (is_string($matchexpr)) {
+                        $matchexpr = self::replacePlaceholdersUrl($matchexpr, true);
+                        if (preg_match($matchexpr, (string) $abookrow[substr($matchType, 5)])) {
+                            $matches[] = $abookrow['id'];
+                        }
+                    }
+                }
+            }
+        }
+
+        $numMatches = count($matches);
+        if ($numMatches != 1) {
+            $logger->error("Cannot set special addressbook $type, there are $numMatches candidates (need: 1)");
+            return;
+        }
+
+        $config = rcube::get_instance()->config;
+        $config->set($type, "carddav_" . $matches[0]);
     }
 
     // password helpers
