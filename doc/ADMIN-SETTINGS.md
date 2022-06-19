@@ -218,7 +218,7 @@ $prefs['Personal'] = [
     'refresh_time' => '02:00:00',
 
     'fixed'        =>  ['username'],
-    'hide'        =>  false,
+    'hide'         =>  false,
 ];
 
 // Preset 2: Corporate
@@ -229,7 +229,7 @@ $prefs['Work'] = [
     'url'          =>  'corp.example.com',
 
     'fixed'        =>  ['name', 'username', 'password'],
-    'hide'        =>  true,
+    'hide'         =>  true,
 ];
 ```
 
@@ -247,5 +247,51 @@ Preconfigured addressbooks are processed when the user logs into roundcube.
   corresponding preset are updated. Other fields are not updated, since they may have been modified by the user.
 - If the user has addressbooks created from a preset that no longer exists (identified by the Presetname), the
   addressbooks are deleted from the database.
+
+### Using presets for the roundcube trusted senders/collected recipients addressbooks
+
+Roundcube 1.5 and newer has two special internal addressbooks to automatically collect all addresses the user previously
+sent mail to (roundcube config option: `collected_recipients`) and to collect addresses of trusted senders (roundcube
+config option: `collected_senders`).
+
+It is possible for a user to manually select CardDAV addressbooks for these two special purpose addressbooks using
+the roundcube settings interface. When using preconfigured CardDAV addressbooks, the admin may want to also set these
+special addressbooks by configuration, which is possible using the following configuration options:
+
+```php
+$prefs['_GLOBAL']['collected_recipients'] = [
+    // Key of the preset
+    'preset'  => '<Presetname>',
+    // The placeholders that can be used in the url preset attribute can also be used inside these regular rexpressions
+    'matchname' => '/collected recipients/i',
+    'matchurl' => '#http://carddav.example.com/abooks/%u/CollectedRecipients#',
+];
+$prefs['_GLOBAL']['collected_senders'] = [
+    // Configuration analog to collected recipients
+];
+```
+
+Each of the above global RCMCardDAV settings will cause the roundcube setting of the same name to be overridden in case
+a matching preset addressbook is found. The match works by specifying the key of a preset and further match settings to
+filter the matching addressbook in case multiple addressbooks are discovered for the preset. The preset must not be
+read-only as roundcube requires both special addressbooks to be writeable. For presets with several addressbooks, the
+wanted addressbook can be identified by regular expression matches on the addressbook name and/or URL. The
+%-placeholders the are possible in a preset URL also can be used inside these regular expressions.
+
+In case the preset only contains one addressbook, the match settings can be omitted. The match settings must result in
+exactly one addressbook. If no or multiple addressbooks match, the roundcube setting is not touched by RCMCardDAV.
+
+Because RCMCardDAV overrides the setting configured in roundcube, including a possible setting by the user, the
+possibilty to configure these addressbooks by the user should be disabled if the admin uses this mechanism. Otherwise
+the user might be confused as settings made by the user in the roundcube settings will stay without effect.
+Configuration of these addressbooks by the user can be disabled using the following configuration options in the
+roundcube (not RCMCardDAV) configuration:
+
+```php
+$config['dont_override'] = ['collected_recipients', 'collected_senders'];
+```
+
+When using the trusted senders addressbook, please also configure the roundcube options `show_images` and `mdn_requests`
+to define for what purpose the trusted senders are used.
 
 <!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->

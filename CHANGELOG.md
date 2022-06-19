@@ -1,6 +1,6 @@
 # Changelog for RCMCardDAV
 
-## Version 4.3.0 (to 4.3.0)
+## Version 4.x.x (to 4.3.0)
 
 - MySQL/PostgreSQL: Increase maximum length limit for addressbook name (Fixes #382)
 - Fix: log messages could go to the wrong logger (carddav\_http.log) for a small part of the init code
