@@ -76,12 +76,16 @@ tarball:
 	git archive --format tar --prefix carddav/ -o releases/carddav-$(RELEASE_VERSION).tar --worktree-attributes $(RELEASE_VERSION)
 	@# Fetch a clean state of all dependencies
 	composer create-project --repository='{"type":"vcs", "url":"file://$(PWD)" }' -q --no-dev --no-plugins roundcube/carddav releases/carddav $(RELEASE_VERSION)
-	@# Force a Guzzle version compatible with roundcube 1.5
+	@# Tar the release with up-to-date dependencies as roundcube 1.6+ release tarball
+	cp releases/carddav-$(RELEASE_VERSION).tar releases/carddav-$(RELEASE_VERSION)-roundcube16.tar
+	tar -C releases --owner 0 --group 0 -rf releases/carddav-$(RELEASE_VERSION)-roundcube16.tar carddav/vendor
+	@# Force a Guzzle version compatible with roundcube 1.5 (^6.5.5)
 	cd releases/carddav && composer require -q --update-no-dev --update-with-dependencies 'guzzlehttp/guzzle:^6.5.5'
-	@# Append dependencies to the tar
-	tar -C releases --owner 0 --group 0 -rf releases/carddav-$(RELEASE_VERSION).tar carddav/vendor
-	@# gzip the tarball
-	gzip releases/carddav-$(RELEASE_VERSION).tar
+	@# Append dependencies to the 1.5 tar
+	cp releases/carddav-$(RELEASE_VERSION).tar releases/carddav-$(RELEASE_VERSION)-roundcube15.tar
+	tar -C releases --owner 0 --group 0 -rf releases/carddav-$(RELEASE_VERSION)-roundcube15.tar carddav/vendor
+	@# gzip the tarballs
+	gzip -v releases/carddav-$(RELEASE_VERSION)*.tar
 
 define EXECDBSCRIPT_postgres
 sed -e 's/TABLE_PREFIX//g' $(2) | $(PSQL) $(1)

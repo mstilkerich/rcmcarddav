@@ -1,10 +1,11 @@
 # Changelog for RCMCardDAV
 
-## Version 4.x.x (to 4.3.0)
+## Version 4.4.0 (to 4.3.0)
 
 - MySQL/PostgreSQL: Increase maximum length limit for addressbook name (Fixes #382)
 - Fix: log messages could go to the wrong logger (carddav\_http.log) for a small part of the init code
 - Support setting roundcube's collected senders/recipients to addressbooks from preset (Fixes #383)
+- Provide tarball releases in two variants: Guzzle v6 (roundcube 1.5) and v7 (roundcube 1.6) (Fixes #385)
 
 ## Version 4.3.0 (to 4.2.2)
 
