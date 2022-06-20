@@ -1332,23 +1332,17 @@ class carddav extends rcube_plugin
                 ) {
                     $presetname = $matchSettings['preset'];
                     $matchSettings2 = [ 'preset' => $presetname ];
-                    $foundMatchExpr = false;
                     foreach (['matchname', 'matchurl'] as $matchType) {
                         if (isset($matchSettings[$matchType]) && is_string($matchSettings[$matchType])) {
                             $matchexpr = $matchSettings[$matchType];
                             $matchSettings2[$matchType] = $matchexpr;
-                            $foundMatchExpr = true;
                         }
                     }
 
-                    if ($foundMatchExpr) {
-                        if ($this->presets[$presetname]['readonly'] ?? false) {
-                            $logger->error("Cannot use addressbooks from read-only preset $presetname for $setting");
-                        } else {
-                            $this->specialAbookMatchers[$setting] = $matchSettings2;
-                        }
+                    if ($this->presets[$presetname]['readonly'] ?? false) {
+                        $logger->error("Cannot use addressbooks from read-only preset $presetname for $setting");
                     } else {
-                        $logger->error("Setting for $setting must include a match expression");
+                        $this->specialAbookMatchers[$setting] = $matchSettings2;
                     }
                 } else {
                     $logger->error("Setting for $setting must include a valid preset attribute");
@@ -1429,18 +1423,26 @@ class carddav extends rcube_plugin
         $logger = $infra->logger();
         $presetname = $matchSettings['preset'];
 
-        // get all addressbooks for that preset
         $matches = [];
         foreach ($this->getAddressbooks(true, true) as $abookrow) {
+            // check all addressbooks for that preset
             if ($abookrow['presetname'] === $presetname) {
+                // All specified matchers must match
+                // If no matcher is set, any addressbook of the preset is considered a match
+                $isMatch = true;
+
                 foreach (['matchname', 'matchurl'] as $matchType) {
                     $matchexpr = $matchSettings[$matchType] ?? 0;
                     if (is_string($matchexpr)) {
                         $matchexpr = self::replacePlaceholdersUrl($matchexpr, true);
-                        if (preg_match($matchexpr, (string) $abookrow[substr($matchType, 5)])) {
-                            $matches[] = $abookrow['id'];
+                        if (!preg_match($matchexpr, (string) $abookrow[substr($matchType, 5)])) {
+                            $isMatch = false;
                         }
                     }
+                }
+
+                if ($isMatch) {
+                    $matches[] = $abookrow['id'];
                 }
             }
         }
