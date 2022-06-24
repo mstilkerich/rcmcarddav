@@ -4,7 +4,7 @@
     "description": "CardDAV adapter for connecting to CardDAV-enabled addressbooks",
     "keywords": ["addressbook","carddav","contacts","owncloud","davical"],
     "homepage": "https://www.benjamin-schieder.de/carddav.html",
-    "license": "GPL-2.0",
+    "license": "GPL-2.0-or-later",
     "authors": [
         {
             "name": "Benjamin Schieder",
@@ -22,7 +22,7 @@
         "php": ">=7.1.0",
         "sabre/vobject": "^3.3.5 || ^4.0.0",
         "sabre/uri": "^2.2",
-        "roundcube/plugin-installer": "*",
+        "roundcube/plugin-installer": "^0.3.0",
         "mstilkerich/carddavclient": "^1.2.0"
     },
     "require-dev": {
