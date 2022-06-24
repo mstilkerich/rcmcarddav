@@ -1,5 +1,10 @@
 # Changelog for RCMCardDAV
 
+## Version 4.4.1 (to 4.4.0)
+
+- Create release tarballs with a PHP version emulated to 7.1.0 (minimum needed by RCMCardDAV)
+- No changes to RCMCardDAV itself 
+
 ## Version 4.4.0 (to 4.3.0)
 
 - MySQL/PostgreSQL: Increase maximum length limit for addressbook name (Fixes #382)
