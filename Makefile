@@ -75,12 +75,15 @@ tarball:
 	@grep -q "^## Version $(patsubst v%,%,$(RELEASE_VERSION))" CHANGELOG.md || { echo "No changelog entry for release $(RELEASE_VERSION)" ; exit 1; }
 	git archive --format tar --prefix carddav/ -o releases/carddav-$(RELEASE_VERSION).tar --worktree-attributes $(RELEASE_VERSION)
 	@# Fetch a clean state of all dependencies
-	composer create-project --repository='{"type":"vcs", "url":"file://$(PWD)" }' -q --no-dev --no-plugins roundcube/carddav releases/carddav $(RELEASE_VERSION)
+	composer create-project --repository='{"type":"vcs", "url":"file://$(PWD)" }' -q --no-install --no-dev --no-plugins roundcube/carddav releases/carddav $(RELEASE_VERSION)
+	cd releases/carddav && \
+		jq -s '.[0] * .[1] | del(."require-dev")' composer.json .github/configs/composer-build-release.json >composer-release.json &&\
+	    COMPOSER=composer-release.json composer install -q --no-dev --optimize-autoloader
 	@# Tar the release with up-to-date dependencies as roundcube 1.6+ release tarball
 	cp releases/carddav-$(RELEASE_VERSION).tar releases/carddav-$(RELEASE_VERSION)-roundcube16.tar
 	tar -C releases --owner 0 --group 0 -rf releases/carddav-$(RELEASE_VERSION)-roundcube16.tar carddav/vendor
 	@# Force a Guzzle version compatible with roundcube 1.5 (^6.5.5)
-	cd releases/carddav && composer require -q --update-no-dev --update-with-dependencies 'guzzlehttp/guzzle:^6.5.5'
+	cd releases/carddav && composer require -q --optimize-autoloader --update-no-dev --update-with-dependencies 'guzzlehttp/guzzle:^6.5.5'
 	@# Append dependencies to the 1.5 tar
 	cp releases/carddav-$(RELEASE_VERSION).tar releases/carddav-$(RELEASE_VERSION)-roundcube15.tar
 	tar -C releases --owner 0 --group 0 -rf releases/carddav-$(RELEASE_VERSION)-roundcube15.tar carddav/vendor
