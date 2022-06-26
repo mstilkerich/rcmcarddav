@@ -30,12 +30,10 @@ installation):
 - Log out of Roundcube!
   This is important because RCMCardDAV runs its database initialisation / update procedure only when a user logs in!
 - Get [composer](https://getcomposer.org/download/)
-- Install RCMCardDAV via composer.
-  - Add dependency to the `require` array in the `composer.json` file of your roundcube
-    - If you want to use released versions only, add: `"roundcube/carddav": "*"`. For more specific version constraints,
-      see the [composer documentation](https://getcomposer.org/doc/articles/versions.md).
-    - If you want to use the current development version from git, add: `"roundcube/carddav": "dev-master"`
-  - Install with `php composer.phar install --no-dev`. When updating, use `php composer.phar update --no-dev` instead.
+- Install RCMCardDAV via composer: `php composer.phar require --update-no-dev -o "roundcube/carddav:*"`
+  - If you want to use released versions only, use `"roundcube/carddav": "*"`. For more specific version constraints,
+    see the [composer documentation](https://getcomposer.org/doc/articles/versions.md).
+  - If you want to use the current development version from git, use `"roundcube/carddav": "dev-master"`
   - If composer asks you whether you want to enable the plugin in the roundcube configuration, say __y__.
   - You should now find the plugin installed under `plugins/carddav`
 - [Configure](#configuration) the plugin if needed.
@@ -44,6 +42,13 @@ installation):
 - Login to Roundcube and setup your addressbook by navigation to the Settings page and click on CardDAV.
 
 In case of errors, check the files `logs/*`.
+
+### Update using composer
+
+ To update RCMCardDAV using composer, simply run `php composer.phar update --no-dev -o roundcube/carddav`.
+- Note that this will only upgrade RCMCardDAV within the version constraints listed in `composer.json`. You made this
+  choice when you ran `composer require`. If you want to change the version constraint, simply run `composer require`
+  again with the updated version constraint, e.g. the same command you would use for initial installation.
 
 ## Installation from release tarball
 
@@ -54,18 +59,11 @@ inside that tarball for the appropriate instructions.
 
 - Log out of Roundcube!
   This is important because RCMCardDAV runs its database initialisation / update procedure only when a user logs in!
-- Choose the correct release tarball
-  - For roundcube version 1.5, or if your PHP version is older than PHP 7.2.5, use `carddav-vX.Y.Z-roundcube15.tar.gz`
-  - Otherwise, use `carddav-vX.Y.Z-roundcube16.tar.gz`
-  - The difference between the two is only in the included dependencies. The 1.5 version includes an older version of
-    the Guzzle HTTP client library as used by roundcube 1.5. Roundcube versions older than 1.5 do not use Guzzle, so you
-    can use the 1.6 tarball with the current Guzzle if your PHP version is recent enough for Guzzle v7 (PHP 7.2.5).
-  - Note: Release tarballs prior to v4.4.0 are only provided in a single version including Guzzle v6.
 - Download the release tarball from [here](https://github.com/mstilkerich/rcmcarddav/releases)
-  - Note: The correct tarball is named `carddav-vX.Y.Z-roundcube1V.tar.gz`. Do not use the "Source code" tar.gz or zip
+  - Note: The correct tarball is named `carddav-vX.Y.Z.tar.gz`. Do not use the "Source code" tar.gz or zip
     files, these are only exports of the repository. Unfortunately, github creates these automatically for each release.
 - Extract the tarball to the roundcube/plugins directory (assuming roundcube is installed at `/var/lib/roundcube`)
-  `cd /var/lib/roundcube/plugins && tar xvzf /tmp/carddav-v4.1.0-roundcube16.tar.gz`
+  `cd /var/lib/roundcube/plugins && tar xvzf /tmp/carddav-v4.4.2.tar.gz`
 - [Configure](#configuration) the plugin if needed.
 - Enable RCMCardDAV in Roundcube
   Open the file `config/config.inc.php` and add `carddav` to the array `$config['plugins']`.
