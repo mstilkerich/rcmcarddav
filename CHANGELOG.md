@@ -1,5 +1,16 @@
 # Changelog for RCMCardDAV
 
+## Version 4.4.2 (to 4.4.1)
+
+- Revert to a single release tarball. The new approach (compared to 4.4.1) to avoid the issue with conflicting
+  dependencies between those coming with roundcube and those coming with the RCMCardDAV release tarball is to append the
+  RCMCardDAV to the end of the autoloader list, so the roundcube dependencies are always tried first. This means if a
+  library used by RCMCardDAV already comes with roundcube, RCMCardDAV will also use that version of the library. There
+  is still possible problems left (i.e. package that only comes with roundcube might have a dependency for that an
+  incompatible version is already included with roundcube). In the end, I don't think there is a clean solution to this
+  issue. If you want to avoid this mess, don't use the release tarball but install using composer.
+- No changes to RCMCardDAV itself 
+
 ## Version 4.4.1 (to 4.4.0)
 
 - Create release tarballs with a PHP version emulated to 7.1.0 (minimum needed by RCMCardDAV)
