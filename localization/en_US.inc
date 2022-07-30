@@ -18,8 +18,8 @@ $labels = Array(
 	'cd_resync' => "Force immediate synchronization with server",
 	'cd_msg_synchronized' => 'CardDAV addressbook $name synchronized (Took $duration seconds)',
 	'cd_msg_syncfailed' => 'Sync of CardDAV addressbook $name failed: $errormsg',
-	'cd_frompreset' => ' (from preset _PRESETNAME_)',
 
+	'frompreset' => 'Administrator preset',
 	'accountname' => 'Name of the account',
 	'discoveryurl' => 'Discovery URL',
 	'rediscover_time' => 'Rediscovery interval (hours)',

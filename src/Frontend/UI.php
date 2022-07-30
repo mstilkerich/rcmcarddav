@@ -32,7 +32,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 /**
  * @psalm-type UiFieldType = 'text'|'plain'|'datetime'|'timestr'|'radio'|'password'
- * @psalm-type SettingFieldSpec = array{0: string, 1: string, 2: UiFieldType, 3?: list<array{string,string}>}
+ * @psalm-type SettingFieldSpec = array{0: string, 1: string, 2: UiFieldType, 3?: list<array{string,string}>, 4?: bool}
  * @psalm-type FieldSetSpec = array{label: string, fields: list<SettingFieldSpec>}
  * @psalm-type FormSpec = list<FieldSetSpec>
  * @psalm-import-type FullAbookRow from AbstractDatabase
@@ -76,6 +76,7 @@ class UI
         [
             'label' => 'basicinfo',
             'fields' => [
+                [ 'frompreset', 'presetname', 'plain', [], true ],
                 [ 'accountname', 'name', 'text' ],
                 [ 'discoveryurl', 'url', 'text' ],
                 [ 'cd_username', 'username', 'text' ],
@@ -395,6 +396,12 @@ class UI
 
             foreach ($fieldSet['fields'] as $fieldSpec) {
                 [ $fieldLabel, $fieldKey ] = $fieldSpec;
+
+                // This is an optional field that is only shown when a value is set
+                $fieldOptional = $fieldSpec[4] ?? false;
+                if ($fieldOptional && !isset($vals[$fieldKey])) {
+                    continue;
+                }
 
                 $readonly = in_array($fieldKey, $fixedAttributes);
                 $table->add(['class' => 'title'], \html::label(['for' => $fieldKey], $rc->locText($fieldLabel)));

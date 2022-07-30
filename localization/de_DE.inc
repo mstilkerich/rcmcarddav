@@ -16,6 +16,6 @@ $labels = Array(
 	'cd_disabled' => 'Inaktiv',
 	'cd_lastupdate_time'=>'Zuletzt aktualisiert',
 	'cd_resync' => "Sofortige Synchronisation mit dem Server erzwingen",
-	'cd_frompreset' => ' (aus Vorgabe _PRESETNAME_)',
+	'frompreset' => 'Administrator-Vorlage',
 );
 ?>
