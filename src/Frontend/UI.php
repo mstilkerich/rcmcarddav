@@ -251,7 +251,7 @@ class UI
 
             $attribs = [
                 'id'    => 'rcmli_acc' . $account["id"],
-                'class' => 'account'
+                'class' => 'account' . (isset($account["presetname"]) ? ' preset' : '')
             ];
             $accountListItems[] = \html::tag('li', $attribs, $content);
         }
