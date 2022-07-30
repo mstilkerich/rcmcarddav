@@ -209,6 +209,18 @@ class UI
             $accounts[$accountId]['addressbooks'] = $abMgr->getAddressbookConfigsForAccount($accountId);
         }
 
+        // Sort accounts first by account name
+        usort(
+            $accounts,
+            /**
+             * @param FullAccountRow $a
+             * @param FullAccountRow $b
+             */
+            function (array $a, array $b): int {
+                return strcasecmp($a['name'], $b['name']);
+            }
+        );
+
         $checkboxActive = new \html_checkbox([
                 'name'    => '_active[]',
                 'title'   => $rc->locText('changeactive'),
