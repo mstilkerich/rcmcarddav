@@ -207,6 +207,17 @@ class UI
         foreach ($accountIds as $accountId) {
             $accounts[$accountId] = $abMgr->getAccountConfig($accountId);
             $accounts[$accountId]['addressbooks'] = $abMgr->getAddressbookConfigsForAccount($accountId);
+            // Sort accounts first by account name
+            usort(
+                $accounts[$accountId]['addressbooks'],
+                /**
+                 * @param FullAbookRow $a
+                 * @param FullAbookRow $b
+                 */
+                function (array $a, array $b): int {
+                    return strcasecmp($a['name'], $b['name']);
+                }
+            );
         }
 
         // Sort accounts first by account name
