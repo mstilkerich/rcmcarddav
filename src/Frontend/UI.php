@@ -31,9 +31,25 @@ use MStilkerich\CardDavAddressbook4Roundcube\Config;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 /**
+ * UIFieldType:
+ *   - text: a single-line text box where the user can enter text
+ *   - plain: a read-only plain text shown in the form, non-interactive. Field is only shown when a value is available.
+ *   - datetime: a read-only date/time plain text shown in the form, non-interactive
+ *   - timestr: a text box where the user is expected to enter a time interval in the form HH[:MM[:SS]]
+ *   - radio: a selection from options offered as a list of radio buttons
+ *   - password: a text box where the user is expected to enter a password. Stored data will never be provided as form
+ *               data.
+ *
+ * FieldSpec:
+ *   [0]: label of the field
+ *   [1]: key of the field
+ *   [2]: UI type of the field
+ *   [3]: (optional) default value of the field
+ *   [4]: (optional) for UI type radio, a list of key-label pairs for the options of the selection
+ *
  * @psalm-type UiFieldType = 'text'|'plain'|'datetime'|'timestr'|'radio'|'password'
- * @psalm-type SettingFieldSpec = array{0: string, 1: string, 2: UiFieldType, 3?: list<array{string,string}>, 4?: bool}
- * @psalm-type FieldSetSpec = array{label: string, fields: list<SettingFieldSpec>}
+ * @psalm-type FieldSpec = array{0: string, 1: string, 2: UiFieldType, 3?: string, 4?: list<array{string,string}>}
+ * @psalm-type FieldSetSpec = array{label: string, fields: list<FieldSpec>}
  * @psalm-type FormSpec = list<FieldSetSpec>
  * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type FullAccountRow from AbstractDatabase
@@ -56,12 +72,13 @@ class UI
         [
             'label' => 'miscsettings',
             'fields' => [
-                [ 'rediscover_time', 'rediscover_time', 'timestr' ],
-                [ 'cd_refresh_time', 'refresh_time', 'timestr' ],
+                [ 'rediscover_time', 'rediscover_time', 'timestr', '86400' ],
+                [ 'cd_refresh_time', 'refresh_time', 'timestr', '3600' ],
                 [
                     'newgroupstype',
                     'use_categories',
                     'radio',
+                    '1',
                     [
                         [ '0', 'grouptype_vcard' ],
                         [ '1', 'grouptype_categories' ],
@@ -76,7 +93,7 @@ class UI
         [
             'label' => 'basicinfo',
             'fields' => [
-                [ 'frompreset', 'presetname', 'plain', [], true ],
+                [ 'frompreset', 'presetname', 'plain' ],
                 [ 'accountname', 'name', 'text' ],
                 [ 'discoveryurl', 'url', 'text' ],
                 [ 'cd_username', 'username', 'text' ],
@@ -115,6 +132,7 @@ class UI
                     'newgroupstype',
                     'use_categories',
                     'radio',
+                    '1',
                     [
                         [ '0', 'grouptype_vcard' ],
                         [ '1', 'grouptype_categories' ],
@@ -327,7 +345,7 @@ class UI
                 $rc->showMessage($rc->locText("saveok"), 'confirmation');
             } catch (\Exception $e) {
                 $logger->error("Error saving account preferences: " . $e->getMessage());
-                $rc->showMessage($rc->locText("savefail"), 'error');
+                $rc->showMessage($rc->locText("savefail", ['errormsg' => $e->getMessage()]), 'error');
             }
         } else {
             // GET - Account selected in list
@@ -418,17 +436,34 @@ class UI
             $table = new \html_table(['cols' => 2]);
 
             foreach ($fieldSet['fields'] as $fieldSpec) {
-                [ $fieldLabel, $fieldKey ] = $fieldSpec;
+                [ $fieldLabel, $fieldKey, $uiType ] = $fieldSpec;
 
-                // This is an optional field that is only shown when a value is set
-                $fieldOptional = $fieldSpec[4] ?? false;
-                if ($fieldOptional && !isset($vals[$fieldKey])) {
+                if (isset($vals[$fieldKey])) {
+                    $fieldValue = $vals[$fieldKey];
+                } else {
+                    // in case there was an error saving a new account, echo back what the user entered (password will
+                    // be stripped by uiField())
+                    $formValue = $rc->inputValue($fieldKey, false);
+                    if (isset($formValue)) {
+                        if ($uiType == 'timestr') {
+                            $fieldValue = (string) Utils::parseTimeParameter($formValue);
+                        } else {
+                            $fieldValue = $formValue;
+                        }
+                    } else {
+                        $fieldValue = $fieldSpec[3] ?? '';
+                    }
+                }
+
+
+                // plain field is only shown when there is a value to be shown
+                if ($uiType == 'plain' && $fieldValue == '') {
                     continue;
                 }
 
                 $readonly = in_array($fieldKey, $fixedAttributes);
                 $table->add(['class' => 'title'], \html::label(['for' => $fieldKey], $rc->locText($fieldLabel)));
-                $table->add([], $this->uiField($fieldSpec, $vals[$fieldKey] ?? '', $readonly));
+                $table->add([], $this->uiField($fieldSpec, $fieldValue, $readonly));
             }
 
             $out .= \html::tag(
@@ -458,7 +493,7 @@ class UI
 
 
     /**
-     * @param SettingFieldSpec $fieldSpec
+     * @param FieldSpec $fieldSpec
      */
     private function uiField(array $fieldSpec, string $fieldValue, bool $readonly): string
     {
@@ -507,7 +542,7 @@ class UI
                 $ul = '';
                 $radioBtn = new \html_radiobutton(['name' => $fieldKey]);
 
-                foreach (($fieldSpec[3] ?? []) as $selectionSpec) {
+                foreach (($fieldSpec[4] ?? []) as $selectionSpec) {
                     [ $selValue, $selLabel ] = $selectionSpec;
                     $ul .= \html::tag(
                         'li',
@@ -577,13 +612,7 @@ class UI
             $out .= $accountIdField->show();
 
             if ($accountId == "new") {
-                // default values
-                $account = [
-                    'use_categories' => '1',
-                    'rediscover_time' =>  '86400',
-                    'refresh_time' =>  '3600',
-                ];
-                $out .= $this->makeSettingsForm(self::UI_FORM_NEWACCOUNT, $account, [], $attrib);
+                $out .= $this->makeSettingsForm(self::UI_FORM_NEWACCOUNT, [], [], $attrib);
             } else {
                 $account = $this->abMgr->getAccountConfig($accountId);
                 $fixedAttributes = $this->getFixedSettings($account['presetname']);
@@ -656,7 +685,7 @@ class UI
                         break;
 
                     case 'radio':
-                        $allowedValues = array_column($fieldSpec[3] ?? [], 0);
+                        $allowedValues = array_column($fieldSpec[4] ?? [], 0);
                         if (!in_array($fieldValue, $allowedValues)) {
                             // ignore not allowed value
                             $logger->warning("Not allowed value $fieldValue POSTed for $fieldKey (ignored)");
