@@ -84,16 +84,6 @@ rcube_webmail.prototype.carddav_ablist_select = function(node)
     }
 
     if (win = this.get_frame_window(this.env.contentframe)) {
-        if (!url) {
-            if (win.location && win.location.href.indexOf(this.env.blankpage) < 0) {
-                win.location.href = this.env.blankpage;
-            }
-            if (this.env.frame_lock) {
-                this.set_busy(false, null, this.env.frame_lock);
-            }
-            return;
-        }
-
         this.env.frame_lock = this.set_busy(true, 'loading');
         win.location.href = this.env.comm_path + '&_framed=1' + url;
     }
