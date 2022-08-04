@@ -72,7 +72,7 @@ rcube_webmail.prototype.carddav_ablist_select = function(node)
     if (id.startsWith("_acc")) {
         // Account
         url = '&_action=plugin.carddav.accountdetails&accountid=' + id.substr(4);
-        this.enable_command('carddav-delete-account', true);
+        this.enable_command('carddav-delete-account', !node.classes.includes("preset"));
     } else if (id.startsWith("_abook")) {
         // Addressbook
         url = '&_action=plugin.carddav.abookdetails&abookid=' + id.substr(6);
