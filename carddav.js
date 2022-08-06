@@ -51,12 +51,12 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
         );
         rcmail.register_command(
             'plugin.carddav-AbSync',
-            function() { rcmail.carddav_AbSync(); },
+            function() { rcmail.carddav_AbSync("AbSync"); },
             false
         );
         rcmail.register_command(
             'plugin.carddav-AbClrCache',
-            function() { rcmail.carddav_AbClrCache(); },
+            function() { rcmail.carddav_AbSync("AbClrCache"); },
             false
         );
     } else if (rcmail.env.action == 'plugin.carddav.AbDetails') {
@@ -107,7 +107,7 @@ rcube_webmail.prototype.carddav_AbToggleActive = function(abookid, active)
 {
     if (abookid) {
         var prefix = active ? '' : 'de';
-        var lock = this.display_message(rcmail.get_label('carddav.' + prefix + 'activatingabook', 'loading'));
+        var lock = this.display_message(rcmail.get_label('carddav.' + prefix + 'activatingabook'), 'loading');
 
         this.http_post("plugin.carddav.AbToggleActive", {abookid: abookid, state: (active ? 1 : 0)}, lock);
     }
@@ -123,9 +123,17 @@ rcube_webmail.prototype.carddav_AbResetActive = function(abook, state)
 };
 
 // reloads the page
+// if target is set to "iframe", the content frame is reloaded, otherwise the entire page is reloaded
 rcube_webmail.prototype.carddav_Redirect = function(target)
 {
-    (this.is_framed() ? parent : window).location.reload();
+    if (target == "iframe") {
+        var win = this.get_frame_window(this.env.contentframe);
+        if (win) {
+            win.location.reload();
+        }
+    } else {
+        (this.is_framed() ? parent : window).location.reload();
+    }
 };
 
 rcube_webmail.prototype.carddav_AbSave = function()
@@ -158,8 +166,20 @@ rcube_webmail.prototype.carddav_AccRm = function()
         if (win = this.get_frame_window(this.env.contentframe)) {
             this.env.frame_lock = this.set_busy(true, 'loading');
             win.location.href = this.env.comm_path +
-                '&_framed=1&_action=plugin.carddav.delete-account&accountid=' + selectedNode.substr(4);
+                '&_framed=1&_action=plugin.carddav.AccRm&accountid=' + selectedNode.substr(4);
         }
+    }
+};
+
+// this is called when the Resync addressbook button is hit
+// syncType: AbSync, AbClrCache
+rcube_webmail.prototype.carddav_AbSync = function(syncType)
+{
+    var selectedNode = rcmail.addressbooks_list.get_selection();
+    if (selectedNode.startsWith("_abook")) {
+        var abookid = selectedNode.substr(6);
+        var lock = this.display_message(rcmail.get_label(syncType + '_msg_inprogress', 'carddav'), 'loading');
+        this.http_request("plugin.carddav.AbSync", {abookid: abookid, synctype: syncType}, lock, 'GET');
     }
 };
 

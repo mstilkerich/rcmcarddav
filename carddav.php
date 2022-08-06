@@ -374,27 +374,14 @@ class carddav extends rcube_plugin implements RcmInterface
                 // Addressbook object, so it needs to be at the end of this constructor
                 $ts_syncdue = $abook->checkResyncDue();
                 if ($ts_syncdue <= 0) {
+                    $msgParam = [ 'name' => $abook->get_name() ];
                     try {
-                        $duration = $abMgr->resyncAddressbook($abook);
-
-                        $rc->showMessage(
-                            $rc->locText(
-                                'cd_msg_synchronized',
-                                [ 'name' => $abook->get_name(), 'duration' => (string) $duration ]
-                            ),
-                            'notice',
-                            false
-                        );
+                        $msgParam['duration'] = (string) $abMgr->resyncAddressbook($abook);
+                        $rc->showMessage($rc->locText('AbSync_msg_ok', $msgParam), 'notice', false);
                     } catch (\Exception $e) {
-                        $logger->error("Failed to sync addressbook: {$e->getMessage()}");
-                        $rc->showMessage(
-                            $rc->locText(
-                                'cd_msg_syncfailed',
-                                [ 'name' => $abook->get_name(), 'errormsg' => $e->getMessage() ]
-                            ),
-                            'warning',
-                            false
-                        );
+                        $msgParam['errormsg'] = $e->getMessage();
+                        $logger->error("Failed to sync addressbook: " . $msgParam['errormsg']);
+                        $rc->showMessage($rc->locText('AbSync_msg_fail', $msgParam), 'warning', false);
                     }
                 }
             }

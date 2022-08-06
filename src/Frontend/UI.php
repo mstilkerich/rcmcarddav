@@ -163,10 +163,11 @@ class UI
         $rc->addHook('settings_actions', [$this, 'addSettingsAction']);
 
         $rc->registerAction('plugin.carddav', [$this, 'renderAddressbookList']);
-        $rc->registerAction('plugin.carddav.AbToggleActive', [$this, 'actionChangeAddressbookActive']);
-        $rc->registerAction('plugin.carddav.AbDetails', [$this, 'actionAddressbookDetails']);
-        $rc->registerAction('plugin.carddav.AccDetails', [$this, 'actionAccountDetails']);
-        $rc->registerAction('plugin.carddav.delete-account', [$this, 'actionAccountDelete']);
+        $rc->registerAction('plugin.carddav.AbToggleActive', [$this, 'actionAbToggleActive']);
+        $rc->registerAction('plugin.carddav.AbDetails', [$this, 'actionAbDetails']);
+        $rc->registerAction('plugin.carddav.AccDetails', [$this, 'actionAccDetails']);
+        $rc->registerAction('plugin.carddav.AccRm', [$this, 'actionAccRm']);
+        $rc->registerAction('plugin.carddav.AbSync', [$this, 'actionAbSync']);
         $rc->includeCSS('carddav.css');
         $rc->includeJS("carddav.js");
     }
@@ -254,7 +255,7 @@ class UI
                 'name'    => '_active[]',
                 'title'   => $rc->locText('changeactive'),
                 'onclick' => \rcmail_output::JS_OBJECT_NAME .
-                  ".command('plugin.carddav-toggle-abook-active', {abookid: this.value, state: this.checked})",
+                  ".command('plugin.carddav-AbToggleActive', {abookid: this.value, state: this.checked})",
         ]);
 
         $accountListItems = [];
@@ -289,7 +290,7 @@ class UI
         return \html::tag('ul', $attrib, implode('', $accountListItems));
     }
 
-    public function actionChangeAddressbookActive(): void
+    public function actionAbToggleActive(): void
     {
         $infra = Config::inst();
         $rc = $infra->rc();
@@ -314,7 +315,7 @@ class UI
     /**
      * This action is invoked to show the details of an existing account, or to create a new account.
      */
-    public function actionAccountDetails(): void
+    public function actionAccDetails(): void
     {
         $infra = Config::inst();
         $rc = $infra->rc();
@@ -365,7 +366,7 @@ class UI
     /**
      * This action is invoked to delete an account of the user.
      */
-    public function actionAccountDelete(): void
+    public function actionAccRm(): void
     {
         $infra = Config::inst();
         $rc = $infra->rc();
@@ -373,7 +374,6 @@ class UI
 
         $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GET);
         if (isset($accountId)) {
-            // POST - Settings saved
             try {
                 $abMgr = $this->abMgr;
                 $abMgr->deleteAccount($accountId);
@@ -387,7 +387,42 @@ class UI
         }
     }
 
-    public function actionAddressbookDetails(): void
+    /**
+     * This action is invoked to resync an addressbook
+     */
+    public function actionAbSync(): void
+    {
+        $infra = Config::inst();
+        $rc = $infra->rc();
+
+        $abookId = $rc->inputValue("abookid", false, \rcube_utils::INPUT_GET);
+        $syncType = $rc->inputValue("synctype", false, \rcube_utils::INPUT_GET);
+        if (isset($abookId) && isset($syncType) && in_array($syncType, ['AbSync', 'AbClrCache'])) {
+            $msgParams = [ 'name' => 'Unknown' ];
+            try {
+                $abMgr = $this->abMgr;
+                $abook = $abMgr->getAddressbook($abookId);
+                $msgParams['name'] = $abook->get_name();
+                if ($syncType == 'AbSync') {
+                    $msgParams['duration'] = (string) $abMgr->resyncAddressbook($abook);
+                } else {
+                    $abMgr->deleteAddressbooks([$abookId], false, true);
+                }
+
+                $rc->showMessage($rc->locText("${syncType}_msg_ok", $msgParams), 'notice', false);
+
+                // reload the addressbook details page so that last_updated is updated
+                $rc->clientCommand('carddav_Redirect', 'iframe');
+            } catch (\Exception $e) {
+                $logger = $infra->logger();
+                $msgParams['errormsg'] = $e->getMessage();
+                $logger->error("Failed to sync ($syncType) addressbook: " . $msgParams['errormsg']);
+                $rc->showMessage($rc->locText("${syncType}_msg_fail", $msgParams), 'warning', false);
+            }
+        }
+    }
+
+    public function actionAbDetails(): void
     {
         $infra = Config::inst();
         $rc = $infra->rc();

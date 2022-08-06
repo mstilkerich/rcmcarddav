@@ -1,8 +1,7 @@
 <?php
 $labels = Array(
 	'never' => 'never',
-	'cd_msg_synchronized' => 'CardDAV addressbook $name synchronized (Took $duration seconds)',
-	'cd_msg_syncfailed' => 'Sync of CardDAV addressbook $name failed: $errormsg',
+
 	'saveok' => 'Settings saved successfully',
 	'savefail' => 'Failed to save settings ($errormsg)',
 
@@ -27,6 +26,12 @@ $labels = Array(
 	'AbSync_btntit' => 'Resynchronize addressbook',
 	'AbSync_menulbl_aria' => "Addressbook resynchronization options",
 	'AbClrCache_btnlbl' => 'Reset sync (clear cache)',
+	'AbSync_msg_ok' => 'CardDAV addressbook $name synchronized (Took $duration seconds)',
+	'AbSync_msg_fail' => 'Sync of CardDAV addressbook $name failed: $errormsg',
+	'AbSync_msg_inprogress' => 'Synchronizing addressbook...',
+	'AbClrCache_msg_ok' => 'Sync state of CardDAV addressbook $name has been reset',
+	'AbClrCache_msg_fail' => 'Error resetting sync state of CardDAV addressbook $name: $errormsg',
+	'AbClrCache_msg_inprogress' => 'Resetting sync state...',
 
 	// Account details page
 	'AccProps_rclbl_aria' => 'Account properties',

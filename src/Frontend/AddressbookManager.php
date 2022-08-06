@@ -414,11 +414,16 @@ class AddressbookManager
      * Deletes the given addressbooks from the database.
      *
      * @param list<string> $abookIds IDs of the addressbooks
+     *
      * @param bool $skipTransaction If true, perform the operations without starting a transaction. Useful if the
      *                                operation is called as part of an enclosing transaction.
+     *
+     * @param bool $cacheOnly If true, only the cached addressbook data is deleted and the sync reset, but the
+     *                        addressbook itself is retained.
+     *
      * @throws \Exception If any of the given addressbook IDs does not refer to an addressbook of the user.
      */
-    public function deleteAddressbooks(array $abookIds, bool $skipTransaction = false): void
+    public function deleteAddressbooks(array $abookIds, bool $skipTransaction = false, bool $cacheOnly = false): void
     {
         $infra = Config::inst();
         $db = $infra->db();
@@ -454,7 +459,12 @@ class AddressbookManager
             // ...contacts
             $db->delete(['abook_id' => $abookIds], 'contacts');
 
-            $db->delete(['id' => $abookIds], 'addressbooks');
+            // and finally the addressbooks themselves
+            if ($cacheOnly) {
+                $db->update(['id' => $abookIds], ['last_updated', 'sync_token'], ['0', ''], "addressbooks");
+            } else {
+                $db->delete(['id' => $abookIds], 'addressbooks');
+            }
 
             if (!$skipTransaction) {
                 $db->endTransaction();
@@ -541,7 +551,7 @@ class AddressbookManager
     }
 
     /**
-     * Resyncs the given addressbook and displays a popup message about duration.
+     * Resyncs the given addressbook.
      *
      * @param Addressbook $abook The addressbook object
      * @return int The duration in seconds that the sync took
