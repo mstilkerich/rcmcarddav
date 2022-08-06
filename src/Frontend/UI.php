@@ -163,9 +163,9 @@ class UI
         $rc->addHook('settings_actions', [$this, 'addSettingsAction']);
 
         $rc->registerAction('plugin.carddav', [$this, 'renderAddressbookList']);
-        $rc->registerAction('plugin.carddav.activateabook', [$this, 'actionChangeAddressbookActive']);
-        $rc->registerAction('plugin.carddav.abookdetails', [$this, 'actionAddressbookDetails']);
-        $rc->registerAction('plugin.carddav.accountdetails', [$this, 'actionAccountDetails']);
+        $rc->registerAction('plugin.carddav.AbToggleActive', [$this, 'actionChangeAddressbookActive']);
+        $rc->registerAction('plugin.carddav.AbDetails', [$this, 'actionAddressbookDetails']);
+        $rc->registerAction('plugin.carddav.AccDetails', [$this, 'actionAccountDetails']);
         $rc->registerAction('plugin.carddav.delete-account', [$this, 'actionAccountDelete']);
         $rc->includeCSS('carddav.css');
         $rc->includeJS("carddav.js");
@@ -181,8 +181,8 @@ class UI
         $args['actions'][] = [
             'action' => 'plugin.carddav',
             'class'  => 'cd_preferences', // CSS style
-            'label'  => 'cd_title', // text display
-            'title'  => 'cd_title', // tooltip text
+            'label'  => 'CardDAV_rclbl', // text display
+            'title'  => 'CardDAV_rclbl', // tooltip text
             'domain' => 'carddav',
         ];
 
@@ -194,7 +194,7 @@ class UI
         $infra = Config::inst();
         $rc = $infra->rc();
 
-        $rc->setPagetitle($rc->locText('cd_title'));
+        $rc->setPagetitle($rc->locText('CardDAV_rclbl'));
 
         $rc->includeJS('treelist.js', true);
         $rc->addTemplateObjHandler('addressbookslist', [$this, 'tmplAddressbooksList']);
@@ -306,7 +306,7 @@ class UI
                 $rc->showMessage($rc->locText("${prefix}activateabook_success"), 'confirmation');
             } catch (\Exception $e) {
                 $rc->showMessage("Activation failed!", 'error');
-                $rc->clientCommand('carddav_reset_active', $abookId, !$active);
+                $rc->clientCommand('carddav_AbResetActive', $abookId, !$active);
             }
         }
     }
@@ -332,7 +332,7 @@ class UI
                     /** @psalm-var AbookSettings */
                     $abooksettings = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, []);
                     $accountId = $abMgr->discoverAddressbooks($newaccount, $abooksettings);
-                    $rc->clientCommand('carddav_redirect', '');
+                    $rc->clientCommand('carddav_Redirect', '');
                     $rc->sendTemplate('iframe');
                 } else {
                     $account = $abMgr->getAccountConfig($accountId);
@@ -378,7 +378,7 @@ class UI
                 $abMgr = $this->abMgr;
                 $abMgr->deleteAccount($accountId);
                 $rc->showMessage($rc->locText("saveok"), 'confirmation');
-                $rc->clientCommand('carddav_redirect', '');
+                $rc->clientCommand('carddav_Redirect', '');
                 $rc->sendTemplate('iframe');
             } catch (\Exception $e) {
                 $logger->error("Error saving account preferences: " . $e->getMessage());
@@ -584,7 +584,7 @@ class UI
                 $out = $rc->requestForm(
                     [
                         'task' => 'settings',
-                        'action' => 'plugin.carddav.abookdetails',
+                        'action' => 'plugin.carddav.AbDetails',
                         'method' => 'post',
                     ] + $attrib,
                     $out
@@ -622,7 +622,7 @@ class UI
             $out = $rc->requestForm(
                 [
                     'task' => 'settings',
-                    'action' => 'plugin.carddav.accountdetails',
+                    'action' => 'plugin.carddav.AccDetails',
                     'method' => 'post',
                 ] + $attrib,
                 $out

@@ -29,56 +29,70 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
                 parent_focus: true,
                 id_prefix: 'rcmli',
             });
-            rcmail.addressbooks_list.addEventListener('select', function(node) { rcmail.carddav_ablist_select(node); });
+            rcmail.addressbooks_list.addEventListener('select', function(node) { rcmail.carddav_AbListSelect(node); });
         }
     }
 
     if (rcmail.env.action == 'plugin.carddav') {
         rcmail.register_command(
-            'plugin.carddav-toggle-abook-active',
-            function(props) { rcmail.carddav_activate_abook(props.abookid, props.state); },
+            'plugin.carddav-AbToggleActive',
+            function(props) { rcmail.carddav_AbToggleActive(props.abookid, props.state); },
             true
         );
         rcmail.register_command(
-            'carddav-create-account',
-            function() { rcmail.carddav_create_account(); },
+            'plugin.carddav-AccAdd',
+            function() { rcmail.carddav_AccAdd(); },
             true
         );
         rcmail.register_command(
-            'carddav-delete-account',
-            function() { rcmail.carddav_delete_account(); },
+            'plugin.carddav-AccRm',
+            function() { rcmail.carddav_AccRm(); },
             false
         );
-    } else if (rcmail.env.action == 'plugin.carddav.abookdetails') {
         rcmail.register_command(
-            'plugin.carddav-save-abook',
-            function() { rcmail.carddav_save_abook(); },
+            'plugin.carddav-AbSync',
+            function() { rcmail.carddav_AbSync(); },
+            false
+        );
+        rcmail.register_command(
+            'plugin.carddav-AbClrCache',
+            function() { rcmail.carddav_AbClrCache(); },
+            false
+        );
+    } else if (rcmail.env.action == 'plugin.carddav.AbDetails') {
+        rcmail.register_command(
+            'plugin.carddav-AbSave',
+            function() { rcmail.carddav_AbSave(); },
             true // enable
         );
-    } else if (rcmail.env.action == 'plugin.carddav.accountdetails') {
+    } else if (rcmail.env.action == 'plugin.carddav.AccDetails') {
         rcmail.register_command(
-            'plugin.carddav-save-account',
-            function() { rcmail.carddav_save_account(); },
+            'plugin.carddav-AccSave',
+            function() { rcmail.carddav_AccSave(); },
             true // enable
         );
     }
 });
 
 // handler when a row (account/addressbook) of the list is selected
-rcube_webmail.prototype.carddav_ablist_select = function(node)
+rcube_webmail.prototype.carddav_AbListSelect = function(node)
 {
     var id = node.id, url, win;
 
+    this.enable_command('plugin.carddav-AccRm', false);
+    this.enable_command('plugin.carddav-AbSync', false);
+    this.enable_command('plugin.carddav-AbClrCache', false);
+
     if (id.startsWith("_acc")) {
         // Account
-        url = '&_action=plugin.carddav.accountdetails&accountid=' + id.substr(4);
-        this.enable_command('carddav-delete-account', !node.classes.includes("preset"));
+        url = '&_action=plugin.carddav.AccDetails&accountid=' + id.substr(4);
+        this.enable_command('plugin.carddav-AccRm', !node.classes.includes("preset"));
     } else if (id.startsWith("_abook")) {
         // Addressbook
-        url = '&_action=plugin.carddav.abookdetails&abookid=' + id.substr(6);
-        this.enable_command('carddav-delete-account', false);
+        url = '&_action=plugin.carddav.AbDetails&abookid=' + id.substr(6);
+        this.enable_command('plugin.carddav-AbSync', true);
+        this.enable_command('plugin.carddav-AbClrCache', true);
     } else {
-        this.enable_command('carddav-delete-account', false);
         // unexpected id
         return;
     }
@@ -89,18 +103,18 @@ rcube_webmail.prototype.carddav_ablist_select = function(node)
     }
 };
 
-rcube_webmail.prototype.carddav_activate_abook = function(abookid, active)
+rcube_webmail.prototype.carddav_AbToggleActive = function(abookid, active)
 {
     if (abookid) {
         var prefix = active ? '' : 'de';
         var lock = this.display_message(rcmail.get_label('carddav.' + prefix + 'activatingabook', 'loading'));
 
-        this.http_post("plugin.carddav.activateabook", {abookid: abookid, state: (active ? 1 : 0)}, lock);
+        this.http_post("plugin.carddav.AbToggleActive", {abookid: abookid, state: (active ? 1 : 0)}, lock);
     }
 };
 
 // resets state of addressbook active checkbox (e.g. on error)
-rcube_webmail.prototype.carddav_reset_active = function(abook, state)
+rcube_webmail.prototype.carddav_AbResetActive = function(abook, state)
 {
     var row = rcmail.addressbooks_list.get_item(abook, true);
     if (row) {
@@ -109,33 +123,33 @@ rcube_webmail.prototype.carddav_reset_active = function(abook, state)
 };
 
 // reloads the page
-rcube_webmail.prototype.carddav_redirect = function(target)
+rcube_webmail.prototype.carddav_Redirect = function(target)
 {
     (this.is_framed() ? parent : window).location.reload();
 };
 
-rcube_webmail.prototype.carddav_save_abook = function()
+rcube_webmail.prototype.carddav_AbSave = function()
 {
     $('form[name="addressbookdetails"]').submit();
 };
 
-rcube_webmail.prototype.carddav_save_account = function()
+rcube_webmail.prototype.carddav_AccSave = function()
 {
     $('form[name="accountdetails"]').submit();
 };
 
 // this is called when the Add Account button is clicked
-rcube_webmail.prototype.carddav_create_account = function()
+rcube_webmail.prototype.carddav_AccAdd = function()
 {
     var win;
     if (win = this.get_frame_window(this.env.contentframe)) {
         this.env.frame_lock = this.set_busy(true, 'loading');
-        win.location.href = this.env.comm_path + '&_framed=1&_action=plugin.carddav.accountdetails&accountid=new';
+        win.location.href = this.env.comm_path + '&_framed=1&_action=plugin.carddav.AccDetails&accountid=new';
     }
 };
 
 // this is called when the Delete Account button is clicked
-rcube_webmail.prototype.carddav_delete_account = function()
+rcube_webmail.prototype.carddav_AccRm = function()
 {
     var win;
 

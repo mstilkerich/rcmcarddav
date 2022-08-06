@@ -1,53 +1,63 @@
 <?php
 $labels = Array(
-	'cd_title' => 'CardDAV',
-	'cd_active' => 'Activate CardDAV-Addressbook',
-	'cd_newabboxtitle'=> "Add new addressbook",
-	'cd_username' => 'Username',
-	'cd_password' => 'Password',
-	'cd_url' => 'URL',
-	'cd_name' => "Name of the addressbook",
-	'cd_use_categories' => "Use CATEGORIES instead of KIND=group (RFC6350)\nwhen creating new contact groups",
-	'cd_delete' => "Remove this addressbook",
-	'cd_name_new' => "Configure new addressbook",
-	'cd_refresh_time' => "Update interval (hours)",
-	'cd_err_noabfound' => 'no addressbook found',
-	'cd_enabled' => 'Enabled',
-	'cd_disabled' => 'Disabled',
-	'cd_lastupdate_time'=>'Time of last update',
-	'cd_resync' => "Force immediate synchronization with server",
+	'never' => 'never',
 	'cd_msg_synchronized' => 'CardDAV addressbook $name synchronized (Took $duration seconds)',
 	'cd_msg_syncfailed' => 'Sync of CardDAV addressbook $name failed: $errormsg',
-
-	'frompreset' => 'Administrator preset',
-	'accountname' => 'Name of the account',
-	'discoveryurl' => 'Discovery URL',
-	'rediscover_time' => 'Rediscovery interval (hours)',
-	'lastdiscovered_time' => 'Time of last addressbook discovery',
-
 	'saveok' => 'Settings saved successfully',
 	'savefail' => 'Failed to save settings ($errormsg)',
 
-	'newaccount' => 'Add new CardDAV account',
-	'changeactive' => 'Toggle addressbook active',
+	// Account/addressbook list pane - Header / Toolbar
+	'CardDAV_rclbl' => 'CardDAV',
+
+	// Account/addressbook list pane
+	'changeactive' => '(de)activate addressbook',
 	'activatingabook' => 'Activating addressbook...',
 	'deactivatingabook' => 'Deactivating addressbook...',
 	'activateabook_success' => 'Addressbook successfully activated',
 	'deactivateabook_success' => 'Addressbook successfully deactivated',
-	'accountproperties' => 'Account properties',
-	'abookproperties' => 'Addressbook properties',
+
+	// Details pane Toolbar
+	'AccAdd_btnlbl' => 'Add',
+	'AccAdd_btntit' => 'Add CardDAV account',
+
+	'AccRm_btnlbl' => 'Delete',
+	'AccRm_btntit' => 'Delete CardDAV account',
+
+	'AbSync_btnlbl' => 'Resync',
+	'AbSync_btntit' => 'Resynchronize addressbook',
+	'AbSync_menulbl_aria' => "Addressbook resynchronization options",
+	'AbClrCache_btnlbl' => 'Reset sync (clear cache)',
+
+	// Account details page
+	'AccProps_rclbl_aria' => 'Account properties',
+
 	'basicinfo' => 'Basic information',
-	'syncinfo' => 'Synchronization',
+	'frompreset' => 'Administrator preset',
+	'accountname' => 'Name of the account',
+	'discoveryurl' => 'Discovery URL',
+	'cd_username' => 'Username',
+	'cd_password' => 'Password',
+
 	'discoveryinfo' => 'Addressbook discovery',
+	'rediscover_time' => 'Rediscovery interval (hours)',
+	'lastdiscovered_time' => 'Time of last addressbook discovery',
+
+	// Addressbook details page
+	'AbProps_rclbl_aria' => 'Addressbook properties',
+	// basicinfo
+	'cd_name' => "Name of the addressbook",
+	'cd_url' => 'URL',
+
+	'syncinfo' => 'Synchronization',
+	'cd_refresh_time' => "Update interval (hours)",
+	'cd_lastupdate_time'=>'Time of last update',
+
 	'miscsettings' => 'Miscellaneous settings',
 	'newgroupstype' => 'Type of new contact groups',
 	'grouptype_vcard' => 'Separate KIND=group (RFC6350) VCards for new groups (best compatibility with Apple applications)',
 	'grouptype_categories' => 'Store groups as CATEGORIES inside contact VCards (best compatibility with non-Apple applications)',
-	'never' => 'never',
 
-	'btn_add' => 'Add',
-	'btn_addaccount' => 'Add CardDAV account',
-	'btn_delete' => 'Delete',
-	'btn_deleteaccount' => 'Delete CardDAV account',
+	// Add new account page
+	'newaccount' => 'Add new CardDAV account',
 );
 ?>
