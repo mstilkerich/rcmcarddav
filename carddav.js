@@ -20,6 +20,20 @@
  * along with RCMCardDAV. If not, see <https://www.gnu.org/licenses/>.
  */
 
+function get_query_params() {
+    // example: ?_task=settings&_action=plugin.carddav&abookid=6
+    let params = {};
+    for (let comp of location.search.split(/[?&]/)) {
+        // because we split also on ?, first string is typically empty
+        if (comp.includes('=')) {
+            let parts = comp.split('=');
+            params[parts[0]] = decodeURIComponent(parts[1]);
+        }
+    }
+
+    return params;
+}
+
 window.rcmail && rcmail.addEventListener('init', function(evt) {
     if (rcmail.env.task == 'settings') {
         if (rcmail.gui_objects.addressbookslist) {
@@ -59,6 +73,14 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
             function() { rcmail.carddav_AbSync("AbClrCache"); },
             false
         );
+
+        let qparams = get_query_params();
+        if (qparams.abookid !== undefined) {
+            rcmail.addressbooks_list.select("_abook" + qparams.abookid);
+        } else if (qparams.accountid !== undefined) {
+            rcmail.addressbooks_list.select("_acc" + qparams.accountid);
+        }
+
     } else if (rcmail.env.action == 'plugin.carddav.AbDetails') {
         rcmail.register_command(
             'plugin.carddav-AbSave',
@@ -77,7 +99,7 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
 // handler when a row (account/addressbook) of the list is selected
 rcube_webmail.prototype.carddav_AbListSelect = function(node)
 {
-    var id = node.id, url, win;
+    let id = node.id, url, win;
 
     this.enable_command('plugin.carddav-AccRm', false);
     this.enable_command('plugin.carddav-AbSync', false);
@@ -106,8 +128,8 @@ rcube_webmail.prototype.carddav_AbListSelect = function(node)
 rcube_webmail.prototype.carddav_AbToggleActive = function(abookid, active)
 {
     if (abookid) {
-        var prefix = active ? '' : 'de';
-        var lock = this.display_message(rcmail.get_label('carddav.' + prefix + 'activatingabook'), 'loading');
+        let prefix = active ? '' : 'de';
+        let lock = this.display_message(rcmail.get_label('carddav.' + prefix + 'activatingabook'), 'loading');
 
         this.http_post("plugin.carddav.AbToggleActive", {abookid: abookid, state: (active ? 1 : 0)}, lock);
     }
@@ -116,7 +138,7 @@ rcube_webmail.prototype.carddav_AbToggleActive = function(abookid, active)
 // resets state of addressbook active checkbox (e.g. on error)
 rcube_webmail.prototype.carddav_AbResetActive = function(abook, state)
 {
-    var row = rcmail.addressbooks_list.get_item(abook, true);
+    let row = rcmail.addressbooks_list.get_item(abook, true);
     if (row) {
         $('input[name="_active[]"]', row).first().prop('checked', state);
     }
@@ -127,7 +149,7 @@ rcube_webmail.prototype.carddav_AbResetActive = function(abook, state)
 rcube_webmail.prototype.carddav_Redirect = function(target)
 {
     if (target == "iframe") {
-        var win = this.get_frame_window(this.env.contentframe);
+        let win = this.get_frame_window(this.env.contentframe);
         if (win) {
             win.location.reload();
         }
@@ -149,8 +171,8 @@ rcube_webmail.prototype.carddav_AccSave = function()
 // this is called when the Add Account button is clicked
 rcube_webmail.prototype.carddav_AccAdd = function()
 {
-    var win;
-    if (win = this.get_frame_window(this.env.contentframe)) {
+    let win = this.get_frame_window(this.env.contentframe);
+    if (win) {
         this.env.frame_lock = this.set_busy(true, 'loading');
         win.location.href = this.env.comm_path + '&_framed=1&_action=plugin.carddav.AccDetails&accountid=new';
     }
@@ -159,11 +181,10 @@ rcube_webmail.prototype.carddav_AccAdd = function()
 // this is called when the Delete Account button is clicked
 rcube_webmail.prototype.carddav_AccRm = function()
 {
-    var win;
-
-    var selectedNode = rcmail.addressbooks_list.get_selection();
+    let selectedNode = rcmail.addressbooks_list.get_selection();
     if (selectedNode.startsWith("_acc")) {
-        if (win = this.get_frame_window(this.env.contentframe)) {
+        let win = this.get_frame_window(this.env.contentframe);
+        if (win) {
             this.env.frame_lock = this.set_busy(true, 'loading');
             win.location.href = this.env.comm_path +
                 '&_framed=1&_action=plugin.carddav.AccRm&accountid=' + selectedNode.substr(4);
@@ -175,10 +196,10 @@ rcube_webmail.prototype.carddav_AccRm = function()
 // syncType: AbSync, AbClrCache
 rcube_webmail.prototype.carddav_AbSync = function(syncType)
 {
-    var selectedNode = rcmail.addressbooks_list.get_selection();
+    let selectedNode = rcmail.addressbooks_list.get_selection();
     if (selectedNode.startsWith("_abook")) {
-        var abookid = selectedNode.substr(6);
-        var lock = this.display_message(rcmail.get_label(syncType + '_msg_inprogress', 'carddav'), 'loading');
+        let abookid = selectedNode.substr(6);
+        let lock = this.display_message(rcmail.get_label(syncType + '_msg_inprogress', 'carddav'), 'loading');
         this.http_request("plugin.carddav.AbSync", {abookid: abookid, synctype: syncType}, lock, 'GET');
     }
 };
