@@ -18,6 +18,7 @@ $labels = Array(
 	// Details pane Toolbar
 	'AccAdd_btnlbl' => 'Add',
 	'AccAdd_btntit' => 'Add CardDAV account',
+	'AccAdd_msg_ok' => 'New CardDAV account added successfully',
 
 	'AccRm_btnlbl' => 'Delete',
 	'AccRm_btntit' => 'Delete CardDAV account',

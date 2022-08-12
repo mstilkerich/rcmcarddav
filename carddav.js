@@ -20,7 +20,7 @@
  * along with RCMCardDAV. If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* global $, rcmail, rcube_webmail, rcube_treelist_widget, location, parent */
+/* global $, rcmail, rcube_webmail, rcube_treelist_widget, UI, location, parent */
 
 function getQueryParams () {
   // example: ?_task=settings&_action=plugin.carddav&abookid=6
@@ -196,6 +196,20 @@ rcube_webmail.prototype.carddav_UpdateForm = function (formData) {
         break
     }
   }
+}
+
+// invoked from the backend to confirm creation of a new account
+rcube_webmail.prototype.carddav_InsertAccount = function (accountId, newLi) {
+  const domId = '_acc' + accountId
+
+  parent.window.rcmail.addressbooks_list.insert(
+    { id: domId, html: newLi, classes: ['account'] },
+    null,
+    true
+  )
+  // fixup the checkboxes (note: this is elastic-specific)
+  $('#rcmli' + domId + ' input[type="checkbox"]', parent.document).each(function () { UI.pretty_checkbox(this) })
+  parent.window.rcmail.addressbooks_list.select(domId)
 }
 
 // this is called when the Add Account button is clicked

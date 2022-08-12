@@ -227,18 +227,6 @@ class UI
         $accounts = [];
         foreach ($accountIds as $accountId) {
             $accounts[$accountId] = $abMgr->getAccountConfig($accountId);
-            $accounts[$accountId]['addressbooks'] = $abMgr->getAddressbookConfigsForAccount($accountId);
-            // Sort addressbooks by their name
-            usort(
-                $accounts[$accountId]['addressbooks'],
-                /**
-                 * @param FullAbookRow $a
-                 * @param FullAbookRow $b
-                 */
-                function (array $a, array $b): int {
-                    return strcasecmp($a['name'], $b['name']);
-                }
-            );
         }
 
         // Sort accounts by their name
@@ -253,6 +241,45 @@ class UI
             }
         );
 
+        $accountListItems = [];
+        foreach ($accounts as $account) {
+            $attribs = [
+                'id'    => 'rcmli_acc' . $account["id"],
+                'class' => 'account' . (isset($account["presetname"]) ? ' preset' : '')
+            ];
+            $accountListItems[] = \html::tag('li', $attribs, $this->makeAccountListItem($account));
+        }
+
+        $rc->addGuiObject('addressbookslist', $attrib['id']);
+        return \html::tag('ul', $attrib, implode('', $accountListItems));
+    }
+
+    /**
+     * Creates the HTML code within the ListItem of an account in the addressbook list.
+     *
+     * @param FullAccountRow $account
+     */
+    private function makeAccountListItem(array $account): string
+    {
+        $infra = Config::inst();
+        $rc = $infra->rc();
+        $abMgr = $this->abMgr;
+        $account['addressbooks'] = $abMgr->getAddressbookConfigsForAccount($account["id"]);
+
+        // Sort addressbooks by their name
+        usort(
+            $account['addressbooks'],
+            /**
+             * @param FullAbookRow $a
+             * @param FullAbookRow $b
+             */
+            function (array $a, array $b): int {
+                return strcasecmp($a['name'], $b['name']);
+            }
+        );
+
+        $content = \html::a(['href' => '#'], \rcube::Q($account["name"]));
+
         $checkboxActive = new \html_checkbox([
                 'name'    => '_active[]',
                 'title'   => $rc->locText('changeactive'),
@@ -260,36 +287,24 @@ class UI
                   ".command('plugin.carddav-AbToggleActive', {abookid: this.value, state: this.checked})",
         ]);
 
-        $accountListItems = [];
-        foreach ($accounts as $account) {
-            $content = \html::a(['href' => '#'], \rcube::Q($account["name"]));
-
-            $addressbookListItems = [];
-            foreach (($account["addressbooks"] ?? []) as $abook) {
-                $attribs = [
-                    'id'    => 'rcmli_abook' . $abook["id"],
-                    'class' => 'addressbook'
-                ];
-
-                $abookHtml = \html::a(['href' => '#'], \rcube::Q($abook["name"]));
-                $abookHtml .= $checkboxActive->show($abook["active"] ? $abook['id'] : '', ['value' => $abook['id']]);
-                $addressbookListItems[] = \html::tag('li', $attribs, $abookHtml);
-            }
-
-            if (!empty($addressbookListItems)) {
-                $content .= \html::div('treetoggle expanded', '&nbsp;');
-                $content .= \html::tag('ul', ['style' => null], implode("\n", $addressbookListItems));
-            }
-
+        $addressbookListItems = [];
+        foreach (($account["addressbooks"] ?? []) as $abook) {
             $attribs = [
-                'id'    => 'rcmli_acc' . $account["id"],
-                'class' => 'account' . (isset($account["presetname"]) ? ' preset' : '')
+                'id'    => 'rcmli_abook' . $abook["id"],
+                'class' => 'addressbook'
             ];
-            $accountListItems[] = \html::tag('li', $attribs, $content);
+
+            $abookHtml = \html::a(['href' => '#'], \rcube::Q($abook["name"]));
+            $abookHtml .= $checkboxActive->show($abook["active"] ? $abook['id'] : '', ['value' => $abook['id']]);
+            $addressbookListItems[] = \html::tag('li', $attribs, $abookHtml);
         }
 
-        $rc->addGuiObject('addressbookslist', $attrib['id']);
-        return \html::tag('ul', $attrib, implode('', $accountListItems));
+        if (!empty($addressbookListItems)) {
+            $content .= \html::div('treetoggle expanded', '&nbsp;');
+            $content .= \html::tag('ul', ['style' => null], implode("\n", $addressbookListItems));
+        }
+
+        return $content;
     }
 
     public function actionAbToggleActive(): void
@@ -323,25 +338,8 @@ class UI
         $rc = $infra->rc();
         $logger = $infra->logger();
 
-        $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_POST);
-        if (isset($accountId) && $accountId == "new") {
-            try {
-                $abMgr = $this->abMgr;
-                /** @psalm-var AccountSettings */
-                $newaccount = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, []);
-                /** @psalm-var AbookSettings */
-                $abooksettings = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, []);
-                $accountId = $abMgr->discoverAddressbooks($newaccount, $abooksettings);
-                $rc->clientCommand('carddav_Redirect', '');
-                $rc->showMessage($rc->locText("saveok"), 'confirmation');
-            } catch (\Exception $e) {
-                $logger->error("Error saving account preferences: " . $e->getMessage());
-                $rc->showMessage($rc->locText("savefail", ['errormsg' => $e->getMessage()]), 'error');
-            }
-        } else {
-            // GET - Account selected in list
-            $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GET);
-        }
+        // GET - Account selected in list
+        $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GET);
 
         if (isset($accountId)) {
             $tmplAccountDetailsFn = function (array $attrib) use ($accountId): string {
@@ -350,6 +348,8 @@ class UI
             $rc->setPagetitle($rc->locText('accountproperties'));
             $rc->addTemplateObjHandler('accountdetails', $tmplAccountDetailsFn);
             $rc->sendTemplate('carddav.accountDetails');
+        } else {
+            $logger->warning(__METHOD__ . ": no account ID found in parameters");
         }
     }
 
@@ -440,19 +440,33 @@ class UI
         if (isset($accountId)) {
             try {
                 $abMgr = $this->abMgr;
-                $account = $abMgr->getAccountConfig($accountId);
-                $fixedAttributes = $this->getFixedSettings($account['presetname']);
-                /** @psalm-var AccountSettings */
-                $newset = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, $fixedAttributes);
-                $abMgr->updateAccount($accountId, $newset);
 
-                // update account data and echo formatted field data to client
-                $account = $abMgr->getAccountConfig($accountId);
-                $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, $account);
-                $formData["_acc$accountId"] = [ 'parent', $account["name"] ];
+                if ($accountId == "new") {
+                    /** @psalm-var AccountSettings */
+                    $newaccount = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, []);
+                    /** @psalm-var AbookSettings */
+                    $abooksettings = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, []);
+                    $accountId = $abMgr->discoverAddressbooks($newaccount, $abooksettings);
+                    $account = $abMgr->getAccountConfig($accountId);
 
-                $rc->showMessage($rc->locText("saveok"), 'confirmation');
-                $rc->clientCommand('carddav_UpdateForm', $formData);
+                    $newLi = $this->makeAccountListItem($account);
+                    $rc->clientCommand('carddav_InsertAccount', $accountId, $newLi);
+                    $rc->showMessage($rc->locText("AccAdd_msg_ok"), 'confirmation');
+                } else {
+                    $account = $abMgr->getAccountConfig($accountId);
+                    $fixedAttributes = $this->getFixedSettings($account['presetname']);
+                    /** @psalm-var AccountSettings */
+                    $newset = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, $fixedAttributes);
+                    $abMgr->updateAccount($accountId, $newset);
+
+                    // update account data and echo formatted field data to client
+                    $account = $abMgr->getAccountConfig($accountId);
+                    $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, $account);
+                    $formData["_acc$accountId"] = [ 'parent', $account["name"] ];
+
+                    $rc->clientCommand('carddav_UpdateForm', $formData);
+                    $rc->showMessage($rc->locText("saveok"), 'confirmation');
+                }
             } catch (\Exception $e) {
                 $logger->error("Error saving account preferences: " . $e->getMessage());
                 $rc->showMessage($rc->locText("savefail", ['errormsg' => $e->getMessage()]), 'error');
@@ -512,22 +526,7 @@ class UI
             foreach ($fieldSet['fields'] as $fieldSpec) {
                 [ $fieldLabel, $fieldKey, $uiType ] = $fieldSpec;
 
-                if (isset($vals[$fieldKey])) {
-                    $fieldValue = $vals[$fieldKey];
-                } else {
-                    // in case there was an error saving a new account, echo back what the user entered (password will
-                    // be stripped by uiField())
-                    $formValue = $rc->inputValue($fieldKey, false);
-                    if (isset($formValue)) {
-                        if ($uiType == 'timestr') {
-                            $fieldValue = (string) Utils::parseTimeParameter($formValue);
-                        } else {
-                            $fieldValue = $formValue;
-                        }
-                    } else {
-                        $fieldValue = $fieldSpec[3] ?? '';
-                    }
-                }
+                $fieldValue = $vals[$fieldKey] ?? $fieldSpec[3] ?? '';
 
                 // plain field is only shown when there is a value to be shown
                 if ($uiType == 'plain' && $fieldValue == '') {
@@ -716,19 +715,13 @@ class UI
 
             if ($accountId == "new") {
                 $out .= $this->makeSettingsForm(self::UI_FORM_NEWACCOUNT, [], [], $attrib);
-                $extraFormAttr = [
-                    'task' => 'settings',
-                    'action' => 'plugin.carddav.AccDetails',
-                    'method' => 'post',
-                ];
             } else {
                 $account = $this->abMgr->getAccountConfig($accountId);
                 $fixedAttributes = $this->getFixedSettings($account['presetname']);
                 $out .= $this->makeSettingsForm(self::UI_FORM_ACCOUNT, $account, $fixedAttributes, $attrib);
-                $extraFormAttr = [];
             }
 
-            $out = $rc->requestForm($extraFormAttr + $attrib, $out);
+            $out = $rc->requestForm($attrib, $out);
         } catch (\Exception $e) {
             $logger->error($e->getMessage());
         }
