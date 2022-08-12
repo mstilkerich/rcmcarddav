@@ -37,7 +37,11 @@ function getQueryParams () {
 }
 
 window.rcmail && rcmail.addEventListener('init', function (evt) {
-  if (rcmail.env.task === 'settings') {
+  if (rcmail.env.task !== 'settings') {
+    return
+  }
+
+  if (rcmail.env.action === 'plugin.carddav') {
     if (rcmail.gui_objects.addressbookslist) {
       // eslint-disable-next-line new-cap
       rcmail.addressbooks_list = new rcube_treelist_widget(rcmail.gui_objects.addressbookslist, {
@@ -48,34 +52,17 @@ window.rcmail && rcmail.addEventListener('init', function (evt) {
       })
       rcmail.addressbooks_list.addEventListener('select', function (node) { rcmail.carddav_AbListSelect(node) })
     }
-  }
 
-  if (rcmail.env.action === 'plugin.carddav') {
     rcmail.register_command(
       'plugin.carddav-AbToggleActive',
       function (props) { rcmail.carddav_AbToggleActive(props.abookid, props.state) },
       true
     )
-    rcmail.register_command(
-      'plugin.carddav-AccAdd',
-      function () { rcmail.carddav_AccAdd() },
-      true
-    )
-    rcmail.register_command(
-      'plugin.carddav-AccRm',
-      function () { rcmail.carddav_AccRm() },
-      false
-    )
-    rcmail.register_command(
-      'plugin.carddav-AbSync',
-      function () { rcmail.carddav_AbSync('AbSync') },
-      false
-    )
-    rcmail.register_command(
-      'plugin.carddav-AbClrCache',
-      function () { rcmail.carddav_AbSync('AbClrCache') },
-      false
-    )
+
+    rcmail.register_command('plugin.carddav-AccAdd', function () { rcmail.carddav_AccAdd() }, true)
+    rcmail.register_command('plugin.carddav-AccRm', function () { rcmail.carddav_AccRm() }, false)
+    rcmail.register_command('plugin.carddav-AbSync', function () { rcmail.carddav_AbSync('AbSync') }, false)
+    rcmail.register_command('plugin.carddav-AbClrCache', function () { rcmail.carddav_AbSync('AbClrCache') }, false)
 
     const qparams = getQueryParams()
     if (qparams.abookid !== undefined) {
@@ -86,13 +73,13 @@ window.rcmail && rcmail.addEventListener('init', function (evt) {
   } else if (rcmail.env.action === 'plugin.carddav.AbDetails') {
     rcmail.register_command(
       'plugin.carddav-AbSave',
-      function () { rcmail.carddav_AbSave() },
+      function () { rcmail.carddav_AccAbSave('addressbookdetails', 'plugin.carddav.AbSave') },
       true // enable
     )
   } else if (rcmail.env.action === 'plugin.carddav.AccDetails') {
     rcmail.register_command(
       'plugin.carddav-AccSave',
-      function () { rcmail.carddav_AccSave() },
+      function () { rcmail.carddav_AccAbSave('accountdetails', 'plugin.carddav.AccSave') },
       true // enable
     )
   }
@@ -128,6 +115,7 @@ rcube_webmail.prototype.carddav_AbListSelect = function (node) {
   }
 }
 
+// handler invoked when the toggle-active checkbox for an addressbook is changed
 rcube_webmail.prototype.carddav_AbToggleActive = function (abookid, active) {
   if (abookid) {
     const lock = this.display_message('', 'loading')
@@ -135,7 +123,7 @@ rcube_webmail.prototype.carddav_AbToggleActive = function (abookid, active) {
   }
 }
 
-// resets state of addressbook active checkbox (e.g. on error)
+// resets state of addressbook active checkbox (e.g. on error), invoked from the backend
 rcube_webmail.prototype.carddav_AbResetActive = function (abook, state) {
   const row = rcmail.addressbooks_list.get_item('_abook' + abook, true)
   if (row) {
@@ -145,23 +133,69 @@ rcube_webmail.prototype.carddav_AbResetActive = function (abook, state) {
 
 // reloads the page
 // if target is set to 'iframe', the content frame is reloaded, otherwise the entire page is reloaded
-rcube_webmail.prototype.carddav_Redirect = function (target) {
-  if (target === 'iframe') {
-    const win = this.get_frame_window(this.env.contentframe)
-    if (win) {
-      win.location.reload()
-    }
+rcube_webmail.prototype.carddav_Redirect = function (targetframe) {
+  let targetwindow
+
+  if (targetframe === 'iframe') {
+    targetwindow = this.get_frame_window(this.env.contentframe)
   } else {
-    (this.is_framed() ? parent : window).location.reload()
+    targetwindow = (this.is_framed() ? parent.window : window)
+  }
+
+  if (targetwindow) {
+    targetwindow.location.reload()
   }
 }
 
-rcube_webmail.prototype.carddav_AbSave = function () {
-  $('form[name="addressbookdetails"]').submit()
+// invoked when the Save button in the account or addressbook detail view is pressed
+rcube_webmail.prototype.carddav_AccAbSave = function (formname, action) {
+  const lock = this.display_message('', 'loading')
+  const formDataTuples = $('form[name="' + formname + '"]').serializeArray()
+  const formData = {}
+  for (const tuple of formDataTuples) {
+    formData[tuple.name] = tuple.value
+  }
+
+  this.http_post(action, formData, lock)
 }
 
-rcube_webmail.prototype.carddav_AccSave = function () {
-  $('form[name="accountdetails"]').submit()
+// invoked from the backend to update the shown form with account or addressbook details to new values, including the
+// possbility to update the entry in the addressbook list
+rcube_webmail.prototype.carddav_UpdateForm = function (formData) {
+  for (const fieldKey in formData) {
+    const fieldType = formData[fieldKey][0]
+    const fieldValue = formData[fieldKey][1]
+
+    const inputSelectorByName = 'input[name="' + fieldKey + '"]'
+    let node, nodeUpdate
+
+    switch (fieldType) {
+      case 'text':
+      case 'timestr':
+      case 'password':
+        $(inputSelectorByName).val(fieldValue)
+        break
+
+      case 'radio':
+        $(inputSelectorByName + '[value="' + fieldValue + '"]').prop('checked', true)
+        break
+
+      case 'datetime':
+      case 'plain':
+        $('span#rcmcrd_plain_' + fieldKey).text(fieldValue)
+        break
+
+      // this is a special case to update an element given by a CSS selector in the parent document, i.e. update the
+      // name in the addressbook list.
+      case 'parent':
+        node = $('#rcmli' + fieldKey + ' > a', parent.document)
+        node.text(fieldValue)
+        nodeUpdate = { html: node }
+
+        parent.window.rcmail.addressbooks_list.update(fieldKey, nodeUpdate, true)
+        break
+    }
+  }
 }
 
 // this is called when the Add Account button is clicked

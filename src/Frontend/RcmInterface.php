@@ -69,7 +69,7 @@ interface RcmInterface
      * Call a client (javascript) method
      *
      * @param string           $method       Method to call
-     * @param string|bool|int  ...$arguments Additional arguments
+     * @param string|bool|int|array  ...$arguments Additional arguments
      */
     public function clientCommand(string $method, ...$arguments): void;
 
