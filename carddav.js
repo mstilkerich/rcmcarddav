@@ -130,16 +130,14 @@ rcube_webmail.prototype.carddav_AbListSelect = function (node) {
 
 rcube_webmail.prototype.carddav_AbToggleActive = function (abookid, active) {
   if (abookid) {
-    const prefix = active ? '' : 'de'
-    const lock = this.display_message(rcmail.get_label('carddav.' + prefix + 'activatingabook'), 'loading')
-
+    const lock = this.display_message('', 'loading')
     this.http_post('plugin.carddav.AbToggleActive', { abookid, state: (active ? 1 : 0) }, lock)
   }
 }
 
 // resets state of addressbook active checkbox (e.g. on error)
 rcube_webmail.prototype.carddav_AbResetActive = function (abook, state) {
-  const row = rcmail.addressbooks_list.get_item(abook, true)
+  const row = rcmail.addressbooks_list.get_item('_abook' + abook, true)
   if (row) {
     $('input[name="_active[]"]', row).first().prop('checked', state)
   }

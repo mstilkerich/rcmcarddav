@@ -10,10 +10,10 @@ $labels = Array(
 
 	// Account/addressbook list pane
 	'changeactive' => '(de)activate addressbook',
-	'activatingabook' => 'Activating addressbook...',
-	'deactivatingabook' => 'Deactivating addressbook...',
-	'activateabook_success' => 'Addressbook successfully activated',
-	'deactivateabook_success' => 'Addressbook successfully deactivated',
+	'AbToggleActive_msg_ok' => 'Addressbook successfully activated',
+	'AbToggleActive_msg_ok_de' => 'Addressbook successfully deactivated',
+	'AbToggleActive_msg_fail' => 'Addressbook activation failed',
+	'AbToggleActive_msg_fail_de' => 'Addressbook deactivation failed',
 
 	// Details pane Toolbar
 	'AccAdd_btnlbl' => 'Add',

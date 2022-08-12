@@ -226,7 +226,7 @@ class UI
         foreach ($accountIds as $accountId) {
             $accounts[$accountId] = $abMgr->getAccountConfig($accountId);
             $accounts[$accountId]['addressbooks'] = $abMgr->getAddressbookConfigsForAccount($accountId);
-            // Sort accounts first by account name
+            // Sort addressbooks by their name
             usort(
                 $accounts[$accountId]['addressbooks'],
                 /**
@@ -239,7 +239,7 @@ class UI
             );
         }
 
-        // Sort accounts first by account name
+        // Sort accounts by their name
         usort(
             $accounts,
             /**
@@ -300,13 +300,13 @@ class UI
         $active  = $rc->inputValue("state", false);
 
         if (isset($abookId) && isset($active)) {
+            $active = ($active == "1"); // if this is some invalid value, just consider it as deactivated
+            $suffix = $active ? "" : "_de";
             try {
-                $active = ($active == "1"); // if this is some invalid value, just consider it as deactivated
-                $prefix = $active ? "" : "de";
                 $this->abMgr->updateAddressbook($abookId, ['active' => $active ]);
-                $rc->showMessage($rc->locText("${prefix}activateabook_success"), 'confirmation');
+                $rc->showMessage($rc->locText("AbToggleActive_msg_ok$suffix"), 'confirmation');
             } catch (\Exception $e) {
-                $rc->showMessage("Activation failed!", 'error');
+                $rc->showMessage($rc->locText("AbToggleActive_msg_fail$suffix"), 'error');
                 $rc->clientCommand('carddav_AbResetActive', $abookId, !$active);
             }
         }
