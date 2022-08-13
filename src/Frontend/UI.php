@@ -362,17 +362,16 @@ class UI
         $rc = $infra->rc();
         $logger = $infra->logger();
 
-        $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GET);
+        $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_POST);
         if (isset($accountId)) {
             try {
                 $abMgr = $this->abMgr;
                 $abMgr->deleteAccount($accountId);
-                $rc->showMessage($rc->locText("saveok"), 'confirmation');
-                $rc->clientCommand('carddav_Redirect', '');
-                $rc->sendTemplate('iframe');
+                $rc->showMessage($rc->locText("AccRm_msg_ok"), 'confirmation');
+                $rc->clientCommand('carddav_RemoveAccount', $accountId);
             } catch (\Exception $e) {
                 $logger->error("Error saving account preferences: " . $e->getMessage());
-                $rc->showMessage($rc->locText("savefail"), 'error');
+                $rc->showMessage($rc->locText("AccRm_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
             }
         }
     }

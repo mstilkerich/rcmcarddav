@@ -225,13 +225,21 @@ rcube_webmail.prototype.carddav_AccAdd = function () {
 rcube_webmail.prototype.carddav_AccRm = function () {
   const selectedNode = rcmail.addressbooks_list.get_selection()
   if (selectedNode.startsWith('_acc')) {
-    const win = this.get_frame_window(this.env.contentframe)
-    if (win) {
-      this.env.frame_lock = this.set_busy(true, 'loading')
-      win.location.href = this.env.comm_path +
-        '&_framed=1&_action=plugin.carddav.AccRm&accountid=' + selectedNode.substr(4)
-    }
+    const accountid = selectedNode.substr(4)
+    const lock = this.display_message('', 'loading')
+    this.http_post('plugin.carddav.AccRm', { accountid }, lock)
   }
+}
+
+// invoked from the backend to confirm deletion of an account
+rcube_webmail.prototype.carddav_RemoveAccount = function (accountId) {
+  const domId = '_acc' + accountId
+
+  const win = this.get_frame_window(this.env.contentframe)
+  if (win) {
+    win.location.href = this.env.blankpage
+  }
+  parent.window.rcmail.addressbooks_list.remove(domId)
 }
 
 // this is called when the Resync addressbook button is hit

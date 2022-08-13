@@ -22,6 +22,8 @@ $labels = Array(
 
 	'AccRm_btnlbl' => 'Delete',
 	'AccRm_btntit' => 'Delete CardDAV account',
+	'AccRm_msg_ok' => 'CardDAV account successfully deleted',
+	'AccRm_msg_fail' => 'Removal of CardDAV account failed: $errormsg',
 
 	'AbSync_btnlbl' => 'Resync',
 	'AbSync_btntit' => 'Resynchronize addressbook',
