@@ -22,20 +22,6 @@
 
 /* global $, rcmail, rcube_webmail, rcube_treelist_widget, UI, location, parent */
 
-function getQueryParams () {
-  // example: ?_task=settings&_action=plugin.carddav&abookid=6
-  const params = {}
-  for (const comp of location.search.split(/[?&]/)) {
-    // because we split also on ?, first string is typically empty
-    if (comp.includes('=')) {
-      const parts = comp.split('=')
-      params[parts[0]] = decodeURIComponent(parts[1])
-    }
-  }
-
-  return params
-}
-
 window.rcmail && rcmail.addEventListener('init', function (evt) {
   if (rcmail.env.task !== 'settings') {
     return
@@ -63,13 +49,6 @@ window.rcmail && rcmail.addEventListener('init', function (evt) {
     rcmail.register_command('plugin.carddav-AccRm', function () { rcmail.carddav_AccRm() }, false)
     rcmail.register_command('plugin.carddav-AbSync', function () { rcmail.carddav_AbSync('AbSync') }, false)
     rcmail.register_command('plugin.carddav-AbClrCache', function () { rcmail.carddav_AbSync('AbClrCache') }, false)
-
-    const qparams = getQueryParams()
-    if (qparams.abookid !== undefined) {
-      rcmail.addressbooks_list.select('_abook' + qparams.abookid)
-    } else if (qparams.accountid !== undefined) {
-      rcmail.addressbooks_list.select('_acc' + qparams.accountid)
-    }
   } else if (rcmail.env.action === 'plugin.carddav.AbDetails') {
     rcmail.register_command(
       'plugin.carddav-AbSave',
