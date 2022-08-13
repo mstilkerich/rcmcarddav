@@ -786,6 +786,15 @@ class UI
                             continue 2;
                         }
                         break;
+
+                    case 'password':
+                        // the password is not echoed back in a settings form. If the user did not enter a new password
+                        // and just changed some other settings, make sure we do not overwrite the stored password with
+                        // an empty string.
+                        if (strlen($fieldValue) == 0) {
+                            continue 2;
+                        }
+                        break;
                 }
 
                 $result[$fieldKey] = $fieldValue;
