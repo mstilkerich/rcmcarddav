@@ -155,6 +155,35 @@ class DataConversion
     ];
 
     /**
+     * This is maps the vcard TYPE parameter for TEL to a roundcube subtype. For some types, a combination of type
+     * parameters is required (workfax requires TYPE=work AND TYPE=fax), so the latter is an array. Only those subtypes
+     * where a special mapping is needed are listed here.
+     *
+     * @var list<array{string, list<string>}>
+     */
+    private const TEL_TYPE_TORC = [
+        // RCTYPE,  VCARD TYPES (all must be present)
+        [ 'mobile',  ['cell'] ],
+        [ 'workfax', ['work','fax'] ],
+        [ 'homefax', ['fax'] ], // this is also the default when ONLY fax is set without additional home/work param
+    ];
+
+    /**
+     * This is maps the roundcube subtype for TEL to a list of TYPE parameters to be set in the vcard. For some types, a
+     * combination of type parameters is required (workfax requires TYPE=work AND TYPE=fax), so the latter is an array.
+     * Only those subtypes where a special mapping is needed are listed here.
+     *
+     * @var array<string, list<string>>
+     */
+    private const TEL_TYPE_FROMRC = [
+        'home'    => ['home', 'voice'],
+        'work'    => ['work', 'voice'],
+        'mobile'  => ['cell', 'voice'],
+        'homefax' => ['home', 'fax'],
+        'workfax' => ['work', 'fax'],
+    ];
+
+    /**
      * @var ColTypeDefs $coltypes
      *      Descriptions on the different attributes of address objects for roundcube
      */
@@ -164,7 +193,7 @@ class DataConversion
         'surname' => [],
         'maidenname' => [],
         'email' => [
-            'subtypes' => ['home','work','other','internet'],
+            'subtypes' => ['home','work','other'],
         ],
         'middlename' => [],
         'prefix' => [],
@@ -175,10 +204,7 @@ class DataConversion
         'department' => [],
         'gender' => [],
         'phone' => [
-            'subtypes' => [
-                'home','work','home2','work2','mobile','main','homefax','workfax','car','pager','video',
-                'assistant','other'
-            ],
+            'subtypes' => ['home','work','mobile','homefax','workfax','car','pager','video','other'],
         ],
         'address' => [
             'subtypes' => ['home','work','other'],
@@ -186,7 +212,7 @@ class DataConversion
         'birthday' => [],
         'anniversary' => [],
         'website' => [
-            'subtypes' => ['homepage','work','blog','profile','other'],
+            'subtypes' => ['home','work','other'],
         ],
         'notes' => [],
         'photo' => [],
@@ -681,7 +707,11 @@ class DataConversion
 
                     // in case $rclabel is set, the property is implicitly assigned a subtype (e.g. X-SKYPE)
                     if (isset($prop) && !isset($rclabel)) {
-                        $this->setAttrLabel($vcard, $prop, $rckey, $subtype);
+                        if (method_exists($this, "setAttrLabel$mkey")) {
+                            call_user_func([$this, "setAttrLabel$mkey"], $vcard, $prop, $rckey, $subtype);
+                        } else {
+                            $this->setAttrLabel($vcard, $prop, $rckey, $subtype);
+                        }
                     }
                 }
             }
@@ -856,7 +886,7 @@ class DataConversion
      * than one. As an effect, when a card is updated only the subtype selected in roundcube will be preserved, possible
      * extra subtypes will be lost.
      *
-     * If the given label is empty, not TYPE parameter is assigned.
+     * If the given label is empty, or "other", no TYPE parameter is assigned.
      *
      * If the given label is one of the known standard labels, it will be assigned as a TYPE parameter of the property,
      * otherwise it will be assigned using the X-ABLabel extension.
@@ -871,8 +901,8 @@ class DataConversion
      */
     private function setAttrLabel(VCard $vcard, VObject\Property $vprop, string $attrname, string $newlabel): void
     {
-        // Don't set a type parameter if there is no label
-        if (strlen($newlabel) == 0) {
+        // Don't set a type parameter if there is no label or if the label is "other"
+        if (strlen($newlabel) == 0 || $newlabel == 'other') {
             return;
         }
 
@@ -895,6 +925,18 @@ class DataConversion
         }
     }
 
+    /**
+     * Sets the TYPE parameters for TEL properties in case a mapping between roundcube and vcard is needed.
+     * If not, calls the standard setAttrLabel() function.
+     */
+    private function setAttrLabelTEL(VCard $vcard, VObject\Property $vprop, string $attrname, string $newlabel): void
+    {
+        if (isset(self::TEL_TYPE_FROMRC[$newlabel])) {
+            $vprop['TYPE'] = self::TEL_TYPE_FROMRC[$newlabel];
+        } else {
+            $this->setAttrLabel($vcard, $vprop, $attrname, $newlabel);
+        }
+    }
 
     /**
      * Provides the label (subtype) of a multi-value property.
@@ -910,7 +952,7 @@ class DataConversion
      *     coltypes[<attr>]["subtypes"] array. Note that TYPE parameter values not listed in the subtypes array will be
      *     ignored in the selection.
      *  4. If no known TYPE parameter value is specified, "other" is used, which is a valid subtype for all currently
-     *     supported multi-value properties.
+     *     supported multi-value properties. This value means no specific subtype is available for the property.
      */
     private function getAttrLabel(VCard $vcard, VObject\Property $vprop, string $attrname): string
     {
@@ -922,23 +964,10 @@ class DataConversion
         }
 
         // 2. check for a custom label using Apple's X-ABLabel extension
-        /** @psalm-var ?string $group */
-        $group = $vprop->group;
-        if (isset($group)) {
-            /** @var ?VObject\Property */
-            $xlabel = $vcard->{"$group.X-ABLabel"};
-            if (!empty($xlabel)) {
-                // special labels from Apple namespace are stored in the form "_$!<Label>!$_" - extract label
-                $xlabel = preg_replace(';_\$!<(.*)>!\$_;', '$1', (string) $xlabel);
-
-                // add to known types if new
-                if (!in_array($xlabel, $this->coltypes[$attrname]['subtypes'] ?? [])) {
-                    $this->storeextrasubtype($attrname, $xlabel);
-                }
-                return $xlabel;
-            }
+        $xAbLabel = $this->getAttrXAbLabel($vcard, $vprop, $attrname);
+        if ($xAbLabel != null) {
+            return $xAbLabel;
         }
-
 
         // 3. select a known standard label if available
         $selection = null;
@@ -958,6 +987,74 @@ class DataConversion
 
         // 4. return default subtype
         return $selection[0] ?? 'other';
+    }
+
+    /**
+     * Checks if there is an X-ABLabel for the given property in a vcard. If not, null is returned, otherwise the label.
+     */
+    private function getAttrXAbLabel(VCard $vcard, VObject\Property $vprop, string $attrname): ?string
+    {
+        /** @psalm-var ?string $group */
+        $group = $vprop->group;
+        if (isset($group)) {
+            /** @var ?VObject\Property */
+            $xlabel = $vcard->{"$group.X-ABLabel"};
+            if (!empty($xlabel)) {
+                // special labels from Apple namespace are stored in the form "_$!<Label>!$_" - extract label
+                $xlabel = preg_replace(';_\$!<(.*)>!\$_;', '$1', (string) $xlabel);
+
+                // add to known types if new
+                if (!in_array($xlabel, $this->coltypes[$attrname]['subtypes'] ?? [])) {
+                    $this->storeextrasubtype($attrname, $xlabel);
+                }
+                return $xlabel;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Acquires label for the TEL property.
+     *
+     * @return string The determined label.
+     */
+    private function getAttrLabelTEL(VCard $vcard, VObject\Property $prop): string
+    {
+        assert(!empty($this->coltypes["phone"]["subtypes"]), "phone attribute requires a list of subtypes");
+
+        // 1) check for a custom label using Apple's X-ABLabel extension
+        $xAbLabel = $this->getAttrXAbLabel($vcard, $prop, 'phone');
+        if ($xAbLabel != null) {
+            return $xAbLabel;
+        }
+
+        // 2) check TYPE parameters for types that require a special mapping
+        $setTypes = [];
+
+        if (isset($prop["TYPE"])) {
+            /** @var VObject\Parameter */
+            foreach ($prop["TYPE"] as $type) {
+                $setTypes[] = strtolower((string) $type);
+            }
+        }
+
+        foreach (self::TEL_TYPE_TORC as $tuple) {
+            [$rctype, $vctypes] = $tuple;
+            if (empty(array_diff($vctypes, $setTypes))) {
+                return $rctype;
+            }
+        }
+
+        // 3) check if there is a 1:1 mapped type available
+        foreach ($this->coltypes['phone']['subtypes'] as $rctype) {
+            if (in_array($rctype, $setTypes)) {
+                return $rctype;
+            }
+        }
+
+        // 4) nothing found...
+        return 'other';
     }
 
     /**
