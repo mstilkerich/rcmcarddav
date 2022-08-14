@@ -362,7 +362,7 @@ class UI
         $rc = $infra->rc();
         $logger = $infra->logger();
 
-        $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_POST);
+        $accountId = $rc->inputValue("accountid", false);
         if (isset($accountId)) {
             try {
                 $abMgr = $this->abMgr;
@@ -384,8 +384,8 @@ class UI
         $infra = Config::inst();
         $rc = $infra->rc();
 
-        $abookId = $rc->inputValue("abookid", false, \rcube_utils::INPUT_GET);
-        $syncType = $rc->inputValue("synctype", false, \rcube_utils::INPUT_GET);
+        $abookId = $rc->inputValue("abookid", false);
+        $syncType = $rc->inputValue("synctype", false);
         if (isset($abookId) && isset($syncType) && in_array($syncType, ['AbSync', 'AbClrCache'])) {
             $msgParams = [ 'name' => 'Unknown' ];
             try {
@@ -395,13 +395,14 @@ class UI
                 if ($syncType == 'AbSync') {
                     $msgParams['duration'] = (string) $abMgr->resyncAddressbook($abook);
                 } else {
-                    $abMgr->deleteAddressbooks([$abookId], false, true);
+                    $abMgr->deleteAddressbooks([$abookId], false, true /* do not delete the addressbook itself */);
                 }
 
+                // update the form data so the last_updated time is current
+                $abookrow = $abMgr->getAddressbookConfig($abookId);
+                $formData = $this->makeSettingsFormData(self::UI_FORM_ABOOK, $abookrow);
                 $rc->showMessage($rc->locText("${syncType}_msg_ok", $msgParams), 'notice', false);
-
-                // reload the addressbook details page so that last_updated is updated
-                $rc->clientCommand('carddav_Redirect', 'iframe');
+                $rc->clientCommand('carddav_UpdateForm', $formData);
             } catch (\Exception $e) {
                 $logger = $infra->logger();
                 $msgParams['errormsg'] = $e->getMessage();
@@ -435,7 +436,7 @@ class UI
         $rc = $infra->rc();
         $logger = $infra->logger();
 
-        $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_POST);
+        $accountId = $rc->inputValue("accountid", false);
         if (isset($accountId)) {
             try {
                 $abMgr = $this->abMgr;
@@ -481,7 +482,7 @@ class UI
         $rc = $infra->rc();
         $logger = $infra->logger();
 
-        $abookId = $rc->inputValue("abookid", false, \rcube_utils::INPUT_POST);
+        $abookId = $rc->inputValue("abookid", false);
         if (isset($abookId)) {
             try {
                 $abMgr = $this->abMgr;

@@ -20,7 +20,7 @@
  * along with RCMCardDAV. If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* global $, rcmail, rcube_webmail, rcube_treelist_widget, UI, location, parent */
+/* global $, rcmail, rcube_webmail, rcube_treelist_widget, UI, parent */
 
 window.rcmail && rcmail.addEventListener('init', function (evt) {
   if (rcmail.env.task !== 'settings') {
@@ -110,22 +110,6 @@ rcube_webmail.prototype.carddav_AbResetActive = function (abook, state) {
   }
 }
 
-// reloads the page
-// if target is set to 'iframe', the content frame is reloaded, otherwise the entire page is reloaded
-rcube_webmail.prototype.carddav_Redirect = function (targetframe) {
-  let targetwindow
-
-  if (targetframe === 'iframe') {
-    targetwindow = this.get_frame_window(this.env.contentframe)
-  } else {
-    targetwindow = (this.is_framed() ? parent.window : window)
-  }
-
-  if (targetwindow) {
-    targetwindow.location.reload()
-  }
-}
-
 // invoked when the Save button in the account or addressbook detail view is pressed
 rcube_webmail.prototype.carddav_AccAbSave = function (formname, action) {
   const lock = this.display_message('', 'loading')
@@ -138,9 +122,16 @@ rcube_webmail.prototype.carddav_AccAbSave = function (formname, action) {
   this.http_post(action, formData, lock)
 }
 
-// invoked from the backend to update the shown form with account or addressbook details to new values, including the
-// possbility to update the entry in the addressbook list
+/**
+ * Updates the fields of a form shown in the content frame and related elements in the addressbook list.
+ *
+ * This function is invoked both from the content frame (e.g., AbSave) as well as the main frame (e.g. AbSync) and must
+ * handle both cases.
+ *
+ * @param {Object} formData The data fields to update in the form and the addressbooks list.
+ */
 rcube_webmail.prototype.carddav_UpdateForm = function (formData) {
+  const win = this.is_framed() ? window : this.get_frame_window(this.env.contentframe)
   for (const fieldKey in formData) {
     const fieldType = formData[fieldKey][0]
     const fieldValue = formData[fieldKey][1]
@@ -152,26 +143,26 @@ rcube_webmail.prototype.carddav_UpdateForm = function (formData) {
       case 'text':
       case 'timestr':
       case 'password':
-        $(inputSelectorByName).val(fieldValue)
+        $(inputSelectorByName, win.document).val(fieldValue)
         break
 
       case 'radio':
-        $(inputSelectorByName + '[value="' + fieldValue + '"]').prop('checked', true)
+        $(inputSelectorByName + '[value="' + fieldValue + '"]', win.document).prop('checked', true)
         break
 
       case 'datetime':
       case 'plain':
-        $('span#rcmcrd_plain_' + fieldKey).text(fieldValue)
+        $('span#rcmcrd_plain_' + fieldKey, win.document).text(fieldValue)
         break
 
       // this is a special case to update an element given by a CSS selector in the parent document, i.e. update the
       // name in the addressbook list.
       case 'parent':
-        node = $('#rcmli' + fieldKey + ' > a', parent.document)
+        node = $('#rcmli' + fieldKey + ' > a', win.parent.document)
         node.text(fieldValue)
         nodeUpdate = { html: node }
 
-        parent.window.rcmail.addressbooks_list.update(fieldKey, nodeUpdate, true)
+        win.parent.window.rcmail.addressbooks_list.update(fieldKey, nodeUpdate, true)
         break
     }
   }
@@ -228,7 +219,7 @@ rcube_webmail.prototype.carddav_AbSync = function (synctype) {
   if (selectedNode.startsWith('_abook')) {
     const abookid = selectedNode.substr(6)
     const lock = this.display_message(rcmail.get_label(synctype + '_msg_inprogress', 'carddav'), 'loading')
-    this.http_request('plugin.carddav.AbSync', { abookid, synctype }, lock, 'GET')
+    this.http_post('plugin.carddav.AbSync', { abookid, synctype }, lock)
   }
 }
 
