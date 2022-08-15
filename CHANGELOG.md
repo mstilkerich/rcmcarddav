@@ -14,12 +14,12 @@
   is still possible problems left (i.e. package that only comes with roundcube might have a dependency for that an
   incompatible version is already included with roundcube). In the end, I don't think there is a clean solution to this
   issue. If you want to avoid this mess, don't use the release tarball but install using composer.
-- No changes to RCMCardDAV itself 
+- No changes to RCMCardDAV itself
 
 ## Version 4.4.1 (to 4.4.0)
 
 - Create release tarballs with a PHP version emulated to 7.1.0 (minimum needed by RCMCardDAV)
-- No changes to RCMCardDAV itself 
+- No changes to RCMCardDAV itself
 
 ## Version 4.4.0 (to 4.3.0)
 
