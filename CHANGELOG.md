@@ -3,6 +3,7 @@
 ## Version 4.4.3 (to 4.4.2)
 
 - Properly set and interpret TYPE parameters, especially for TEL (Fixes #390)
+- RCMCardDAV now sets the PRODID property when it creates or modifies a vcard
 
 ## Version 4.4.2 (to 4.4.1)
 

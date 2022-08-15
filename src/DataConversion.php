@@ -489,6 +489,8 @@ class DataConversion
             $vcard = new VObject\Component\VCard(['VERSION' => '3.0']);
         }
 
+        // set product
+        $vcard->PRODID = '-//MStilkerich//RCMCardDAV ' . carddav::PLUGIN_VERSION . '//EN';
         // update revision
         $vcard->REV = $this->dateTimeString();
 
