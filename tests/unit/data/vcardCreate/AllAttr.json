@@ -23,7 +23,7 @@
 	"phone:home": [ "12345", "" ],
 	"phone:work": [ "54321" ],
 	"phone:other": [ "" ],
-	"website:homepage": [ "https://wesker.example.com", "" ],
+	"website:home": [ "https://wesker.example.com", "" ],
 	"website:other": [ "" ],
 	"address:home": [
 	{

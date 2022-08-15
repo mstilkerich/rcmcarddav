@@ -1,5 +1,9 @@
 # Changelog for RCMCardDAV
 
+## Version 4.4.3 (to 4.4.2)
+
+- Properly set and interpret TYPE parameters, especially for TEL (Fixes #390)
+
 ## Version 4.4.2 (to 4.4.1)
 
 - Revert to a single release tarball. The new approach (compared to 4.4.1) to avoid the issue with conflicting

@@ -3,7 +3,7 @@
 	"firstname": "Max",
 	"surname": "Mustermann",
 	"kind": "individual",
-	"email:internet": [
+	"email:other": [
 		"special@maxmu.de"
 	],
 	"photo": ""

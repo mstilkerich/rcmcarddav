@@ -23,7 +23,7 @@
 	"email:other": [ "north@7kingdoms.com" ],
 	"phone:home": [ "12345" ],
 	"phone:work": [ "54321" ],
-	"website:homepage": [ "https://wesker.example.com" ],
+	"website:home": [ "https://wesker.example.com" ],
 	"address:home": [{
 		"street": "239 Umbrella Ave",
 		"locality": "Tokyo",

@@ -19,9 +19,10 @@ X-MANAGER:No one
 X-SPOUSE:Alice Wesker
 EMAIL;TYPE=home:albert@wesker.example.com
 EMAIL;TYPE=work:wesker@umbrella.example.com
-TEL;TYPE=home:12345
-TEL;TYPE=work:54321
-URL;TYPE=homepage;VALUE=URI:https://wesker.example.com
+URL;TYPE=home;VALUE=URI:https://home.example.com
+URL;TYPE=work;VALUE=URI:https://work.example.com
+URL;TYPE=homepage;VALUE=URI:https://home.page
+URL;VALUE=URI:http://other.com
 ADR;TYPE=home:;;239 Umbrella Ave;Tokyo;Kanto;99887;Japan
 X-AIM;TYPE=HOME;TYPE=pref:ms+aim@example.com
 IMPP;X-SERVICE-TYPE=aim;TYPE=HOME;TYPE=pref:aim:ms+aim@example.com
@@ -38,4 +39,24 @@ IMPP;X-SERVICE-TYPE=skype;TYPE=OTHER:skype:ms+skype@example.com
 X-YAHOO;TYPE=OTHER;TYPE=pref:ms+yahoo@example.com
 IMPP;X-SERVICE-TYPE=yahoo;TYPE=OTHER:ymsgr:ms+yahoo@example.com
 IMPP:x-apple:unknown-im-service@example.com
+TEL;TYPE=CELL;TYPE=pref;TYPE=VOICE:123
+TEL;TYPE=IPHONE;TYPE=CELL;TYPE=VOICE:234
+item1.TEL:345
+item1.X-ABLABEL:APPLE WATCH
+TEL;TYPE=HOME;TYPE=VOICE:354
+TEL;TYPE=WORK;TYPE=VOICE:465
+item2.TEL:543
+item2.X-ABLABEL:_$!<School>!$_
+TEL;TYPE=MAIN:454
+TEL;TYPE=HOME;TYPE=FAX:458
+TEL;TYPE=WORK;TYPE=FAX:459
+TEL;TYPE=PAGER:460
+TEL;TYPE=CAR:465
+TEL;TYPE=VIDEO:466
+TEL;TYPE=OTHER;TYPE=VOICE:461
+EMAIL;TYPE=HOME;TYPE=pref;TYPE=INTERNET:home@example.com
+EMAIL;TYPE=WORK;TYPE=INTERNET:work@example.com
+item3.EMAIL;TYPE=INTERNET:school@example.com
+item3.X-ABLABEL:_$!<School>!$_
+EMAIL;TYPE=OTHER;TYPE=INTERNET:other@example.com
 END:VCARD

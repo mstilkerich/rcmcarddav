@@ -3,7 +3,7 @@ VERSION:3.0
 UID:B92B8FDB-E918-481F-AD6F-9713D5324AC5
 N:Mustermann;Max;;;
 FN:Max Mustermann
-EMAIL;TYPE=internet:special@maxmu.de
+EMAIL:special@maxmu.de
 PRODID:-//Apple Inc.//iCloud Web Address Book 2018B71//EN
 REV:2020-10-03T10:30:20Z
 PHOTO;ENCODING=b;VALUE=binary:
