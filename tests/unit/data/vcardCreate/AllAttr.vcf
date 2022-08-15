@@ -19,9 +19,18 @@ X-MANAGER:No one
 X-SPOUSE:Alice Wesker
 EMAIL;TYPE=home:albert@wesker.example.com
 EMAIL;TYPE=work:wesker@umbrella.example.com
-TEL;TYPE=home,voice:12345
-TEL;TYPE=work,voice:54321
+TEL;TYPE=home,voice:1
+TEL;TYPE=work,voice:2
+TEL;TYPE=cell,voice:3
+TEL;TYPE=home,fax:4
+TEL;TYPE=work,fax:5
+TEL;TYPE=car:6
+TEL;TYPE=pager:7
+TEL;TYPE=video:8
+TEL:9
 URL;TYPE=home;VALUE=URI:https://wesker.example.com
+URL;TYPE=work;VALUE=URI:https://work.example.com
+URL;VALUE=URI:http://other.com
 ADR;TYPE=home:;;239 Umbrella Ave;Tokyo;Kanto;99887;Japan
 X-ADDRESSBOOKSERVER-KIND:individual
 END:VCARD
