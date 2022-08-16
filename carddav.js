@@ -45,7 +45,13 @@ window.rcmail && rcmail.addEventListener('init', function (evt) {
       true
     )
 
-    rcmail.register_command('plugin.carddav-AccAdd', function () { rcmail.carddav_AccAdd() }, true)
+    // don't show the Add account button if disabled by the admin
+    if (rcmail.env.carddav_forbidCustomAddressbooks) {
+      $('.carddav_AccAdd').hide()
+    } else {
+      rcmail.register_command('plugin.carddav-AccAdd', function () { rcmail.carddav_AccAdd() }, true)
+    }
+
     rcmail.register_command('plugin.carddav-AccRm', function () { rcmail.carddav_AccRm() }, false)
     rcmail.register_command('plugin.carddav-AbSync', function () { rcmail.carddav_AbSync('AbSync') }, false)
     rcmail.register_command('plugin.carddav-AbClrCache', function () { rcmail.carddav_AbSync('AbClrCache') }, false)

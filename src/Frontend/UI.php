@@ -158,6 +158,7 @@ class UI
         $this->abMgr = $abMgr;
 
         $infra = Config::inst();
+        $admPrefs = $infra->admPrefs();
         $rc = $infra->rc();
 
         $rc->addHook('settings_actions', [$this, 'addSettingsAction']);
@@ -170,6 +171,12 @@ class UI
         $rc->registerAction('plugin.carddav.AccSave', [$this, 'actionAccSave']);
         $rc->registerAction('plugin.carddav.AccRm', [$this, 'actionAccRm']);
         $rc->registerAction('plugin.carddav.AbSync', [$this, 'actionAbSync']);
+
+        $rc->setEnv("carddav_forbidCustomAddressbooks", $admPrefs->forbidCustomAddressbooks);
+        if (!$admPrefs->forbidCustomAddressbooks) {
+            $rc->registerAction('plugin.carddav.AccAdd', [$this, 'actionAccAdd']);
+        }
+
         $rc->includeCSS('carddav.css');
         $rc->includeJS("carddav.js");
     }
@@ -468,6 +475,31 @@ class UI
         }
     }
 
+    public function actionAccAdd(): void
+    {
+        $infra = Config::inst();
+        $rc = $infra->rc();
+        $logger = $infra->logger();
+
+        try {
+            $abMgr = $this->abMgr;
+
+            /** @psalm-var AccountSettings */
+            $newaccount = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, []);
+            /** @psalm-var AbookSettings */
+            $abooksettings = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, []);
+            $accountId = $abMgr->discoverAddressbooks($newaccount, $abooksettings);
+            $account = $abMgr->getAccountConfig($accountId);
+
+            $newLi = $this->makeAccountListItem($account);
+            $rc->clientCommand('carddav_InsertAccount', $accountId, $newLi);
+            $rc->showMessage($rc->locText("AccAdd_msg_ok"), 'confirmation');
+        } catch (\Exception $e) {
+            $logger->error("Error creating CardDAV account: " . $e->getMessage());
+            $rc->showMessage($rc->locText("savefail", ['errormsg' => $e->getMessage()]), 'error');
+        }
+    }
+
     public function actionAccSave(): void
     {
         $infra = Config::inst();
@@ -478,33 +510,19 @@ class UI
         if (isset($accountId)) {
             try {
                 $abMgr = $this->abMgr;
+                $account = $abMgr->getAccountConfig($accountId);
+                $fixedAttributes = $this->getFixedSettings($account['presetname']);
+                /** @psalm-var AccountSettings */
+                $newset = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, $fixedAttributes);
+                $abMgr->updateAccount($accountId, $newset);
 
-                if ($accountId == "new") {
-                    /** @psalm-var AccountSettings */
-                    $newaccount = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, []);
-                    /** @psalm-var AbookSettings */
-                    $abooksettings = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, []);
-                    $accountId = $abMgr->discoverAddressbooks($newaccount, $abooksettings);
-                    $account = $abMgr->getAccountConfig($accountId);
+                // update account data and echo formatted field data to client
+                $account = $abMgr->getAccountConfig($accountId);
+                $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, $account);
+                $formData["_acc$accountId"] = [ 'parent', $account["name"] ];
 
-                    $newLi = $this->makeAccountListItem($account);
-                    $rc->clientCommand('carddav_InsertAccount', $accountId, $newLi);
-                    $rc->showMessage($rc->locText("AccAdd_msg_ok"), 'confirmation');
-                } else {
-                    $account = $abMgr->getAccountConfig($accountId);
-                    $fixedAttributes = $this->getFixedSettings($account['presetname']);
-                    /** @psalm-var AccountSettings */
-                    $newset = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, $fixedAttributes);
-                    $abMgr->updateAccount($accountId, $newset);
-
-                    // update account data and echo formatted field data to client
-                    $account = $abMgr->getAccountConfig($accountId);
-                    $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, $account);
-                    $formData["_acc$accountId"] = [ 'parent', $account["name"] ];
-
-                    $rc->clientCommand('carddav_UpdateForm', $formData);
-                    $rc->showMessage($rc->locText("saveok"), 'confirmation');
-                }
+                $rc->clientCommand('carddav_UpdateForm', $formData);
+                $rc->showMessage($rc->locText("saveok"), 'confirmation');
             } catch (\Exception $e) {
                 $logger->error("Error saving account preferences: " . $e->getMessage());
                 $rc->showMessage($rc->locText("savefail", ['errormsg' => $e->getMessage()]), 'error');

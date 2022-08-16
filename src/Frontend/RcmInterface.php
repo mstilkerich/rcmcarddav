@@ -150,6 +150,15 @@ interface RcmInterface
      * @return string HTML code for the form
      */
     public function requestForm(array $attrib, string $content): string;
+
+    /**
+     * Sets an environment variable in roundcube and optionally also the frontend.
+     *
+     * @param string $name            Property name
+     * @param string|bool|int $value  Property value
+     * @param bool   $addToJs         True if this property should be added to client environment
+     */
+    public function setEnv(string $name, $value, bool $addToJs = true): void;
 }
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120

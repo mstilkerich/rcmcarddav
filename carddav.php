@@ -249,6 +249,15 @@ class carddav extends rcube_plugin implements RcmInterface
         $output->add_handler($name, $func);
     }
 
+    public function setEnv(string $name, $value, bool $addToJs = true): void
+    {
+        $rcube = \rcube::get_instance();
+        $output = $rcube->output;
+        if ($output instanceof \rcmail_output_html) {
+            $output->set_env($name, $value, $addToJs);
+        }
+    }
+
     public function sendTemplate(string $templ, $exit = true): void
     {
         $rcube = \rcube::get_instance();
