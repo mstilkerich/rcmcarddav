@@ -372,15 +372,12 @@ class UI
         $rc = $infra->rc();
         $logger = $infra->logger();
 
-        // GET - Account selected in list
+        // GET - Account selected in list; this is set to "new" if the user pressed the add account button
         $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GET);
 
         if (isset($accountId)) {
-            $tmplAccountDetailsFn = function (array $attrib) use ($accountId): string {
-                return $this->tmplAccountDetails($accountId, $attrib);
-            };
             $rc->setPagetitle($rc->locText('accountproperties'));
-            $rc->addTemplateObjHandler('accountdetails', $tmplAccountDetailsFn);
+            $rc->addTemplateObjHandler('accountdetails', [$this, 'tmplAccountDetails']);
             $rc->sendTemplate('carddav.accountDetails');
         } else {
             $logger->warning(__METHOD__ . ": no account ID found in parameters");
@@ -407,6 +404,8 @@ class UI
                 $logger->error("Error saving account preferences: " . $e->getMessage());
                 $rc->showMessage($rc->locText("AccRm_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
             }
+        } else {
+            $logger->warning(__METHOD__ . ": no account ID found in parameters");
         }
     }
 
@@ -741,7 +740,7 @@ class UI
 
     // INFO: name, url, group type, rediscover time, time of last rediscovery
     // ACTIONS: Rediscover, Delete, Add manual addressbook
-    public function tmplAccountDetails(string $accountId, array $attrib): string
+    public function tmplAccountDetails(array $attrib): string
     {
         $infra = Config::inst();
         $rc = $infra->rc();
@@ -749,19 +748,22 @@ class UI
         $out = '';
 
         try {
-            // HIDDEN FIELDS
-            $accountIdField = new \html_hiddenfield(['name' => "accountid", 'value' => $accountId]);
-            $out .= $accountIdField->show();
+            $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GET);
+            if (isset($accountId)) {
+                // HIDDEN FIELDS
+                $accountIdField = new \html_hiddenfield(['name' => "accountid", 'value' => $accountId]);
+                $out .= $accountIdField->show();
 
-            if ($accountId == "new") {
-                $out .= $this->makeSettingsForm(self::UI_FORM_NEWACCOUNT, [], [], $attrib);
-            } else {
-                $account = $this->abMgr->getAccountConfig($accountId);
-                $fixedAttributes = $this->getFixedSettings($account['presetname']);
-                $out .= $this->makeSettingsForm(self::UI_FORM_ACCOUNT, $account, $fixedAttributes, $attrib);
+                if ($accountId == "new") {
+                    $out .= $this->makeSettingsForm(self::UI_FORM_NEWACCOUNT, [], [], $attrib);
+                } else {
+                    $account = $this->abMgr->getAccountConfig($accountId);
+                    $fixedAttributes = $this->getFixedSettings($account['presetname']);
+                    $out .= $this->makeSettingsForm(self::UI_FORM_ACCOUNT, $account, $fixedAttributes, $attrib);
+                }
+
+                $out = $rc->requestForm($attrib, $out);
             }
-
-            $out = $rc->requestForm($attrib, $out);
         } catch (\Exception $e) {
             $logger->error($e->getMessage());
         }
