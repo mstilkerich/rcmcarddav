@@ -219,11 +219,19 @@ class UI
         $admPrefs = $infra->admPrefs();
 
         $abMgr = $this->abMgr;
-        $accountIds = $abMgr->getAccountIds();
 
+        // Collect all accounts manageable via the UI. This must exclude preset accounts with hide=true.
+        $accountIds = $abMgr->getAccountIds();
         $accounts = [];
         foreach ($accountIds as $accountId) {
-            $accounts[$accountId] = $abMgr->getAccountConfig($accountId);
+            $account = $abMgr->getAccountConfig($accountId);
+            if (isset($account['presetname'])) {
+                $preset = $admPrefs->getPreset($account['presetname']);
+                if ($preset['hide']) {
+                    continue;
+                }
+            }
+            $accounts[$accountId] = $account;
         }
 
         // Sort accounts by their name
