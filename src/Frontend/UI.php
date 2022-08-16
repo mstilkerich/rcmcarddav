@@ -281,10 +281,10 @@ class UI
         $content = \html::a(['href' => '#'], \rcube::Q($account["name"]));
 
         $checkboxActive = new \html_checkbox([
-                'name'    => '_active[]',
-                'title'   => $rc->locText('changeactive'),
-                'onclick' => \rcmail_output::JS_OBJECT_NAME .
-                  ".command('plugin.carddav-AbToggleActive', {abookid: this.value, state: this.checked})",
+            'name'    => '_active[]',
+            'title'   => $rc->locText('changeactive'),
+            'onclick' => \rcmail_output::JS_OBJECT_NAME .
+              ".command('plugin.carddav-AbToggleActive', this.value, this.checked)",
         ]);
 
         $addressbookListItems = [];
@@ -319,10 +319,10 @@ class UI
 
         $abookId = $rc->inputValue("abookid", false);
         // the state parameter is set to 0 (deactivated) or 1 (active) by the client
-        $active  = $rc->inputValue("state", false);
+        $active  = $rc->inputValue("active", false);
 
         if (isset($abookId) && isset($active)) {
-            $active = ($active == "1"); // if this is some invalid value, just consider it as deactivated
+            $active = ($active != "0"); // if this is some invalid value, just consider it as activated
             $suffix = $active ? "" : "_de";
             try {
                 $this->abMgr->updateAddressbook($abookId, ['active' => $active ]);

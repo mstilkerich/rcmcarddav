@@ -41,7 +41,7 @@ window.rcmail && rcmail.addEventListener('init', function (evt) {
 
     rcmail.register_command(
       'plugin.carddav-AbToggleActive',
-      function (props) { rcmail.carddav_AbToggleActive(props.abookid, props.state) },
+      function (abookid, active) { rcmail.carddav_AbToggleActive(abookid, active) },
       true
     )
 
@@ -98,15 +98,15 @@ rcube_webmail.prototype.carddav_AbListSelect = function (node) {
 rcube_webmail.prototype.carddav_AbToggleActive = function (abookid, active) {
   if (abookid) {
     const lock = this.display_message('', 'loading')
-    this.http_post('plugin.carddav.AbToggleActive', { abookid, state: (active ? 1 : 0) }, lock)
+    this.http_post('plugin.carddav.AbToggleActive', { abookid, active: (active ? '1' : '0') }, lock)
   }
 }
 
 // resets state of addressbook active checkbox (e.g. on error), invoked from the backend
-rcube_webmail.prototype.carddav_AbResetActive = function (abook, state) {
+rcube_webmail.prototype.carddav_AbResetActive = function (abook, active) {
   const row = rcmail.addressbooks_list.get_item('_abook' + abook, true)
   if (row) {
-    $('input[name="_active[]"]', row).first().prop('checked', state)
+    $('input[name="_active[]"]', row).first().prop('checked', active)
   }
 }
 
