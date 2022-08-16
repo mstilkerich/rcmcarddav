@@ -650,7 +650,7 @@ class UI
 
             case 'radio':
                 $ul = '';
-                $radioBtn = new \html_radiobutton(['name' => $fieldKey]);
+                $radioBtn = new \html_radiobutton(['name' => $fieldKey, 'disabled' => $readonly]);
 
                 foreach (($fieldSpec[4] ?? []) as $selectionSpec) {
                     [ $selValue, $selLabel ] = $selectionSpec;
