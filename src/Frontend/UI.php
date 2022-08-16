@@ -294,8 +294,13 @@ class UI
                 'class' => 'addressbook'
             ];
 
+            $fixedAttributes = $this->getFixedSettings($account['presetname'], $abook['url']);
+
             $abookHtml = \html::a(['href' => '#'], \rcube::Q($abook["name"]));
-            $abookHtml .= $checkboxActive->show($abook["active"] ? $abook['id'] : '', ['value' => $abook['id']]);
+            $abookHtml .= $checkboxActive->show(
+                $abook["active"] ? $abook['id'] : '',
+                ['value' => $abook['id'], 'disabled' => in_array('active', $fixedAttributes)]
+            );
             $addressbookListItems[] = \html::tag('li', $attribs, $abookHtml);
         }
 
