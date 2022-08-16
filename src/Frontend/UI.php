@@ -317,10 +317,18 @@ class UI
         return $content;
     }
 
+    /**
+     * This action is invoked when the user toggles the addressbook active checkbox in the addressbook list.
+     *
+     * It changes the activation state of the specified addressbook to the specified target state, if the specified
+     * addressbook belongs to the user, and the addressbook is not part of an admin preset where the active setting is
+     * fixed.
+     */
     public function actionAbToggleActive(): void
     {
         $infra = Config::inst();
         $rc = $infra->rc();
+        $logger = $infra->logger();
 
         $abookId = $rc->inputValue("abookid", false);
         // the state parameter is set to 0 (deactivated) or 1 (active) by the client
@@ -330,12 +338,24 @@ class UI
             $active = ($active != "0"); // if this is some invalid value, just consider it as activated
             $suffix = $active ? "" : "_de";
             try {
-                $this->abMgr->updateAddressbook($abookId, ['active' => $active ]);
-                $rc->showMessage($rc->locText("AbToggleActive_msg_ok$suffix"), 'confirmation');
+                $abMgr = $this->abMgr;
+                $abookrow = $abMgr->getAddressbookConfig($abookId);
+                $account = $abMgr->getAccountConfig($abookrow["account_id"]);
+                $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookrow['url']);
+
+                if (in_array('active', $fixedAttributes)) {
+                    throw new \Exception("active is a fixed setting for addressbook $abookId");
+                } else {
+                    $abMgr->updateAddressbook($abookId, ['active' => $active ]);
+                    $rc->showMessage($rc->locText("AbToggleActive_msg_ok$suffix"), 'confirmation');
+                }
             } catch (\Exception $e) {
+                $logger->error("Failure to toggle addressbook activation: " . $e->getMessage());
                 $rc->showMessage($rc->locText("AbToggleActive_msg_fail$suffix"), 'error');
                 $rc->clientCommand('carddav_AbResetActive', $abookId, !$active);
             }
+        } else {
+            $logger->warning(__METHOD__ . " invoked without required HTTP POST inputs");
         }
     }
 
