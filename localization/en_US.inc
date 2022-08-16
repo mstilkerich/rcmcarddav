@@ -7,6 +7,7 @@ $labels = Array(
 
 	// Account/addressbook list pane - Header / Toolbar
 	'CardDAV_rclbl' => 'CardDAV',
+	'CardDAV_rctit' => 'Manage CardDAV addressbooks',
 
 	// Account/addressbook list pane
 	'changeactive' => '(de)activate addressbook',

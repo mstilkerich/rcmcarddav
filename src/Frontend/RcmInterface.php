@@ -128,7 +128,7 @@ interface RcmInterface
      *
      * @param string $name Object name
      * @param callable $func Function to call
-     * @psalm-param callable(array{id?: string}):string $func
+     * @psalm-param callable(array{id: string}):string $func
      */
     public function addTemplateObjHandler(string $name, callable $func): void;
 

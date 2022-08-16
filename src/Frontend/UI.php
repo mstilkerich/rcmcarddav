@@ -185,7 +185,7 @@ class UI
             'action' => 'plugin.carddav',
             'class'  => 'cd_preferences', // CSS style
             'label'  => 'CardDAV_rclbl', // text display
-            'title'  => 'CardDAV_rclbl', // tooltip text
+            'title'  => 'CardDAV_rctit', // tooltip text
             'domain' => 'carddav',
         ];
 
@@ -207,7 +207,7 @@ class UI
     /**
      * Template object for list of addressbooks.
      *
-     * @psalm-param array{id?: string} $attrib
+     * @psalm-param array{id: string} $attrib
      * @param array $attrib Object attributes
      *
      * @return string HTML content
@@ -216,10 +216,7 @@ class UI
     {
         $infra = Config::inst();
         $rc = $infra->rc();
-
-        if (empty($attrib['id'])) {
-            $attrib['id'] = 'rcmcarddavaddressbookslist';
-        }
+        $admPrefs = $infra->admPrefs();
 
         $abMgr = $this->abMgr;
         $accountIds = $abMgr->getAccountIds();
