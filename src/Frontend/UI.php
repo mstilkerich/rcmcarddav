@@ -410,12 +410,13 @@ class UI
     }
 
     /**
-     * This action is invoked to resync an addressbook
+     * This action is invoked to resync or clear the cached data of an addressbook
      */
     public function actionAbSync(): void
     {
         $infra = Config::inst();
         $rc = $infra->rc();
+        $logger = $infra->logger();
 
         $abookId = $rc->inputValue("abookid", false);
         $syncType = $rc->inputValue("synctype", false);
@@ -437,11 +438,12 @@ class UI
                 $rc->showMessage($rc->locText("${syncType}_msg_ok", $msgParams), 'notice', false);
                 $rc->clientCommand('carddav_UpdateForm', $formData);
             } catch (\Exception $e) {
-                $logger = $infra->logger();
                 $msgParams['errormsg'] = $e->getMessage();
                 $logger->error("Failed to sync ($syncType) addressbook: " . $msgParams['errormsg']);
                 $rc->showMessage($rc->locText("${syncType}_msg_fail", $msgParams), 'warning', false);
             }
+        } else {
+            $logger->warning(__METHOD__ . " missing or unexpected values for HTTP POST parameters");
         }
     }
 
@@ -716,12 +718,10 @@ class UI
         $out = '';
 
         try {
-            // Note: abookid is provided as GET (addressbook selection) or POST parameter (settings form)
-            $abookId = $rc->inputValue("abookid", false, \rcube_utils::INPUT_GP);
+            $abookId = $rc->inputValue("abookid", false, \rcube_utils::INPUT_GET);
             if (isset($abookId)) {
                 $abookrow = $this->abMgr->getAddressbookConfig($abookId);
                 $account = $this->abMgr->getAccountConfig($abookrow["account_id"]);
-
                 $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookrow['url']);
 
                 // HIDDEN FIELDS
