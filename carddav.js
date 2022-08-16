@@ -62,9 +62,10 @@ window.rcmail && rcmail.addEventListener('init', function (evt) {
       true // enable
     )
   } else if (rcmail.env.action === 'plugin.carddav.AccDetails') {
+    const action = $('input[name="accountid"]').val() == "new" ? 'plugin.carddav.AccAdd' : 'plugin.carddav.AccSave'
     rcmail.register_command(
       'plugin.carddav-AccSave',
-      function () { rcmail.carddav_AccAbSave('accountdetails', 'plugin.carddav.AccSave') },
+      function () { rcmail.carddav_AccAbSave('accountdetails', action) },
       true // enable
     )
   }
