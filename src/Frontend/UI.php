@@ -192,6 +192,9 @@ class UI
         return $args;
     }
 
+    /**
+     * Main UI action that creates the addressbooks and account list in the CardDAV pane.
+     */
     public function renderAddressbookList(): void
     {
         $infra = Config::inst();
@@ -246,6 +249,7 @@ class UI
             }
         );
 
+        // Create the list
         $accountListItems = [];
         foreach ($accounts as $account) {
             $attribs = [
@@ -442,6 +446,9 @@ class UI
         }
     }
 
+    /**
+     * This action is invoked to show the details of an existing addressbook.
+     */
     public function actionAbDetails(): void
     {
         $infra = Config::inst();
@@ -506,6 +513,9 @@ class UI
         }
     }
 
+    /**
+     * This action is invoked when an addressbook's properties are saved.
+     */
     public function actionAbSave(): void
     {
         $infra = Config::inst();
