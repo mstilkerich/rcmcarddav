@@ -763,6 +763,7 @@ class UI
                 return \html::span(['id' => "rcmcrd_plain_$fieldKey"], $fieldValueFormatted);
 
             case 'timestr':
+                $uiType = 'text'; // choose the proper HTML UI type
             case 'text':
             case 'password':
                 $input = new \html_inputfield([
