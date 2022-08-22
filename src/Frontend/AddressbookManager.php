@@ -48,7 +48,6 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *     url?: ?string,
  *     rediscover_time?: int | numeric-string,
  *     last_discovered?: int | numeric-string,
- *     active?: bool,
  *     presetname?: ?string
  * }
  * @psalm-type AbookSettings = array{
@@ -99,7 +98,7 @@ class AddressbookManager
         'use_categories' => [ 'bool', false, true ],
         'refresh_time' => [ 'int', false, true ],
         'last_updated' => [ 'int', false, true ],
-        'discovered' => [ 'int', false, false ],
+        'discovered' => [ 'bool', false, false ],
         'sync_token' => [ 'string', true, true ],
     ];
 
@@ -314,9 +313,10 @@ class AddressbookManager
      * Returns the addressbooks for the given account.
      *
      * @param string $accountId
+     * @param ?bool  $discoveredType If set, only return discovered (true) / non-discovered (false) addressbooks
      * @return array<string, FullAbookRow> The addressbook configs, indexed by addressbook id.
      */
-    public function getAddressbookConfigsForAccount(string $accountId): array
+    public function getAddressbookConfigsForAccount(string $accountId, ?bool $discoveredType = null): array
     {
         // make sure the given account is an account of this user - otherwise, an exception is thrown
         $this->getAccountConfig($accountId);
@@ -326,8 +326,9 @@ class AddressbookManager
 
         $abooks = array_filter(
             $this->abooksDb,
-            function (array $v) use ($accountId): bool {
-                return $v["account_id"] == $accountId;
+            function (array $v) use ($accountId, $discoveredType): bool {
+                return $v["account_id"] == $accountId &&
+                    (is_null($discoveredType) || $v["discovered"] == $discoveredType) ;
             }
         );
 
@@ -490,7 +491,7 @@ class AddressbookManager
      * of an existing account are updated accordingly, i.e. new addressboooks are inserted, and addressbooks that are no
      * longer discovered are also removed from the local db.
      *
-     * @param AccountSettings $accountCfg Array with the settings for the new account
+     * @param AccountSettings $accountCfg Array with the settings for the account
      * @param AbookSettings $abookTmpl Array with default settings for new addressbooks
      * @return string The database ID of the account
      *
@@ -519,7 +520,7 @@ class AddressbookManager
 
             // get locally existing addressbooks for this account
             $newbooks = []; // AddressbookCollection[] with new addressbooks at the server side
-            $dbbooks = array_column($this->getAddressbookConfigsForAccount($accountId), 'id', 'url');
+            $dbbooks = array_column($this->getAddressbookConfigsForAccount($accountId, true), 'id', 'url');
             foreach ($abooks as $abook) {
                 $abookUri = $abook->getUri();
                 if (isset($dbbooks[$abookUri])) {
@@ -538,7 +539,7 @@ class AddressbookManager
         }
 
         // store discovered addressbooks
-        $abookTmpl["account_id"] = $accountId;
+        $abookTmpl['account_id'] = $accountId;
         $abookTmpl['discovered'] = true;
         $abookTmpl['sync_token'] = '';
         foreach ($newbooks as $abook) {

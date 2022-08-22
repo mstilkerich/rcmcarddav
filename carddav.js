@@ -53,6 +53,7 @@ window.rcmail && rcmail.addEventListener('init', function (evt) {
     }
 
     rcmail.register_command('plugin.carddav-AccRm', function () { rcmail.carddav_AccRm() }, false)
+    rcmail.register_command('plugin.carddav-AccRedisc', function () { rcmail.carddav_AccRedisc() }, false)
     rcmail.register_command('plugin.carddav-AbSync', function () { rcmail.carddav_AbSync('AbSync') }, false)
     rcmail.register_command('plugin.carddav-AbClrCache', function () { rcmail.carddav_AbSync('AbClrCache') }, false)
   } else if (rcmail.env.action === 'plugin.carddav.AbDetails') {
@@ -77,6 +78,7 @@ rcube_webmail.prototype.carddav_AbListSelect = function (node) {
   let url
 
   this.enable_command('plugin.carddav-AccRm', false)
+  this.enable_command('plugin.carddav-AccRedisc', false)
   this.enable_command('plugin.carddav-AbSync', false)
   this.enable_command('plugin.carddav-AbClrCache', false)
 
@@ -84,6 +86,7 @@ rcube_webmail.prototype.carddav_AbListSelect = function (node) {
     // Account
     url = '&_action=plugin.carddav.AccDetails&accountid=' + id.substr(4)
     this.enable_command('plugin.carddav-AccRm', !node.classes.includes('preset'))
+    this.enable_command('plugin.carddav-AccRedisc', true)
   } else if (id.startsWith('_abook')) {
     // Addressbook
     url = '&_action=plugin.carddav.AbDetails&abookid=' + id.substr(6)
@@ -175,18 +178,46 @@ rcube_webmail.prototype.carddav_UpdateForm = function (formData) {
   }
 }
 
-// invoked from the backend to confirm creation of a new account
-rcube_webmail.prototype.carddav_InsertAccount = function (accountId, newLi) {
-  const domId = '_acc' + accountId
+// invoked from the backend to insert new accounts or addressbooks in the list
+// records is an array of arrays, of which each has the members:
+// [0]: object id
+// [1]: li HTML code
+// [2]: parent id (null for accounts, account id for addressbooks)
+//
+// If selectId is specified as an array of object type (acc or abook) and object id, the so specified item is selected
+rcube_webmail.prototype.carddav_InsertListElem = function (records, selectId) {
+  for (const record of records) {
+    const [id, newLi, accountId] = record
+    let type, classes
+    let domIdParent = null
 
-  parent.window.rcmail.addressbooks_list.insert(
-    { id: domId, html: newLi, classes: ['account'] },
-    null,
-    true
-  )
-  // fixup the checkboxes (note: this is elastic-specific)
-  $('#rcmli' + domId + ' input[type="checkbox"]', parent.document).each(function () { UI.pretty_checkbox(this) })
-  parent.window.rcmail.addressbooks_list.select(domId)
+    if (accountId === undefined) {
+      type = 'acc'
+      classes = ['account']
+    } else {
+      type = 'abook'
+      classes = ['addressbook']
+      domIdParent = '_acc' + accountId
+    }
+    const domId = '_' + type + id
+
+    parent.window.rcmail.addressbooks_list.insert(
+      { id: domId, html: newLi, classes },
+      domIdParent,
+      true
+    )
+
+    // fixup the checkboxes (note: this is elastic-specific)
+    if (typeof UI === 'object' && typeof UI.pretty_checkbox === 'function') {
+      $('#rcmli' + domId + ' input[type="checkbox"]', parent.document).each(function () { UI.pretty_checkbox(this) })
+    }
+  }
+
+  if (selectId !== undefined) {
+    const [type, id] = selectId
+    const domId = '_' + type + id
+    parent.window.rcmail.addressbooks_list.select(domId)
+  }
 }
 
 // this is called when the Add Account button is clicked
@@ -208,15 +239,38 @@ rcube_webmail.prototype.carddav_AccRm = function () {
   }
 }
 
-// invoked from the backend to confirm deletion of an account
-rcube_webmail.prototype.carddav_RemoveAccount = function (accountId) {
-  const domId = '_acc' + accountId
-
-  const win = this.get_frame_window(this.env.contentframe)
-  if (win) {
-    win.location.href = this.env.blankpage
+// this is called when the Rediscover Account button is clicked
+rcube_webmail.prototype.carddav_AccRedisc = function () {
+  const selectedNode = rcmail.addressbooks_list.get_selection()
+  if (selectedNode.startsWith('_acc')) {
+    const accountid = selectedNode.substr(4)
+    const lock = this.display_message('', 'loading')
+    this.http_post('plugin.carddav.AccRedisc', { accountid }, lock)
   }
-  parent.window.rcmail.addressbooks_list.remove(domId)
+}
+
+// invoked from the backend to remove accounts or addressbooks from the addressbook list
+rcube_webmail.prototype.carddav_RemoveListElem = function (accountId, abookIds) {
+  if (abookIds === undefined) {
+    // remove the entire account
+    const domIdAcc = '_acc' + accountId
+    parent.window.rcmail.addressbooks_list.remove(domIdAcc)
+  } else {
+    // remove only the given abooks
+    for (const abookId of abookIds) {
+      const domIdAbook = '_abook' + abookId
+      parent.window.rcmail.addressbooks_list.remove(domIdAbook)
+    }
+  }
+
+  // if the selected node was removed in the process, set the content frame to the blank page
+  const selectedNode = rcmail.addressbooks_list.get_selection()
+  if (selectedNode && rcmail.addressbooks_list.get_node(selectedNode) === undefined) {
+    const win = this.get_frame_window(this.env.contentframe)
+    if (win) {
+      win.location.href = this.env.blankpage
+    }
+  }
 }
 
 // this is called when the Resync addressbook button is hit

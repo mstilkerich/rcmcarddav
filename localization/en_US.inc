@@ -26,10 +26,15 @@ $labels = Array(
 	'AccRm_msg_ok' => 'CardDAV account successfully deleted',
 	'AccRm_msg_fail' => 'Removal of CardDAV account failed: $errormsg',
 
+	'AccRedisc_btnlbl' => 'Rediscover',
+	'AccRedisc_btntit' => 'Rediscover addressbooks for the account',
+	'AccRedisc_msg_ok' => 'Account rediscovery successful ($new new, $rm removed addressbooks)',
+	'AccRedisc_msg_fail' => 'Account rediscovery failed: $errormsg',
+
 	'AbSync_btnlbl' => 'Resync',
 	'AbSync_btntit' => 'Resynchronize addressbook',
 	'AbSync_menulbl_aria' => "Addressbook resynchronization options",
-	'AbClrCache_btnlbl' => 'Reset sync (clear cache)',
+	'AbClrCache_btnlbl' => 'Reset sync (clear cached addressbook data)',
 	'AbSync_msg_ok' => 'CardDAV addressbook $name synchronized (Took $duration seconds)',
 	'AbSync_msg_fail' => 'Sync of CardDAV addressbook $name failed: $errormsg',
 	'AbSync_msg_inprogress' => 'Synchronizing addressbook...',

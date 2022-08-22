@@ -170,6 +170,7 @@ class UI
         $rc->registerAction('plugin.carddav.AccDetails', [$this, 'actionAccDetails']);
         $rc->registerAction('plugin.carddav.AccSave', [$this, 'actionAccSave']);
         $rc->registerAction('plugin.carddav.AccRm', [$this, 'actionAccRm']);
+        $rc->registerAction('plugin.carddav.AccRedisc', [$this, 'actionAccRedisc']);
         $rc->registerAction('plugin.carddav.AbSync', [$this, 'actionAbSync']);
 
         $rc->setEnv("carddav_forbidCustomAddressbooks", $admPrefs->forbidCustomAddressbooks);
@@ -277,8 +278,6 @@ class UI
      */
     private function makeAccountListItem(array $account): string
     {
-        $infra = Config::inst();
-        $rc = $infra->rc();
         $abMgr = $this->abMgr;
         $account['addressbooks'] = $abMgr->getAddressbookConfigsForAccount($account["id"]);
 
@@ -296,13 +295,6 @@ class UI
 
         $content = \html::a(['href' => '#'], \rcube::Q($account["name"]));
 
-        $checkboxActive = new \html_checkbox([
-            'name'    => '_active[]',
-            'title'   => $rc->locText('changeactive'),
-            'onclick' => \rcmail_output::JS_OBJECT_NAME .
-              ".command('plugin.carddav-AbToggleActive', this.value, this.checked)",
-        ]);
-
         $addressbookListItems = [];
         foreach (($account["addressbooks"] ?? []) as $abook) {
             $attribs = [
@@ -310,13 +302,7 @@ class UI
                 'class' => 'addressbook'
             ];
 
-            $fixedAttributes = $this->getFixedSettings($account['presetname'], $abook['url']);
-
-            $abookHtml = \html::a(['href' => '#'], \rcube::Q($abook["name"]));
-            $abookHtml .= $checkboxActive->show(
-                $abook["active"] ? $abook['id'] : '',
-                ['value' => $abook['id'], 'disabled' => in_array('active', $fixedAttributes)]
-            );
+            $abookHtml = $this->makeAbookListItem($abook, $account['presetname']);
             $addressbookListItems[] = \html::tag('li', $attribs, $abookHtml);
         }
 
@@ -326,6 +312,33 @@ class UI
         }
 
         return $content;
+    }
+
+    /**
+     * Creates the HTML code within the ListItem of an addressbook in the addressbook list.
+     *
+     * @param FullAbookRow $abook
+     */
+    private function makeAbookListItem(array $abook, ?string $presetName): string
+    {
+        $infra = Config::inst();
+        $rc = $infra->rc();
+
+        $checkboxActive = new \html_checkbox([
+            'name'    => '_active[]',
+            'title'   => $rc->locText('changeactive'),
+            'onclick' => \rcmail_output::JS_OBJECT_NAME .
+            ".command('plugin.carddav-AbToggleActive', this.value, this.checked)",
+        ]);
+
+        $fixedAttributes = $this->getFixedSettings($presetName, $abook['url']);
+
+        $abookHtml = \html::a(['href' => '#'], \rcube::Q($abook["name"]));
+        $abookHtml .= $checkboxActive->show(
+            $abook["active"] ? $abook['id'] : '',
+            ['value' => $abook['id'], 'disabled' => in_array('active', $fixedAttributes)]
+        );
+        return $abookHtml;
     }
 
     /**
@@ -406,10 +419,63 @@ class UI
                 $abMgr = $this->abMgr;
                 $abMgr->deleteAccount($accountId);
                 $rc->showMessage($rc->locText("AccRm_msg_ok"), 'confirmation');
-                $rc->clientCommand('carddav_RemoveAccount', $accountId);
+                $rc->clientCommand('carddav_RemoveListElem', $accountId);
             } catch (\Exception $e) {
                 $logger->error("Error saving account preferences: " . $e->getMessage());
                 $rc->showMessage($rc->locText("AccRm_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
+            }
+        } else {
+            $logger->warning(__METHOD__ . ": no account ID found in parameters");
+        }
+    }
+
+    /**
+     * This action is invoked to rediscover the available addressbooks for a specified account.
+     */
+    public function actionAccRedisc(): void
+    {
+        $infra = Config::inst();
+        $rc = $infra->rc();
+        $logger = $infra->logger();
+
+        $accountId = $rc->inputValue("accountid", false);
+        if (isset($accountId)) {
+            try {
+                $abMgr = $this->abMgr;
+
+                $abookIdsPrev = array_column($abMgr->getAddressbookConfigsForAccount($accountId, true), 'id', 'url');
+
+                $accountCfg = $abMgr->getAccountConfig($accountId);
+                $abMgr->discoverAddressbooks($accountCfg, []);
+                $abookIds = array_column($abMgr->getAddressbookConfigsForAccount($accountId, true), 'id', 'url');
+
+                $abooksNew = array_diff_key($abookIds, $abookIdsPrev);
+                $abooksRm  = array_diff_key($abookIdsPrev, $abookIds);
+
+                $rc->showMessage(
+                    $rc->locText(
+                        "AccRedisc_msg_ok",
+                        ['new' => (string) count($abooksNew), 'rm' => (string) count($abooksRm)]
+                    ),
+                    'confirmation'
+                );
+
+                if (!empty($abooksRm)) {
+                    $rc->clientCommand('carddav_RemoveListElem', $accountId, array_values($abooksRm));
+                }
+
+                if (!empty($abooksNew)) {
+                    $records = [];
+                    foreach ($abooksNew as $abookId) {
+                        $abook = $abMgr->getAddressbookConfig($abookId);
+                        $newLi = $this->makeAbookListItem($abook, $accountCfg["presetname"]);
+                        $records[] = [ $abookId, $newLi, $accountId ];
+                    }
+                    $rc->clientCommand('carddav_InsertListElem', $records);
+                }
+            } catch (\Exception $e) {
+                $logger->error("Error in account rediscovery: " . $e->getMessage());
+                $rc->showMessage($rc->locText("AccRedisc_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
             }
         } else {
             $logger->warning(__METHOD__ . ": no account ID found in parameters");
@@ -492,7 +558,7 @@ class UI
             $account = $abMgr->getAccountConfig($accountId);
 
             $newLi = $this->makeAccountListItem($account);
-            $rc->clientCommand('carddav_InsertAccount', $accountId, $newLi);
+            $rc->clientCommand('carddav_InsertListElem', [[$accountId, $newLi]], ['acc', $accountId]);
             $rc->showMessage($rc->locText("AccAdd_msg_ok"), 'confirmation');
         } catch (\Exception $e) {
             $logger->error("Error creating CardDAV account: " . $e->getMessage());

@@ -29,6 +29,10 @@
   content:"\f503";
 }
 
+.menu a.carddav_AccRedisc:before {
+  content:"\f4fe";
+}
+
 .menu a.carddav_AbSync:before {
   content:"\f01e";
 }
