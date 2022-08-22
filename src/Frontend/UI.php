@@ -769,6 +769,7 @@ class UI
                     'name' => $fieldKey,
                     'type' => $uiType,
                     'value' => $fieldValueFormatted,
+                    'size' => 60,
                     'disabled' => $readonly,
                 ]);
                 return $input->show();

@@ -1,0 +1,65 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<roundcube:include file="/includes/links.html" />
+<script type="text/javascript" src="/functions.js"></script>
+<script type="text/javascript" src="/splitter.js"></script>
+<style type="text/css">
+#addressbookslist { width: <roundcube:exp expression="!empty(cookie:addressbooksviewsplitter) ? cookie:addressbooksviewsplitter-5 : 295" />px; }
+#addressbook-details { left: <roundcube:exp expression="!empty(cookie:addressbooksviewsplitter) ? cookie:addressbooksviewsplitter+5 : 305" />px; }
+</style>
+</head>
+<body>
+
+<roundcube:include file="/includes/taskbar.html" />
+<roundcube:include file="/includes/header.html" />
+<roundcube:include file="/includes/settingstabs.html" />
+
+<div id="mainscreen">
+
+<div id="addressbookslist">
+<div id="addressbookslist-title" class="boxtitle">
+    <roundcube:label name="carddav.CardDAV_rclbl" />
+</div>
+
+<div id="addressbookslist-content" class="boxlistcontent">
+    <roundcube:object name="addressbookslist" id="addressbooks-table" class="treelist" />
+</div>
+<div id="addressbookslist-footer" class="boxfooter">
+    <roundcube:if condition="!env:carddav_forbidCustomAddressbooks" />
+        <roundcube:button command="plugin.carddav-AccAdd" type="link" title="carddav.AccAdd_btntit" class="buttonPas carddav_AccAdd" classAct="button carddav_AccAdd" content=" " />
+    <roundcube:endif />
+
+    <roundcube:button command="plugin.carddav-AccRm" type="link" title="carddav.AccRm_btntit" class="buttonPas carddav_AccRm" classAct="button carddav_AccRm" content=" " />
+
+    <roundcube:button name="addressbooksmenulink" id="addressbooksmenulink" type="link" title="carddav.AccActions_btntit" class="button groupactions" onclick="rcmail_ui.show_popup('addressbooksmenu');return false" content=" " />
+
+</div>
+</div>
+
+<script type="text/javascript">
+    var addressbooksviewsplit = new rcube_splitter({id:'addressbooksviewsplitter', p1: 'addressbookslist', p2: 'addressbook-details', orientation: 'v', relative: true, start: 300 });
+    rcmail.add_onload('addressbooksviewsplit.init()');
+</script>
+
+<div id="addressbook-details">
+    <roundcube:object name="contentframe" id="addressbook-frame" width="100%" height="100%" frameborder="0" src="env:blankpage" />
+</div>
+
+</div>
+
+<div id="addressbooksmenu" class="popupmenu">
+  <ul>
+    <li><roundcube:button type="link" command="plugin.carddav-AccRedisc" label="carddav.AccRedisc_btntit" classAct="active" /></li>
+    <li><roundcube:button type="link" command="plugin.carddav-AbSync" label="carddav.AbSync_btntit" classAct="active" /></li>
+    <li><roundcube:button type="link" command="plugin.carddav-AbClrCache" label="carddav.AbClrCache_btnlbl" classAct="active" /></li>
+    <roundcube:container name="mailboxoptions" id="mailboxoptionsmenu" />
+  </ul>
+</div>
+
+<script type="text/javascript">
+rcube_init_mail_ui();
+</script>
+
+</body>
+</html>
