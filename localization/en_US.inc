@@ -43,7 +43,7 @@ $labels = Array(
 	'AbClrCache_msg_inprogress' => 'Resetting sync state...',
 
 	// Account details page
-	'AccProps_rclbl_aria' => 'Account properties',
+	'AccProps_rclbl' => 'Account properties',
 
 	'basicinfo' => 'Basic information',
 	'frompreset' => 'Administrator preset',
@@ -57,7 +57,7 @@ $labels = Array(
 	'lastdiscovered_time' => 'Time of last addressbook discovery',
 
 	// Addressbook details page
-	'AbProps_rclbl_aria' => 'Addressbook properties',
+	'AbProps_rclbl' => 'Addressbook properties',
 	// basicinfo
 	'cd_name' => "Name of the addressbook",
 	'cd_url' => 'URL',
