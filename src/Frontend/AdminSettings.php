@@ -30,6 +30,7 @@ use Psr\Log\LoggerInterface;
 use MStilkerich\CardDavClient\Account;
 use MStilkerich\CardDavAddressbook4Roundcube\{Config, RoundcubeLogger};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
+use MStilkerich\CardDavClient\AddressbookCollection;
 
 /**
  * Represents the administrative settings of the plugin.
@@ -259,19 +260,29 @@ class AdminSettings
                 try {
                     $logger->info("Adding/Updating preset $presetName for user $userId");
 
+                    // Map URL => ABOOKID of the existing extra addressbooks in the DB for this preset
+                    $existingExtraAbooksByUrl = [];
+
                     if (isset($existingPresets[$presetName])) {
                         $accountId = $existingPresets[$presetName];
 
                         // Update the extra addressbooks with the current set of the admin
-                        // TODO
+                        $existingExtraAbooksByUrl = array_column(
+                            $abMgr->getAddressbookConfigsForAccount($accountId, false),
+                            'id',
+                            'url'
+                        );
 
                         // Update the fixed account/addressbook settings with the current admin values
                         $this->updatePresetSettings($presetName, $accountId, $abMgr);
-                        $accountCfg = $abMgr->getAccountConfig($accountId);
                     } else {
+                        // Add new account first (addressbooks follow below)
                         $accountCfg = $this->makeDbObjFromPreset('account', $preset);
                         $accountCfg['presetname'] = $presetName;
+                        $accountId = $abMgr->insertAccount($accountCfg);
                     }
+
+                    $accountCfg = $abMgr->getAccountConfig($accountId);
 
                     // Perform auto (re-)discovery
                     if (isset($preset['url'])) {
@@ -287,7 +298,20 @@ class AdminSettings
                         }
                     }
 
-                    // TODO Create / delete the extra addressbooks for this preset
+                    // Create / delete the extra addressbooks for this preset
+                    foreach (array_keys($preset['extra_addressbooks'] ?? []) as $xabookUrl) {
+                        if (isset($existingExtraAbooksByUrl[$xabookUrl])) {
+                            unset($existingExtraAbooksByUrl[$xabookUrl]);
+                        } else {
+                            // create new
+                            $this->insertExtraAddressbook($abMgr, $infra, $accountCfg, $xabookUrl, $presetName);
+                        }
+                    }
+                    // Delete extra addressbooks removed by the admin from the preset
+                    if (!empty($existingExtraAbooksByUrl)) {
+                        $logger->info("Deleting deprecated extra addressbooks in $presetName for user $userId");
+                        $abMgr->deleteAddressbooks(array_values($existingExtraAbooksByUrl));
+                    }
                 } catch (\Exception $e) {
                     $logger->error("Error adding/updating preset $presetName for user $userId {$e->getMessage()}");
                 }
@@ -359,6 +383,47 @@ class AdminSettings
                 /** @psalm-var AbookSettings $pa */
                 $abMgr->updateAddressbook($obj['id'], $pa);
             }
+        }
+    }
+
+    /**
+     * Adds a new non-discovered addressbook to an account.
+     *
+     * Performs a check with the server ensuring that the addressbook actually exists and can be accessed.
+     *
+     * @param FullAccountRow $accountCfg Array with the settings of the account
+     */
+    private function insertExtraAddressbook(
+        AddressbookManager $abMgr,
+        Config $infra,
+        array $accountCfg,
+        string $xabookUrl,
+        string $presetName
+    ): void {
+        try {
+            $account = Config::makeAccount(
+                '',
+                Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
+                Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
+                null
+            );
+            $abook = $infra->makeWebDavResource($xabookUrl, $account);
+            if ($abook instanceof AddressbookCollection) {
+                // Get values for the optional settings that the admin may have configured as part of the preset
+                $presetXAbook = $this->getPreset($presetName, $xabookUrl);
+                $abookTmpl = $this->makeDbObjFromPreset('addressbook', $presetXAbook);
+                $abookTmpl['account_id'] = $accountCfg['id'];
+                $abookTmpl['discovered'] = false;
+                $abookTmpl['sync_token'] = '';
+                $abookTmpl['url'] = $xabookUrl;
+                $abookTmpl['name'] = $abook->getName();
+                $abMgr->insertAddressbook($abookTmpl);
+            } else {
+                throw new \Exception("no addressbook collection at given URL");
+            }
+        } catch (\Exception $e) {
+            $logger = $infra->logger();
+            $logger->error("Failed to add extra addressbook $xabookUrl for preset $presetName: " . $e->getMessage());
         }
     }
 
