@@ -732,7 +732,7 @@ class UI
 
             case 'timestr':
                 $t = intval($fieldValue);
-                $fieldValue = sprintf("%02d:%02d:%02d", floor($t / 3600), ($t / 60) % 60, $t % 60);
+                $fieldValue = sprintf("%02d:%02d:%02d", intdiv($t, 3600), intdiv($t, 60) % 60, $t % 60);
                 // fall through to text field
 
             case 'text':
