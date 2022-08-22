@@ -787,7 +787,7 @@ class DataConversion
 
         /** @var VObject\Property $p */
         foreach ($vcard->children() as $p) {
-            if (!empty($p->group)) {
+            if (isset($p->group)) {
                 if (strcasecmp($p->name, "X-ABLabel") === 0) {
                     $labelProps[] = $p;
                 } else {
@@ -797,7 +797,7 @@ class DataConversion
         }
 
         foreach ($labelProps as $p) {
-            if (!isset($usedGroups[strtoupper($p->group)])) {
+            if (!isset($usedGroups[strtoupper($p->group ?? '')])) {
                 $vcard->remove($p);
             }
         }
@@ -878,7 +878,6 @@ class DataConversion
         }
 
         // 2. check for a custom label using Apple's X-ABLabel extension
-        /** @psalm-var ?string $group */
         $group = $vprop->group;
         if (isset($group)) {
             /** @var ?VObject\Property */
