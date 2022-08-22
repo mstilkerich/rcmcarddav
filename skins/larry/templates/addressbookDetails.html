@@ -1,0 +1,21 @@
+<roundcube:object name="doctype" value="html5" />
+<html>
+<head>
+<roundcube:include file="/includes/links.html" />
+</head>
+<body class="iframe">
+
+<h1 class="boxtitle"><roundcube:label name="carddav.AbProps_rclbl" /></h1>
+
+<div class="boxcontent">
+<roundcube:object id="addressbookdetails" name="addressbookdetails" class="propform" />
+</div>
+
+<div class="footerleft formbuttons">
+	<roundcube:button command="plugin.carddav-AbSave" type="input" class="button mainaction" label="save" />
+</div>
+
+<roundcube:include file="/includes/footer.html" />
+
+</body>
+</html>

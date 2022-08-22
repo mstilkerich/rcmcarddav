@@ -42,6 +42,11 @@ $labels = Array(
 	'AbClrCache_msg_fail' => 'Error resetting sync state of CardDAV addressbook $name: $errormsg',
 	'AbClrCache_msg_inprogress' => 'Resetting sync state...',
 
+	// Larry skin only - actions button at bottom of addressbooks list
+	'AccActions_btntit' => 'CardDAV actions...',
+	'AccActions_menulbl_aria' => 'CardDAV actions menu',
+	
+
 	// Account details page
 	'AccProps_rclbl' => 'Account properties',
 
