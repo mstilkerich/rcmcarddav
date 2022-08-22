@@ -27,6 +27,8 @@ declare(strict_types=1);
 namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
 
 use PHPUnit\Framework\TestCase;
+use MStilkerich\CardDavClient\{Account,AddressbookCollection};
+use MStilkerich\CardDavClient\Services\Discovery;
 use MStilkerich\CardDavAddressbook4Roundcube\Config;
 use MStilkerich\CardDavAddressbook4Roundcube\Addressbook;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
@@ -39,6 +41,12 @@ use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
  * @psalm-import-type DbGetResult from AbstractDatabase
  * @psalm-import-type TestDataKeyRef from TestData
  * @psalm-import-type TestDataRowWithKeyRef from TestData
+ *
+ * @psalm-type AddressbookSettings = array{
+ *   refresh_time?: int,
+ *   active?: bool,
+ *   use_categories?: bool,
+ * }
  */
 final class AddressbookManagerTest extends TestCase
 {
@@ -338,26 +346,36 @@ final class AddressbookManagerTest extends TestCase
         }
 
         $abMgr = new AddressbookManager();
-        $cfgs = $abMgr->getAddressbookConfigsForAccount($accountId);
 
-        $accountIdRefIdx = array_search('account_id', self::ABOOK_COLS);
-        $this->assertIsInt($accountIdRefIdx);
-        $this->assertTrue($validId, "No exception thrown for getAddressbookConfigsForAccount on other user's account");
+        foreach ([null, false, true] as $discoveryType) {
+            $cfgs = $abMgr->getAddressbookConfigsForAccount($accountId, $discoveryType);
 
-        $testDataAbooksById = [];
-        foreach (self::ABOOK_ROWS as $idx => $row) {
-            $this->assertIsArray($row[$accountIdRefIdx]);
-            if ($row[$accountIdRefIdx][1] == $accountIdx) {
-                $row[$accountIdRefIdx] = $accountId;
-                $row = array_combine(self::ABOOK_COLS, $row);
+            $accountIdRefIdx = array_search('account_id', self::ABOOK_COLS);
+            $discoveryTypeIdx = array_search('discovered', self::ABOOK_COLS);
+            $this->assertIsInt($accountIdRefIdx);
+            $this->assertTrue($validId, "No exception for getAddressbookConfigsForAccount on other user's account");
 
-                $abookId = self::$testData->getRowId('carddav_addressbooks', $idx);
-                $row['id'] = $abookId;
-                $testDataAbooksById[$abookId] = $row;
+            $testDataAbooksById = [];
+            foreach (self::ABOOK_ROWS as $idx => $row) {
+                $this->assertIsArray($row[$accountIdRefIdx]);
+                if ($row[$accountIdRefIdx][1] == $accountIdx) {
+                    if (is_null($discoveryType) || $row[$discoveryTypeIdx] == ($discoveryType ? '1' : '0')) {
+                        $row[$accountIdRefIdx] = $accountId;
+                        $row = array_combine(self::ABOOK_COLS, $row);
+
+                        $abookId = self::$testData->getRowId('carddav_addressbooks', $idx);
+                        $row['id'] = $abookId;
+                        $testDataAbooksById[$abookId] = $row;
+                    }
+                }
             }
-        }
 
-        $this->assertEquals($testDataAbooksById, $cfgs, "Returned addressbook configs for account not as expected");
+            $this->assertEquals(
+                $testDataAbooksById,
+                $cfgs,
+                "Returned addressbook configs not as expected; discovery type: " . ($discoveryType ? 'true' : 'false')
+            );
+        }
     }
 
     /** @return array<string, array{array<string, null|string|int|TestDataKeyRef>, ?string}> */
@@ -447,7 +465,7 @@ final class AddressbookManagerTest extends TestCase
         $accountIdsBefore = $abMgr->getAccountIds();
 
         // insert the new account
-        /** @psalm-suppress ArgumentTypeCoercion For test purposes, we may feed invalid data */
+        /** @psalm-suppress InvalidArgument For test purposes, we may feed invalid data */
         $accountId = $abMgr->insertAccount($accSettings);
         $this->assertNull($expExceptionMsg, "Expected exception was not thrown for missing mandatory attributes");
         $accountIdsAfter = $abMgr->getAccountIds();
@@ -591,7 +609,7 @@ final class AddressbookManagerTest extends TestCase
         $abMgr = new AddressbookManager();
 
         // update the account
-        /** @psalm-suppress ArgumentTypeCoercion For test purposes, we may feed invalid data */
+        /** @psalm-suppress InvalidArgument For test purposes, we may feed invalid data */
         $abMgr->updateAccount($accountId, $accUpd);
         $this->assertNull($expExceptionMsg, "Expected exception was not thrown for missing mandatory attributes");
         $this->assertNotNull($accExpResult, "Expected result was not defined");
@@ -921,16 +939,25 @@ final class AddressbookManagerTest extends TestCase
     }
 
     /**
-     * @return array<string, array{list<int>, ?string}>
+     * @return array<string, array{list<int>, bool, ?string}>
      */
     public function abookDeleteDataProvider(): array
     {
         return [
-            'Valid addressbooks of user' => [ [0], null ],
-            '2 valid addressbooks of user' => [ [0,1], null ],
-            'Addressbook of other user' => [ [6], 'request with IDs not referring to addressbooks of current user' ],
-            'Mixed valid/invalid IDs' => [ [0,6], 'request with IDs not referring to addressbooks of current user' ],
-            'Empty delete list' => [ [], null ],
+            'Valid addressbooks of user' => [ [0], false, null ],
+            'Valid addressbooks of user (cache only)' => [ [0], true, null ],
+            '2 valid addressbooks of user' => [ [0,1], false, null ],
+            'Addressbook of other user' => [
+                [6],
+                false,
+                'request with IDs not referring to addressbooks of current user'
+            ],
+            'Mixed valid/invalid IDs' => [
+                [0,6],
+                false,
+                'request with IDs not referring to addressbooks of current user'
+            ],
+            'Empty delete list' => [ [], false, null ],
         ];
     }
 
@@ -940,8 +967,11 @@ final class AddressbookManagerTest extends TestCase
      * @param list<int> $abookFkIdxs
      * @dataProvider abookDeleteDataProvider
      */
-    public function testAddressbookIsDeletedProperly(array $abookFkIdxs, ?string $expExceptionMsg): void
-    {
+    public function testAddressbookIsDeletedProperly(
+        array $abookFkIdxs,
+        bool $cacheOnly,
+        ?string $expExceptionMsg
+    ): void {
         $abookIds = [];
 
         // insert some contacts / groups; to save some work, we use rows of the standard test data which add entries to
@@ -972,10 +1002,17 @@ final class AddressbookManagerTest extends TestCase
         $abookIdsBefore = $abMgr->getAddressbookIds(false);
 
         // delete the addressbooks
-        $abMgr->deleteAddressbooks($abookIds);
+        $abMgr->deleteAddressbooks($abookIds, false, $cacheOnly);
         $this->assertNull($expExceptionMsg, "Expected exception was not thrown for invalid abook id argument");
         if (!empty($abookIds)) {
-            $this->assertEmpty(self::$db->get(['id' => $abookIds], [], 'addressbooks'));
+            if ($cacheOnly) {
+                $this->assertEqualsCanonicalizing(
+                    $abookIds,
+                    array_column(self::$db->get(['id' => $abookIds], [], 'addressbooks'), 'id')
+                );
+            } else {
+                $this->assertEmpty(self::$db->get(['id' => $abookIds], [], 'addressbooks'));
+            }
             $this->assertEmpty(self::$db->get(['abook_id' => $abookIds], [], 'contacts'));
             $this->assertEmpty(self::$db->get(['abook_id' => $abookIds], [], 'groups'));
             $this->assertEmpty(self::$db->get(['abook_id' => $abookIds], [], 'xsubtypes'));
@@ -983,21 +1020,27 @@ final class AddressbookManagerTest extends TestCase
 
         // check that addressbook IDs returned now lack the deleted addressbooks' IDs
         $abookIdsAfter = $abMgr->getAddressbookIds(false);
-        $this->assertCount(
-            count($abookIdsBefore) - count($abookIds),
-            $abookIdsAfter,
-            "The new list of addressbook IDs should be smaller by the amount of deleted addressbooks than the old list"
-        );
-        $this->assertEqualsCanonicalizing($abookIds, array_diff($abookIdsBefore, $abookIdsAfter));
+        if ($cacheOnly) {
+            $this->assertEqualsCanonicalizing($abookIdsBefore, $abookIdsAfter);
+        } else {
+            $this->assertCount(
+                count($abookIdsBefore) - count($abookIds),
+                $abookIdsAfter,
+                "The new list of addressbooks should be smaller by the amount of deleted addressbooks than the old list"
+            );
+            $this->assertEqualsCanonicalizing($abookIds, array_diff($abookIdsBefore, $abookIdsAfter));
+        }
 
         // check that the deleted addressbooks cannot be retrieved anymore
         // we use a loop to handle the case that no addressbooks were deleted
         foreach ($abookIds as $abookId) {
-            // should fail on first loop iteration
-            $this->expectException(\Exception::class);
-            $this->expectExceptionMessage('No carddav addressbook with ID');
+            if ($cacheOnly === false) {
+                // should fail on first loop iteration
+                $this->expectException(\Exception::class);
+                $this->expectExceptionMessage('No carddav addressbook with ID');
+            }
             $abMgr->getAddressbookConfig($abookId);
-            $this->assertFalse(true, "No exception was thrown when querying the first addressbook");
+            $this->assertTrue($cacheOnly, "No exception was thrown when querying the first addressbook");
         }
     }
 
@@ -1034,7 +1077,171 @@ final class AddressbookManagerTest extends TestCase
         $this->assertIsString($lastUpdated);
         $lastUpdated = intval($lastUpdated);
         $lastUpdatedExpected = time() + 300 - $expRefreshTime;
-        $this->assertLessThanOrEqual(1 /* tolerance */, $lastUpdatedExpected - intval($lastUpdated));
+        $this->assertLessThanOrEqual(1 /* tolerance */, abs($lastUpdatedExpected - intval($lastUpdated)));
+    }
+
+    /** @return array<string, array{int,?TestDataKeyRef,AddressbookSettings,list<string>}> */
+    public function newAbookSettingsProvider(): array
+    {
+        return [
+            '2 new' => [
+                2,
+                [ 'carddav_accounts', 2 ], // empty account
+                [ 'active' => true, 'refresh_time' => 160, 'use_categories' => true ],
+                [ 'New 0', 'New 1' ],
+            ],
+            '2 new, 1 existing, 1 existing but non-discovered' => [
+                3,
+                [ 'carddav_accounts', 0 ],
+                [ 'active' => false, 'refresh_time' => 60, 'use_categories' => false ],
+                [ 'CA1', 'CA2', 'New 0', 'New 2' ], // New 1 has the same URL as the discovered abook CA1
+            ],
+            'all discovered addressbooks removed' => [
+                0,
+                [ 'carddav_accounts', 0 ],
+                [ ],
+                [ 'CA2' ], // CA2 is non-discovered and therefore must be retained
+            ],
+            'empty remains empty' => [
+                0,
+                [ 'carddav_accounts', 2 ], // empty account
+                [ ],
+                [ ],
+            ],
+            'new account with 1 addressbook' => [
+                1,
+                null, // new account
+                [ 'active' => false, 'refresh_time' => 60, 'use_categories' => false ],
+                [ 'New 0' ],
+            ],
+        ];
+    }
+
+    /**
+     * Tests that new addressbooks are properly created in the database.
+     *
+     * The result of the Discovery service is emulated to provide a test-vector-dependent number of addressbooks under
+     * the URL https://www.example.com/dav/abook<Index>.
+     *
+     * @param int $numAbooks The number of addressbooks that the discovery stub shall "discover"
+     * @param ?TestDataKeyRef $accountFkRef
+     * @param AddressbookSettings $abookTmpl
+     * @param list<string> $expAbookNames
+     * @dataProvider newAbookSettingsProvider
+     */
+    public function testAddressbooksRediscoveredCorrectly(
+        int $numAbooks,
+        ?array $accountFkRef,
+        array $abookTmpl,
+        array $expAbookNames
+    ): void {
+        $db = TestInfrastructure::$infra->db();
+
+        // create some test addressbooks to be discovered
+        $abookObjs = [];
+        for ($i = 0; $i < $numAbooks; ++$i) {
+            $abookObjs[] = $this->makeAbookCollStub("New $i", "https://contacts.example.com/a$i");
+        }
+
+        if (isset($accountFkRef)) {
+            $accountId = self::$testData->resolveFkRef($accountFkRef);
+            /** @var FullAccountRow */
+            $accountCfg = $db->lookup($accountId, [], 'accounts');
+        } else {
+            $accountCfg = [ 'name' => 'New Acc', 'username' => 'usr', 'password' => 'p', 'url' => 'http://foo.bar' ];
+        }
+
+        // create a Discovery mock that "discovers" our test addressbooks
+        $username = $accountCfg['username'] == '%u' ? 'testuser@example.com' : $accountCfg['username'];
+        $password = $accountCfg['password'] == '%p' ? 'test' : $accountCfg['password'];
+        $account = new Account($accountCfg['url'], $username, $password);
+        $discovery = $this->createMock(Discovery::class);
+        $discovery->expects($this->once())
+            ->method("discoverAddressbooks")
+            ->with($this->equalTo($account))
+            ->will($this->returnValue($abookObjs));
+        TestInfrastructure::$infra->discovery = $discovery;
+
+        // Run the test object
+        $abMgr = new AddressbookManager();
+        $accountIdRet = $abMgr->discoverAddressbooks($accountCfg, $abookTmpl);
+
+        if (isset($accountId)) {
+            $this->assertSame($accountId, $accountIdRet);
+        } else {
+            // check that the new account was inserted
+            /** @var FullAccountRow */
+            $accountCfg = $db->lookup($accountIdRet, [], 'accounts');
+            // in the DB the password is encoded, but from getAccountConfig we get the decoded password - "decode" it.
+            $accountCfg['password'] = 'p';
+
+            // also check that the new account can be queried from AddressbookManager
+            $accountCfg2 = $abMgr->getAccountConfig($accountIdRet);
+            $this->assertSame($accountCfg, $accountCfg2);
+        }
+
+        // check DB records
+        /** @var array<string, FullAbookRow> */
+        $abooks = array_column(
+            $db->get(['account_id' => $accountIdRet], [], 'addressbooks', ['order' => ['name']]),
+            null,
+            'name'
+        );
+
+        // Check the set of addressbooks after rediscovery is what we expect (we compare by name)
+        $this->assertCount(count($expAbookNames), $abooks, "Expected number of new addressbooks not found in DB");
+        $this->assertSame($expAbookNames, array_column($abooks, 'name'));
+
+        // check that the properties of the new addressbooks are taken from the template
+        foreach ($expAbookNames as $abookName) {
+            if (strpos($abookName, 'New ') === false) {
+                continue;
+            }
+
+            $this->assertArrayHasKey($abookName, $abooks);
+            foreach ($abookTmpl as $k => $v) {
+                if (is_bool($v)) {
+                    $v = $v ? '1' : '0';
+                }
+                if (is_int($v)) {
+                    $v = (string) $v;
+                }
+                $this->assertSame($v, $abooks[$abookName][$k], "$abookName: Setting $k not adapted from template");
+                $this->assertSame('1', $abooks[$abookName]['discovered']);
+                $this->assertSame('', $abooks[$abookName]['sync_token']);
+                $this->assertSame('0', $abooks[$abookName]['last_updated']);
+            }
+        }
+
+        // check that the last_discovered timestamp has been updated
+        [ 'last_discovered' => $lastDiscovered] = self::$db->lookup($accountIdRet, ['last_discovered'], 'accounts');
+        $this->assertIsString($lastDiscovered);
+        $lastDiscovered = intval($lastDiscovered);
+        $this->assertLessThanOrEqual(1 /* tolerance */, abs(time() - $lastDiscovered));
+
+        TestInfrastructure::$infra->discovery = null;
+    }
+
+    public function testRediscoverWithoutUrlThrowsException(): void
+    {
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage("lacking a discovery URI");
+
+        // Run the test object
+        $abMgr = new AddressbookManager();
+        $accountCfg = [ 'name' => 'New Acc', 'username' => 'usr', 'password' => 'p' ];
+        $abMgr->discoverAddressbooks($accountCfg, []);
+    }
+
+    /**
+     * Creates an AddressbookCollection stub that implements getUri() and getName().
+     */
+    private function makeAbookCollStub(string $name, string $url): AddressbookCollection
+    {
+        $davobj = $this->createStub(AddressbookCollection::class);
+        $davobj->method('getName')->will($this->returnValue($name));
+        $davobj->method('getUri')->will($this->returnValue($url));
+        return $davobj;
     }
 
     /**
