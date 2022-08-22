@@ -46,9 +46,7 @@ window.rcmail && rcmail.addEventListener('init', function (evt) {
     )
 
     // don't show the Add account button if disabled by the admin
-    if (rcmail.env.carddav_forbidCustomAddressbooks) {
-      $('.carddav_AccAdd').hide()
-    } else {
+    if (!rcmail.env.carddav_forbidCustomAddressbooks) {
       rcmail.register_command('plugin.carddav-AccAdd', function () { rcmail.carddav_AccAdd() }, true)
     }
 
@@ -63,7 +61,7 @@ window.rcmail && rcmail.addEventListener('init', function (evt) {
       true // enable
     )
   } else if (rcmail.env.action === 'plugin.carddav.AccDetails') {
-    const action = $('input[name="accountid"]').val() == "new" ? 'plugin.carddav.AccAdd' : 'plugin.carddav.AccSave'
+    const action = $('input[name="accountid"]').val() === 'new' ? 'plugin.carddav.AccAdd' : 'plugin.carddav.AccSave'
     rcmail.register_command(
       'plugin.carddav-AccSave',
       function () { rcmail.carddav_AccAbSave('accountdetails', action) },

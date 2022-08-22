@@ -35,13 +35,16 @@
 			Executed action: command names a JS function of the rcmail object, - are replaced by _ for the function name
 		-->
 		<div id="carddavtoolbar" class="toolbar menu">
-			<roundcube:button
-				command="plugin.carddav-AccAdd" type="link"
-				class="carddav_AccAdd disabled" classAct="carddav_AccAdd"
-				innerClass="inner"
-				data-fab="true"
-				domain="carddav" label="AccAdd_btnlbl" title="AccAdd_btntit"
-			/>
+
+			<roundcube:if condition="!env:carddav_forbidCustomAddressbooks" />
+				<roundcube:button
+					command="plugin.carddav-AccAdd" type="link"
+					class="carddav_AccAdd disabled" classAct="carddav_AccAdd"
+					innerClass="inner"
+					data-fab="true"
+					domain="carddav" label="AccAdd_btnlbl" title="AccAdd_btntit"
+				/>
+			<roundcube:endif />
 
 			<roundcube:button command="plugin.carddav-AccRm" type="link"
 				class="carddav_AccRm disabled" classAct="carddav_AccRm"
