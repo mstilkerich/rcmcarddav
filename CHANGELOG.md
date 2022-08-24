@@ -1,5 +1,9 @@
 # Changelog for RCMCardDAV
 
+## Version 4.4.x (to 4.4.3)
+
+- Fix PHP 8.1 warning on loss of precision by using integer division
+
 ## Version 4.4.3 (to 4.4.2)
 
 - Properly set and interpret TYPE parameters, especially for TEL (Fixes #390)
