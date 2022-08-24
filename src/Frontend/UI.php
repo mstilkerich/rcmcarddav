@@ -61,27 +61,27 @@ class UI
     /** @var FormSpec UI_FORM_NEWACCOUNT */
     private const UI_FORM_NEWACCOUNT = [
         [
-            'label' => 'newaccount',
+            'label' => 'AccProps_newaccount_lbl',
             'fields' => [
-                [ 'accountname', 'name', 'text' ],
-                [ 'discoveryurl', 'url', 'text' ],
-                [ 'cd_username', 'username', 'text' ],
-                [ 'cd_password', 'password', 'password' ],
+                [ 'AccProps_accountname_lbl', 'name', 'text' ],
+                [ 'AccProps_discoveryurl_lbl', 'url', 'text' ],
+                [ 'AccProps_username_lbl', 'username', 'text' ],
+                [ 'AccProps_password_lbl', 'password', 'password' ],
             ]
         ],
         [
-            'label' => 'miscsettings',
+            'label' => 'AccAbProps_miscsettings_seclbl',
             'fields' => [
-                [ 'rediscover_time', 'rediscover_time', 'timestr', '86400' ],
-                [ 'cd_refresh_time', 'refresh_time', 'timestr', '3600' ],
+                [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr', '86400' ],
+                [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
                 [
-                    'newgroupstype',
+                    'AbProps_newgroupstype_lbl',
                     'use_categories',
                     'radio',
                     '1',
                     [
-                        [ '0', 'grouptype_vcard' ],
-                        [ '1', 'grouptype_categories' ],
+                        [ '0', 'AbProps_grouptype_vcard_lbl' ],
+                        [ '1', 'AbProps_grouptype_categories_lbl' ],
                     ]
                 ],
             ]
@@ -91,20 +91,20 @@ class UI
     /** @var FormSpec UI_FORM_ACCOUNT */
     private const UI_FORM_ACCOUNT = [
         [
-            'label' => 'basicinfo',
+            'label' => 'AccAbProps_basicinfo_seclbl',
             'fields' => [
-                [ 'frompreset', 'presetname', 'plain' ],
-                [ 'accountname', 'name', 'text' ],
-                [ 'discoveryurl', 'url', 'text' ],
-                [ 'cd_username', 'username', 'text' ],
-                [ 'cd_password', 'password', 'password' ],
+                [ 'AccProps_frompreset_lbl', 'presetname', 'plain' ],
+                [ 'AccProps_accountname_lbl', 'name', 'text' ],
+                [ 'AccProps_discoveryurl_lbl', 'url', 'text' ],
+                [ 'AccProps_username_lbl', 'username', 'text' ],
+                [ 'AccProps_password_lbl', 'password', 'password' ],
             ]
         ],
         [
-            'label' => 'discoveryinfo',
+            'label' => 'AccProps_discoveryinfo_seclbl',
             'fields' => [
-                [ 'rediscover_time', 'rediscover_time', 'timestr' ],
-                [ 'lastdiscovered_time', 'last_discovered', 'datetime' ],
+                [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr' ],
+                [ 'AccProps_lastdiscovered_time_lbl', 'last_discovered', 'datetime' ],
             ]
         ],
     ];
@@ -112,30 +112,30 @@ class UI
     /** @var FormSpec UI_FORM_ABOOK */
     private const UI_FORM_ABOOK = [
         [
-            'label' => 'basicinfo',
+            'label' => 'AccAbProps_basicinfo_seclbl',
             'fields' => [
-                [ 'cd_name', 'name', 'text' ],
-                [ 'cd_url', 'url', 'plain' ],
+                [ 'AbProps_abname_lbl', 'name', 'text' ],
+                [ 'AbProps_url_lbl', 'url', 'plain' ],
             ]
         ],
         [
-            'label' => 'syncinfo',
+            'label' => 'AbProps_syncinfo_seclbl',
             'fields' => [
-                [ 'cd_refresh_time', 'refresh_time', 'timestr' ],
-                [ 'cd_lastupdate_time', 'last_updated', 'datetime' ],
+                [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr' ],
+                [ 'AbProps_lastupdate_time_lbl', 'last_updated', 'datetime' ],
             ]
         ],
         [
-            'label' => 'miscsettings',
+            'label' => 'AccAbProps_miscsettings_seclbl',
             'fields' => [
                 [
-                    'newgroupstype',
+                    'AbProps_newgroupstype_lbl',
                     'use_categories',
                     'radio',
                     '1',
                     [
-                        [ '0', 'grouptype_vcard' ],
-                        [ '1', 'grouptype_categories' ],
+                        [ '0', 'AbProps_grouptype_vcard_lbl' ],
+                        [ '1', 'AbProps_grouptype_categories_lbl' ],
                     ]
                 ],
             ]
@@ -326,7 +326,7 @@ class UI
 
         $checkboxActive = new \html_checkbox([
             'name'    => '_active[]',
-            'title'   => $rc->locText('changeactive'),
+            'title'   => $rc->locText('AbToggleActive_cb_tit'),
             'onclick' => \rcmail_output::JS_OBJECT_NAME .
             ".command('plugin.carddav-AbToggleActive', this.value, this.checked)",
         ]);
@@ -562,7 +562,7 @@ class UI
             $rc->showMessage($rc->locText("AccAdd_msg_ok"), 'confirmation');
         } catch (\Exception $e) {
             $logger->error("Error creating CardDAV account: " . $e->getMessage());
-            $rc->showMessage($rc->locText("savefail", ['errormsg' => $e->getMessage()]), 'error');
+            $rc->showMessage($rc->locText("AccAbSave_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
         }
     }
 
@@ -588,10 +588,10 @@ class UI
                 $formData["_acc$accountId"] = [ 'parent', $account["name"] ];
 
                 $rc->clientCommand('carddav_UpdateForm', $formData);
-                $rc->showMessage($rc->locText("saveok"), 'confirmation');
+                $rc->showMessage($rc->locText("AccAbSave_msg_ok"), 'confirmation');
             } catch (\Exception $e) {
                 $logger->error("Error saving account preferences: " . $e->getMessage());
-                $rc->showMessage($rc->locText("savefail", ['errormsg' => $e->getMessage()]), 'error');
+                $rc->showMessage($rc->locText("AccAbSave_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
             }
         } else {
             $logger->warning(__METHOD__ . ": no account ID found in parameters");
@@ -623,11 +623,11 @@ class UI
                 $formData = $this->makeSettingsFormData(self::UI_FORM_ABOOK, $abookrow);
                 $formData["_abook$abookId"] = [ 'parent', $abookrow["name"] ];
 
-                $rc->showMessage($rc->locText("saveok"), 'confirmation');
+                $rc->showMessage($rc->locText("AccAbSave_msg_ok"), 'confirmation');
                 $rc->clientCommand('carddav_UpdateForm', $formData);
             } catch (\Exception $e) {
                 $logger->error("Error saving addressbook preferences: " . $e->getMessage());
-                $rc->showMessage($rc->locText("savefail", ['errormsg' => $e->getMessage()]), 'error');
+                $rc->showMessage($rc->locText("AccAbSave_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
             }
         } else {
             $logger->warning(__METHOD__ . ": no addressbook ID found in parameters");
@@ -723,7 +723,7 @@ class UI
                 if ($t > 0) {
                     $fieldValue = date("Y-m-d H:i:s", intval($fieldValue));
                 } else {
-                    $fieldValue = $rc->locText('never');
+                    $fieldValue = $rc->locText('DateTime_never_lbl');
                 }
                 // fall through to plain text
 

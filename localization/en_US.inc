@@ -1,16 +1,11 @@
 <?php
 $labels = Array(
-	'never' => 'never',
-
-	'saveok' => 'Settings saved successfully',
-	'savefail' => 'Failed to save settings ($errormsg)',
-
 	// Account/addressbook list pane - Header / Toolbar
 	'CardDAV_rclbl' => 'CardDAV',
 	'CardDAV_rctit' => 'Manage CardDAV addressbooks',
 
 	// Account/addressbook list pane
-	'changeactive' => '(de)activate addressbook',
+	'AbToggleActive_cb_tit' => '(de)activate addressbook',
 	'AbToggleActive_msg_ok' => 'Addressbook successfully activated',
 	'AbToggleActive_msg_ok_de' => 'Addressbook successfully deactivated',
 	'AbToggleActive_msg_fail' => 'Addressbook activation failed',
@@ -45,38 +40,41 @@ $labels = Array(
 	// Larry skin only - actions button at bottom of addressbooks list
 	'AccActions_btntit' => 'CardDAV actions...',
 	'AccActions_menulbl_aria' => 'CardDAV actions menu',
-	
 
 	// Account details page
 	'AccProps_rclbl' => 'Account properties',
 
-	'basicinfo' => 'Basic information',
-	'frompreset' => 'Administrator preset',
-	'accountname' => 'Name of the account',
-	'discoveryurl' => 'Discovery URL',
-	'cd_username' => 'Username',
-	'cd_password' => 'Password',
+	'AccAbSave_msg_ok' => 'Settings saved successfully',
+	'AccAbSave_msg_fail' => 'Failed to save settings ($errormsg)',
+	'DateTime_never_lbl' => 'never',
 
-	'discoveryinfo' => 'Addressbook discovery',
-	'rediscover_time' => 'Rediscovery interval (hours)',
-	'lastdiscovered_time' => 'Time of last addressbook discovery',
+	'AccAbProps_basicinfo_seclbl' => 'Basic information',
+	'AccProps_frompreset_lbl' => 'Administrator preset',
+	'AccProps_accountname_lbl' => 'Name of the account',
+	'AccProps_discoveryurl_lbl' => 'Discovery URL',
+	'AccProps_username_lbl' => 'Username',
+	'AccProps_password_lbl' => 'Password',
+
+	'AccProps_discoveryinfo_seclbl' => 'Addressbook discovery',
+	'AccProps_rediscover_time_lbl' => 'Rediscovery interval (hours)',
+	'AccProps_lastdiscovered_time_lbl' => 'Time of last addressbook discovery',
 
 	// Addressbook details page
 	'AbProps_rclbl' => 'Addressbook properties',
 	// basicinfo
-	'cd_name' => "Name of the addressbook",
-	'cd_url' => 'URL',
+	'AbProps_abname_lbl' => "Name of the addressbook",
+	'AbProps_url_lbl' => 'URL',
 
-	'syncinfo' => 'Synchronization',
-	'cd_refresh_time' => "Update interval (hours)",
-	'cd_lastupdate_time'=>'Time of last update',
+	'AbProps_syncinfo_seclbl' => 'Synchronization',
+	'AbProps_refresh_time_lbl' => "Update interval (hours)",
+	'AbProps_lastupdate_time_lbl'=>'Time of last update',
 
-	'miscsettings' => 'Miscellaneous settings',
-	'newgroupstype' => 'Type of new contact groups',
-	'grouptype_vcard' => 'Separate KIND=group (RFC6350) VCards for new groups (best compatibility with Apple applications)',
-	'grouptype_categories' => 'Store groups as CATEGORIES inside contact VCards (best compatibility with non-Apple applications)',
+	'AccAbProps_miscsettings_seclbl' => 'Miscellaneous settings',
+	'AbProps_newgroupstype_lbl' => 'Type of new contact groups',
+	'AbProps_grouptype_vcard_lbl' => 'Separate KIND=group (RFC6350) VCards for new groups (best compatibility with Apple applications)',
+	'AbProps_grouptype_categories_lbl' => 'Store groups as CATEGORIES inside contact VCards (best compatibility with non-Apple applications)',
 
 	// Add new account page
-	'newaccount' => 'Add new CardDAV account',
+	'AccProps_newaccount_lbl' => 'Add new CardDAV account',
 );
 ?>

@@ -1,7 +1,10 @@
 # Changelog for RCMCardDAV
 
-## Version 5.0.0 (to 4.3.0)
+## Version 5.0.0-beta (to 4.3.0)
 - Replace UI. The new UI is located directly in roundcube settings as a main section, not a subsection of `Preferences`.
+- The localization is only updated for English and German, all other languages just have localized labels for the parts
+  that still exist in the new interface. If you want to support for you language, please edit the appropriate file in
+  the localization subdirectory and submit a pull request. The English localization should be taken as master.
 - Presets: Removed option `carddav_name_only`. It makes no sense with the separation of accounts / addressbooks anymore.
 - Presets: Addressbooks of a removed preset are provided as readonly until their deletion upon next login. Previously,
   these would be provided as writeable addressbooks, as the admin `readonly` setting is no longer available. Note that

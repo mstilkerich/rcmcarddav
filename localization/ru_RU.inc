@@ -1,15 +1,11 @@
 <?php
 $labels = Array(
-	'cd_title'=> "CardDAV",
-	'cd_active'=> "Активировать адресную книгу CardDAV",
-	'cd_newabboxtitle'=> "Добавить новую адресную книгу",
-	'cd_username'=> "Имя пользователя",
-	'cd_password'=> "Пароль",
-	'cd_url'=> "URL",
-	'cd_name'=> "Название адресной книги",
-	'cd_delete'=> "Удалить адресную книгу",
-	'cd_name_new'=> "Настроить новую адресную книгу",
-	'cd_refresh_time'=> "Частота обновления (часов)",
-	'cd_err_noabfound'=> "Не найдено ни одной адресной книги",
+	'CardDAV_rclbl'=> "CardDAV",
+	'AccProps_username_lbl'=> "Имя пользователя",
+	'AccProps_password_lbl'=> "Пароль",
+	'AbProps_url_lbl'=> "URL",
+	'AbProps_abname_lbl'=> "Название адресной книги",
+	'AbProps_abname_lbl_new'=> "Настроить новую адресную книгу",
+	'AbProps_refresh_time_lbl'=> "Частота обновления (часов)",
 );
 ?>

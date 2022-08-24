@@ -1,15 +1,11 @@
 <?php
 $labels = Array(
-	'cd_title'=> "CardDAV",
-	'cd_active'=> "Увімкнути список контактів CardDAV",
-	'cd_newabboxtitle'=> "Додати новий список контактів",
-	'cd_username'=> "Ім'я користувача",
-	'cd_password'=> "Пароль",
-	'cd_url'=> "URL",
-	'cd_name'=> "Назва списку контактів",
-	'cd_delete'=> "Видалити цей список контактів",
-	'cd_name_new'=> "Налаштувати цей список контактів",
-	'cd_refresh_time'=> "Період оновлення (в годинах)",
-	'cd_err_noabfound'=> "не знайдено жодного списку контактів",
+	'CardDAV_rclbl'=> "CardDAV",
+	'AccProps_username_lbl'=> "Ім'я користувача",
+	'AccProps_password_lbl'=> "Пароль",
+	'AbProps_url_lbl'=> "URL",
+	'AbProps_abname_lbl'=> "Назва списку контактів",
+	'AbProps_abname_lbl_new'=> "Налаштувати цей список контактів",
+	'AbProps_refresh_time_lbl'=> "Період оновлення (в годинах)",
 );
 ?>

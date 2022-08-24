@@ -1,15 +1,11 @@
 <?php
 $labels = Array(
-	'cd_title'=> "CardDAV",
-	'cd_active'=> "Utilizza rubrica CardDAV",
-	'cd_newabboxtitle'=> "Aggiungi una nuova Rubrica",
-	'cd_username'=> "Nome utente",
-	'cd_password'=> "Password",
-	'cd_url'=> "Indirizzo server (URL)",
-	'cd_name'=> "Nome nuova rubrica",
-	'cd_delete'=> "Elimina rubrica",
-	'cd_name_new'=> "Crea una nuova rubrica",
-	'cd_refresh_time'=> "Frequenza di aggiornamento (ore)",
-	'cd_err_noabfound'=> "Nessuna Rubrica Trovata",
+	'CardDAV_rclbl'=> "CardDAV",
+	'AccProps_username_lbl'=> "Nome utente",
+	'AccProps_password_lbl'=> "Password",
+	'AbProps_url_lbl'=> "Indirizzo server (URL)",
+	'AbProps_abname_lbl'=> "Nome nuova rubrica",
+	'AbProps_abname_lbl_new'=> "Crea una nuova rubrica",
+	'AbProps_refresh_time_lbl'=> "Frequenza di aggiornamento (ore)",
 );
 ?>

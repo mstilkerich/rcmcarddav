@@ -1,16 +1,11 @@
 <?php
 $labels = Array(
-	'cd_title'=> "CardDAV",
-	'cd_active'=> "Aktywuj książkę adresową CardDAV",
-	'cd_newabboxtitle'=> "Dodaj nową książkę adresową",
-	'cd_username'=> "Nazwa użytkownika",
-	'cd_password'=> "Hasło",
-	'cd_url'=> "URL",
-	'cd_name'=> "Nazwa książki adresowej",
-	'cd_use_categories' => "Użyj nowego mechanizmu grup\n(stracisz stare grupy RCMCardDAV!)",
-	'cd_delete'=> "Usuń książkę adresową",
-	'cd_name_new'=> "Konfiguracja nowej książki adresowej",
-	'cd_refresh_time'=> "Interwał aktualizacji (godziny)",
-	'cd_err_noabfound'=> "nie znaleziono książek adresowych",
+	'CardDAV_rclbl'=> "CardDAV",
+	'AccProps_username_lbl'=> "Nazwa użytkownika",
+	'AccProps_password_lbl'=> "Hasło",
+	'AbProps_url_lbl'=> "URL",
+	'AbProps_abname_lbl'=> "Nazwa książki adresowej",
+	'AbProps_abname_lbl_new'=> "Konfiguracja nowej książki adresowej",
+	'AbProps_refresh_time_lbl'=> "Interwał aktualizacji (godziny)",
 );
 ?>
