@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_accounts (
 -- table to store the configured address books
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-	name VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+	name TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
 	url VARCHAR(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
 	active TINYINT UNSIGNED NOT NULL DEFAULT 1,
 	last_updated BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the last update of the local database

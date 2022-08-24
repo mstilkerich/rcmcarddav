@@ -29,7 +29,7 @@ CREATE SEQUENCE TABLE_PREFIXcarddav_addressbooks_seq
 	CACHE 1;
 CREATE TABLE TABLE_PREFIXcarddav_addressbooks (
 	id integer DEFAULT nextval('TABLE_PREFIXcarddav_addressbooks_seq'::text) PRIMARY KEY,
-	name VARCHAR(64) NOT NULL,
+	name TEXT NOT NULL,
 	url TEXT NOT NULL,
 	active SMALLINT NOT NULL DEFAULT 1,
 	last_updated BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the last update of the local database

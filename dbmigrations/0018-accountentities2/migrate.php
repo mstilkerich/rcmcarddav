@@ -52,7 +52,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\DBMigrationInterface;
  *     presetname: ?string
  * }
  */
-class Migration0017 implements DBMigrationInterface
+class Migration0018 implements DBMigrationInterface
 {
     public function migrate(rcube_db $dbh, LoggerInterface $logger): bool
     {
@@ -183,7 +183,7 @@ class Migration0017 implements DBMigrationInterface
                 throw new \Exception($dbh->is_error());
             }
         } catch (\Exception $e) {
-            $logger->error("Error in PHP-based migration Migration0017: " . $e->getMessage());
+            $logger->error("Error in PHP-based migration Migration0018: " . $e->getMessage());
             $dbh->rollbackTransaction();
             return false;
         }
