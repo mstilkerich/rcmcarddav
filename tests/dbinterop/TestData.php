@@ -236,7 +236,6 @@ final class TestData
         // are invoked by the test execution
         $_SESSION["username"] = self::INITDATA['users'][0][0];
         $_SESSION["password"] = \rcube::get_instance()->encrypt('test');
-        \rcube::get_instance()->set_user(new \rcube_user(intval($userId)));
     }
 
     /**

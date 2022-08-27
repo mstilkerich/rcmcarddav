@@ -112,6 +112,11 @@ class AddressbookManager
      */
     private $abooksDb = null;
 
+    public function __construct()
+    {
+        // CAUTION: expected to be empty as no initialized plugin environment available yet
+    }
+
     /**
      * Returns the IDs of all the user's accounts, optionally filtered.
      *
@@ -365,6 +370,8 @@ class AddressbookManager
             }
         }
 
+        // username and password may be stored as placeholders in the database
+        // the URL is always stored without placeholders and needs not be replaced
         $config['username'] = Utils::replacePlaceholdersUsername($account["username"]);
         $config['password'] = Utils::replacePlaceholdersPassword($account["password"]);
 

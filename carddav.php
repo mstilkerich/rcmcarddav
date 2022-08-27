@@ -101,69 +101,79 @@ class carddav extends rcube_plugin implements RcmInterface
 
         parent::__construct($api);
 
-        // we do not currently use the roundcube mechanism to save preferences
-        // but store preferences to custom database tables
+        // we do not use the roundcube mechanism to save preferences but store preferences to custom DB tables
         $this->allowed_prefs = [];
 
-        $infra = Config::inst();
-        $infra->rc($this);
-
+        // constructor of AddressbookManager is empty, so it is safe to construct the object here
         $this->abMgr = new AddressbookManager();
     }
 
     public function init(): void
     {
-        $infra = Config::inst();
-        $logger = $infra->logger();
-
-        $rcmail = \rcmail::get_instance();
-        $rcTask = $rcmail->task;
-        $rcAction = $rcmail->action;
-        $logger->debug(__METHOD__ . ", $rcTask, $rcAction");
-
         try {
-            $rc = $infra->rc();
-            $rc->addHook('login_after', [$this, 'afterLogin']);
+            $this->addHook('login_after', [$this, 'afterLogin']);
 
-            // initialize carddavclient library
-            MStilkerich\CardDavClient\Config::init($logger, $infra->httpLogger());
-
+            // Until we have a logged on user, we have no business other than registering the afterLogin hook
+            // Specifically, we delay the other initializations until this point since some actions (particularly
+            // reading the admin presets, which may require substitution of the username in URLs) require the logged on
+            // user to be available
             if (!isset($_SESSION['user_id'])) {
                 return;
             }
 
-            $rc->addTexts('localization/');
-
-            $rc->addHook('addressbooks_list', [$this, 'listAddressbooks']);
-            $rc->addHook('addressbook_get', [$this, 'getAddressbook']);
-            $rc->addHook('addressbook_export', [$this, 'exportVCards']);
-
-            // if preferences are configured as hidden by the admin, don't register the hooks handling preferences
-            $admPrefs = $infra->admPrefs();
-            if (!$admPrefs->hidePreferences && $rcTask == "settings") {
-                new UI($this->abMgr);
-            }
-
-            // use this address book for autocompletion queries
-            // (maybe this should be configurable by the user?)
-            $config = rcube::get_instance()->config;
-            $sources = (array) $config->get('autocomplete_addressbooks', ['sql']);
-
-            $carddav_sources = array_map(
-                function (string $id): string {
-                    return "carddav_$id";
-                },
-                $this->abMgr->getAddressbookIds()
-            );
-
-            $config->set('autocomplete_addressbooks', array_merge($sources, $carddav_sources));
-
-            $specialAbooks = $admPrefs->getSpecialAddressbooks($this->abMgr, $infra);
-            foreach ($specialAbooks as $type => $abookId) {
-                $config->set($type, "carddav_$abookId");
-            }
+            $this->initPlugin();
         } catch (\Exception $e) {
-            $logger->error("Could not init rcmcarddav: " . $e);
+            $infra = Config::inst();
+            $logger = $infra->logger();
+            $logger->error("Could not init rcmcarddav: " . $e->getMessage());
+        }
+    }
+
+    private function initPlugin(): void
+    {
+        $infra = Config::inst();
+
+        // register this object as the roundcube adapter object
+        // this will normally just return $this, but in the tests we can override it
+        $rc = $infra->rc($this);
+
+        $logger = $infra->logger();
+
+        // initialize carddavclient library
+        MStilkerich\CardDavClient\Config::init($logger, $infra->httpLogger());
+
+        $rcmail = \rcmail::get_instance();
+        $rcTask = $rcmail->task;
+
+        $rc->addTexts('localization/');
+
+        $rc->addHook('addressbooks_list', [$this, 'listAddressbooks']);
+        $rc->addHook('addressbook_get', [$this, 'getAddressbook']);
+        $rc->addHook('addressbook_export', [$this, 'exportVCards']);
+
+        // if preferences are configured as hidden by the admin, don't register the hooks handling preferences
+        $admPrefs = $infra->admPrefs();
+        if (!$admPrefs->hidePreferences && $rcTask == "settings") {
+            new UI($this->abMgr);
+        }
+
+        // use this address book for autocompletion queries
+        // (maybe this should be configurable by the user?)
+        $config = rcube::get_instance()->config;
+        $sources = (array) $config->get('autocomplete_addressbooks', ['sql']);
+
+        $carddav_sources = array_map(
+            function (string $id): string {
+                return "carddav_$id";
+            },
+            $this->abMgr->getAddressbookIds()
+        );
+
+        $config->set('autocomplete_addressbooks', array_merge($sources, $carddav_sources));
+
+        $specialAbooks = $admPrefs->getSpecialAddressbooks($this->abMgr, $infra);
+        foreach ($specialAbooks as $type => $abookId) {
+            $config->set($type, "carddav_$abookId");
         }
     }
 
@@ -293,6 +303,10 @@ class carddav extends rcube_plugin implements RcmInterface
 
     public function afterLogin(): void
     {
+        // this is needed because when carddav::init() was invoked, SESSION['user_id'] was not yet available and
+        // therefore we delayed the plugin initialization to this point
+        $this->initPlugin();
+
         $infra = Config::inst();
         $logger = $infra->logger();
         $admPrefs = $infra->admPrefs();

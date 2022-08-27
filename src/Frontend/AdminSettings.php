@@ -66,7 +66,11 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *     extra_addressbooks?: array<string, PresetExtraAbook>,
  * }
  *
- * @psalm-type SettingSpecification=array{'timestr'|'string'|'bool'|'string[]'|'skip', bool, int|string|bool|array|null}
+ * @psalm-type SettingSpecification=array{
+ *     'url'|'timestr'|'string'|'bool'|'string[]'|'skip',
+ *     bool,
+ *     int|string|bool|array|null
+ * }
  *
  * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type FullAccountRow from AbstractDatabase
@@ -86,7 +90,7 @@ class AdminSettings
      */
     private const PRESET_SETTINGS_EXTRA_ABOOK = [
         // type, mandatory, default value
-        'url'            => [ 'string',   true,  null ],
+        'url'            => [ 'url',      true,  null ],
         'active'         => [ 'bool',     false, true ],
         'readonly'       => [ 'bool',     false, false ],
         'refresh_time'   => [ 'timestr',  false, 3600 ],
@@ -105,7 +109,7 @@ class AdminSettings
         'name'               => [ 'string',  true,  null ],
         'username'           => [ 'string',  false, '' ],
         'password'           => [ 'string',  false, '' ],
-        'url'                => [ 'string',  false, null ],
+        'url'                => [ 'url',     false, null ],
         'rediscover_time'    => [ 'timestr', false, 86400 ],
         'hide'               => [ 'bool',    false, false ],
         'extra_addressbooks' => [ 'skip',    false, null ],
@@ -548,9 +552,12 @@ class AdminSettings
 
                     case 'string':
                     case 'timestr':
+                    case 'url':
                         if (is_string($preset[$attr])) {
                             if ($type == 'timestr') {
                                 $result[$attr] = Utils::parseTimeParameter($preset[$attr]);
+                            } elseif ($type == 'url') {
+                                $result[$attr] = Utils::replacePlaceholdersUrl($preset[$attr]);
                             } else {
                                 $result[$attr] = $preset[$attr];
                             }

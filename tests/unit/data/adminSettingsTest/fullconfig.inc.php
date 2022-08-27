@@ -13,7 +13,7 @@ $prefs['Preset1'] = [
     'username'     =>  '%u',
     'password'     =>  '%p',
     //// optional attributes
-    'url'          =>  'cdav.example.com',
+    'url'          =>  'cdav.example.com/%u',
     'rediscover_time' => '01:02:34',
     'hide' => true,
 
@@ -42,6 +42,10 @@ $prefs['Preset1'] = [
         ],
         [
             'url'          =>  'https://cdav.example.com/shared/book2',
+            // all the optional attributes should default to the settings in the account
+        ],
+        [
+            'url'          =>  'https://cdav.example.com/%d/%l/%u',
             // all the optional attributes should default to the settings in the account
         ],
     ],

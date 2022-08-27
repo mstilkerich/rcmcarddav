@@ -9,7 +9,7 @@
 			"name": "First Preset",
 			"username": "%u",
 			"password": "%p",
-			"url": "cdav.example.com",
+			"url": "cdav.example.com/user@example.com",
 			"rediscover_time": 3754,
 			"hide": true,
 			"active": false,
@@ -30,6 +30,15 @@
 				},
 				"https://cdav.example.com/shared/book2": {
 					"url": "https://cdav.example.com/shared/book2",
+					"active": false,
+					"readonly": true,
+					"refresh_time": 7200,
+					"use_categories": false,
+					"fixed": [ "name" ],
+					"require_always": [ "email" ]
+				},
+				"https://cdav.example.com/example.com/user/user@example.com": {
+					"url": "https://cdav.example.com/example.com/user/user@example.com",
 					"active": false,
 					"readonly": true,
 					"refresh_time": 7200,
