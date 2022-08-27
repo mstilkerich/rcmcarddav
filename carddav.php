@@ -1035,8 +1035,8 @@ class carddav extends rcube_plugin
         );
 
         // input box for refresh time
-        if (isset($abook["refresh_time"])) {
-            $rt = $abook['refresh_time'];
+        if (isset($abook['refresh_time'])) {
+            $rt = intval($abook['refresh_time']);
             $refresh_time_str = sprintf("%02d:%02d:%02d", intdiv($rt, 3600), intdiv($rt, 60) % 60, $rt % 60);
         } else {
             $refresh_time_str = "";
