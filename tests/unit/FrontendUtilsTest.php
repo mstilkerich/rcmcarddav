@@ -29,9 +29,9 @@ namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
 use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
-use carddav;
+use MStilkerich\CardDavAddressbook4Roundcube\Frontend\Utils;
 
-final class CarddavTest extends TestCase
+final class FrontendUtilsTest extends TestCase
 {
     public static function setUpBeforeClass(): void
     {
@@ -72,21 +72,18 @@ final class CarddavTest extends TestCase
     }
 
     /**
-     * Tests that the carddav::parseTimeParameter() methods converts time strings properly.
+     * Tests that parseTimeParameter() converts time strings properly.
      *
      * @dataProvider timeStringProvider
      */
     public function testTimeParameterParsedCorrectly(string $timestr, ?int $seconds): void
     {
-        $parseFn = new \ReflectionMethod(carddav::class, "parseTimeParameter");
-        $parseFn->setAccessible(true);
-
         if (isset($seconds)) {
-            $this->assertEquals($seconds, $parseFn->invokeArgs(null, [$timestr]));
+            $this->assertEquals($seconds, Utils::parseTimeParameter($timestr));
         } else {
             $this->expectException(\Exception::class);
             $this->expectExceptionMessage("Time string $timestr could not be parsed");
-            $parseFn->invokeArgs(null, [$timestr]);
+            Utils::parseTimeParameter($timestr);
         }
     }
 }

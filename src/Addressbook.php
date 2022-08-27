@@ -32,14 +32,23 @@ use Sabre\VObject\Component\VCard;
 use rcube_addressbook;
 use rcube_result_set;
 use rcube_utils;
-use rcube;
 use MStilkerich\CardDavClient\{Account, AddressbookCollection};
-use MStilkerich\CardDavClient\Services\{Discovery, Sync};
+use MStilkerich\CardDavClient\Services\Sync;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
 
 /**
- * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type SaveData from DataConversion
+ *
+ * @psalm-type AddressbookOptions = array{
+ *   name: string,
+ *   username: string,
+ *   password: string,
+ *   url: string,
+ *   use_categories: numeric-string,
+ *   last_updated: numeric-string,
+ *   refresh_time: numeric-string,
+ *   sync_token: string
+ * }
  *
  * @psalm-type GroupSaveData = array{
  *   ID: string,
@@ -70,7 +79,7 @@ class Addressbook extends rcube_addressbook
     /** @var ?rcube_result_set The result of the last get_record(), list_records() or search() operation */
     private $result = null;
 
-    /** @var FullAbookRow Database row of the addressbook containing its configuration */
+    /** @var AddressbookOptions Various options for the behavior of the addressbook */
     private $config;
 
     /** @var array $table_cols
@@ -83,7 +92,7 @@ class Addressbook extends rcube_addressbook
      * Constructs an addressbook object.
      *
      * @param string $dbid The addressbook's database ID
-     * @param FullAbookRow $config The database row of the addressbook
+     * @param AddressbookOptions $config Options for the addressbook
      * @param bool $readonly If true, the addressbook is readonly and change operations are disabled.
      * @param list<string> $requiredProps A list of address object columns that must not be empty. If any of the fields
      *                                    is empty, the contact will be hidden.
@@ -551,7 +560,8 @@ class Addressbook extends rcube_addressbook
             // if the ETag is null, the update failed because of a precondition check; we performed a resync above, so a
             // subsequent update is more likely to succeed
             if ($etag === null) {
-                $this->set_error(rcube_addressbook::ERROR_SAVING, $this->gettext('cd_etagmismatch'));
+                $rc = $infra->rc();
+                $this->set_error(rcube_addressbook::ERROR_SAVING, $rc->locText('Be_etagmismatch_msg'));
                 return false;
             }
 
@@ -941,7 +951,8 @@ class Addressbook extends rcube_addressbook
                 $vcard->N  = [$newname,"","","",""];
 
                 if ($davAbook->updateCard($group["uri"], $vcard, $group["etag"]) === null) {
-                    $this->set_error(rcube_addressbook::ERROR_SAVING, $this->gettext('cd_etagmismatch'));
+                    $rc = $infra->rc();
+                    $this->set_error(rcube_addressbook::ERROR_SAVING, $rc->locText('Be_etagmismatch_msg'));
                     $ret = false;
                 }
             } else { // CATEGORIES-type group
@@ -1049,7 +1060,8 @@ class Addressbook extends rcube_addressbook
 
                 if ($davAbook->updateCard($group['uri'], $vcard, $group['etag']) === null) {
                     $added = 0;
-                    $this->set_error(rcube_addressbook::ERROR_SAVING, $this->gettext('cd_etagmismatch'));
+                    $rc = $infra->rc();
+                    $this->set_error(rcube_addressbook::ERROR_SAVING, $rc->locText('Be_etagmismatch_msg'));
                 }
 
             // if vcard is not set, this group comes from the CATEGORIES property of the contacts it comprises
@@ -1226,41 +1238,31 @@ class Addressbook extends rcube_addressbook
     /**
      * Synchronizes the local card store with the CardDAV server.
      *
-     * @return int The duration in seconds that the sync took.
+     * @return int The duration in seconds that the sync took
      */
     public function resync(): int
     {
         $infra = Config::inst();
         $logger = $infra->logger();
         $db = $infra->db();
-        $duration = -1;
 
-        try {
-            $start_refresh = time();
-            $davAbook = $this->getCardDavObj();
-            $synchandler = new SyncHandlerRoundcube($this, $this->dataConverter, $davAbook);
-            $syncmgr = new Sync();
+        $start_refresh = time();
+        $davAbook = $this->getCardDavObj();
+        $synchandler = new SyncHandlerRoundcube($this, $this->dataConverter, $davAbook);
+        $syncmgr = new Sync();
 
-            $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token']);
-            $this->config['sync_token'] = $sync_token;
-            $this->config["last_updated"] = (string) time();
-            $db->update(
-                $this->id,
-                ["last_updated", "sync_token"],
-                [$this->config["last_updated"], $sync_token],
-                "addressbooks"
-            );
+        $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token']);
+        $this->config['sync_token'] = $sync_token;
+        $this->config["last_updated"] = (string) time();
+        $db->update(
+            $this->id,
+            ["last_updated", "sync_token"],
+            [$this->config["last_updated"], $sync_token],
+            "addressbooks"
+        );
 
-            $duration = time() - $start_refresh;
-            $logger->info("sync of addressbook {$this->id} ({$this->get_name()}) took $duration seconds");
-
-            if ($synchandler->hadErrors) {
-                $this->set_error(rcube_addressbook::ERROR_SAVING, "Non-fatal errors occurred during sync");
-            }
-        } catch (\Exception $e) {
-            $logger->error("Errors occurred during the refresh of addressbook " . $this->id . ": $e");
-            $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
-        }
+        $duration = time() - $start_refresh;
+        $logger->info("sync of addressbook {$this->id} ({$this->get_name()}) took $duration seconds");
 
         return $duration;
     }
@@ -1796,18 +1798,6 @@ class Addressbook extends rcube_addressbook
         }
 
         return $filterMatches > 0;
-    }
-
-
-    /**
-     * Get a localized text from roundcube.
-     *
-     * This function is temporary in this class and meant to be removed with v5.
-     */
-    private function gettext(string $label): string
-    {
-        $rcube = rcube::get_instance();
-        return rcube::Q($rcube->gettext($label, 'carddav'));
     }
 }
 

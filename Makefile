@@ -20,7 +20,7 @@ TESTDB_postgres=rcmcarddavtest
 MIGTESTDB_postgres=rcmcarddavmigtest
 
 # A list of the DB tables of the rcmcarddav plugin
-CD_TABLES=$(foreach tbl,addressbooks contacts groups group_user xsubtypes migrations,carddav_$(tbl))
+CD_TABLES=$(foreach tbl,accounts addressbooks contacts groups group_user xsubtypes migrations,carddav_$(tbl))
 
 # Where to store the generated API phpdoc documentation (doc target)
 DOCDIR := doc/api/
@@ -63,7 +63,7 @@ phpcompatcheck:
 	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/ tests/
 
 psalmanalysis: tests/dbinterop/DatabaseAccounts.php
-	vendor/bin/psalm --no-cache --shepherd --report=testreports/psalm.txt --report-show-info=true --no-progress --output-format=pylint
+	vendor/bin/psalm --no-cache --shepherd --report=testreports/psalm.txt --report-show-info=true --no-progress
 
 # Example usage for non-HEAD version: RELEASE_VERSION=v4.1.0 make tarball
 .PHONY: tarball

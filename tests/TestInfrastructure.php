@@ -30,6 +30,7 @@ use PHPUnit\Framework\TestCase;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
+use MStilkerich\CardDavAddressbook4Roundcube\Frontend\AdminSettings;
 
 final class TestInfrastructure
 {
@@ -39,9 +40,20 @@ final class TestInfrastructure
     /** @var ?TestLogger */
     private static $logger;
 
-    public static function init(AbstractDatabase $db): void
+    /**
+     * Initializes the RCMCardDAV infrastructure Config by a test-specific implementation.
+     *
+     * This includes the creation of test-specific logger and roundcube adapter interface.
+     */
+    public static function init(AbstractDatabase $db, ?string $admSettingsPath = null): void
     {
-        self::$infra = new Config($db, self::logger());
+        if (!isset($admSettingsPath)) {
+            $admSettingsPath = __DIR__ . "/../config.inc.php.dist";
+        }
+
+        $logger = self::logger();
+        $admPrefs = new AdminSettings($admSettingsPath, $logger, $logger);
+        self::$infra = new Config($db, $logger, $admPrefs);
         \MStilkerich\CardDavAddressbook4Roundcube\Config::$inst = self::$infra;
     }
 
@@ -63,6 +75,15 @@ final class TestInfrastructure
         TestCase::assertTrue(is_array($phpArray), "JSON parse error on $jsonFile");
 
         return $phpArray;
+    }
+
+    public static function readPhpPrefsArray(string $phpIncFile): array
+    {
+        $prefs = [];
+        if (file_exists($phpIncFile)) {
+            include($phpIncFile);
+        }
+        return $prefs;
     }
 
     public static function readVCard(string $vcfFile): VCard
@@ -208,6 +229,78 @@ final class TestInfrastructure
         $prop = new \ReflectionProperty($class, $propName);
         $prop->setAccessible(true);
         $prop->setValue($obj, $value);
+    }
+
+    /**
+     * @param object $obj
+     * @return mixed $value
+     */
+    public static function getPrivateProperty($obj, string $propName)
+    {
+        $class = get_class($obj);
+        $prop = new \ReflectionProperty($class, $propName);
+        $prop->setAccessible(true);
+        return $prop->getValue($obj);
+    }
+
+    /**
+     * Recursively copies the given directory to the given destination.
+     *
+     * The destination must not exist yet.
+     */
+    public static function copyDir(string $src, string $dst): void
+    {
+        TestCase::assertDirectoryIsReadable($src, "Source directory $src cannot be read");
+        TestCase::assertDirectoryDoesNotExist($dst, "Destination directory $dst already exists");
+
+        // create destination
+        TestCase::assertTrue(mkdir($dst, 0755, true), "Destination directory $dst could not be created");
+
+        // process all directory entries in source
+        $dirh = opendir($src);
+        TestCase::assertIsResource($dirh, "Source directory could not be opened");
+        while (false !== ($entry = readdir($dirh))) {
+            if ($entry != "." && $entry != "..") {
+                $entryp = "$src/$entry";
+                $targetp = "$dst/$entry";
+
+                if (is_dir($entryp)) {
+                    self::copyDir($entryp, $targetp);
+                } elseif (is_file($entryp)) {
+                    TestCase::assertTrue(copy($entryp, $targetp), "Copy failed: $entryp -> $targetp");
+                } else {
+                    TestCase::assertFalse(true, "$entryp: copyDir only supports files/directories");
+                }
+            }
+        }
+        closedir($dirh);
+    }
+
+    /**
+     * Recursively deletes the given directory.
+     */
+    public static function rmDirRecursive(string $dir): void
+    {
+        TestCase::assertDirectoryIsWritable($dir, "Target directory $dir not writeable");
+
+        // 1: purge directory contents
+        $dirh = opendir($dir);
+        TestCase::assertIsResource($dirh, "Target directory could not be opened");
+        while (false !== ($entry = readdir($dirh))) {
+            if ($entry != "." && $entry != "..") {
+                $entryp = "$dir/$entry";
+
+                if (is_dir($entryp)) {
+                    self::rmDirRecursive($entryp);
+                } else {
+                    TestCase::assertTrue(unlink($entryp), "Unlink failed: $entryp");
+                }
+            }
+        }
+        closedir($dirh);
+
+        // 2: delete directory
+        TestCase::assertTrue(rmdir($dir), "rmdir failed: $dir");
     }
 }
 

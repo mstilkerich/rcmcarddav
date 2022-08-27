@@ -3,16 +3,14 @@
 		{
 			"id": 404,
 			"name": "Other Addressbook",
-			"username": "theUser",
-			"password": "thePassword",
 			"url": "https://carddav.example.com/book404",
 			"active": 1,
-			"user_id": "1000",
 			"last_updated": 12345,
 			"refresh_time": 3600,
 			"sync_token": "sync@3600",
-			"presetname": null,
-			"use_categories": 1
+			"use_categories": 1,
+			"discovered": 1,
+			"account_id": 42
 		}
 	],
 	"contacts": [

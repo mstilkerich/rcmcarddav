@@ -1,0 +1,81 @@
+<roundcube:include file="includes/layout.html" />
+<roundcube:include file="includes/menu.html" />
+<roundcube:include file="includes/settings-menu.html" />
+
+<!-- Menu entry in the settings pane -->
+<h1 class="voice"><roundcube:label name="settings" /> : <roundcube:label name="carddav.CardDAV_rclbl" /></h1>
+
+<!-- CardDAV pane showing treelist of accounts and their addressbooks -->
+<div id="layout-list" class="listbox selected" aria-labelledby="aria-label-carddavaddressbookslist">
+
+	<!-- These elements show up in the header of the CardDAV pane if there is no room left for the settings pane -->
+	<div class="header">
+		<a class="button icon back-sidebar-button" href="#sidebar"><span class="inner"><roundcube:label name="settings" /></span></a>
+		<span id="aria-label-carddavaddressbookslist" class="header-title"><roundcube:label name="carddav.CardDAV_rclbl" /></span>
+		<a class="button icon toolbar-menu-button" href="#list-menu"><span class="inner"><roundcube:label name="menu" /></span></a>
+	</div>
+
+	<!-- This is the accounts/addressbooks treelist itself -->
+	<div class="scroller">
+		<roundcube:object name="addressbookslist" id="addressbooks-table" class="treelist listing iconized" role="listbox"
+		data-list="addressbooks_list" data-label-msg="listempty" />
+	</div>
+</div>
+
+<!-- info frame -->
+<div id="layout-content" role="main">
+	<h2 id="aria-label-toolbar" class="voice"><roundcube:label name="arialabeltoolbar" /></h2>
+	<div class="header" role="toolbar" aria-labelledby="aria-label-toolbar">
+		<a class="button icon back-list-button" href="#back"><span class="inner"><roundcube:label name="back" /></span></a>
+		<span class="header-title"></span>
+		<!-- toolbar -->
+
+		<!--
+			Button labels: domain (for gettext), label, title
+			Executed action: command names a JS function of the rcmail object, - are replaced by _ for the function name
+		-->
+		<div id="carddavtoolbar" class="toolbar menu">
+
+			<roundcube:if condition="!env:carddav_forbidCustomAddressbooks" />
+				<roundcube:button
+					command="plugin.carddav-AccAdd" type="link"
+					class="carddav_AccAdd disabled" classAct="carddav_AccAdd"
+					innerClass="inner"
+					data-fab="true"
+					domain="carddav" label="AccAdd_btnlbl" title="AccAdd_btntit"
+				/>
+			<roundcube:endif />
+
+			<roundcube:button command="plugin.carddav-AccRm" type="link"
+				class="carddav_AccRm disabled" classAct="carddav_AccRm"
+				domain="carddav" label="AccRm_btnlbl" title="AccRm_btntit" innerclass="inner" />
+
+			<roundcube:button command="plugin.carddav-AccRedisc" type="link"
+				class="carddav_AccRedisc disabled" classAct="carddav_AccRedisc"
+				domain="carddav" label="AccRedisc_btnlbl" title="AccRedisc_btntit" innerclass="inner" />
+
+			<span class="dropbutton">
+				<roundcube:button command="plugin.carddav-AbSync" type="link"
+					class="carddav_AbSync disabled" classAct="carddav_AbSync"
+					domain="carddav" label="AbSync_btnlbl" title="AbSync_btntit" innerclass="inner" />
+
+				<a href="#carddav_AbSync" class="dropdown" data-popup="carddav_AbSync_menu">
+					<span class="inner"><roundcube:label name="carddav.AbSync_menulbl_aria" /></span>
+				</a>
+			</span>
+		</div>
+	</div>
+	<div class="iframe-wrapper">
+		<roundcube:object name="contentframe" id="preferences-frame" src="env:blankpage" />
+	</div>
+</div>
+
+<div id="carddav_AbSync_menu" class="popupmenu">
+	<h3 id="aria-label-AbSync_menu" class="voice"><roundcube:label name="carddav.AbSync_menulbl_aria" /></h3>
+	<ul class="menu listing" role="menu" aria-labelledby="aria-label-AbSync_menu">
+		<roundcube:button type="link-menuitem" command="plugin.carddav-AbSync" domain="carddav" label="AbSync_btntit" prop="sub" class="carddav_AbSync disabled" classAct="carddav_AbSync" />
+		<roundcube:button type="link-menuitem" command="plugin.carddav-AbClrCache" domain="carddav" label="AbClrCache_btnlbl" prop="sub" class="carddav_AbClrCache select disabled" classAct="carddav_AbClrCache" />
+	</ul>
+</div>
+
+<roundcube:include file="includes/footer.html" />

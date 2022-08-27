@@ -1,18 +1,29 @@
 {
+	"accounts": [
+		{
+			"id": 42,
+			"name": "Test Account",
+			"username": "theUser",
+			"password": "thePassword",
+			"url": "https://carddav.example.com/",
+			"user_id": "1000",
+			"last_discovered": 12345,
+			"rediscover_time": 86400,
+			"presetname": null
+		}
+	],
 	"addressbooks": [
 		{
 			"id": 42,
 			"name": "Test Addressbook",
-			"username": "theUser",
-			"password": "thePassword",
 			"url": "https://carddav.example.com/book42",
 			"active": 1,
-			"user_id": "1000",
 			"last_updated": 12345,
 			"refresh_time": 3600,
 			"sync_token": "sync@3600",
-			"presetname": null,
-			"use_categories": 1
+			"use_categories": 1,
+			"discovered": 1,
+			"account_id": 42
 		}
 	]
 }

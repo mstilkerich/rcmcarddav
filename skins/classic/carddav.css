@@ -1,6 +1,104 @@
-#sections-table #rcmrowcd_preferences td.section {
-    background-position: 6px -766px;
+/* CardDAV addressbook list pane */
+#addressbookslist
+{
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border: 1px solid #999999;
+  background-color: #F9F9F9;
+  overflow: hidden;
 }
-#sections-table #rcmrowcd_preferences.selected td.section {
-    background-position: 6px -791px;
+
+/* put the addressbook active boxes in one line with the addressbook */
+#addressbooks-table li input {
+  position: absolute;
+  right: 0;
+  top: 2px;
 }
+
+#addressbooks-table li a {
+  padding-right: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#addressbooks-table li a
+{
+  cursor: default;
+  display: block;
+  position: relative;
+  padding-left: 25px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  text-decoration: none;
+  height: 15px;
+}
+
+#addressbooks-table li.account > a
+{
+  background: url(images/silhouette.png) 5px 1px no-repeat;
+}
+
+#addressbooks-table li.selected
+{
+  background-color: #929292;
+}
+
+#addressbooks-table li.selected > a,
+{
+  color: #FFF;
+  font-weight: bold;
+}
+
+/* Addressbooks nested inside the accounts */
+#addressbooks-table ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid #EBEBEB;
+  background-color: #FFF;
+  font-weight: normal;
+}
+
+#addressbooks-table li.addressbook a {
+  padding-left: 40px;  /* 24 + 1 x 16 */
+  background: url(images/folders.png) no-repeat 21px -108px;
+}
+#addressbooks-table li.addressbook div.treetoggle {
+  left: 23px !important;
+}
+
+/* toolbar buttons */
+.boxfooter a.carddav_AccAdd
+{
+  background: url(images/groupactions.png) 0 0 no-repeat transparent;
+}
+
+.boxfooter a.carddav_AccRm
+{
+  background: url(images/groupactions.png) 0 -49px no-repeat transparent;
+}
+
+
+/* Account / addressbook details frame */
+
+#addressbook-details
+{
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid #999999;
+  overflow: hidden;
+  background-color: #F2F2F2;
+}
+
+#addressbook-frame
+{
+  background-color: #F2F2F2;
+  border: none;
+  min-height: 100%; /* Chrome 14 bug */
+}
+
+/* vim: set ts=2:sw=2:expandtab:fenc=utf8:ff=unix:tw=120 */

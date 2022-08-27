@@ -1,3 +1,42 @@
-.listing.iconized tr.cd_preferences>td.section:before {
+.listing.iconized tr.cd_preferences > td.section:before {
   content: "\f47f"
+}
+
+.listing.iconized li.cd_preferences > a:before {
+  content: "\f47f";
+}
+
+.listing.iconized li.addressbook > a:before {
+  content:"\f2b9";
+  font-weight:400
+}
+
+.listing.iconized > li.account.preset > a:before {
+  content:"\f502";
+  font-weight:400
+}
+
+.listing.iconized > li.account:not(.preset) > a:before {
+  content:"\f007";
+  font-weight:400
+}
+
+.menu a.carddav_AccAdd:before {
+  content:"\f234";
+}
+
+.menu a.carddav_AccRm:before {
+  content:"\f503";
+}
+
+.menu a.carddav_AccRedisc:before {
+  content:"\f4fe";
+}
+
+.menu a.carddav_AbSync:before {
+  content:"\f01e";
+}
+
+.menu a.carddav_AbClrCache:before {
+  content:"\f12d";
 }

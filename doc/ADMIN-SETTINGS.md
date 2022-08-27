@@ -40,25 +40,28 @@ The administrator can limit the feature set offered by the plugin for ordinary u
 
 - `$prefs['_GLOBAL']['hide_preferences']`: If true, CardDAV settings are not shown in preferences pane (Default: false)
    In effect, the user can neither add/remove or change preferences of any addressbooks, including preconfigured ones.
+   (Note: this option only hides the UI, but does not disable the backend actions. If you want to make sure a user
+   cannot change addressbook settings, use the global `fixed` option to avoid creation of custom addressbooks, and the
+   `fixed` attribute in the presets to make all fields fixed. These restrictions are also enforced on the server side.)
 
 ## Password storing scheme
 
 The plugin needs to store the user's CardDAV passwords in the roundcube database, except for the special case where the
 CardDAV password is the same as the user's roundcube / IMAP password (see [placeholder substitution for
-passwords](#password). There is different options on how the passwords can be stored, with different degrees of
-convenience and privacy. For all variants, the administrators of the server generally needs to be trusted, as they would
-with more or less effort always be able to determine the password.
+passwords](#password)). There are different options on how the passwords can be stored, with different degrees of
+convenience and privacy. For all variants, the administrators of the server generally need to be trusted, as they would
+with more or less effort always be able to sniff the password.
 
 The password scheme is configured in `$prefs['_GLOBAL']['pwstore_scheme']`. The available schemes are:
 
-- `plain`: The password is stored as plaintext in the database.
+- `plain`: The password is stored as plain text in the database.
 - `base64`: The password is stored BASE64-encoded in the database. This has the advantage that an admin working on the
-  database will not see the passwords in cleartext by accident.
+  database will not see the passwords in clear text by accident.
 - `des_key`: The password is encrypted with roundcube's installation encryption key (`$config['des_key']`) and cipher
-  (`$config['cipher_method']`). If the key is changed, the passwords cannot be decrypted anymore and would need to be
+  (`$config['cipher_method']`). If the key is changed, the passwords cannot be decrypted anymore and need to be
   updated by each user for custom addressbooks.
 - `encrypted` (DEFAULT):  The password is encrypted with the cipher method configured in roundcube
-  (`$config['cipher_method']`), but using the user's roundcube password as encryption key. Similarly, if the user
+  (`$config['cipher_method']`), but using the user's roundcube password as encryption key. If the user
   changes their roundcube/IMAP password, the CardDAV password cannot be decrypted anymore and needs to be entered in the
   settings again. Note: If a password-less login method (OAuth2, Kerberos) is used, this encryption scheme cannot be
   used as no password for the encryption is available.
@@ -68,12 +71,13 @@ stored with the new scheme.
 
 ## Placeholder substitutions in Username, Password and URL
 
-It is possible to user placeholders inside the addressbook fields. This is mainly useful in combination with
+It is possible to use placeholders inside the account/addressbook fields. This is mainly useful in combination with
 addressbooks preconfigured by the admin. The available substitutions depend on the field.
 
 ### Username and URL
 
-In the username and URL fields, the following substitutions are available:
+In the username and discovery URL fields of an account as well as the URL field of extra addressbooks, the following
+substitutions are available:
 
  - `%u`: Replaced by the full roundcube username
  - `%l`: Replaced by the local part of the roundcube username if it is an email address.
@@ -93,12 +97,11 @@ In the password field, the following special values are substituted:
    can be empty in that case.
 
 Substitution only works if the password is exactly the placeholder, i.e. this placeholder is not replaced if it is part
-of a larger string. In this case, the placeholder is also stored as password in the database, so the user can avoid
-having their password stored in the roundcube database at all.
+of a larger string. The placeholder is also stored as password in the database, not the actual password of the user.
 
-## Preconfigured Addressbooks (Presets)
+## Preconfigured CardDAV accounts and addressbooks (Presets)
 
-Preconfigured addressbook (a.k.a. _presets_) enable the administrator to configure addressbooks that are automatically
+Preconfigured addressbooks (a.k.a. _presets_) enable the administrator to configure addressbooks that are automatically
 added to a user's account on their first login, and optionally re-discovered upon subsequent logins. Furthermore, it is
 possible to have the settings of preconfigured addressbooks updated automatically.
 
@@ -106,28 +109,54 @@ A preconfigured addressbook configuration looks like this:
 
 ```php
 $prefs['<Presetname>'] = [
-    // required attributes
-    'name'         =>  '<Addressbook Name>',
-    'url'          =>  '<CardDAV Discovery URL>',
+    // Account attributes
+    //// required attributes
+    'name'         =>  '<Account Name>',
 
-    // required attributes unless passwordless authentication is used (Kerberos)
+    //// required attributes unless passwordless authentication is used (Kerberos)
     'username'     =>  '<CardDAV Username>',
     'password'     =>  '<CardDAV Password>',
+    //// optional attributes
+    ////// if url is not specified / null, addressbook discovery is disabled (see extra_addressbooks)
+    'url'          =>  '<CardDAV Discovery URL>',
+    'rediscover_time' => '<Rediscover Time in Hours, Format HH[:MM[:SS]]>',
+    ////// hide the account/addressbooks of this preset from CardDAV settings
+    'hide' => <true or false>,
 
-    // optional attributes
+    // Auto-discovered addressbook attributes
+    //// optional attributes
     'active'       =>  <true or false>,
     'readonly'     =>  <true or false>,
     'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
-    'rediscover_mode' => '<One of: none|fulldiscovery',
+    'use_categories' => <true or false>,
 
-    // attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset
+    ////// attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset
     'fixed'        =>  [ < 0 or more of the other attribute keys > ],
 
-    // always require these attributes, even for addressbook view
+    ////// always require these attributes, even for addressbook view
     'require_always' => ['email'],
 
-    // hide this preset from CardDAV preferences section so users can't even see it
-    'hide' => <true or false>,
+    // optional: manually add (non-discoverable) addressbooks
+    'extra_addressbooks' =>  [
+        // first manually-added addressbook
+        [
+            // required attributes
+            'url'          =>  '<Addressbook URL>',
+
+            // optional attributes - if not specified, values from account are applied
+            'active'       =>  <true or false>,
+            'readonly'     =>  <true or false>,
+            'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
+            'use_categories' => <true or false>,
+
+            // attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset addressbook
+            'fixed'        =>  [ < 0 or more of the other attribute keys > ],
+
+            // always require these attributes, even for addressbook view
+            'require_always' => ['email'],
+        ],
+        // ... second manually-added addressbook ...
+    ],
 ];
 
 ```
@@ -135,34 +164,32 @@ $prefs['<Presetname>'] = [
 The following describes the configuration options for a preset addressbook.
 
 `<Presetname>` needs to be a unique preset name. `<Presetname>` must not be `_GLOBAL`. The presetname is only used for
-an internal mapping between addressbooks created from a preset and the preset itself. You should never change this
-throughout its lifetime. If changed, the effect will be as if the existing preset was deleted and and a new one was
-added, resulting in deletion of the existing addressbooks from the database and creation of new ones.
+as an internal identifier for the preset account, you should never change it throughout the preset's lifetime. If
+changed, the effect will be as if the existing preset was deleted and and a new one was added, resulting in deletion of
+the existing addressbooks from the database and creation of new ones.
 
 ### Required parameters
-
- - `name`: User-visible name of the addressbook. If the server provides an additional display name for the addressbooks
-           found for the preset, it will be appended in brackets to this name, except if carddav_name_only is true (see
-           below).
- - `url`: URL where to find the CardDAV addressbook(s). This URL is taken to start a discovery process for addressbooks
-          according to RFC 6764. If the URL points to an addressbook __outside__ the user's addressbook home (i.e. a
-          shared or public addressbook), __only__ this addressbook is added. Otherwise, all discovered addressbooks are
-          added. That means, even if the URL points to an individual addressbook that belongs to the user, all other
-          addressbooks of the user are added as well.
-
-All addressbooks found will be added. The URL is fixed after creation of an addressbook and cannot currently be updated
-automatically. You can use the same placeholders as for the username field.
+ - `name`: User-visible name of the account. The addressbooks will be named according to the name provided by the
+           server, unless no server-side name is provided. In the latter case, a name will be derived.
 
 ### Required parameters unless password-less authentication is used (e.g. Kerberos)
  - `username`: CardDAV username to access the addressbook.
  - `password`: CardDAV password to access the addressbook.
 
-### Optional parameters
+### Optional parameters on the account
+ - `url`: URL where to find the CardDAV addressbook(s). This URL is taken to start a discovery process for addressbooks
+          according to RFC 6764. All discovered addressbooks are added. That means, even if the URL points to an
+          individual addressbook that belongs to the user, all other addressbooks of the user are added as well. If this
+          behavior is not intended, you can disable discovery omitting this parameter and specify the
+          addressbook URLs manually using `extra_addressbooks`. Default: `null`
+ - `rediscover_time`: Time interval after which the addressbooks for the account should be rediscovered, in hours.
+                      Format: `HH[:MM[:SS]]`
+                      Default: 24:00:00 (1 day)
+ - `hide`: Whether this preset should be hidden from the CardDAV listing on the preferences page.
+
+### Optional parameters on the addressbooks
  - `active`: If this parameter is false, the addressbook is not used by roundcube unless the user changes this setting.
              Default: true
- - `carddav_name_only`: If this parameter is true, only the server provided displayname is used for addressbooks created
-             from this preset, except if the server does not provide a display name.
-             Default: false
  - `readonly`: If this parameter is true, the addressbook will only be accessible in read-only mode, i.e., the user will
              not be able to add, modify or delete contacts in the addressbook.
              Default: false
@@ -176,26 +203,13 @@ automatically. You can use the same placeholders as for the username field.
  - `fixed`: Array of parameter keys that must not be changed by the user.
              Note that only fixed parameters will be automatically updated for existing addressbooks created from
              presets. Otherwise the user may already have changed the setting, and his change would be lost. You can add
-             any of the above keys, but it the setting only affects parameters that can be changed via the settings pane
-             (e.g., readonly cannot be changed by the user anyway). Still only parameters listed as fixed will
-             automatically updated if the preset is changed.
+             any of the above keys, but the setting only affects parameters that can be changed via the settings pane
+             (e.g., readonly cannot be changed by the user anyway). Normally you will at least want to fix the url,
+             username and password for a preset.
              Default: empty, all settings modifiable by user
  - `require_always`: If set, this database field is required to be non-empty for ALL queries, even just for displaying
              members. This may be useful if you have shared, read-only addressbooks with a lot of contacts that do not
              have an email address. The following are supported: name, email, firstname, surname
- - `hide`: Whether this preset should be hidden from the CardDAV listing on the preferences page.
- - `rediscover_mode`: Whether this preset should be re-discovered upon every login. This allows to detect new and
-             deleted addressbooks at the server side, but comes at the expense of extra communication upon every login.
-             Therefore the admin can choose whether such re-discovery should happen or not on a per-preset basis. The
-             update of `fixed` settings works independently of this setting.
-             The following values are possible (default: `fulldiscovery`):
-   - `none`: When addressbooks for the preset are present for the user logging in, no re-discovery will be performed.
-             This was the behavior of RCMCardDAV <4.3.0. When the admin knows that the set of addressbooks at the
-             server is fixed (the user cannot create/delete addressbooks at the server), this setting reduces network
-             traffic and does not unneccessarily slow down the login of the user. Another situation where this settings
-             makes sense is if the preset specifies a shared/public addressbook (see description of `url`).
-   - `fulldiscovery`: A full rediscovery is attempted on every login. New addressbooks at the server are added, and
-             addressbooks that do not exist at the server anymore are removed from roundcube.
 
 ### Examples
 
@@ -217,7 +231,7 @@ $prefs['Personal'] = [
     'readonly'     =>  false,
     'refresh_time' => '02:00:00',
 
-    'fixed'        =>  ['username'],
+    'fixed'        =>  ['url', 'username', 'password'],
     'hide'         =>  false,
 ];
 
@@ -230,6 +244,14 @@ $prefs['Work'] = [
 
     'fixed'        =>  ['name', 'username', 'password'],
     'hide'         =>  true,
+
+    'extra_addressbooks' =>  [
+        // company-wide read-only addressbook
+        [
+            'url'          =>  'https://corp.example.com/dav/Public/addressbooks/GlobalDirectory',
+            'readonly'     =>  true,
+        ],
+    ],
 ];
 ```
 
@@ -237,12 +259,13 @@ $prefs['Work'] = [
 
 Preconfigured addressbooks are processed when the user logs into roundcube.
 
-- An addressbook discovery is performed for each preset, using the information stored with the preset. Depending on the
-  `rediscover_mode` setting, the discovery is performed on every login or only when no addressbooks for the preset are
-  available for the user.
-  - Newly found addressbooks are added, except for the special case of shared/public addressbooks (see documentation of
-    the `url` preset parameter).
+- An addressbook discovery is performed for each preset, using the information stored with the preset. After initial
+  discovery, a rediscovery is performed during login if the time interval given in `rediscovery_time` has passed
+  since the last discovery for the account.
+  - Newly found addressbooks are added
   - Addressbooks stored in RCMCardDAV that cannot be discovered anymore are deleted.
+  - Note: Addressbooks given in the `extra_addressbooks` attribute of a preset are not subject to the discovery
+    mechanism and are always synced to what the admin has specified in the configuration.
 - For addressbooks already stored in RCMCardDAV, all fields that the admin listed in the `fixed` setting of the
   corresponding preset are updated. Other fields are not updated, since they may have been modified by the user.
 - If the user has addressbooks created from a preset that no longer exists (identified by the Presetname), the

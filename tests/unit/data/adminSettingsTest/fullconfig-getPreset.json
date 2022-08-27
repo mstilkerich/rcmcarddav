@@ -1,0 +1,96 @@
+{
+	"Preset1": {
+		"": {
+			"name": "First Preset",
+			"username": "%u",
+			"password": "%p",
+			"url": "cdav.example.com",
+			"rediscover_time": 3754,
+			"hide": true,
+
+			"active": false,
+			"readonly": true,
+			"refresh_time": 7200,
+			"use_categories": false,
+			"fixed": [ "name" ],
+			"require_always": [ "email" ]
+		},
+		"https://cdav.example.com/shared/book": {
+			"name": "First Preset",
+			"username": "%u",
+			"password": "%p",
+			"rediscover_time": 3754,
+			"hide": true,
+
+			"url": "https://cdav.example.com/shared/book",
+			"active": true,
+			"readonly": false,
+			"refresh_time": 7380,
+			"use_categories": true,
+			"fixed": [ "refresh_time" ],
+			"require_always": [ "phone" ]
+		},
+		"https://cdav.example.com/shared/book2": {
+			"name": "First Preset",
+			"username": "%u",
+			"password": "%p",
+			"rediscover_time": 3754,
+			"hide": true,
+
+			"url": "https://cdav.example.com/shared/book2",
+			"active": false,
+			"readonly": true,
+			"refresh_time": 7200,
+			"use_categories": false,
+			"fixed": [ "name" ],
+			"require_always": [ "email" ]
+		}
+	},
+	"Minimal": {
+		"": {
+			"name": "Minimal Preset with required values only",
+			"username": "",
+			"password": "",
+			"url": null,
+			"rediscover_time": 86400,
+			"hide": false,
+			"active": true,
+			"readonly": false,
+			"refresh_time": 3600,
+			"use_categories": true,
+			"fixed": [ ],
+			"require_always": [ ]
+		}
+	},
+	"OnlyShared": {
+		"": {
+			"name": "Preset that contains a shared addressbook only",
+			"username": "uonly",
+			"password": "ponly",
+			"url": null,
+			"rediscover_time": 86400,
+			"hide": false,
+			"active": true,
+			"readonly": false,
+			"refresh_time": 3600,
+			"use_categories": true,
+			"fixed": [ ],
+			"require_always": [ ]
+		},
+		"https://cdavshared.example.com/shared/book": {
+			"name": "Preset that contains a shared addressbook only",
+			"username": "uonly",
+			"password": "ponly",
+			"rediscover_time": 86400,
+			"hide": false,
+
+			"url": "https://cdavshared.example.com/shared/book",
+			"active": true,
+			"readonly": false,
+			"refresh_time": 3600,
+			"use_categories": true,
+			"fixed": [ ],
+			"require_always": [ ]
+		}
+	}
+}

@@ -33,7 +33,7 @@ $prefs['_GLOBAL']['loglevel_http'] = \Psr\Log\LogLevel::ERROR;
 // corresponding to the roundcube options of the same name available since roundcube 1.5.
 // Note that only writeable addressbooks can be used for this. If you do not want to use these options, simply do not
 // define them
-// If no/several addressbooks match, the roundcube setting will not be set and stay with whatever is configured in roundcube
+// If no/several addressbooks match, the roundcube setting will not be changed
 //$prefs['_GLOBAL']['collected_recipients'] = [
 //    // Key of the preset, i.e. whatever is used for <Presetname> in the template below
 //    'preset'  => '<Presetname>',
@@ -51,34 +51,61 @@ $prefs['_GLOBAL']['loglevel_http'] = \Psr\Log\LogLevel::ERROR;
 //    'matchurl' => '#http://carddav.example.com/abooks/%u/CollectedRecipients#',
 //];
 
-//// ** ADDRESSBOOK PRESETS
+//// ** ACCOUNT PRESETS
 
-// Each addressbook preset takes the following form:
+// Each account preset takes the following form:
 /*
 $prefs['<Presetname>'] = [
-    // required attributes
-    'name'         =>  '<Addressbook Name>',
-    'url'          =>  '<CardDAV Discovery URL>',
+    // Account attributes
+    //// required attributes
+    'name'         =>  '<Account Name>',
 
-    // required attributes unless passwordless authentication is used (Kerberos)
+    //// required attributes unless passwordless authentication is used (Kerberos)
     'username'     =>  '<CardDAV Username>',
     'password'     =>  '<CardDAV Password>',
+    //// optional attributes
+    ////// if url is not specified / null, addressbook discovery is disabled (see extra_addressbooks)
+    'url'          =>  '<CardDAV Discovery URL>',
+    'rediscover_time' => '<Rediscover Time in Hours, Format HH[:MM[:SS]]>',
+    ////// hide the account/addressbooks of this preset from CardDAV settings
+    'hide' => <true or false>,
 
-    // optional attributes
+    // Auto-discovered addressbook attributes
+    //// optional attributes
     'active'       =>  <true or false>,
     'readonly'     =>  <true or false>,
     'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
-    'rediscover_mode' => '<One of: none|fulldiscovery',
+    'use_categories' => <true or false>,
 
-    // attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset
+    ////// attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset
     'fixed'        =>  [ < 0 or more of the other attribute keys > ],
 
-    // always require these attributes, even for addressbook view
+    ////// always require these attributes, even for addressbook view
     'require_always' => ['email'],
 
-    // hide this preset from CardDAV preferences section so users can't even see it
-    'hide' => <true or false>,
+
+    // optional: manually add (non-discoverable) addressbooks
+    'extra_addressbooks' =>  [
+        // first manually-added addressbook
+        [
+            // required attributes
+            'url'          =>  '<Addressbook URL>',
+
+            // optional attributes - if not specified, values from account are applied
+            'active'       =>  <true or false>,
+            'readonly'     =>  <true or false>,
+            'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
+            'use_categories' => <true or false>,
+
+            // attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset addressbook
+            'fixed'        =>  [ < 0 or more of the other attribute keys > ],
+
+            // always require these attributes, even for addressbook view
+            'require_always' => ['email'],
+        ],
+        // ... second manually-added addressbook ...
+    ],
 ];
 */
 
-// vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120
+// vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120:ft=php

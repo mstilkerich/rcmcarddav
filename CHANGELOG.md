@@ -1,5 +1,28 @@
 # Changelog for RCMCardDAV
 
+## Version 5.0.0-beta (to 4.4.3)
+
+### Changes to the data model and database-related changes
+- Enable foreign key constraints for SQLite3 database; note that this affects not only this plugin, but roundcube itself
+  and other plugins as well. I suppose it should not be a problem and is the standard behavior with other DB backends,
+  too.
+
+### Changes in admin settings
+- Presets: Removed option `carddav_name_only`. It makes no sense with the separation of accounts / addressbooks anymore.
+- Presets: Addressbooks of a removed preset are provided as readonly until their deletion upon next login. Previously,
+  these would be provided as writeable addressbooks, as the admin `readonly` setting is no longer available. Note that
+  the readonly setting is not considered a security option but an interface tweak. To prevent users from modifying an
+  addressbook, the proper way is to configure this by the permissions on the CardDAV server side.
+- Presets: Removed option `rediscover_mode`. Rediscovery is now performed based on the new preset option
+  `rediscover_time`, which allows to define a time interval for rediscovery. The same option is also available for
+  user-created accounts. Rediscovery upon expiry of this interval is performed during logon.
+
+### Changes to the user interface
+- Replace UI. The new UI is located directly in roundcube settings as a main section, not a subsection of `Preferences`.
+- The localization is only updated for English and German, all other languages just have localized labels for the parts
+  that still exist in the new interface. If you want to support for you language, please edit the appropriate file in
+  the localization subdirectory and submit a pull request. The English localization should be taken as master.
+
 ## Version 4.4.3 (to 4.4.2)
 
 - Properly set and interpret TYPE parameters, especially for TEL (Fixes #390)
@@ -30,7 +53,7 @@
 
 ## Version 4.3.0 (to 4.2.2)
 
-- New: For preset addressbooks, are re-discovery is performed upon every login by default. This means that newly added
+- New: For preset addressbooks, a re-discovery is performed upon every login by default. This means that newly added
   addressbooks on the server are discovered and added, whereas addressbooks that have been removed from the server are
   also removed from roundcube.
   - __NOTE TO ADMINS__: If you are using addressbook presets, please read the documentation on the new preset setting

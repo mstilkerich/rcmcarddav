@@ -1,22 +1,40 @@
--- table to store the configured address books
-CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
+-- table to store the configured accounts
+CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_accounts (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
 	name TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
 	username VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
 	password TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+	url VARCHAR(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+	user_id INT(10) UNSIGNED NOT NULL,
+	last_discovered BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the addressbooks were last discovered
+	rediscover_time INT NOT NULL DEFAULT 86400, -- time span (seconds) after that the addressbooks will be rediscovered, default 1d
+
+	presetname VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, -- presetname
+
+	PRIMARY KEY(id),
+	UNIQUE INDEX(user_id,presetname),
+	FOREIGN KEY (user_id) REFERENCES TABLE_PREFIXusers(user_id) ON DELETE CASCADE ON UPDATE CASCADE
+) ROW_FORMAT=DYNAMIC ENGINE = InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
+-- table to store the configured address books
+CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
+	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+	name TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
 	url VARCHAR(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
 	active TINYINT UNSIGNED NOT NULL DEFAULT 1,
-	user_id INT(10) UNSIGNED NOT NULL,
 	last_updated BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the last update of the local database
 	refresh_time INT NOT NULL DEFAULT 3600, -- time span (seconds) after that the local database will be refreshed, default 1h
 	sync_token TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL, -- sync-token the server sent us for the last sync
 
-	presetname VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, -- presetname
 	use_categories INT NOT NULL DEFAULT '0',
+	discovered INT NOT NULL DEFAULT '1', -- 1: addressbook was automatically discovered; 0: addressbook was manually added, e.g. shared addressbook
+	account_id INT(10) UNSIGNED NOT NULL,
 
 	PRIMARY KEY(id),
-	KEY `user_id` (`user_id`) USING BTREE,
-	FOREIGN KEY (user_id) REFERENCES TABLE_PREFIXusers(user_id) ON DELETE CASCADE ON UPDATE CASCADE
+	-- we need to provide an explicit name for the constraint, so the migrated schema diffs equally to the initial one
+	-- otherwise, the migrated schema uses carddav_addressbooks_ibfk_2 (because carddav_addressbooks_ibfk_1 is still
+	-- used for the user_id foreign key in migration 0016), whereas the initial schema uses carddav_addressbooks_ibfk_1
+	CONSTRAINT carddav_addressbooks_ibfk_account_id FOREIGN KEY (account_id) REFERENCES TABLE_PREFIXcarddav_accounts(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ROW_FORMAT=DYNAMIC ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_contacts (

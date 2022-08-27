@@ -1,15 +1,11 @@
 <?php
 $labels = Array(
-	'cd_title'=> "CardDAV",
-	'cd_active'=> "Aktifkan buku alamat berbasis CardDAV",
-	'cd_newabboxtitle'=> "Add new addressbook",
-	'cd_username'=> "Nama pengguna",
-	'cd_password'=> "Kata sandi",
-	'cd_url'=> "URL",
-	'cd_name'=> "Nama buku alamat",
-	'cd_delete'=> "Menghapuskan buku alamat ini",
-	'cd_name_new'=> "Mengkonfigurasi buku alamat baru",
-	'cd_refresh_time'=> "Interval update (dalam jam)",
-	'cd_err_noabfound'=> "no addressbook found",
+	'CardDAV_rclbl'=> "CardDAV",
+	'AccProps_username_lbl'=> "Nama pengguna",
+	'AccProps_password_lbl'=> "Kata sandi",
+	'AbProps_url_lbl'=> "URL",
+	'AbProps_abname_lbl'=> "Nama buku alamat",
+	'AbProps_abname_lbl_new'=> "Mengkonfigurasi buku alamat baru",
+	'AbProps_refresh_time_lbl'=> "Interval update (dalam jam)",
 );
 ?>

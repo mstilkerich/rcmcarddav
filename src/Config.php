@@ -30,6 +30,7 @@ use Psr\Log\{LoggerInterface,LogLevel};
 use MStilkerich\CardDavClient\{Account,WebDavResource};
 use MStilkerich\CardDavClient\Services\Discovery;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
+use MStilkerich\CardDavAddressbook4Roundcube\Frontend\{RcmInterface, AdminSettings};
 use rcube;
 use rcube_cache;
 
@@ -51,6 +52,15 @@ class Config
      *    If set to an instance of Exception, this exception will be thrown by makeWebDavResource() instead.
      */
     public $webDavResource;
+
+    /** @var ?RcmInterface Adapter to roundcube */
+    protected $rc;
+
+    /**
+     * The admin settings configured in the config.inc.php file.
+     * @var AdminSettings
+     */
+    protected $admPrefs;
 
     /** @var LoggerInterface */
     protected $logger;
@@ -77,6 +87,7 @@ class Config
     {
         $this->logger = new RoundcubeLogger("carddav", LogLevel::ERROR);
         $this->httpLogger = new RoundcubeLogger("carddav_http", LogLevel::ERROR);
+        $this->admPrefs = new AdminSettings(__DIR__ . '/../config.inc.php', $this->logger, $this->httpLogger);
 
         $rcube = rcube::get_instance();
         $this->db = new Database($this->logger, $rcube->db);
@@ -95,6 +106,24 @@ class Config
     public function httpLogger(): LoggerInterface
     {
         return $this->httpLogger;
+    }
+
+    public function rc(?RcmInterface $rc = null): RcmInterface
+    {
+        if (!isset($this->rc)) {
+            if (isset($rc)) {
+                $this->rc = $rc;
+            } else {
+                throw new \Exception("Roundcube adapter not set");
+            }
+        }
+
+        return $this->rc;
+    }
+
+    public function admPrefs(): AdminSettings
+    {
+        return $this->admPrefs;
     }
 
     /**
