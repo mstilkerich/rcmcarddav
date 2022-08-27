@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - master
-      - new_ui
+      - v4
 
 jobs:
   staticanalyses:
