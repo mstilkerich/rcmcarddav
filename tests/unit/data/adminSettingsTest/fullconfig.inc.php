@@ -8,6 +8,15 @@ $prefs['_GLOBAL']['pwstore_scheme'] = 'plain';
 $prefs['_GLOBAL']['loglevel'] = \Psr\Log\LogLevel::DEBUG;
 $prefs['_GLOBAL']['loglevel_http'] = \Psr\Log\LogLevel::INFO;
 
+$prefs['_GLOBAL']['collected_recipients'] = [
+    'preset'  => 'Preset1',
+    'matchurl' => '#.*\.example\.com/%d/%l/%u#',
+];
+$prefs['_GLOBAL']['collected_senders'] = [
+    'preset'  => 'OnlyShared',
+    'matchname' => '/shared %d addressbook/i',
+];
+
 $prefs['Preset1'] = [
     'name'         =>  'First Preset',
     'username'     =>  '%u',
@@ -47,6 +56,7 @@ $prefs['Preset1'] = [
         [
             'url'          =>  'https://cdav.example.com/%d/%l/%u',
             // all the optional attributes should default to the settings in the account
+            'readonly'     =>  false,
         ],
     ],
 ];
@@ -56,7 +66,7 @@ $prefs['Minimal'] = [
 ];
 
 $prefs['OnlyShared'] = [
-    'name'         =>  'Preset that contains a shared addressbook only',
+    'name'         =>  'Preset that contains a shared example.com addressbook only',
     'username'     =>  'uonly',
     'password'     =>  'ponly',
     'extra_addressbooks' =>  [

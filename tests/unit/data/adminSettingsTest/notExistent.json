@@ -2,5 +2,6 @@
 	"pwStoreScheme": "encrypted",
 	"forbidCustomAddressbooks": false,
 	"hidePreferences": false,
-	"presets": []
+	"presets": [],
+	"specialAbookMatchers": []
 }

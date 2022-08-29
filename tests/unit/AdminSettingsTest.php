@@ -36,6 +36,8 @@ final class AdminSettingsTest extends TestCase
 {
     public static function setUpBeforeClass(): void
     {
+        // needed for URL placeholder replacements when admin settings are read
+        $_SESSION['username'] = 'user@example.com';
     }
 
     public function setUp(): void
@@ -92,6 +94,10 @@ final class AdminSettingsTest extends TestCase
         $this->assertSame($expPrefs['hidePreferences'], $admPrefs->hidePreferences);
 
         $this->assertEquals($expPrefs["presets"], TestInfrastructure::getPrivateProperty($admPrefs, 'presets'));
+        $this->assertEquals(
+            $expPrefs["specialAbookMatchers"],
+            TestInfrastructure::getPrivateProperty($admPrefs, 'specialAbookMatchers')
+        );
     }
 
     /**
@@ -319,6 +325,25 @@ final class AdminSettingsTest extends TestCase
                 },
                 "setting extra_addressbooks\[1\] must be an array"
             ],
+            'Invalid preset referenced in collected senders' => [
+                function (array $prefs): array {
+                    TestCase::assertIsArray($prefs['_GLOBAL']);
+                    $prefs['_GLOBAL']['collected_senders'] = [
+                        'preset' => 'InvalidKey',
+                    ];
+                    return $prefs;
+                },
+                function (array $expPrefs): array {
+                    // invalid special addressbook matcher must be ignored
+                    if (isset($expPrefs['specialAbookMatchers']['collected_senders'])) {
+                        unset($expPrefs['specialAbookMatchers']['collected_senders']);
+                    }
+                    return $expPrefs;
+                },
+                function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
+                },
+                "Setting for collected_senders must include a valid preset attribute"
+            ],
         ];
 
         foreach (['username', 'password', 'url', 'rediscover_time', 'refresh_time'] as $stringAttr) {
@@ -397,6 +422,7 @@ final class AdminSettingsTest extends TestCase
      *                                                        to PHP's understanding of true/false
      * - wrong data type for a preset configuration setting - except bool, see above
      * - wrong value for a configuration setting (e.g. non-existent loglevel, invalid time string)
+     * - wrong preset key referenced in a special addressbook matcher
      *
      * As basis, we use a valid configuration and inject one error at a time.
      *

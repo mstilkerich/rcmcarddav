@@ -227,20 +227,15 @@ class AdminSettings
                     && is_string($matchSettings['preset'])
                     && key_exists($matchSettings['preset'], $this->presets)
                 ) {
-                    $presetname = $matchSettings['preset'];
-                    $matchSettings2 = [ 'preset' => $presetname ];
+                    $presetName = $matchSettings['preset'];
+                    $matchSettings2 = [ 'preset' => $presetName ];
                     foreach (['matchname', 'matchurl'] as $matchType) {
                         if (isset($matchSettings[$matchType]) && is_string($matchSettings[$matchType])) {
                             $matchexpr = $matchSettings[$matchType];
-                            $matchSettings2[$matchType] = $matchexpr;
+                            $matchSettings2[$matchType] = Utils::replacePlaceholdersUrl($matchexpr, true);
                         }
                     }
-
-                    if ($this->presets[$presetname]['readonly'] ?? false) {
-                        $logger->error("Cannot use addressbooks from read-only preset $presetname for $setting");
-                    } else {
-                        $this->specialAbookMatchers[$setting] = $matchSettings2;
-                    }
+                    $this->specialAbookMatchers[$setting] = $matchSettings2;
                 } else {
                     $logger->error("Setting for $setting must include a valid preset attribute");
                 }
@@ -611,46 +606,52 @@ class AdminSettings
             return $ret;
         }
 
-        $presetAccountIds = $abMgr->getAccountIds(true);
+        // Create a mapping Presetname => AccountConfig
+        $presetIdsByPresetname = [];
+        foreach ($abMgr->getAccountIds(true) as $accountId) {
+            $accountCfg = $abMgr->getAccountConfig($accountId);
+            /** @psalm-var string $presetName Not null because filtered by getAccountIds() */
+            $presetName = $accountCfg['presetname'];
+            $presetIdsByPresetname[$presetName] = $accountId;
+        }
 
+        // Search for the addressbook to use for each of the special addressbooks if configured
         foreach ($this->specialAbookMatchers as $type => $matchSettings) {
-            $presetname = $matchSettings['preset'];
+            $presetName = $matchSettings['preset'];
             $matches = [];
 
-            foreach ($presetAccountIds as $accountId) {
-                $accountCfg = $abMgr->getAccountConfig($accountId);
-                $accountAbooks = [];
-                if ($accountCfg['presetname'] === $presetname) {
-                    $accountAbooks = $abMgr->getAddressbookConfigsForAccount($accountId);
-                }
+            $accountId = $presetIdsByPresetname[$presetName];
 
-                foreach ($accountAbooks as $abookrow) {
-                    // check all addressbooks for that preset
-                    // All specified matchers must match
-                    // If no matcher is set, any addressbook of the preset is considered a match
-                    $isMatch = true;
-
-                    foreach (['matchname', 'matchurl'] as $matchType) {
-                        $matchexpr = $matchSettings[$matchType] ?? 0;
-                        if (is_string($matchexpr)) {
-                            $matchexpr = Utils::replacePlaceholdersUrl($matchexpr, true);
-                            if (!preg_match($matchexpr, $abookrow[substr($matchType, 5)])) {
-                                $isMatch = false;
-                            }
+            foreach ($abMgr->getAddressbookConfigsForAccount($accountId) as $abookrow) {
+                // check all addressbooks for that preset
+                // All specified matchers must match
+                // If no matcher is set, any addressbook of the preset is considered a match
+                foreach (['matchname', 'matchurl'] as $matchType) {
+                    $matchexpr = $matchSettings[$matchType] ?? 0;
+                    if (is_string($matchexpr)) {
+                        if (!preg_match($matchexpr, $abookrow[substr($matchType, 5)])) {
+                            continue 2;
                         }
                     }
-
-                    if ($isMatch) {
-                        $matches[] = $abookrow['id'];
-                    }
                 }
 
-                $numMatches = count($matches);
-                if ($numMatches != 1) {
-                    $logger->error("Cannot set special addressbook $type, there are $numMatches candidates (need: 1)");
+                // addressbook matches, make sure it is writeable
+                $preset = $this->getPreset($presetName, $abookrow['url']);
+                if (!$abookrow['active']) {
+                    $logger->error("Cannot use de-activated addressbook from $presetName for $type");
+                } elseif ($preset['readonly'] ?? false) {
+                    $logger->error("Cannot use read-only addressbook from $presetName for $type");
                 } else {
-                    $ret[$type] = $matches[0];
+                    $matches[] = $abookrow['id'];
                 }
+            }
+
+            // we need exactly one match, in any other case we leave the roundcube setting as is
+            $numMatches = count($matches);
+            if ($numMatches != 1) {
+                $logger->error("Cannot set special addressbook $type, there are $numMatches candidates (need: 1)");
+            } else {
+                $ret[$type] = $matches[0];
             }
         }
 

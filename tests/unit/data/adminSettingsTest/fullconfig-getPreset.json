@@ -54,7 +54,7 @@
 
 			"url": "https://cdav.example.com/example.com/user/user@example.com",
 			"active": false,
-			"readonly": true,
+			"readonly": false,
 			"refresh_time": 7200,
 			"use_categories": false,
 			"fixed": [ "name" ],
@@ -79,7 +79,7 @@
 	},
 	"OnlyShared": {
 		"": {
-			"name": "Preset that contains a shared addressbook only",
+			"name": "Preset that contains a shared example.com addressbook only",
 			"username": "uonly",
 			"password": "ponly",
 			"url": null,
@@ -93,7 +93,7 @@
 			"require_always": [ ]
 		},
 		"https://cdavshared.example.com/shared/book": {
-			"name": "Preset that contains a shared addressbook only",
+			"name": "Preset that contains a shared example.com addressbook only",
 			"username": "uonly",
 			"password": "ponly",
 			"rediscover_time": 86400,

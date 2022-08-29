@@ -297,12 +297,15 @@ $prefs['_GLOBAL']['collected_senders'] = [
 Each of the above global RCMCardDAV settings will cause the roundcube setting of the same name to be overridden in case
 a matching preset addressbook is found. The match works by specifying the key of a preset and further match settings to
 filter the matching addressbook in case multiple addressbooks are discovered for the preset. The preset must not be
-read-only as roundcube requires both special addressbooks to be writeable. For presets with several addressbooks, the
-wanted addressbook can be identified by regular expression matches on the addressbook name and/or URL. The
-%-placeholders the are possible in a preset URL also can be used inside these regular expressions.
+read-only as roundcube requires both special addressbooks to be writeable. Furthermore, it is an error if the
+addressbook configured by the admin is not active. Therefore, the admin must configure the `active` setting as a fixed
+setting for addressbooks used for trusted senders/collected recipients, and set active to `true`.
 
-In case the preset only contains one addressbook, the match settings can be omitted. The match settings must result in
-exactly one addressbook. If no or multiple addressbooks match, the roundcube setting is not touched by RCMCardDAV.
+For presets with several addressbooks, the wanted addressbook can be identified by regular expression matches on the
+addressbook name and/or URL. The %-placeholders the are possible in a preset URL also can be used inside these regular
+expressions. In case the preset only contains one addressbook, the match settings can be omitted. The match settings
+must result in exactly one addressbook. If no or multiple addressbooks match, the roundcube setting is not touched by
+RCMCardDAV.
 
 Because RCMCardDAV overrides the setting configured in roundcube, including a possible setting by the user, the
 possibilty to configure these addressbooks by the user should be disabled if the admin uses this mechanism. Otherwise
