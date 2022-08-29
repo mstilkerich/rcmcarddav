@@ -1,6 +1,6 @@
 # Changelog for RCMCardDAV
 
-## Version 5.0.0-beta (to 4.4.3)
+## Version 5.0.0-beta (to 4.4.4)
 
 ### Changes to the data model and database-related changes
 - Enable foreign key constraints for SQLite3 database; note that this affects not only this plugin, but roundcube itself
@@ -22,6 +22,18 @@
 - The localization is only updated for English and German, all other languages just have localized labels for the parts
   that still exist in the new interface. If you want to support for you language, please edit the appropriate file in
   the localization subdirectory and submit a pull request. The English localization should be taken as master.
+
+### Fixes
+- Fix: When setting CardDAV addressbooks for collected recipients/senders from the admin configuration, the setting
+  might get overridden by user preferences in conjunction with the use of other plugins (that are completely unrelated
+  to these addressbooks). (Fixes #391)
+
+
+## Version 4.4.4 (to 4.4.3)
+- Fix PHP 8.1 warning on loss of precision by using integer division
+- Fix: When setting CardDAV addressbooks for collected recipients/senders from the admin configuration, setting them as
+  `dont_override` is a mandatory action for the admin, otherwise the setting might get overridden by user preferences in
+  conjunction with the use of other plugins (that are completely unrelated to these addressbooks). (Fixes #391)
 
 ## Version 4.4.3 (to 4.4.2)
 

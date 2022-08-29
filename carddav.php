@@ -173,7 +173,8 @@ class carddav extends rcube_plugin implements RcmInterface
 
         $specialAbooks = $admPrefs->getSpecialAddressbooks($this->abMgr, $infra);
         foreach ($specialAbooks as $type => $abookId) {
-            $config->set($type, "carddav_$abookId");
+            // Set this option as immutable; otherwise it might be overridden from roundcube user preferences (#391)
+            $config->set($type, "carddav_$abookId", true);
         }
     }
 
