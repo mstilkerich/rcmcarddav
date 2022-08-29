@@ -1,8 +1,11 @@
 # Changelog for RCMCardDAV
 
-## Version 4.4.x (to 4.4.3)
+## Version 4.4.4 (to 4.4.3)
 
 - Fix PHP 8.1 warning on loss of precision by using integer division
+- Fix: When setting CardDAV addressbooks for collected recipients/senders from the admin configuration, setting them as
+  `dont_override` is a mandatory action for the admin, otherwise the setting might get overridden by user preferences in
+  conjunction with the use of other plugins (that are completely unrelated to these addressbooks). (Fixes #391)
 
 ## Version 4.4.3 (to 4.4.2)
 

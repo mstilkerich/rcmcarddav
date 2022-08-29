@@ -282,8 +282,11 @@ In case the preset only contains one addressbook, the match settings can be omit
 exactly one addressbook. If no or multiple addressbooks match, the roundcube setting is not touched by RCMCardDAV.
 
 Because RCMCardDAV overrides the setting configured in roundcube, including a possible setting by the user, the
-possibilty to configure these addressbooks by the user should be disabled if the admin uses this mechanism. Otherwise
-the user might be confused as settings made by the user in the roundcube settings will stay without effect.
+possibilty to configure these addressbooks by the user must be disabled if the admin uses this mechanism. Otherwise
+the user might be confused as settings made by the user in the roundcube settings will stay without effect. In addition,
+it is possible in certain situations (see #391) that preferences made by the user would in fact override the settings
+made by RCMCardDAV.
+
 Configuration of these addressbooks by the user can be disabled using the following configuration options in the
 roundcube (not RCMCardDAV) configuration:
 
