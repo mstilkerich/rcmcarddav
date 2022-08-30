@@ -2,10 +2,34 @@
 
 ## Version 5.0.0-beta (to 4.4.4)
 
-### Changes to the data model and database-related changes
-- Enable foreign key constraints for SQLite3 database; note that this affects not only this plugin, but roundcube itself
-  and other plugins as well. I suppose it should not be a problem and is the standard behavior with other DB backends,
-  too.
+__NOTE: Before upgrading to v5, please read the upgrade notes in README.md.__
+
+### Changes to the data model
+
+RCMCardDAV never had the notion of an account in its data model. In its early releases, it was necessary for the user to
+individually specify each addressbook by its URL. Later on, auto-discovery of all addressbooks on the server was added,
+but after the discovery these addressbooks existed as independent objects in the database and RCMCardDAV did not keep
+any track that they belong to one account. The addressbooks created from admin presets are an exception to this, as they
+are linked by virtue of belonging to the same admin preset. This is why it was possible to add re-discovery (only) for
+admin presets in v4.3.
+
+The old data model has a number of issues: Smaller annoyances, such as the user having to edit a changed password in
+each addressbook of the account upon password change. But also larger issues, such as the inability to perform a
+rediscovery on a user-added account, as for being able to determine new and removed addressbooks, we need to have an
+idea of which addressbooks belong to one account. With v5, RCMCardDAV gets accounts in its data model, which maintain
+the data common to all addressbooks of an account (particularly the credentials), with each addressbook belonging to an
+account.
+
+The database migration scripts try to identify the addressbooks belonging to the same account. For addressbooks created
+from an admin preset, this is easy and one account will be created. For user-created addressbooks, an account will be
+created for the addressbooks that have a common parent URL (i.e. URL with the last path component removed is the same)
+and use the same username. If this heuristic fails, additional accounts will result and the user will have to delete
+the extra accounts and perform a rediscovery on the remaining account to have the addressbooks wrongly assigned to other
+accounts added to the retained account.
+
+This change also means that it is now possible for RCMCardDAV to store accounts with no addressbooks at all, which is a
+state that may exist on the server and lays the basics for possible future features such as adding new addressbooks to
+the server from within RCMCardDAV.
 
 ### Changes in admin settings
 - Presets: Removed option `carddav_name_only`. It makes no sense with the separation of accounts / addressbooks anymore.
@@ -15,18 +39,38 @@
   addressbook, the proper way is to configure this by the permissions on the CardDAV server side.
 - Presets: Removed option `rediscover_mode`. Rediscovery is now performed based on the new preset option
   `rediscover_time`, which allows to define a time interval for rediscovery. The same option is also available for
-  user-created accounts. Rediscovery upon expiry of this interval is performed during logon.
+  user-created accounts. Rediscovery upon expiry of this interval is performed during login.
+- It is now possible to have auto-discovered addressbooks and extra addressbooks directly specified by their URL in each
+  preset. The latter are not subject to the discovery and kept in sync with the preset configuration. Discovery can also
+  be disabled for a preset by leaving the discovery url of the preset unset. This removes the special semantic of the
+  URL previously available to specify an addressbook outside the user's addressbook home, like a shared company
+  addressbook.
+- It is also possible to specify deviating settings for the extra addressbooks than those used for auto-discovered
+  addressbooks. This can, for example, be used to add a read-only shared addressbook whereas the discovered addressbooks
+  are writeable.
 
 ### Changes to the user interface
-- Replace UI. The new UI is located directly in roundcube settings as a main section, not a subsection of `Preferences`.
+
+The new UI is located directly in roundcube settings as a main section, not a subsection of `Preferences`. It is heavily
+inspired by roundcube's folder management. The old UI was cumbersome, particularly with multiple addressbooks and
+actions that were carried out by setting a checkbox and saving the preferences. The new UI currently has only few extra
+features over the old one, but it provides the basis for extensions by new features in the future.
+
 - The localization is only updated for English and German, all other languages just have localized labels for the parts
   that still exist in the new interface. If you want to support for you language, please edit the appropriate file in
   the localization subdirectory and submit a pull request. The English localization should be taken as master.
+- Trigger manual addressbook rediscovery from the user interface
+- All standard skins (classic, larry, elastic) are supported, but I spent only limited effort for classic and larry,
+  since these have been removed from the roundcube 1.6 core distribution and it is unclear to what extent they will be
+  maintained in the future.
 
-### Fixes
+### Other changes
 - Fix: When setting CardDAV addressbooks for collected recipients/senders from the admin configuration, the setting
   might get overridden by user preferences in conjunction with the use of other plugins (that are completely unrelated
   to these addressbooks). (Fixes #391)
+- Enable foreign key constraints for SQLite3 database; note that this affects not only this plugin, but roundcube itself
+  and other plugins as well. I suppose it should not be a problem and is the standard behavior with other DB backends,
+  too.
 
 
 ## Version 4.4.4 (to 4.4.3)
