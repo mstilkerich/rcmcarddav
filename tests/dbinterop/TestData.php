@@ -228,14 +228,29 @@ final class TestData
             }
         }
 
-        $userId = $this->idCache['users']['builtin'][0] ?? null;
-        TestCase::assertIsString($userId);
-        $_SESSION["user_id"] = $userId;
+        $this->setUserId();
+    }
 
-        // we need to set these session variables in case the placeholder replacement functions for username/password
-        // are invoked by the test execution
-        $_SESSION["username"] = self::INITDATA['users'][0][0];
-        $_SESSION["password"] = \rcube::get_instance()->encrypt('test');
+    /**
+     * Sets the session variables for the test user (the first user inserted to the users table).
+     */
+    private function setUserId(): void
+    {
+        if (
+            isset($this->idCache['users'])
+            && isset($this->idCache['users']['builtin'])
+            && isset($this->idCache['users']['builtin'][0])
+        ) {
+            $userId = $this->idCache['users']['builtin'][0];
+            $_SESSION["user_id"] = $userId;
+
+            // we need to set these session variables in case the placeholder replacement functions for
+            // username/password are invoked by the test execution
+            $_SESSION["username"] = self::INITDATA['users'][0][0];
+            $_SESSION["password"] = \rcube::get_instance()->encrypt('test');
+        } else {
+            TestCase::assertTrue(false, "cannot determine user ID from the test data");
+        }
     }
 
     /**
@@ -250,7 +265,12 @@ final class TestData
     {
         $dbh = $this->dbh;
 
-        $cols = array_map([$dbh, "quote_identifier"], $cols);
+        $cols = array_map(
+            function (string $s) use ($dbh): string {
+                return $dbh->quote_identifier($s);
+            },
+            $cols
+        );
         TestCase::assertCount(count($cols), $row, "Column count mismatch of $tbl row " . print_r($row, true));
 
         $sql = "INSERT INTO " . $dbh->table_name($tbl)

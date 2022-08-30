@@ -335,7 +335,11 @@ final class AdminSettingsTest extends TestCase
                 },
                 function (array $expPrefs): array {
                     // invalid special addressbook matcher must be ignored
-                    if (isset($expPrefs['specialAbookMatchers']['collected_senders'])) {
+                    if (
+                        isset($expPrefs['specialAbookMatchers'])
+                        && is_array($expPrefs['specialAbookMatchers'])
+                        && isset($expPrefs['specialAbookMatchers']['collected_senders'])
+                    ) {
                         unset($expPrefs['specialAbookMatchers']['collected_senders']);
                     }
                     return $expPrefs;

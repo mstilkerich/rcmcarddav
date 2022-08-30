@@ -176,7 +176,9 @@ class Config
     {
         if ($password == "%b") {
             if (
-                isset($_SESSION['oauth_token']['access_token'])
+                isset($_SESSION['oauth_token'])
+                && is_array($_SESSION['oauth_token'])
+                && isset($_SESSION['oauth_token']['access_token'])
                 && is_string($_SESSION['oauth_token']['access_token'])
             ) {
                 $credentials = [ 'bearertoken' => $_SESSION['oauth_token']['access_token'] ];

@@ -1072,7 +1072,12 @@ class DataConversion
     private function getAttrLabelIMPP(VCard $_vcard, VObject\Property $prop): string
     {
         assert(!empty($this->coltypes["im"]["subtypes"]), "im attribute requires a list of subtypes");
-        $subtypesLower = array_map('strtolower', $this->coltypes["im"]["subtypes"]);
+        $subtypesLower = array_map(
+            function (string $s): string {
+                return strtolower($s);
+            },
+            $this->coltypes["im"]["subtypes"]
+        );
 
         // check X-SERVICE-TYPE parameter (seen in entries created by Apple Addressbook)
         if (isset($prop["X-SERVICE-TYPE"])) {

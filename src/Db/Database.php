@@ -300,7 +300,12 @@ class Database extends AbstractDatabase
 
         // build / execute query
         $sqlRowPlaceholders = '(?' . str_repeat(',?', $numCols - 1) . ')';
-        $quotedCols = array_map([$dbh, 'quote_identifier'], $cols);
+        $quotedCols = array_map(
+            function (string $s) use ($dbh): string {
+                return $dbh->quote_identifier($s);
+            },
+            $cols
+        );
 
         $sql = 'INSERT INTO ' . $dbh->table_name("carddav_$table") .
             '(' . implode(",", $quotedCols)  . ') ' .
@@ -335,7 +340,12 @@ class Database extends AbstractDatabase
         $dbh = $this->dbHandle;
         $logger = $this->logger;
 
-        $quotedCols = array_map([$dbh, 'quote_identifier'], $cols);
+        $quotedCols = array_map(
+            function (string $s) use ($dbh): string {
+                return $dbh->quote_identifier($s);
+            },
+            $cols
+        );
         $sql = 'UPDATE ' . $dbh->table_name("carddav_$table") . ' SET ' . implode("=?,", $quotedCols) . '=? ';
 
         // WHERE clause
@@ -432,7 +442,12 @@ class Database extends AbstractDatabase
             );
             $sql .= implode(", ", $quotedCols);
         } else {
-            $quotedCols = array_map([$this, 'quoteDbColumn'], $cols);
+            $quotedCols = array_map(
+                function (string $s): string {
+                    return $this->quoteDbColumn($s);
+                },
+                $cols
+            );
             $sql .= implode(", ", $quotedCols);
         }
         $sql .= " FROM " . $dbh->table_name("carddav_$table");
@@ -548,7 +563,12 @@ class Database extends AbstractDatabase
                 if ($ilike) {
                     throw new \Exception("getConditionQuery $field - ILIKE match only supported for single pattern");
                 }
-                $quoted_values = array_map([ $dbh, 'quote' ], $value);
+                $quoted_values = array_map(
+                    function (string $s) use ($dbh): string {
+                        return $dbh->quote($s);
+                    },
+                    $value
+                );
                 $sql .= $invertCondition ? " NOT IN" : " IN";
                 $sql .= " (" . implode(",", $quoted_values) . ")";
             } else {

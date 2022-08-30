@@ -51,7 +51,12 @@ class Utils
         ];
 
         if ($quoteRegExp) {
-            $transTable = array_map('preg_quote', $transTable);
+            $transTable = array_map(
+                function (string $s): string {
+                    return preg_quote($s);
+                },
+                $transTable
+            );
         }
 
         $username = strtr($username, $transTable);

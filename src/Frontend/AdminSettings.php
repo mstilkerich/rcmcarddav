@@ -172,9 +172,17 @@ class AdminSettings
             include($configfile);
         }
 
+        $gprefs = [];
+        if (isset($prefs['_GLOBAL'])) {
+            if (is_array($prefs['_GLOBAL'])) {
+                $gprefs = $prefs['_GLOBAL'];
+            }
+            unset($prefs['_GLOBAL']);
+        }
+
         // Extract global preferences
-        if (isset($prefs['_GLOBAL']['pwstore_scheme'])) {
-            $scheme = (string) $prefs['_GLOBAL']['pwstore_scheme'];
+        if (isset($gprefs['pwstore_scheme'])) {
+            $scheme = (string) $gprefs['pwstore_scheme'];
 
             if (in_array($scheme, self::PWSTORE_SCHEMES)) {
                 /** @var PasswordStoreScheme $scheme */
@@ -184,13 +192,13 @@ class AdminSettings
             }
         }
 
-        $this->forbidCustomAddressbooks = !empty($prefs['_GLOBAL']['fixed'] ?? false);
-        $this->hidePreferences = !empty($prefs['_GLOBAL']['hide_preferences'] ?? false);
+        $this->forbidCustomAddressbooks = !empty($gprefs['fixed'] ?? false);
+        $this->hidePreferences = !empty($gprefs['hide_preferences'] ?? false);
 
         foreach (['loglevel' => $logger, 'loglevel_http' => $httpLogger] as $setting => $cfgdLogger) {
-            if (($cfgdLogger instanceof RoundcubeLogger) && isset($prefs['_GLOBAL'][$setting])) {
+            if (($cfgdLogger instanceof RoundcubeLogger) && isset($gprefs[$setting])) {
                 try {
-                    $cfgdLogger->setLogLevel((string) $prefs['_GLOBAL'][$setting]);
+                    $cfgdLogger->setLogLevel((string) $gprefs[$setting]);
                 } catch (\Exception $e) {
                     $logger->error("Cannot set configured loglevel: " . $e->getMessage());
                 }
@@ -199,11 +207,6 @@ class AdminSettings
 
         // Store presets
         foreach ($prefs as $presetName => $preset) {
-            // _GLOBAL contains plugin configuration not related to an addressbook preset - skip
-            if ($presetName === '_GLOBAL') {
-                continue;
-            }
-
             if (!is_string($presetName) || strlen($presetName) == 0) {
                 $logger->error("A preset key must be a non-empty string - ignoring preset!");
                 continue;
@@ -219,8 +222,8 @@ class AdminSettings
 
         // Extract filter for special addressbooks
         foreach ([ 'collected_recipients', 'collected_senders' ] as $setting) {
-            if (isset($prefs['_GLOBAL'][$setting]) && is_array($prefs['_GLOBAL'][$setting])) {
-                $matchSettings = $prefs['_GLOBAL'][$setting];
+            if (isset($gprefs[$setting]) && is_array($gprefs[$setting])) {
+                $matchSettings = $gprefs[$setting];
 
                 if (
                     isset($matchSettings['preset'])

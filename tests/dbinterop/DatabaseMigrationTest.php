@@ -227,7 +227,12 @@ final class DatabaseMigrationTest extends TestCase
      */
     public function migrationsProvider(): array
     {
-        $migsavail = array_map('basename', glob(self::SCRIPTDIR . "/0???-*"));
+        $migsavail = array_map(
+            function (string $s): string {
+                return basename($s);
+            },
+            glob(self::SCRIPTDIR . "/0???-*")
+        );
 
         $result = [];
         $miglist = [];
