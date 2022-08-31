@@ -228,7 +228,7 @@ class SyncHandlerRoundcube implements SyncHandler
     }
 
     /**
-     * Finalize the sychronization process.
+     * Finalize the synchronization process.
      *
      * This function is called last by the Sync service after all changes have been reported. We use it to perform
      * delayed actions, namely the processing of changed group vcards and deletion of CATEGORIES-type groups that became

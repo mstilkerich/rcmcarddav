@@ -119,7 +119,7 @@ features over the old one, but it provides the basis for extensions by new featu
     version 5.
   - Version 5 will also have a more elaborate version of re-discovery that will allow to configure it such that it does
     not happen on every login.
-- MySQL: Convert potentially used row format COMPACT (was default up to MySQL 5.7.8, Maria DB 10.2.1) to DYANMIC in
+- MySQL: Convert potentially used row format COMPACT (was default up to MySQL 5.7.8, Maria DB 10.2.1) to DYNAMIC in
   migration 12, which would otherwise fail (Fixes #362). It requires some other settings that have to be configured in
   the MySQL server configuration additionally, all of which are also defaults since MySQL 5.7.7 / Maria DB 10.2.2.
 

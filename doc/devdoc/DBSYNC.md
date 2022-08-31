@@ -23,7 +23,7 @@ As a first attempt, I opted for a simple solution that is based on the standard 
 _Serializable_ transaction isolation for read/write transactions and _Repeatable Read_ isolation level for read-only
 transactions that require several queries.
 
-I also considered using specialized queries such as `SELECT FOR UPDATE`, which is particularly interesing in combination
+I also considered using specialized queries such as `SELECT FOR UPDATE`, which is particularly interesting in combination
 with the `NOWAIT` flags that allow to skip racing operations instead of blocking - ideal for racing sync operations.
 However, these statements are specific to different DBs, and more importantly, the `NOWAIT` option is not available in
 all supported database versions (particularly MySQL 5.7). So for now, I decided to go with the portable solution,

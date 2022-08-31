@@ -1688,7 +1688,7 @@ class Addressbook extends rcube_addressbook
      *   - Always constrain list to current addressbook
      *   - The required non-empty fields configured by the admin ($this->requiredProps)
      *   - A search filter set by roundcube ($this->filter)
-     *   - A currenty selected group ($this->group_id)
+     *   - A currently selected group ($this->group_id)
      *
      * @return ?list<DbAndCondition> Null if the current filter conditions result in an empty contact result.
      */

@@ -118,7 +118,7 @@ final class AdminSettingsTest extends TestCase
                 if (strlen($url) == 0) {
                     $preset = $admPrefs->getPreset($presetName);
                     $presetUnknown = $admPrefs->getPreset($presetName, "http://not.a.known.url/of/an/abook");
-                    $this->assertEquals($presetExp, $presetUnknown, "Unkown abook URL should return base properties");
+                    $this->assertEquals($presetExp, $presetUnknown, "Unknown abook URL should return base properties");
                 } else {
                     $preset = $admPrefs->getPreset($presetName, $url);
                 }
