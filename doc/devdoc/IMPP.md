@@ -21,7 +21,7 @@ A check of different addressbook applications yielded the following:
 
 - Apple's addressbook products use the `X-SERVICE-TYPE` parameter to indicate the type, preferred over the URI. TYPE and
   X-ABLabel are used to store the communication purpose, but _not_ the type of instant messaging service. The scheme
-  part is not always useable. For example, for `ICQ` the scheme `aim` is used which exists as a service of its own. For
+  part is not always usable. For example, for `ICQ` the scheme `aim` is used which exists as a service of its own. For
   other supported messaging services, a non standard `x-apple` scheme is used. Summarized, the instant messaging service
   should preferably taken from the `X-SERVICE-TYPE` parameter from VCards create by Apple products. iOS allows
   specification of custom messaging services, which will also end up in the `X-SERVICE-TYPE` paraameter. The Apple
@@ -115,7 +115,7 @@ For IMPP:
     from the contained value (to support custom service types specified by iOS addressbook app).
   - If the IMPP value includes a scheme part, we use that if it corresponds to a known service (we may see schemes like
     `x-apple` here that we should not accept for display).
-  - Otherwise, we check the TYPE parameter for known instant messaging services. Again, we cannot accept unkown values
+  - Otherwise, we check the TYPE parameter for known instant messaging services. Again, we cannot accept unknown values
     here, as the type parameter may contain other values like `home` or `pref` that do not indicate the messaging
     service.
   - Eventually, fall back to `other`.
@@ -161,7 +161,7 @@ Results observed / known caveats:
   - Google shows the data correctly (no duplicates, all service types shown).
   - Nextcloud shows all data properly, but as expected includes the URI scheme in the displayed messenger handle.
   - Owncloud behaves like nextcloud.
-  - eMClient shows all entries properly, but lists services it does not know of as unkown instead of showing the label.
-    GaduGadu, MSN and Google Talk are shown as unknown because eMClient uses different URI schems than rcmcarddav, but I
+  - eMClient shows all entries properly, but lists services it does not know of as unknown instead of showing the label.
+    GaduGadu, MSN and Google Talk are shown as unknown because eMClient uses different URI schemes than rcmcarddav, but I
     preferred the schemes listed at Wikipedia.
 

@@ -11,7 +11,7 @@ There are a few specifics to be tested during the export:
 - A PHOTO property with an `X-ABCROP-RECTANGLE` shall be stored cropped in the exported card.
 - The remaining properties must be untouched, including:
   - Properties not known to rcmcarddav
-  - Multiple occurences of TYPE parameter on a property (rcmcarddav only supports one)
+  - Multiple occurrences of TYPE parameter on a property (rcmcarddav only supports one)
 
 ## Short description of each data set
 
