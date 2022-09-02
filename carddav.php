@@ -121,7 +121,8 @@ class carddav extends rcube_plugin implements RcmInterface
                 return;
             }
 
-            $this->initPlugin();
+            $this->basicInit();
+            $this->finalizeInit();
         } catch (\Exception $e) {
             $infra = Config::inst();
             $logger = $infra->logger();
@@ -129,18 +130,29 @@ class carddav extends rcube_plugin implements RcmInterface
         }
     }
 
-    private function initPlugin(): void
+    /**
+     * Performs basic initialization of the plugin.
+     *
+     * Particularly it reads the admin settings and initialized the loggers to the configured loglevels.
+     */
+    private function basicInit(): void
     {
         $infra = Config::inst();
 
         // register this object as the roundcube adapter object
-        // this will normally just return $this, but in the tests we can override it
-        $rc = $infra->rc($this);
-
-        $logger = $infra->logger();
+        $infra->rc($this);
 
         // initialize carddavclient library
-        MStilkerich\CardDavClient\Config::init($logger, $infra->httpLogger());
+        MStilkerich\CardDavClient\Config::init($infra->logger(), $infra->httpLogger());
+    }
+
+    /**
+     * Registers the plugin hook functions and the user's addressbooks with roundcube.
+     */
+    private function finalizeInit(): void
+    {
+        $infra = Config::inst();
+        $rc = $infra->rc();
 
         $rcmail = \rcmail::get_instance();
         $rcTask = $rcmail->task;
@@ -150,7 +162,6 @@ class carddav extends rcube_plugin implements RcmInterface
         $rc->addHook('addressbooks_list', [$this, 'listAddressbooks']);
         $rc->addHook('addressbook_get', [$this, 'getAddressbook']);
         $rc->addHook('addressbook_export', [$this, 'exportVCards']);
-
         // if preferences are configured as hidden by the admin, don't register the hooks handling preferences
         $admPrefs = $infra->admPrefs();
         if (!$admPrefs->hidePreferences && $rcTask == "settings") {
@@ -306,8 +317,7 @@ class carddav extends rcube_plugin implements RcmInterface
     {
         // this is needed because when carddav::init() was invoked, SESSION['user_id'] was not yet available and
         // therefore we delayed the plugin initialization to this point
-        $this->initPlugin();
-
+        $this->basicInit();
         $infra = Config::inst();
         $logger = $infra->logger();
         $admPrefs = $infra->admPrefs();
@@ -327,6 +337,9 @@ class carddav extends rcube_plugin implements RcmInterface
 
         // Initialize presets
         $admPrefs->initPresets($this->abMgr, $infra);
+
+        // now register the addressbooks with roundcube
+        $this->finalizeInit();
     }
 
     /**
