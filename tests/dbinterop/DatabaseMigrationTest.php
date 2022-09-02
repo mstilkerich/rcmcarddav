@@ -102,7 +102,7 @@ final class DatabaseMigrationTest extends TestCase
             ],
         ],
 
-        '0016-accountentities' => [
+        '0017-accountentities' => [
             // these rows are inserted before the migration is executed
             // datasets need to match the DB schema before the migration
             'insertRows' => [
@@ -149,7 +149,7 @@ final class DatabaseMigrationTest extends TestCase
             ],
         ],
 
-        '0017-accountentities2' => [
+        '0018-accountentities2' => [
             // these rows are checked against the listed values after the migration has been executed.
             // only the listed columns are checked
             'checkRows' => [
