@@ -26,7 +26,6 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
 
-use MStilkerich\CardDavClient\{Account, AddressbookCollection};
 use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
@@ -120,7 +119,7 @@ class AddressbookManager
     /**
      * Returns the IDs of all the user's accounts, optionally filtered.
      *
-     * @param $presetsOnly If true, only the accounts created from an admin preset are returned.
+     * @param bool $presetsOnly If true, only the accounts created from an admin preset are returned.
      * @return list<string> The IDs of the user's accounts.
      */
     public function getAccountIds(bool $presetsOnly = false): array
