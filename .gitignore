@@ -17,3 +17,4 @@ composer.*
 /tools
 /tags
 /.eslintrc.json
+/.idea
