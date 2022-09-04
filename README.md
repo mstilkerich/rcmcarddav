@@ -11,9 +11,9 @@ RCMCardDAV 5.x requires at least PHP 7.1. Dependencies are managed by composer, 
 The supported versions of roundcube and supported databases can be found in
 [SUPPORTED_ENVIRONMENT.md](doc/SUPPORTED_ENVIRONMENT.md).
 
-## Installation
+## Installation / Uninstallation
 
-See [INSTALL.md](doc/INSTALL.md) for installation instructions.
+See [INSTALL.md](doc/INSTALL.md) for (un)installation instructions.
 
 ## Documentation
 

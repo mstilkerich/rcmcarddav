@@ -13,7 +13,6 @@ composer.*
 /.phpdoc/
 /roundcubemail
 /releases
-/scripts
 /tools
 /tags
 /.eslintrc.json

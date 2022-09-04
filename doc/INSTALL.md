@@ -31,9 +31,9 @@ installation):
   This is important because RCMCardDAV runs its database initialisation / update procedure only when a user logs in!
 - Get [composer](https://getcomposer.org/download/)
 - Install RCMCardDAV via composer: `php composer.phar require --update-no-dev -o "roundcube/carddav:*"`
-  - If you want to use released versions only, use `"roundcube/carddav": "*"`. For more specific version constraints,
-    see the [composer documentation](https://getcomposer.org/doc/articles/versions.md).
-  - If you want to use the current development version from git, use `"roundcube/carddav": "dev-master"`
+  - If you want to use released versions only, use `"roundcube/carddav:*"` as given in the command before. For more
+    specific version constraints, see the [composer documentation](https://getcomposer.org/doc/articles/versions.md).
+  - If you want to use the current development version from git, use `"roundcube/carddav:dev-master"`
   - If composer asks you whether you want to enable the plugin in the roundcube configuration, say __y__.
   - You should now find the plugin installed under `plugins/carddav`
 - [Configure](#configuration) the plugin if needed.
@@ -45,10 +45,18 @@ In case of errors, check the files `logs/*`.
 
 ### Update using composer
 
- To update RCMCardDAV using composer, simply run `php composer.phar update --no-dev -o roundcube/carddav`.
+To update RCMCardDAV using composer, simply run `php composer.phar update --no-dev -o roundcube/carddav`.
 - Note that this will only upgrade RCMCardDAV within the version constraints listed in `composer.json`. You made this
   choice when you ran `composer require`. If you want to change the version constraint, simply run `composer require`
   again with the updated version constraint, e.g. the same command you would use for initial installation.
+
+__Note__: Because of a [bug in roundcube/plugin-installer#38](https://github.com/roundcube/plugin-installer/issues/38),
+the composer call might fail with a message claiming that `autoload_real.php` cannot open some file in the `vendor`
+directory. To work around this bug, run the following commands __after__ the failed composer command:
+- `php composer.phar dump-autload`
+- `php composer.phar update --no-dev -o roundcube/carddav`
+- This time, the update command should succeed without an error (note that the first failed composer command is needed).
+See details [here](https://github.com/mstilkerich/rcmcarddav/issues/388).
 
 ## Installation from release tarball
 
@@ -88,5 +96,33 @@ Configuration is optional. See [ADMIN-SETTINGS.md](ADMIN-SETTINGS.md) for a desc
 
 - Copy the template `config.inc.php.dist` to `config.inc.php` (composer may already have done this for you)
 - Edit `plugins/carddav/config.inc.php` as you need.
+
+# Uninstallation of RCMCardDAV plugin
+
+If you want to uninstall the plugin and clear the roundcube database of all RCMCardDAV data, follow the following steps.
+If you just want to clear RCMCardDAV's database data to start with a clean state, only the `dropdb.php` step needs to be
+executed.
+
+Steps for uninstallation:
+- Disable the plugin in the roundcube configuration (remove `carddav` from `$config['plugins']` in
+  `config/config.inc.php`)
+- Remove all of RCMCardDAV's data from the database by running (within the roundcube installation directory):
+  `plugins/carddav/scripts/dropdb.php`
+- Deleting the plugin files depends on the installation method
+
+## Delete plugin files when installed using composer
+
+If the plugin was installed using composer, uninstall it using composer to also get rid of the dependencies. Because of
+a [bug in roundcube/plugin-installer#38](https://github.com/roundcube/plugin-installer/issues/38), it is currently
+necessary to use composer to get rid of the dependencies, while RCMCardDAV itself needs to be deleted manually. The
+steps to be done inside the roundcube installation directory are:
+- Run composer to get rid of the dependencies. The `--no-plugins` switch bypasses the aforementioned bug but also
+  prevents composer from finding the correct installation location of RCMCardDAV, therefore it must be manually deleted.
+  `php composer.phar remove --update-no-dev -o --no-plugins roundcube/carddav`
+- Delete the plugin: `rm -r plugins/carddav`
+
+## Delete plugin files when installed from release tarball
+
+Simply delete the `plugins/carddav` directory inside your roundcube installation: `rm -r plugins/carddav`
 
 <!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->

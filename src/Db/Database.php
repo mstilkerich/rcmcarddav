@@ -173,13 +173,11 @@ class Database extends AbstractDatabase
         // We only support the non-commercial database types supported by roundcube, so quit with an error
         switch ($dbh->db_provider) {
             case "mysql":
-                $db_backend = "mysql";
+            case "postgres":
+                $db_backend = $dbh->db_provider;
                 break;
             case "sqlite":
                 $db_backend = "sqlite3";
-                break;
-            case "postgres":
-                $db_backend = "postgres";
                 break;
             default:
                 $logger->critical("Unsupported database backend: " . $dbh->db_provider);

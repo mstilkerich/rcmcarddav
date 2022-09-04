@@ -57,10 +57,10 @@ verification: staticanalyses tests checktestspecs
 staticanalyses: stylecheck phpcompatcheck psalmanalysis
 
 stylecheck:
-	vendor/bin/phpcs --colors --standard=PSR12 *.php src/ dbmigrations/ tests/
+	vendor/bin/phpcs --colors --standard=PSR12 *.php src/ dbmigrations/ tests/ scripts/
 
 phpcompatcheck:
-	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/ tests/
+	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/ tests/ scripts/
 
 psalmanalysis: tests/dbinterop/DatabaseAccounts.php
 	vendor/bin/psalm --no-cache --shepherd --report=testreports/psalm.txt --report-show-info=true --no-progress

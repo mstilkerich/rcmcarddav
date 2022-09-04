@@ -15,6 +15,7 @@
     <projectFiles>
         <directory name="src/"/>
         <directory name="dbmigrations/"/>
+        <directory name="scripts/"/>
         <file name="carddav.php"/>
 
         <directory name="tests/"/>

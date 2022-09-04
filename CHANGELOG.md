@@ -71,6 +71,8 @@ features over the old one, but it provides the basis for extensions by new featu
 - Enable foreign key constraints for SQLite3 database; note that this affects not only this plugin, but roundcube itself
   and other plugins as well. I suppose it should not be a problem and is the standard behavior with other DB backends,
   too.
+- The script `scripts/dropdb.php` can be used to clear all of RCMCardDAV's data from the database. See the uninstall
+  instructions in [INSTALL.md](doc/INSTALL.md). (Fixes #69)
 
 
 ## Version 4.4.4 (to 4.4.3)
