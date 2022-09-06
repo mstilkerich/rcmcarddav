@@ -9,6 +9,11 @@ on:
 
 jobs:
   staticanalyses:
+    strategy:
+      fail-fast: false
+      matrix:
+        rcube-version: ['release-1.4', 'release-1.5', 'release-1.6', 'master']
+
     runs-on: ubuntu-20.04
 
     steps:
@@ -17,7 +22,7 @@ jobs:
       - name: Set up CI environment
         uses: ./.github/actions/setup
         with:
-          php-version: '8.0'
+          rcube-version: ${{ matrix.rcube-version }}
       - name: Check code style compliance with PSR12
         run: make stylecheck
       - name: Check code compatibility with minimum supported PHP version
@@ -66,8 +71,6 @@ jobs:
         uses: actions/checkout@v2
       - name: Set up CI environment
         uses: ./.github/actions/setup
-        with:
-          php-version: '8.0'
       - name: Database interoperability tests for SQLite3
         run: make tests-sqlite3
       - name: Upload DB interoperability test coverage reports to codecov.io
@@ -119,8 +122,6 @@ jobs:
         uses: actions/checkout@v2
       - name: Set up CI environment
         uses: ./.github/actions/setup
-        with:
-          php-version: '8.0'
       - name: Set MySQL settings
         if: ${{ matrix.mysql-version == 'mysql:5.6' }}
         run: cat .github/configs/mysqlsettings.sql | docker exec -i mysql mysql -uroot -proot
@@ -167,8 +168,6 @@ jobs:
         uses: actions/checkout@v2
       - name: Set up CI environment
         uses: ./.github/actions/setup
-        with:
-          php-version: '8.0'
       - name: Database interoperability tests for Postgres
         run: make tests-postgres
       - name: Upload DB interoperability test coverage reports to codecov.io

@@ -3,8 +3,12 @@ description: 'Setup RCMCardDAV test environment'
 inputs:
   php-version:
     description: 'PHP version to use'
-    required: true
+    required: false
     default: '8.0'
+  rcube-version:
+    description: 'Roundcube version to use'
+    required: false
+    default: 'master'
 runs:
   using: "composite"
   steps:
@@ -20,7 +24,7 @@ runs:
         with:
           path: roundcubemail
           repository: mstilkerich/roundcubemail
-          ref: 'rcmcarddav_ci'
+          ref: ${{ inputs.rcube-version }}
       - name: Install dependencies
         run: composer update --no-interaction --no-progress
         shell: bash
