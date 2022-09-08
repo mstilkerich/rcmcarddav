@@ -27,7 +27,6 @@ declare(strict_types=1);
 namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
 
 use Psr\Log\LoggerInterface;
-use MStilkerich\CardDavClient\Account;
 use MStilkerich\CardDavAddressbook4Roundcube\{Config, RoundcubeLogger};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use MStilkerich\CardDavClient\AddressbookCollection;
@@ -323,20 +322,6 @@ class AdminSettings
 
                     $accountCfg = $abMgr->getAccountConfig($accountId);
 
-                    // Perform auto (re-)discovery
-                    if (isset($preset['url'])) {
-                        if (isset($accountCfg['last_discovered']) && isset($accountCfg['rediscover_time'])) {
-                            $doDiscovery = (($accountCfg['last_discovered'] + $accountCfg['rediscover_time']) < time());
-                        } else {
-                            $doDiscovery = true; // initial discovery for new account
-                        }
-
-                        if ($doDiscovery) {
-                            $abookTmpl = $this->makeDbObjFromPreset('addressbook', $preset);
-                            $abMgr->discoverAddressbooks($accountCfg, $abookTmpl);
-                        }
-                    }
-
                     // Create / delete the extra addressbooks for this preset
                     foreach (array_keys($preset['extra_addressbooks'] ?? []) as $xabookUrl) {
                         if (isset($existingExtraAbooksByUrl[$xabookUrl])) {
@@ -475,7 +460,7 @@ class AdminSettings
      * @return AbookSettings | AccountSettings
      * @psalm-return (T is 'addressbook' ? AbookSettings : AccountSettings)
      */
-    private function makeDbObjFromPreset(string $type, array $preset): array
+    public function makeDbObjFromPreset(string $type, array $preset): array
     {
         $result = [];
 

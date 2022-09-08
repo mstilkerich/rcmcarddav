@@ -337,6 +337,36 @@ class carddav extends rcube_plugin implements RcmInterface
         // Initialize presets
         $admPrefs->initPresets($abMgr, $infra);
 
+        // Perform rediscoveries when rediscover_time has passed
+        // We do this after initPresets() so we do not perform a rediscovery for presets that the admin may have
+        // deleted. For new accounts added by initPresets(), a rediscovery will not be done because rediscover_time is
+        // just now.
+        $accountIds = $abMgr->getAccountIds();
+        foreach ($accountIds as $accountId) {
+            $accountCfg = $abMgr->getAccountConfig($accountId);
+
+            // if there is no discovery URL, we cannot perform discovery; this should only happen for presets
+            if ($accountCfg['url'] === null) {
+                continue;
+            }
+
+            if (($accountCfg['last_discovered'] + $accountCfg['rediscover_time']) < time()) {
+                $abookTmpl = [];
+                $presetName = $accountCfg['presetname'];
+                if ($presetName !== null) {
+                    $preset = $admPrefs->getPreset($presetName);
+                    $abookTmpl = $admPrefs->makeDbObjFromPreset('addressbook', $preset);
+                }
+
+                try {
+                    $logger->info("Performing re-discovery for account $accountId");
+                    $abMgr->discoverAddressbooks($accountCfg, $abookTmpl);
+                } catch (Exception $e) {
+                    $logger->error("Rediscovery of account $accountId failed: {$e->getMessage()}");
+                }
+            }
+        }
+
         // now register the addressbooks with roundcube
         $this->finalizeInit();
     }
