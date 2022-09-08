@@ -1154,6 +1154,7 @@ final class AddressbookManagerTest extends TestCase
         // create a Discovery mock that "discovers" our test addressbooks
         $username = $accountCfg['username'] == '%u' ? 'testuser@example.com' : $accountCfg['username'];
         $password = $accountCfg['password'] == '%p' ? 'test' : $accountCfg['password'];
+        $this->assertNotNull($accountCfg['url']);
         $account = new Account($accountCfg['url'], $username, $password);
         $discovery = $this->createMock(Discovery::class);
         $discovery->expects($this->once())

@@ -43,7 +43,7 @@ use Psr\Log\LoggerInterface;
  *     name: string,
  *     username: string,
  *     password: string,
- *     url: string,
+ *     url: ?string,
  *     last_discovered: numeric-string,
  *     rediscover_time: numeric-string,
  *     presetname: ?string
