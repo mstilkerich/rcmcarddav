@@ -24,11 +24,9 @@
 
 declare(strict_types=1);
 
-use MStilkerich\CardDavClient\{Account, AddressbookCollection};
-use Psr\Log\LoggerInterface;
-use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config, RoundcubeLogger, DataConversion};
-use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
-use MStilkerich\CardDavAddressbook4Roundcube\Frontend\{AddressbookManager,AdminSettings,RcmInterface,UI};
+use MStilkerich\CardDavAddressbook4Roundcube\{Config, DataConversion};
+use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
+use MStilkerich\CardDavAddressbook4Roundcube\Frontend\{AddressbookManager,RcmInterface,UI};
 use Sabre\VObject\Component\VCard;
 
 /**
@@ -81,7 +79,7 @@ class carddav extends rcube_plugin implements RcmInterface
      *   src_uri: Direct download URL to the source code of this plugin
      *   require: List of plugins required for this one (as array of plugin names)
      */
-    public static function info()
+    public static function info(): array
     {
         return self::PLUGIN_INFO;
     }
@@ -123,7 +121,7 @@ class carddav extends rcube_plugin implements RcmInterface
 
             $this->basicInit();
             $this->finalizeInit();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $infra = Config::inst();
             $logger = $infra->logger();
             $logger->error("Could not init rcmcarddav: " . $e->getMessage());
@@ -154,7 +152,7 @@ class carddav extends rcube_plugin implements RcmInterface
         $infra = Config::inst();
         $rc = $infra->rc();
 
-        $rcmail = \rcmail::get_instance();
+        $rcmail = rcmail::get_instance();
         $rcTask = $rcmail->task;
 
         $rc->addTexts('localization/');
@@ -208,16 +206,16 @@ class carddav extends rcube_plugin implements RcmInterface
 
     public function showMessage(string $msg, string $msgType = 'notice', $override = false, $timeout = 0): void
     {
-        $rcube = \rcube::get_instance();
+        $rcube = rcube::get_instance();
         $rcube->output->show_message($msg, $msgType, null, $override, $timeout);
     }
 
     public function clientCommand(string $method, ...$arguments): void
     {
-        $rcube = \rcube::get_instance();
+        $rcube = rcube::get_instance();
         $output = $rcube->output;
 
-        if ($output instanceof \rcmail_output) {
+        if ($output instanceof rcmail_output) {
             $output->command($method, ...$arguments);
         }
     }
@@ -246,8 +244,8 @@ class carddav extends rcube_plugin implements RcmInterface
     public function includeJS(string $jsFile, bool $rcInclude = false): void
     {
         if ($rcInclude) {
-            $rcube = \rcube::get_instance();
-            /** @psalm-var \rcmail_output_html */
+            $rcube = rcube::get_instance();
+            /** @psalm-var rcmail_output_html $output */
             $output = $rcube->output;
             $output->include_script($jsFile);
         } else {
@@ -257,54 +255,54 @@ class carddav extends rcube_plugin implements RcmInterface
 
     public function addGuiObject(string $obj, string $id): void
     {
-        $rcube = \rcube::get_instance();
+        $rcube = rcube::get_instance();
 
-        /** @psalm-var \rcmail_output_html */
+        /** @psalm-var rcmail_output_html $output */
         $output = $rcube->output;
         $output->add_gui_object($obj, $id);
     }
 
     public function setPageTitle(string $title): void
     {
-        $rcube = \rcube::get_instance();
+        $rcube = rcube::get_instance();
 
-        /** @psalm-var \rcmail_output_html */
+        /** @psalm-var rcmail_output_html $output */
         $output = $rcube->output;
         $output->set_pagetitle($title);
     }
 
     public function addTemplateObjHandler(string $name, callable $func): void
     {
-        $rcube = \rcube::get_instance();
+        $rcube = rcube::get_instance();
 
-        /** @psalm-var \rcmail_output_html */
+        /** @psalm-var rcmail_output_html $output */
         $output = $rcube->output;
         $output->add_handler($name, $func);
     }
 
     public function setEnv(string $name, $value, bool $addToJs = true): void
     {
-        $rcube = \rcube::get_instance();
+        $rcube = rcube::get_instance();
         $output = $rcube->output;
-        if ($output instanceof \rcmail_output_html) {
+        if ($output instanceof rcmail_output_html) {
             $output->set_env($name, $value, $addToJs);
         }
     }
 
     public function sendTemplate(string $templ, $exit = true): void
     {
-        $rcube = \rcube::get_instance();
+        $rcube = rcube::get_instance();
 
-        /** @psalm-var \rcmail_output_html */
+        /** @psalm-var rcmail_output_html $output */
         $output = $rcube->output;
         $output->send($templ, $exit);
     }
 
     public function requestForm(array $attrib, string $content): string
     {
-        $rcube = \rcube::get_instance();
+        $rcube = rcube::get_instance();
 
-        /** @psalm-var \rcmail_output_html */
+        /** @psalm-var rcmail_output_html $output */
         $output = $rcube->output;
         return $output->request_form($attrib, $content);
     }
@@ -315,13 +313,14 @@ class carddav extends rcube_plugin implements RcmInterface
 
     public function afterLogin(): void
     {
-        // this is needed because when carddav::init() was invoked, SESSION['user_id'] was not yet available and
+        // this is needed because when carddav::init() was invoked, SESSION['user_id'] was not yet available, and
         // therefore we delayed the plugin initialization to this point
         $this->basicInit();
         $infra = Config::inst();
         $logger = $infra->logger();
         $admPrefs = $infra->admPrefs();
         $db = $infra->db();
+        $abMgr = $this->abMgr;
 
         // Migrate database schema to the current version if needed
         try {
@@ -331,12 +330,12 @@ class carddav extends rcube_plugin implements RcmInterface
             $config = rcube::get_instance()->config;
             $dbprefix = (string) $config->get('db_prefix', "");
             $db->checkMigrations($dbprefix, $scriptDir);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("Error execution DB schema migrations: " . $e->getMessage());
         }
 
         // Initialize presets
-        $admPrefs->initPresets($this->abMgr, $infra);
+        $admPrefs->initPresets($abMgr, $infra);
 
         // now register the addressbooks with roundcube
         $this->finalizeInit();
@@ -368,7 +367,7 @@ class carddav extends rcube_plugin implements RcmInterface
                         // TODO consider making readonly a DB column
                         $preset = $admPrefs->getPreset($account['presetname'], $abookrow['url']);
                         $readonly = $preset['readonly'];
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // it appears the admin deleted the preset - don't show the addressbook to roundcube
                         continue;
                     }
@@ -384,7 +383,7 @@ class carddav extends rcube_plugin implements RcmInterface
                     'readonly' => $readonly
                 ];
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("Error reading carddav addressbooks: {$e->getMessage()}");
         }
 
@@ -426,14 +425,14 @@ class carddav extends rcube_plugin implements RcmInterface
                     try {
                         $msgParam['duration'] = (string) $abMgr->resyncAddressbook($abook);
                         $rc->showMessage($rc->locText('AbSync_msg_ok', $msgParam), 'notice', false);
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         $msgParam['errormsg'] = $e->getMessage();
                         $logger->error("Failed to sync addressbook: " . $msgParam['errormsg']);
                         $rc->showMessage($rc->locText('AbSync_msg_fail', $msgParam), 'warning', false);
                     }
                 }
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("Error loading carddav addressbook $abookId: {$e->getMessage()}");
         }
 
