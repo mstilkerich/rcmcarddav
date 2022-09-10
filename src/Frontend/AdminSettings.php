@@ -608,6 +608,14 @@ class AdminSettings
             $presetName = $matchSettings['preset'];
             $matches = [];
 
+            // When an admin creates a new preset in the configuration and a user is still logged on, the user will not
+            // have an account for that preset yet until the next login. If this new preset is referred to for a special
+            // addressbook, we cannot set it just yet.
+            if (!isset($presetIdsByPresetname[$presetName])) {
+                $logger->debug("Cannot set special addressbook $type, no account for preset $presetName in DB");
+                continue;
+            }
+
             $accountId = $presetIdsByPresetname[$presetName];
 
             foreach ($abMgr->getAddressbookConfigsForAccount($accountId) as $abookrow) {
