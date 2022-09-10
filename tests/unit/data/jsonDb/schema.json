@@ -1,10 +1,10 @@
 {
 	"accounts": {
 		"id": "key",
-		"name": "string",
+		"accountname": "string",
 		"username": "string",
 		"password": "string",
-		"url": "string",
+		"discovery_url": "?string",
 		"user_id": "int",
 		"last_discovered": "int=0",
 		"rediscover_time": "int=86400",

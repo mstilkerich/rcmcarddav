@@ -18,11 +18,11 @@ $prefs['_GLOBAL']['collected_senders'] = [
 ];
 
 $prefs['Preset1'] = [
-    'name'         =>  'First Preset',
+    'accountname'         =>  'First Preset',
     'username'     =>  '%u',
     'password'     =>  '%p',
     //// optional attributes
-    'url'          =>  'cdav.example.com/%u',
+    'discovery_url'          =>  'cdav.example.com/%u',
     'rediscover_time' => '01:02:34',
     'hide' => true,
 
@@ -33,7 +33,7 @@ $prefs['Preset1'] = [
     'refresh_time' => '2',
     'use_categories' => false,
 
-    'fixed'        =>  [ 'name' ],
+    'fixed'        =>  [ 'accountname' ],
     'require_always' => ['email'],
 
     'extra_addressbooks' =>  [
@@ -62,11 +62,11 @@ $prefs['Preset1'] = [
 ];
 
 $prefs['Minimal'] = [
-    'name'         =>  'Minimal Preset with required values only',
+    // this tests that the preset key is used as default for accountname
 ];
 
 $prefs['OnlyShared'] = [
-    'name'         =>  'Preset that contains a shared example.com addressbook only',
+    'accountname'         =>  'Preset that contains a shared example.com addressbook only',
     'username'     =>  'uonly',
     'password'     =>  'ponly',
     'extra_addressbooks' =>  [

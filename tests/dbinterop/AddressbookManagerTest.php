@@ -60,7 +60,7 @@ final class AddressbookManagerTest extends TestCase
     private static $userId;
 
     /** @var list<string> */
-    private const ACCOUNT_COLS = [ "name", "username", "password", "url", "user_id", "presetname" ];
+    private const ACCOUNT_COLS = [ "accountname", "username", "password", "discovery_url", "user_id", "presetname" ];
 
     /** @var list<list<?string>> Initial test accounts */
     private const ACCOUNT_ROWS = [
@@ -384,25 +384,27 @@ final class AddressbookManagerTest extends TestCase
         return [
             'All properties specified' => [
                 [
-                    'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass', 'url' => 'foo.com',
-                    'rediscover_time' => 500, 'last_discovered' => '100', 'presetname' => null
+                    'accountname' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
+                    'discovery_url' => 'foo.com', 'rediscover_time' => 500, 'last_discovered' => '100',
+                    'presetname' => null
                 ],
                 null
             ],
             'Only mandatory properties specified' => [
-                [ 'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass' ],
+                [ 'accountname' => 'New Account', 'username' => 'newusr', 'password' => 'newpass' ],
                 null
             ],
             'Include user_id of a different user' => [
                 [
-                    'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
+                    'accountname' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
                     'user_id' => [ 'users', 1, 'builtin' ]
                 ],
                 null
             ],
             'Include extra properties that must not be set (both unknown and unsettable ones)' => [
                 [
-                    'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass', 'presetname' => 'pres',
+                    'accountname' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
+                    'presetname' => 'pres',
                     // not settable
                     'user_id' => 5,
                     // not existing
@@ -410,14 +412,14 @@ final class AddressbookManagerTest extends TestCase
                 ],
                 null
             ],
-            'Lacks mandatory attribute (name)' => [
+            'Lacks mandatory attribute (accountname)' => [
                 [ 'username' => 'newusr', 'password' => 'newpass' ], 'Mandatory field'
             ],
             'Lacks mandatory attribute (username)' => [
-                [ 'name' => 'New Account', 'password' => 'newpass' ], 'Mandatory field'
+                [ 'accountname' => 'New Account', 'password' => 'newpass' ], 'Mandatory field'
             ],
             'Lacks mandatory attribute (password)' => [
-                [ 'name' => 'New Account', 'username' => 'newusr' ], 'Mandatory field'
+                [ 'accountname' => 'New Account', 'username' => 'newusr' ], 'Mandatory field'
             ],
         ];
     }
@@ -440,7 +442,7 @@ final class AddressbookManagerTest extends TestCase
     {
         $defaults = [
             // optional attributes with default values
-            'url' => null,
+            'discovery_url' => null,
             'rediscover_time' => '86400',
             'last_discovered' => '0',
             'presetname' => null,
@@ -523,13 +525,14 @@ final class AddressbookManagerTest extends TestCase
             'All updateable properties updated' => [
                 [ 'carddav_accounts', 0 ],
                 [
-                    'name' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass', 'url' => 'cdav.com',
-                    'rediscover_time' => 5000, 'last_discovered' => 1000
+                    'accountname' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass',
+                    'discovery_url' => 'cdav.com', 'rediscover_time' => 5000, 'last_discovered' => 1000
                 ],
                 [
                     'id' => '0', 'user_id' => '0', // these IDs are filled by the test
-                    'name' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass', 'url' => 'cdav.com',
-                    'rediscover_time' => '5000', 'last_discovered' => '1000', 'presetname' => null
+                    'accountname' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass',
+                    'discovery_url' => 'cdav.com', 'rediscover_time' => '5000', 'last_discovered' => '1000',
+                    'presetname' => null
                 ],
                 null
             ],
@@ -1148,14 +1151,16 @@ final class AddressbookManagerTest extends TestCase
             /** @var FullAccountRow */
             $accountCfg = $db->lookup($accountId, [], 'accounts');
         } else {
-            $accountCfg = [ 'name' => 'New Acc', 'username' => 'usr', 'password' => 'p', 'url' => 'http://foo.bar' ];
+            $accountCfg = [
+                'accountname' => 'New Acc', 'username' => 'usr', 'password' => 'p', 'discovery_url' => 'http://foo.bar'
+            ];
         }
 
         // create a Discovery mock that "discovers" our test addressbooks
         $username = $accountCfg['username'] == '%u' ? 'testuser@example.com' : $accountCfg['username'];
         $password = $accountCfg['password'] == '%p' ? 'test' : $accountCfg['password'];
-        $this->assertNotNull($accountCfg['url']);
-        $account = new Account($accountCfg['url'], $username, $password);
+        $this->assertNotNull($accountCfg['discovery_url']);
+        $account = new Account($accountCfg['discovery_url'], $username, $password);
         $discovery = $this->createMock(Discovery::class);
         $discovery->expects($this->once())
             ->method("discoverAddressbooks")
@@ -1230,7 +1235,7 @@ final class AddressbookManagerTest extends TestCase
 
         // Run the test object
         $abMgr = new AddressbookManager();
-        $accountCfg = [ 'name' => 'New Acc', 'username' => 'usr', 'password' => 'p' ];
+        $accountCfg = [ 'accountname' => 'New Acc', 'username' => 'usr', 'password' => 'p' ];
         $abMgr->discoverAddressbooks($accountCfg, []);
     }
 

@@ -346,7 +346,7 @@ class carddav extends rcube_plugin implements RcmInterface
             $accountCfg = $abMgr->getAccountConfig($accountId);
 
             // if there is no discovery URL, we cannot perform discovery; this should only happen for presets
-            if ($accountCfg['url'] === null) {
+            if ($accountCfg['discovery_url'] === null) {
                 continue;
             }
 

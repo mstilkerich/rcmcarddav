@@ -16,17 +16,17 @@
 	},
 	"presets": {
 		"Preset1": {
-			"name": "First Preset",
+			"accountname": "First Preset",
 			"username": "%u",
 			"password": "%p",
-			"url": "cdav.example.com/user@example.com",
+			"discovery_url": "cdav.example.com/user@example.com",
 			"rediscover_time": 3754,
 			"hide": true,
 			"active": false,
 			"readonly": true,
 			"refresh_time": 7200,
 			"use_categories": false,
-			"fixed": [ "name" ],
+			"fixed": [ "accountname" ],
 			"require_always": [ "email" ],
 			"extra_addressbooks": {
 				"https://cdav.example.com/shared/book": {
@@ -44,7 +44,7 @@
 					"readonly": true,
 					"refresh_time": 7200,
 					"use_categories": false,
-					"fixed": [ "name" ],
+					"fixed": [ "accountname" ],
 					"require_always": [ "email" ]
 				},
 				"https://cdav.example.com/example.com/user/user@example.com": {
@@ -53,16 +53,16 @@
 					"readonly": false,
 					"refresh_time": 7200,
 					"use_categories": false,
-					"fixed": [ "name" ],
+					"fixed": [ "accountname" ],
 					"require_always": [ "email" ]
 				}
 			}
 		},
 		"Minimal": {
-			"name": "Minimal Preset with required values only",
+			"accountname": "Minimal",
 			"username": "",
 			"password": "",
-			"url": null,
+			"discovery_url": null,
 			"rediscover_time": 86400,
 			"hide": false,
 			"active": true,
@@ -75,10 +75,10 @@
 			}
 		},
 		"OnlyShared": {
-			"name": "Preset that contains a shared example.com addressbook only",
+			"accountname": "Preset that contains a shared example.com addressbook only",
 			"username": "uonly",
 			"password": "ponly",
-			"url": null,
+			"discovery_url": null,
 			"rediscover_time": 86400,
 			"hide": false,
 			"active": true,

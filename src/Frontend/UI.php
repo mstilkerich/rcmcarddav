@@ -63,8 +63,8 @@ class UI
         [
             'label' => 'AccProps_newaccount_lbl',
             'fields' => [
-                [ 'AccProps_accountname_lbl', 'name', 'text' ],
-                [ 'AccProps_discoveryurl_lbl', 'url', 'text' ],
+                [ 'AccProps_accountname_lbl', 'accountname', 'text' ],
+                [ 'AccProps_discoveryurl_lbl', 'discovery_url', 'text' ],
                 [ 'AccProps_username_lbl', 'username', 'text' ],
                 [ 'AccProps_password_lbl', 'password', 'password' ],
             ]
@@ -94,7 +94,7 @@ class UI
             'label' => 'AccAbProps_basicinfo_seclbl',
             'fields' => [
                 [ 'AccProps_frompreset_lbl', 'presetname', 'plain' ],
-                [ 'AccProps_accountname_lbl', 'name', 'text' ],
+                [ 'AccProps_accountname_lbl', 'accountname', 'text' ],
                 [ 'AccProps_discoveryurl_lbl', 'url', 'text' ],
                 [ 'AccProps_username_lbl', 'username', 'text' ],
                 [ 'AccProps_password_lbl', 'password', 'password' ],
@@ -253,7 +253,7 @@ class UI
              * @param FullAccountRow $b
              */
             function (array $a, array $b): int {
-                return strcasecmp($a['name'], $b['name']);
+                return strcasecmp($a['accountname'], $b['accountname']);
             }
         );
 
@@ -293,7 +293,7 @@ class UI
             }
         );
 
-        $content = \html::a(['href' => '#'], \rcube::Q($account["name"]));
+        $content = \html::a(['href' => '#'], \rcube::Q($account["accountname"]));
 
         $addressbookListItems = [];
         foreach (($account["addressbooks"] ?? []) as $abook) {
@@ -585,7 +585,7 @@ class UI
                 // update account data and echo formatted field data to client
                 $account = $abMgr->getAccountConfig($accountId);
                 $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, $account);
-                $formData["_acc$accountId"] = [ 'parent', $account["name"] ];
+                $formData["_acc$accountId"] = [ 'parent', $account["accountname"] ];
 
                 $rc->clientCommand('carddav_UpdateForm', $formData);
                 $rc->showMessage($rc->locText("AccAbSave_msg_ok"), 'confirmation');

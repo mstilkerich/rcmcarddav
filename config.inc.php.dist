@@ -58,14 +58,14 @@ $prefs['_GLOBAL']['loglevel_http'] = \Psr\Log\LogLevel::ERROR;
 $prefs['<Presetname>'] = [
     // Account attributes
     //// required attributes
-    'name'         =>  '<Account Name>',
+    'accountname'         =>  '<Account Name>',
 
     //// required attributes unless passwordless authentication is used (Kerberos)
     'username'     =>  '<CardDAV Username>',
     'password'     =>  '<CardDAV Password>',
     //// optional attributes
-    ////// if url is not specified / null, addressbook discovery is disabled (see extra_addressbooks)
-    'url'          =>  '<CardDAV Discovery URL>',
+    ////// if discovery_url is not specified / null, addressbook discovery is disabled (see extra_addressbooks)
+    'discovery_url'          =>  '<CardDAV Discovery URL>',
     'rediscover_time' => '<Rediscover Time in Hours, Format HH[:MM[:SS]]>',
     ////// hide the account/addressbooks of this preset from CardDAV settings
     'hide' => <true or false>,

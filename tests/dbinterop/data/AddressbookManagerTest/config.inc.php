@@ -6,26 +6,26 @@ $prefs = [
     ],
 
     'admpreset' => [
-        'name'         =>  'Preset Account',
+        'accountname'    =>  'Preset Account',
 
-        'username'     =>  '%u',
-        'password'     =>  '%p',
-        'url'          =>  'https://contacts.example.com/',
+        'username'       =>  '%u',
+        'password'       =>  '%p',
+        'discovery_url'  =>  'https://contacts.example.com/',
 
-        'hide'         => true, // must show up in AddressbookManager nevertheless!
+        'hide'           => true, // must show up in AddressbookManager nevertheless!
 
         // these attributes are only found in the admin settings, not the DB - set to non-default values to verify usage
-        'readonly'     =>  true,
+        'readonly'       =>  true,
         'require_always' => ['email'],
     ],
 
     // This preset only exists in the configuration, but has not been added to the DB yet.
     'admpreset_new' => [
-        'name'         =>  'Preset Account - Not added for user yet',
+        'accountname'         =>  'Preset Account - Not added for user yet',
 
-        'username'     =>  'usr2',
-        'password'     =>  'pass2',
-        'url'          =>  'https://contacts2.example.com/',
+        'username'      =>  'usr2',
+        'password'      =>  'pass2',
+        'discovery_url' =>  'https://contacts2.example.com/',
     ]
 ];
 

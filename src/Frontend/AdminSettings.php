@@ -35,7 +35,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  * Represents the administrative settings of the plugin.
  *
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
- * @psalm-type ConfigurablePresetAttr = 'name'|'username'|'password'|'url'|'rediscover_time'
+ * @psalm-type ConfigurablePresetAttr = 'accountname'|'discovery_url'|'username'|'password'|'rediscover_time'|
  *                                      'active'|'refresh_time'|'use_categories'
  * @psalm-type SpecialAbookType = 'collected_recipients'|'collected_senders'
  * @psalm-type SpecialAbookMatch = array{preset: string, matchname?: string, matchurl?: string}
@@ -49,11 +49,12 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *     fixed: list<ConfigurablePresetAttr>,
  *     require_always: list<string>,
  * }
+ *
  * @psalm-type Preset = array{
- *     name: string,
+ *     accountname: string,
  *     username: string,
  *     password: string,
- *     url: ?string,
+ *     discovery_url: ?string,
  *     rediscover_time: int,
  *     hide: bool,
  *     active: bool,
@@ -67,8 +68,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *
  * @psalm-type SettingSpecification=array{
  *     'url'|'timestr'|'string'|'bool'|'string[]'|'skip',
- *     bool,
- *     int|string|bool|array|null
+ *     bool
  * }
  *
  * @psalm-import-type FullAbookRow from AbstractDatabase
@@ -81,6 +81,23 @@ class AdminSettings
     /** @var list<PasswordStoreScheme> List of supported password store schemes */
     public const PWSTORE_SCHEMES = [ 'plain', 'base64', 'des_key', 'encrypted' ];
 
+    /** @var Preset Default values for the preset attributes */
+    private const PRESET_DEFAULTS = [
+        'accountname'        => '',
+        'username'           => '',
+        'password'           => '',
+        'discovery_url'      => null,
+        'rediscover_time'    => 86400,
+
+        'hide'               => false,
+        'active'             => true,
+        'readonly'           => false,
+        'refresh_time'       => 3600,
+        'use_categories'     => true,
+        'fixed'              => [],
+        'require_always'     => [],
+    ];
+
     /**
      * @var array<string, SettingSpecification> PRESET_SETTINGS_EXTRA_ABOOK
      *   This describes the valid attributes in a preset configuration of an extra addressbook (non-discovered), their
@@ -89,13 +106,13 @@ class AdminSettings
      */
     private const PRESET_SETTINGS_EXTRA_ABOOK = [
         // type, mandatory, default value
-        'url'            => [ 'url',      true,  null ],
-        'active'         => [ 'bool',     false, true ],
-        'readonly'       => [ 'bool',     false, false ],
-        'refresh_time'   => [ 'timestr',  false, 3600 ],
-        'use_categories' => [ 'bool',     false, true ],
-        'fixed'          => [ 'string[]', false, [] ],
-        'require_always' => [ 'string[]', false, [] ],
+        'url'            => [ 'url',      true  ],
+        'active'         => [ 'bool',     false ],
+        'readonly'       => [ 'bool',     false ],
+        'refresh_time'   => [ 'timestr',  false ],
+        'use_categories' => [ 'bool',     false ],
+        'fixed'          => [ 'string[]', false ],
+        'require_always' => [ 'string[]', false ],
     ];
 
     /**
@@ -105,14 +122,22 @@ class AdminSettings
      */
     private const PRESET_SETTINGS = [
         // type, mandatory, default value
-        'name'               => [ 'string',  true,  null ],
-        'username'           => [ 'string',  false, '' ],
-        'password'           => [ 'string',  false, '' ],
-        'url'                => [ 'url',     false, null ],
-        'rediscover_time'    => [ 'timestr', false, 86400 ],
-        'hide'               => [ 'bool',    false, false ],
-        'extra_addressbooks' => [ 'skip',    false, null ],
-    ] + self::PRESET_SETTINGS_EXTRA_ABOOK;
+        'accountname'        => [ 'string',   false ],
+        'username'           => [ 'string',   false ],
+        'password'           => [ 'string',   false ],
+        'discovery_url'      => [ 'url',      false ],
+        'rediscover_time'    => [ 'timestr',  false ],
+
+        'hide'               => [ 'bool',     false ],
+        'active'             => [ 'bool',     false ],
+        'readonly'           => [ 'bool',     false ],
+        'refresh_time'       => [ 'timestr',  false ],
+        'use_categories'     => [ 'bool',     false ],
+        'fixed'              => [ 'string[]', false ],
+        'require_always'     => [ 'string[]', false ],
+
+        'extra_addressbooks' => [ 'skip',     false ],
+    ];
 
     /**
      * @var array<ConfigurablePresetAttr, array{'account'|'addressbook', string}> PRESET_ATTR_DBMAP
@@ -121,10 +146,10 @@ class AdminSettings
      *   the DB column name.
      */
     private const PRESET_ATTR_DBMAP = [
-        'name'            => ['account','name'],
+        'accountname'     => ['account','accountname'],
         'username'        => ['account','username'],
         'password'        => ['account','password'],
-        'url'             => ['account','url'], // addressbook URL cannot be updated, only discovery URI
+        'discovery_url'   => ['account','discovery_url'],
         'rediscover_time' => ['account','rediscover_time'],
         'active'          => ['addressbook','active'],
         'refresh_time'    => ['addressbook','refresh_time'],
@@ -382,8 +407,7 @@ class AdminSettings
     private function updatePresetObject(array $obj, string $type, string $presetName, AddressbookManager $abMgr): void
     {
         // extra addressbooks (discovered == 0) can have individual preset settings
-        $xabookUrl = ($type == 'addressbook') ? $obj['url'] : null;
-        $preset = $this->getPreset($presetName, $xabookUrl);
+        $preset = $this->getPreset($presetName, $obj['url'] ?? null);
 
         // update only those attributes marked as fixed by the admin
         // otherwise there may be user changes that should not be destroyed
@@ -482,7 +506,11 @@ class AdminSettings
     {
         try {
             /** @psalm-var Preset Checked by parsePresetArray() */
-            $result = $this->parsePresetArray(self::PRESET_SETTINGS, $preset);
+            $result = $this->parsePresetArray(
+                self::PRESET_SETTINGS,
+                $preset,
+                ['accountname' => $presetName] + self::PRESET_DEFAULTS
+            );
 
             // Parse extra addressbooks
             $result['extra_addressbooks'] = [];
@@ -518,21 +546,22 @@ class AdminSettings
      *
      * @param array<string, SettingSpecification> $spec The specification of the expected fields.
      * @param array $preset The user-input array
-     * @param null|Preset $defaults An optional array with defaults that take precedence over defaults in $spec.
+     * @param Preset $defaults An array with defaults for all settings (for mandatory settings, they will not be used)
      * @return array If no error, the resulting array, containing only attributes from $spec.
      */
-    private function parsePresetArray(array $spec, array $preset, ?array $defaults = null): array
+    private function parsePresetArray(array $spec, array $preset, array $defaults): array
     {
         $result = [];
         foreach ($spec as $attr => $specs) {
-            [ $type, $mandatory, $defaultValue ] = $specs;
+            [ $type, $mandatory ] = $specs;
+
+            if ($type === 'skip') {
+                // this item has a special handler
+                continue;
+            }
 
             if (isset($preset[$attr])) {
                 switch ($type) {
-                    case 'skip':
-                        // this item has a special handler
-                        continue 2;
-
                     case 'string':
                     case 'timestr':
                     case 'url':
@@ -570,7 +599,7 @@ class AdminSettings
             } elseif ($mandatory) {
                 throw new \Exception("required setting $attr is not set");
             } else {
-                $result[$attr] = $defaults[$attr] ?? $defaultValue;
+                $result[$attr] = $defaults[$attr];
             }
         }
 

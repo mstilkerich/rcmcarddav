@@ -40,10 +40,10 @@ use Psr\Log\LoggerInterface;
  * @psalm-type FullAccountRow = array{
  *     id: string,
  *     user_id: string,
- *     name: string,
+ *     accountname: string,
  *     username: string,
  *     password: string,
- *     url: ?string,
+ *     discovery_url: ?string,
  *     last_discovered: numeric-string,
  *     rediscover_time: numeric-string,
  *     presetname: ?string

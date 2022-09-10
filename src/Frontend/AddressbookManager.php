@@ -41,10 +41,10 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *
  * @psalm-type AccountSettings = array{
  *     id?: string,
- *     name?: string,
+ *     accountname?: string,
  *     username?: string,
  *     password?: string,
- *     url?: ?string,
+ *     discovery_url?: ?string,
  *     rediscover_time?: int | numeric-string,
  *     last_discovered?: int | numeric-string,
  *     presetname?: ?string
@@ -73,10 +73,10 @@ class AddressbookManager
      *      methods.
      */
     private const ACCOUNT_SETTINGS = [
-        'name' => [ 'string', true, true ],
+        'accountname' => [ 'string', true, true ],
         'username' => [ 'string', true, true ],
         'password' => [ 'string', true, true ],
-        'url' => [ 'string', false, true ], // discovery URI can be NULL, disables discovery
+        'discovery_url' => [ 'string', false, true ], // discovery URI can be NULL, disables discovery
         'rediscover_time' => [ 'int', false, true ],
         'last_discovered' => [ 'int', false, true ],
         'active' => [ 'bool', false, true ],
@@ -507,12 +507,12 @@ class AddressbookManager
     {
         $infra = Config::inst();
 
-        if (!isset($accountCfg['url'])) {
+        if (!isset($accountCfg['discovery_url'])) {
             throw new \Exception('Cannot discover addressbooks for an account lacking a discovery URI');
         }
 
         $account = Config::makeAccount(
-            Utils::replacePlaceholdersUrl($accountCfg['url']),
+            Utils::replacePlaceholdersUrl($accountCfg['discovery_url']),
             Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
             Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
             null
