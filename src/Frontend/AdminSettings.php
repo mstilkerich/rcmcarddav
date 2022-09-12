@@ -99,6 +99,21 @@ class AdminSettings
     ];
 
     /**
+     * @var array<string, SettingSpecification> PRESET_SETTINGS_COMMON
+     *   This describes the valid attributes in a preset configuration that are available in the main account but can
+     *   also be overridden for extra addressbooks in their preset configuration.
+     */
+    private const PRESET_SETTINGS_COMMON = [
+        // type, mandatory
+        'active'         => [ 'bool',     false ],
+        'readonly'       => [ 'bool',     false ],
+        'refresh_time'   => [ 'timestr',  false ],
+        'use_categories' => [ 'bool',     false ],
+        'fixed'          => [ 'string[]', false ],
+        'require_always' => [ 'string[]', false ],
+    ];
+
+    /**
      * @var array<string, SettingSpecification> PRESET_SETTINGS_EXTRA_ABOOK
      *   This describes the valid attributes in a preset configuration of an extra addressbook (non-discovered), their
      *   data type, whether they are mandatory to be specified by the admin, and the default value for optional
@@ -107,13 +122,7 @@ class AdminSettings
     private const PRESET_SETTINGS_EXTRA_ABOOK = [
         // type, mandatory, default value
         'url'            => [ 'url',      true  ],
-        'active'         => [ 'bool',     false ],
-        'readonly'       => [ 'bool',     false ],
-        'refresh_time'   => [ 'timestr',  false ],
-        'use_categories' => [ 'bool',     false ],
-        'fixed'          => [ 'string[]', false ],
-        'require_always' => [ 'string[]', false ],
-    ];
+    ] + self::PRESET_SETTINGS_COMMON;
 
     /**
      * @var array<string, SettingSpecification> PRESET_SETTINGS
@@ -127,17 +136,9 @@ class AdminSettings
         'password'           => [ 'string',   false ],
         'discovery_url'      => [ 'url',      false ],
         'rediscover_time'    => [ 'timestr',  false ],
-
         'hide'               => [ 'bool',     false ],
-        'active'             => [ 'bool',     false ],
-        'readonly'           => [ 'bool',     false ],
-        'refresh_time'       => [ 'timestr',  false ],
-        'use_categories'     => [ 'bool',     false ],
-        'fixed'              => [ 'string[]', false ],
-        'require_always'     => [ 'string[]', false ],
-
         'extra_addressbooks' => [ 'skip',     false ],
-    ];
+    ] + self::PRESET_SETTINGS_COMMON;
 
     /**
      * @var array<ConfigurablePresetAttr, array{'account'|'addressbook', string}> PRESET_ATTR_DBMAP
