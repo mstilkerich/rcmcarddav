@@ -30,7 +30,6 @@ use MStilkerich\CardDavAddressbook4Roundcube\Frontend\{AddressbookManager,RcmInt
 use Sabre\VObject\Component\VCard;
 
 /**
- * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type SaveDataFromDC from DataConversion
  */
 // phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
