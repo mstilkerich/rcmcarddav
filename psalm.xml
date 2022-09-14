@@ -19,6 +19,7 @@
         <file name="carddav.php"/>
 
         <directory name="tests/"/>
+
         <ignoreFiles>
             <directory name="tests/dbinterop/data" />
             <directory name="tests/unit/data" />
@@ -28,16 +29,9 @@
     <extraFiles>
         <directory name="roundcubemail/program/"/>
     </extraFiles>
+
     <plugins>
         <pluginClass class="Psalm\PhpUnitPlugin\Plugin"/>
     </plugins>
-
-    <issueHandlers>
-        <UnusedVariable>
-            <errorLevel type="suppress">
-                <directory name="tests/dbinterop/data" />
-            </errorLevel>
-        </UnusedVariable>
-    </issueHandlers>
 </psalm>
 <!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->
