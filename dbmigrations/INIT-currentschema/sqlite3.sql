@@ -23,15 +23,12 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
 	id           integer NOT NULL PRIMARY KEY,
 	name         TEXT NOT NULL,
 	url          TEXT NOT NULL,
-	active       TINYINT UNSIGNED NOT NULL DEFAULT 1,
 	last_updated BIGINT NOT NULL DEFAULT 0,  -- time stamp (seconds since epoch) of the last update of the local database
 	refresh_time INT NOT NULL DEFAULT 3600, -- time span (seconds) after that the local database will be refreshed, default 1h
 	sync_token   TEXT NOT NULL DEFAULT '', -- sync-token the server sent us for the last sync
 
-	use_categories TINYINT NOT NULL DEFAULT 0,
-	discovered   TINYINT NOT NULL DEFAULT 1,
-
 	account_id   integer NOT NULL,
+	flags        integer NOT NULL DEFAULT 5, -- default: discovered:2 | active:0
 
 	-- not enforced by sqlite < 3.6.19
 	FOREIGN KEY(account_id) REFERENCES TABLE_PREFIXcarddav_accounts(id) ON DELETE CASCADE ON UPDATE CASCADE

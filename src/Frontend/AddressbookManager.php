@@ -30,12 +30,36 @@ use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 /**
- * Describes for each database field of an addressbook / account: type, mandatory on insert, updateable
- * @psalm-type SettingSpecification = array{'int'|'string'|'bool', bool, bool}
+ * @psalm-import-type FullAccountRow from AbstractDatabase
+ * @psalm-import-type FullAbookRow from AbstractDatabase
+ *
+ * Describes for each database field of an addressbook / account: mandatory on insert, updateable
+ * @psalm-type SettingSpecification = array{bool, bool}
+ *
+ * The data types AccountCfg / AbookCfg describe the configuration of an account / addressbook as stored in the
+ * database, with mappings of bitfields to the individual attributes.
+ *
+ * @psalm-type AccountCfg = FullAccountRow
+ *
+ * @psalm-type Int1 = '0' | '1'
+ * @psalm-type AbookCfg = array{
+ *     id: string,
+ *     account_id: string,
+ *     name: string,
+ *     url: string,
+ *     last_updated: numeric-string,
+ *     refresh_time: numeric-string,
+ *     sync_token: string,
+ *     flags: numeric-string,
+ *     active: Int1,
+ *     use_categories: Int1,
+ *     discovered: Int1,
+ *     readonly: Int1
+ * }
  *
  * The data types AccountSettings / AbookSettings describe the attributes of an account / addressbook row in the
- * corresponding DB table, that can be used for inserting / updating the addressbook. Contrary to the  FullAccountRow /
- * FullAbookRow types:
+ * corresponding DB table, that can be used for inserting / updating the addressbook. Contrary to the  AccountCfg /
+ * AbookCfg types:
  *   - all keys are optional (for use of update of individual columns, others are not specified)
  *   - DB managed columns (particularly: id) are missing
  *
@@ -49,20 +73,19 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *     last_discovered?: int | numeric-string,
  *     presetname?: ?string
  * }
+ *
  * @psalm-type AbookSettings = array{
  *     account_id?: string,
  *     name?: string,
  *     url?: string,
- *     active?: bool,
- *     use_categories?: bool,
- *     refresh_time?: int | numeric-string,
  *     last_updated?: int | numeric-string,
- *     discovered?: bool,
- *     sync_token?: string
+ *     refresh_time?: int | numeric-string,
+ *     sync_token?: string,
+ *     active?: Int1,
+ *     use_categories?: Int1,
+ *     discovered?: Int1,
+ *     readonly?: Int1
  * }
- *
- * @psalm-import-type FullAccountRow from AbstractDatabase
- * @psalm-import-type FullAbookRow from AbstractDatabase
  */
 class AddressbookManager
 {
@@ -73,14 +96,14 @@ class AddressbookManager
      *      methods.
      */
     private const ACCOUNT_SETTINGS = [
-        'accountname' => [ 'string', true, true ],
-        'username' => [ 'string', true, true ],
-        'password' => [ 'string', true, true ],
-        'discovery_url' => [ 'string', false, true ], // discovery URI can be NULL, disables discovery
-        'rediscover_time' => [ 'int', false, true ],
-        'last_discovered' => [ 'int', false, true ],
-        'active' => [ 'bool', false, true ],
-        'presetname' => [ 'string', false, false ],
+        // [mandatory, updateable]
+        'accountname' => [ true, true ],
+        'username' => [ true, true ],
+        'password' => [ true, true ],
+        'discovery_url' => [ false, true ], // discovery URI can be NULL, disables discovery
+        'rediscover_time' => [ false, true ],
+        'last_discovered' => [ false, true ],
+        'presetname' => [ false, false ],
     ];
 
     /**
@@ -90,23 +113,26 @@ class AddressbookManager
      *      / updateAddressbook() methods.
      */
     private const ABOOK_SETTINGS = [
-        'account_id' => [ 'string', true, false ],
-        'name' => [ 'string', true, true ],
-        'url' => [ 'string', true, false ],
-        'active' => [ 'bool', false, true ],
-        'use_categories' => [ 'bool', false, true ],
-        'refresh_time' => [ 'int', false, true ],
-        'last_updated' => [ 'int', false, true ],
-        'discovered' => [ 'bool', false, false ],
-        'sync_token' => [ 'string', true, true ],
+        // [mandatory, updateable]
+        'account_id' => [ true, false ],
+        'name' => [ true, true ],
+        'url' => [ true, false ],
+        'refresh_time' => [ false, true ],
+        'last_updated' => [ false, true ],
+        'sync_token' => [ true, true ],
+
+        'active'         => [ false, true ],
+        'use_categories' => [ false, true ],
+        'discovered'     => [ false, false ],
+        'readonly'       => [ false, true ],
     ];
 
-    /** @var ?array<string, FullAccountRow> $accountsDb
+    /** @var ?array<string, AccountCfg> $accountsDb
      *    Cache of the user's account DB entries. Associative array mapping account IDs to DB rows.
      */
     private $accountsDb = null;
 
-    /** @var ?array<string, FullAbookRow> $abooksDb
+    /** @var ?array<string, AbookCfg> $abooksDb
      *    Cache of the user's addressbook DB entries. Associative array mapping addressbook IDs to DB rows.
      */
     private $abooksDb = null;
@@ -149,7 +175,7 @@ class AddressbookManager
      * Retrieves an account configuration (database row) by its database ID.
      *
      * @param string $accountId ID of the account
-     * @return FullAccountRow The addressbook config.
+     * @return AccountCfg The addressbook config.
      * @throws \Exception If no account with the given ID exists for this user.
      */
     public function getAccountConfig(string $accountId): array
@@ -251,6 +277,26 @@ class AddressbookManager
     }
 
     /**
+     * Converts an addressbook DB row to an addressbook config.
+     *
+     * This means that fields that are stored differently in the DB than presented at application level are converted
+     * from DB format to application level. Currently, this conversion is only needed for bitfields.
+     *
+     * @param FullAbookRow $abookrow
+     * @return AbookCfg
+     */
+    private function abookRow2Cfg(array $abookrow): array
+    {
+        // set the application-level fields from the DB-level fields
+        foreach (AbstractDatabase::FLAGS_COLS['addressbooks']['fields'] as $cfgAttr => $bitPos) {
+            $abookrow[$cfgAttr] = (($abookrow['flags'] & (1 << $bitPos)) ? '1' : '0');
+        }
+
+        /** @psalm-var AbookCfg $abookrow Psalm does not keep track of the type of individual array members above */
+        return $abookrow;
+    }
+
+    /**
      * Returns the IDs of all the user's addressbooks, optionally filtered.
      *
      * @psalm-assert !null $this->abooksDb
@@ -269,7 +315,8 @@ class AddressbookManager
             if (!empty($allAccountIds)) {
                 /** @var FullAbookRow $abookrow */
                 foreach ($db->get(['account_id' => $allAccountIds], [], 'addressbooks') as $abookrow) {
-                    $this->abooksDb[$abookrow["id"]] = $abookrow;
+                    $abookCfg = $this->abookRow2Cfg($abookrow);
+                    $this->abooksDb[$abookrow["id"]] = $abookCfg;
                 }
             }
         }
@@ -297,7 +344,7 @@ class AddressbookManager
      * Retrieves an addressbook configuration (database row) by its database ID.
      *
      * @param string $abookId ID of the addressbook
-     * @return FullAbookRow The addressbook config.
+     * @return AbookCfg The addressbook config.
      * @throws \Exception If no addressbook with the given ID exists for this user.
      */
     public function getAddressbookConfig(string $abookId): array
@@ -318,7 +365,7 @@ class AddressbookManager
      *
      * @param string $accountId
      * @param ?bool  $discoveredType If set, only return discovered (true) / non-discovered (false) addressbooks
-     * @return array<string, FullAbookRow> The addressbook configs, indexed by addressbook id.
+     * @return array<string, AbookCfg> The addressbook configs, indexed by addressbook id.
      */
     public function getAddressbookConfigsForAccount(string $accountId, ?bool $discoveredType = null): array
     {
@@ -387,7 +434,8 @@ class AddressbookManager
     {
         $db = Config::inst()->db();
 
-        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ABOOK_SETTINGS, true);
+        [ 'default' => $flagsInit, 'fields' => $flagAttrs ] = AbstractDatabase::FLAGS_COLS['addressbooks'];
+        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ABOOK_SETTINGS, true, $flagAttrs, $flagsInit);
 
         // getAccountConfig() throws an exception if the ID is invalid / no account of the current user
         $this->getAccountConfig($pa['account_id'] ?? '');
@@ -407,7 +455,10 @@ class AddressbookManager
      */
     public function updateAddressbook(string $abookId, array $pa): void
     {
-        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ABOOK_SETTINGS, false);
+        $abookCfg = $this->getAddressbookConfig($abookId);
+        $flagAttrs = AbstractDatabase::FLAGS_COLS['addressbooks']['fields'];
+        $flagsInit = intval($abookCfg['flags']);
+        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ABOOK_SETTINGS, false, $flagAttrs, $flagsInit);
 
         $accountIds = $this->getAccountIds();
         if (!empty($cols) && !empty($accountIds)) {
@@ -546,7 +597,7 @@ class AddressbookManager
 
         // store discovered addressbooks
         $abookTmpl['account_id'] = $accountId;
-        $abookTmpl['discovered'] = true;
+        $abookTmpl['discovered'] = '1';
         $abookTmpl['sync_token'] = '';
         foreach ($newbooks as $abook) {
             $abookTmpl['name'] = $abook->getName();
@@ -587,26 +638,40 @@ class AddressbookManager
      *   True if the row is prepared for insertion, false if row is prepared for update. For insert, the row will be
      *   checked to include all mandatory attributes. For update, the row will be checked to not include non-updateable
      *   attributes.
+     * @param array<string,int> $flagAttrs Attributes mapped to flags field and their bit positions
+     * @param int $flagsInit
+     *   The start value of the flags field. Only the values of application-level attributes contained in $settings will
+     *   be changed.
      *
      * @return array{list<string>, list<string>}
      *   An array with two members: The first is an array of column names for insert/update. The second is the matching
      *   array of values.
      */
-    private function prepareDbRow(array $settings, array $fieldspec, bool $isInsert): array
-    {
+    private function prepareDbRow(
+        array $settings,
+        array $fieldspec,
+        bool $isInsert,
+        array $flagAttrs = [],
+        int $flagsInit = 0
+    ): array {
         $cols = []; // column names
         $vals = []; // columns values
 
-        foreach ($fieldspec as $col => $spec) {
-            [ $type, $mandatory, $updateable ] = $spec;
+        $setFlags = false; // if true, append the flags column with flagsInit value
 
+        foreach ($fieldspec as $col => [ $mandatory, $updateable ]) {
             if (isset($settings[$col])) {
                 if ($isInsert || $updateable) {
-                    $cols[] = $col;
-
-                    if ($type == 'bool') {
-                        $vals[] = ($settings[$col] ? '1' : '0');
+                    if (isset($flagAttrs[$col])) {
+                        $setFlags = true;
+                        $mask = 1 << $flagAttrs[$col];
+                        if ($settings[$col]) {
+                            $flagsInit |= $mask;
+                        } else {
+                            $flagsInit &= ~$mask;
+                        }
                     } else {
+                        $cols[] = $col;
                         $vals[] = (string) $settings[$col];
                     }
                 } else {
@@ -615,6 +680,11 @@ class AddressbookManager
             } elseif ($mandatory && $isInsert) {
                 throw new \Exception(__METHOD__ . ": Mandatory field $col missing");
             }
+        }
+
+        if ($setFlags) {
+            $cols[] = 'flags';
+            $vals[] = (string) $flagsInit;
         }
 
         return [ $cols, $vals ];

@@ -14,9 +14,20 @@ $prefs = [
 
         'hide'           => true, // must show up in AddressbookManager nevertheless!
 
-        // these attributes are only found in the admin settings, not the DB - set to non-default values to verify usage
-        'readonly'       =>  true,
+        'readonly'       => false,
+
         'require_always' => ['email'],
+
+        'extra_addressbooks' => [
+            [
+                'url' => 'https://contacts.example.com/p/glb',
+            ],
+            [
+                'url' => 'https://contacts.example.com/p/glb2',
+                'readonly' => true,
+            ],
+        ],
+
     ],
 
     // This preset only exists in the configuration, but has not been added to the DB yet.

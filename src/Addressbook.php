@@ -26,25 +26,25 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
-use Psr\Log\LoggerInterface;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use rcube_addressbook;
 use rcube_result_set;
-use rcube_utils;
-use MStilkerich\CardDavClient\{Account, AddressbookCollection};
+use MStilkerich\CardDavClient\AddressbookCollection;
 use MStilkerich\CardDavClient\Services\Sync;
 use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
 
 /**
  * @psalm-import-type SaveData from DataConversion
+ * @psalm-type Int1 = '0' | '1'
  *
  * @psalm-type AddressbookOptions = array{
  *   name: string,
  *   username: string,
  *   password: string,
  *   url: string,
- *   use_categories: numeric-string,
+ *   use_categories: Int1,
+ *   readonly: Int1,
  *   last_updated: numeric-string,
  *   refresh_time: numeric-string,
  *   sync_token: string

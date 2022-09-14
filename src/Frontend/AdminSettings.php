@@ -26,9 +26,9 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
 
+use Exception;
 use Psr\Log\LoggerInterface;
 use MStilkerich\CardDavAddressbook4Roundcube\{Config, RoundcubeLogger};
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use MStilkerich\CardDavClient\AddressbookCollection;
 
 /**
@@ -36,7 +36,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
  * @psalm-type ConfigurablePresetAttr = 'accountname'|'discovery_url'|'username'|'password'|'rediscover_time'|
- *                                      'active'|'refresh_time'|'use_categories'
+ *                                      'active'|'refresh_time'|'use_categories'|'readonly'
  * @psalm-type SpecialAbookType = 'collected_recipients'|'collected_senders'
  * @psalm-type SpecialAbookMatch = array{preset: string, matchname?: string, matchurl?: string}
  *
@@ -71,8 +71,8 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *     bool
  * }
  *
- * @psalm-import-type FullAbookRow from AbstractDatabase
- * @psalm-import-type FullAccountRow from AbstractDatabase
+ * @psalm-import-type AbookCfg from AddressbookManager
+ * @psalm-import-type AccountCfg from AddressbookManager
  * @psalm-import-type AccountSettings from AddressbookManager
  * @psalm-import-type AbookSettings from AddressbookManager
  */
@@ -154,7 +154,8 @@ class AdminSettings
         'rediscover_time' => ['account','rediscover_time'],
         'active'          => ['addressbook','active'],
         'refresh_time'    => ['addressbook','refresh_time'],
-        'use_categories'  => ['addressbook','use_categories']
+        'use_categories'  => ['addressbook','use_categories'],
+        'readonly'        => ['addressbook','readonly'],
     ];
 
     /**
@@ -224,7 +225,7 @@ class AdminSettings
             if (($cfgdLogger instanceof RoundcubeLogger) && isset($gprefs[$setting])) {
                 try {
                     $cfgdLogger->setLogLevel((string) $gprefs[$setting]);
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $logger->error("Cannot set configured loglevel: " . $e->getMessage());
                 }
             }
@@ -282,7 +283,7 @@ class AdminSettings
     public function getPreset(string $presetName, ?string $xabookUrl = null): array
     {
         if (!isset($this->presets[$presetName])) {
-            throw new \Exception("Query for undefined preset $presetName");
+            throw new Exception("Query for undefined preset $presetName");
         }
 
         $preset = $this->presets[$presetName];
@@ -362,7 +363,7 @@ class AdminSettings
                         $logger->info("Deleting deprecated extra addressbooks in $presetName for user $userId");
                         $abMgr->deleteAddressbooks(array_values($existingExtraAbooksByUrl));
                     }
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $logger->error("Error adding/updating preset $presetName for user $userId {$e->getMessage()}");
                 }
 
@@ -374,7 +375,7 @@ class AdminSettings
                 $logger->info("Deleting preset $presetName for user $userId");
                 $abMgr->deleteAccount($accountId); // also deletes the addressbooks
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("Error initializing preconfigured addressbooks: {$e->getMessage()}");
         }
     }
@@ -402,7 +403,7 @@ class AdminSettings
      *
      * Only fixed fields are updated, as non-fixed fields may have been changed by the user.
      *
-     * @param FullAbookRow | FullAccountRow $obj
+     * @param AbookCfg | AccountCfg $obj
      * @param 'addressbook'|'account' $type
      */
     private function updatePresetObject(array $obj, string $type, string $presetName, AddressbookManager $abMgr): void
@@ -440,7 +441,7 @@ class AdminSettings
      *
      * Performs a check with the server ensuring that the addressbook actually exists and can be accessed.
      *
-     * @param FullAccountRow $accountCfg Array with the settings of the account
+     * @param AccountCfg $accountCfg Array with the settings of the account
      */
     private function insertExtraAddressbook(
         AddressbookManager $abMgr,
@@ -462,15 +463,15 @@ class AdminSettings
                 $presetXAbook = $this->getPreset($presetName, $xabookUrl);
                 $abookTmpl = $this->makeDbObjFromPreset('addressbook', $presetXAbook);
                 $abookTmpl['account_id'] = $accountCfg['id'];
-                $abookTmpl['discovered'] = false;
+                $abookTmpl['discovered'] = '0';
                 $abookTmpl['sync_token'] = '';
                 $abookTmpl['url'] = $xabookUrl;
                 $abookTmpl['name'] = $abook->getName();
                 $abMgr->insertAddressbook($abookTmpl);
             } else {
-                throw new \Exception("no addressbook collection at given URL");
+                throw new Exception("no addressbook collection at given URL");
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger = $infra->logger();
             $logger->error("Failed to add extra addressbook $xabookUrl for preset $presetName: " . $e->getMessage());
         }
@@ -513,11 +514,18 @@ class AdminSettings
                 ['accountname' => $presetName] + self::PRESET_DEFAULTS
             );
 
+            // Add attributes that are never user-configurable to fixed to they are updated from admin preset on login
+            foreach (['readonly'] as $attr) {
+                if (in_array($attr, $result['fixed'])) {
+                    $result['fixed'][] = $attr;
+                }
+            }
+
             // Parse extra addressbooks
             $result['extra_addressbooks'] = [];
             if (isset($preset['extra_addressbooks'])) {
                 if (!is_array($preset['extra_addressbooks'])) {
-                    throw new \Exception("setting extra_addressbooks must be an array");
+                    throw new Exception("setting extra_addressbooks must be an array");
                 }
 
                 foreach (array_keys($preset['extra_addressbooks']) as $k) {
@@ -531,13 +539,13 @@ class AdminSettings
 
                         $result['extra_addressbooks'][$xabook['url']] = $xabook;
                     } else {
-                        throw new \Exception("setting extra_addressbooks[$k] must be an array");
+                        throw new Exception("setting extra_addressbooks[$k] must be an array");
                     }
                 }
             }
 
             $this->presets[$presetName] = $result;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("Error in preset $presetName: " . $e->getMessage());
         }
     }
@@ -575,7 +583,7 @@ class AdminSettings
                                 $result[$attr] = $preset[$attr];
                             }
                         } else {
-                            throw new \Exception("setting $attr must be a string");
+                            throw new Exception("setting $attr must be a string");
                         }
                         break;
 
@@ -590,15 +598,15 @@ class AdminSettings
                                 if (is_string($preset[$attr][$k])) {
                                     $result[$attr][] = $preset[$attr][$k];
                                 } else {
-                                    throw new \Exception("setting $attr\[$k\] must be string");
+                                    throw new Exception("setting $attr\[$k\] must be string");
                                 }
                             }
                         } else {
-                            throw new \Exception("setting $attr must be array");
+                            throw new Exception("setting $attr must be array");
                         }
                 }
             } elseif ($mandatory) {
-                throw new \Exception("required setting $attr is not set");
+                throw new Exception("required setting $attr is not set");
             } else {
                 $result[$attr] = $defaults[$attr];
             }
@@ -648,27 +656,27 @@ class AdminSettings
 
             $accountId = $presetIdsByPresetname[$presetName];
 
-            foreach ($abMgr->getAddressbookConfigsForAccount($accountId) as $abookrow) {
+            foreach ($abMgr->getAddressbookConfigsForAccount($accountId) as $abookCfg) {
                 // check all addressbooks for that preset
                 // All specified matchers must match
                 // If no matcher is set, any addressbook of the preset is considered a match
                 foreach (['matchname', 'matchurl'] as $matchType) {
                     $matchexpr = $matchSettings[$matchType] ?? 0;
                     if (is_string($matchexpr)) {
-                        if (!preg_match($matchexpr, $abookrow[substr($matchType, 5)])) {
+                        if (!preg_match($matchexpr, $abookCfg[substr($matchType, 5)])) {
                             continue 2;
                         }
                     }
                 }
 
                 // addressbook matches, make sure it is writeable
-                $preset = $this->getPreset($presetName, $abookrow['url']);
-                if (!$abookrow['active']) {
+                $preset = $this->getPreset($presetName, $abookCfg['url']);
+                if (!$abookCfg['active']) {
                     $logger->error("Cannot use de-activated addressbook from $presetName for $type");
                 } elseif ($preset['readonly'] ?? false) {
                     $logger->error("Cannot use read-only addressbook from $presetName for $type");
                 } else {
-                    $matches[] = $abookrow['id'];
+                    $matches[] = $abookCfg['id'];
                 }
             }
 

@@ -53,12 +53,14 @@ use Psr\Log\LoggerInterface;
  *     account_id: string,
  *     name: string,
  *     url: string,
- *     active: numeric-string,
- *     use_categories: numeric-string,
  *     last_updated: numeric-string,
  *     refresh_time: numeric-string,
  *     sync_token: string,
- *     discovered: numeric-string
+ *     flags: numeric-string
+ * }
+ * @psalm-type FlagColSpec = array{
+ *     default: int,
+ *     fields:  array<string, int>,
  * }
  *
  * @psalm-import-type SaveDataFromDC from \MStilkerich\CardDavAddressbook4Roundcube\DataConversion
@@ -66,6 +68,27 @@ use Psr\Log\LoggerInterface;
  */
 abstract class AbstractDatabase
 {
+    /**
+     * @var array<string, FlagColSpec> Specification of the optionally available "flags" column of a DB table.
+     *
+     * This column can be used to store application-level boolean attributes of an entity as bits of an integer DB
+     * column. This array defines:
+     *   - which table have a flags column (as determined by having a key in this table)
+     *   - the default value of the flags column according to the DB schema
+     *   - the application-level attribute names and their respective bit position
+     */
+    public const FLAGS_COLS = [
+        'addressbooks' => [
+            'default' => 5, // the default value of the flags column as defined in the schema
+            'fields' => [   // application-level bool attributes and their bitpositions
+                'active'         => 0,
+                'use_categories' => 1,
+                'discovered'     => 2,
+                'readonly'       => 3,
+            ]
+        ],
+    ];
+
     /**
      * @var string Separator string used when several values are combined in one DB column.
      *
