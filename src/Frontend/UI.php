@@ -667,9 +667,9 @@ class UI
                     continue;
                 }
 
-                $readonly = in_array($fieldKey, $fixedAttributes);
+                $fixed = in_array($fieldKey, $fixedAttributes);
                 $table->add(['class' => 'title'], html::label(['for' => $fieldKey], $rc->locText($fieldLabel)));
-                $table->add([], $this->uiField($fieldSpec, $fieldValue, $readonly));
+                $table->add([], $this->uiField($fieldSpec, $fieldValue, $fixed));
             }
 
             $out .= html::tag(
@@ -758,7 +758,7 @@ class UI
     /**
      * @param FieldSpec $fieldSpec
      */
-    private function uiField(array $fieldSpec, string $fieldValue, bool $readonly): string
+    private function uiField(array $fieldSpec, string $fieldValue, bool $fixed): string
     {
         [, $fieldKey, $uiType ] = $fieldSpec;
 
@@ -780,13 +780,13 @@ class UI
                     'type' => $uiType,
                     'value' => $fieldValueFormatted,
                     'size' => 60,
-                    'disabled' => $readonly,
+                    'disabled' => $fixed,
                 ]);
                 return $input->show();
 
             case 'radio':
                 $ul = '';
-                $radioBtn = new html_radiobutton(['name' => $fieldKey, 'disabled' => $readonly]);
+                $radioBtn = new html_radiobutton(['name' => $fieldKey, 'disabled' => $fixed]);
 
                 foreach (($fieldSpec[4] ?? []) as $selectionSpec) {
                     [ $selValue, $selLabel ] = $selectionSpec;
