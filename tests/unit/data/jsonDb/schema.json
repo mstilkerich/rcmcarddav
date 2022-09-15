@@ -14,12 +14,10 @@
 		"id": "key",
 		"name": "string",
 		"url": "string",
-		"active": "int=1",
+		"flags": "int=5",
 		"last_updated": "int=0",
 		"refresh_time": "int=3600",
 		"sync_token": "string=",
-		"use_categories": "int=0",
-		"discovered": "int=1",
 		"account_id": "key[accounts.id]"
 	},
 	"contacts": {

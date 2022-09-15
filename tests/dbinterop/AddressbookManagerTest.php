@@ -95,7 +95,7 @@ final class AddressbookManagerTest extends TestCase
         [ "CA2",    "https://contacts.example.com/a2",     '123', '100', 'a2@3',  ["carddav_accounts", 0], '6' ],
         [ "PA1",    "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 1], '7' ],
         [ "PA2",    "https://contacts.example.com/a2",     '123', '100', 'a2@1',  ["carddav_accounts", 1], '0' ],
-        [ "RM1",    "https://rm.example.com/rm1",          '123', '100', 'rm1@1', ["carddav_accounts", 3], '7' ],
+        [ "RM1",    "https://rm.example.com/rm1",          '123', '100', 'rm1@1', ["carddav_accounts", 3], '15' ],
         [ "U2-CA1", "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 4], '7' ],
         [ "U2-PA1", "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 5], '1' ],
         [ "CA3",    "https://contacts.example.com/a3",     '123', '100', 'a3@6',  ["carddav_accounts", 0], '5' ],
@@ -387,28 +387,27 @@ final class AddressbookManagerTest extends TestCase
         $this->assertInstanceOf(Addressbook::class, $abook);
 
         // if that worked, check the properties of the addressbook
-        $abookTd = array_combine(self::ABOOK_COLS, self::$testData->resolveFkRefsInRow(self::ABOOK_ROWS[$abookIdx]));
+        $abookTd = array_combine(
+            self::ABOOKCFG_FIELDS,
+            self::$testData->resolveFkRefsInRow($this->transformAbookFlagsTdRow(self::ABOOK_ROWS[$abookIdx]))
+        );
         $this->assertIsString($abookTd['account_id']);
         $accountCfg = $abMgr->getAccountConfig($abookTd['account_id']);
 
-        $readonly = false;
         $requiredProps = [];
         if (isset($accountCfg["presetname"])) {
             $presetName = $accountCfg["presetname"];
-
-            if ($presetName == "rmpreset") {
-                $readonly = true;
-            } else {
+            if ($presetName != 'rmpreset') {
                 $admPrefs = Config::inst()->admPrefs();
                 $presetCfg = $admPrefs->getPreset($accountCfg["presetname"], $abookTd["url"]);
-                [ 'readonly' => $readonly, 'require_always' => $requiredProps ] = $presetCfg;
+                $requiredProps = $presetCfg['require_always'];
             }
         }
 
         $this->assertSame($abookId, $abook->getId(), "Addressbook ID mismatch");
         $this->assertSame($abookTd['name'], $abook->get_name(), "Addressbook name mismatch");
         $this->assertEquals($abookTd['refresh_time'], $abook->getRefreshTime(), "Addressbook refresh time mismatch");
-        $this->assertSame($readonly, $abook->readonly, "Addressbook readonly mismatch");
+        $this->assertSame($abookTd['readonly'] == '1', $abook->readonly, "Addressbook readonly mismatch");
         $this->assertSame(
             TestInfrastructure::getPrivateProperty($abook, 'requiredProps'),
             $requiredProps,

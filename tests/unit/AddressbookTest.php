@@ -40,6 +40,8 @@ use rcube_addressbook;
  * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type AddressbookOptions from Addressbook
  * @psalm-import-type SaveData from DataConversion
+ *
+ * @psalm-type Int1 = '0'|'1'
  */
 final class AddressbookTest extends TestCase
 {
@@ -66,8 +68,8 @@ final class AddressbookTest extends TestCase
     }
 
     /**
-     * @param list<string> $reqCols
-     * @param array{refresh_time?: numeric-string, last_updated?: numeric-string} $cfgOverride
+     * @param list<string> $reqCols List of require_always columns
+     * @param array{refresh_time?: numeric-string, last_updated?: numeric-string, readonly?: Int1} $cfgOverride
      */
     private function createAbook(array $reqCols = [], array $cfgOverride = []): Addressbook
     {
@@ -76,12 +78,18 @@ final class AddressbookTest extends TestCase
 
         /** @var FullAbookRow */
         $abookcfg = $db->lookup("42", [], 'addressbooks');
+        foreach (AbstractDatabase::FLAGS_COLS['addressbooks']['fields'] as $attr => $bitPos) {
+            $flags = intval($abookcfg['flags']);
+            $abookcfg[$attr] = ($flags & (1 << $bitPos)) ? '1' : '0';
+        }
+
+
         /** @var FullAccountRow */
         $accountcfg = $db->lookup($abookcfg['id'], [], 'accounts');
         /** @psalm-var AddressbookOptions */
         $abookcfg = $cfgOverride + $abookcfg + $accountcfg;
 
-        $abook = new Addressbook("42", $abookcfg, false, $reqCols);
+        $abook = new Addressbook("42", $abookcfg, $reqCols);
         $davobj = $this->createStub(AddressbookCollection::class);
         $davobj->method('downloadResource')->will($this->returnCallback([Utils::class, 'downloadResource']));
         TestInfrastructure::setPrivateProperty($abook, 'davAbook', $davobj);
@@ -121,8 +129,8 @@ final class AddressbookTest extends TestCase
         /** @var FullAccountRow */
         $accountcfg = $db->lookup($abookcfg['id'], [], 'accounts');
         /** @psalm-var AddressbookOptions */
-        $abookOptions = $abookcfg + $accountcfg;
-        $roAbook = new Addressbook("42", $abookOptions, true, []);
+        $abookOptions = ['readonly' => '1'] + $abookcfg + $accountcfg;
+        $roAbook = new Addressbook("42", $abookOptions, []);
         $this->assertSame(true, $roAbook->readonly);
     }
 

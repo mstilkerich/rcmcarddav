@@ -93,20 +93,18 @@ class Addressbook extends rcube_addressbook
      *
      * @param string $dbid The addressbook's database ID
      * @param AddressbookOptions $config Options for the addressbook
-     * @param bool $readonly If true, the addressbook is readonly and change operations are disabled.
      * @param list<string> $requiredProps A list of address object columns that must not be empty. If any of the fields
      *                                    is empty, the contact will be hidden.
      */
     public function __construct(
         string $dbid,
         array $config,
-        bool $readonly,
         array $requiredProps
     ) {
         $this->config = $config;
         $this->primary_key = 'id';
         $this->groups   = true;
-        $this->readonly = $readonly;
+        $this->readonly = ($config['readonly'] != '0');
         $this->date_cols = ['birthday', 'anniversary'];
         $this->requiredProps = $requiredProps;
         $this->id       = $dbid;

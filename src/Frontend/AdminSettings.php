@@ -141,12 +141,12 @@ class AdminSettings
     ] + self::PRESET_SETTINGS_COMMON;
 
     /**
-     * @var array<ConfigurablePresetAttr, array{'account'|'addressbook', string}> PRESET_ATTR_DBMAP
+     * @var array<ConfigurablePresetAttr, array{'account'|'addressbook', string}> PRESET_ATTR_CFGMAP
      *   This contains the attributes that can be automatically updated from an admin preset if the admin configured
-     *   them as fixed. It maps the attribute name from the preset to the DB object type (account or addressbook) and
-     *   the DB column name.
+     *   them as fixed. It maps the attribute name from the preset to the object type (account or addressbook) and
+     *   the field name in the addressbook or account configuration object.
      */
-    private const PRESET_ATTR_DBMAP = [
+    private const PRESET_ATTR_CFGMAP = [
         'accountname'     => ['account','accountname'],
         'username'        => ['account','username'],
         'password'        => ['account','password'],
@@ -415,8 +415,8 @@ class AdminSettings
         // otherwise there may be user changes that should not be destroyed
         $pa = [];
         foreach ($preset['fixed'] as $k) {
-            if (isset($preset[$k]) && isset(self::PRESET_ATTR_DBMAP[$k])) {
-                [ $attrObjType, $attrDbName ] = self::PRESET_ATTR_DBMAP[$k];
+            if (isset($preset[$k]) && isset(self::PRESET_ATTR_CFGMAP[$k])) {
+                [ $attrObjType, $attrDbName ] = self::PRESET_ATTR_CFGMAP[$k];
 
                 if ($type == $attrObjType && isset($obj[$attrDbName]) && $obj[$attrDbName] != $preset[$k]) {
                     $pa[$attrDbName] = $preset[$k];
@@ -490,7 +490,7 @@ class AdminSettings
     {
         $result = [];
 
-        foreach (self::PRESET_ATTR_DBMAP as $k => $spec) {
+        foreach (self::PRESET_ATTR_CFGMAP as $k => $spec) {
             [ $attrObjType, $attrDbName ] = $spec;
             if ($type == $attrObjType) {
                 $result[$attrDbName] = $preset[$k];
@@ -669,11 +669,10 @@ class AdminSettings
                     }
                 }
 
-                // addressbook matches, make sure it is writeable
-                $preset = $this->getPreset($presetName, $abookCfg['url']);
+                // addressbook matches, make sure it is active and writeable
                 if (!$abookCfg['active']) {
                     $logger->error("Cannot use de-activated addressbook from $presetName for $type");
-                } elseif ($preset['readonly'] ?? false) {
+                } elseif ($abookCfg['readonly']) {
                     $logger->error("Cannot use read-only addressbook from $presetName for $type");
                 } else {
                     $matches[] = $abookCfg['id'];

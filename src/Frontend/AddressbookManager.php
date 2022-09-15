@@ -401,18 +401,14 @@ class AddressbookManager
         $config = $this->getAddressbookConfig($abookId);
         $account = $this->getAccountConfig($config["account_id"]);
 
-        $readonly = false;
         $requiredProps = [];
 
         if (isset($account["presetname"])) {
             try {
                 $preset = $admPrefs->getPreset($account["presetname"], $config['url']);
-                $readonly = $preset["readonly"];
                 $requiredProps = $preset["require_always"];
             } catch (\Exception $e) {
-                // preset may not exist anymore, addressbook will be removed on next login. For now provide it as
-                // readonly addressbook
-                $readonly = true;
+                // preset may not exist anymore, addressbook will be removed on next login
             }
         }
 
@@ -421,7 +417,7 @@ class AddressbookManager
         $config['username'] = Utils::replacePlaceholdersUsername($account["username"]);
         $config['password'] = Utils::replacePlaceholdersPassword($account["password"]);
 
-        $abook = new Addressbook($abookId, $config, $readonly, $requiredProps);
+        $abook = new Addressbook($abookId, $config, $requiredProps);
         return $abook;
     }
 

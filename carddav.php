@@ -381,35 +381,20 @@ class carddav extends rcube_plugin implements RcmInterface
     {
         $infra = Config::inst();
         $logger = $infra->logger();
-        $admPrefs = $infra->admPrefs();
 
         try {
             $logger->debug(__METHOD__);
             $abMgr = $this->abMgr;
 
             foreach ($abMgr->getAddressbookIds() as $abookId) {
-                $abookrow = $abMgr->getAddressbookConfig($abookId);
-                $account = $abMgr->getAccountConfig($abookrow['account_id']);
-
-                if (isset($account['presetname'])) {
-                    try {
-                        // TODO consider making readonly a DB column
-                        $preset = $admPrefs->getPreset($account['presetname'], $abookrow['url']);
-                        $readonly = $preset['readonly'];
-                    } catch (Exception $e) {
-                        // it appears the admin deleted the preset - don't show the addressbook to roundcube
-                        continue;
-                    }
-                } else {
-                    $readonly = false;
-                }
+                $abookCfg = $abMgr->getAddressbookConfig($abookId);
 
                 $p['sources']["carddav_$abookId"] = [
                     'id' => "carddav_$abookId",
-                    'name' => $abookrow['name'],
+                    'name' => $abookCfg['name'],
                     'groups' => true,
                     'autocomplete' => true,
-                    'readonly' => $readonly
+                    'readonly' => ($abookCfg['readonly'] != '0')
                 ];
             }
         } catch (Exception $e) {
