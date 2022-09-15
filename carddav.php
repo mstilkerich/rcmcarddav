@@ -25,7 +25,6 @@
 declare(strict_types=1);
 
 use MStilkerich\CardDavAddressbook4Roundcube\{Config, DataConversion};
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use MStilkerich\CardDavAddressbook4Roundcube\Frontend\{AddressbookManager,RcmInterface,UI};
 use Sabre\VObject\Component\VCard;
 
@@ -130,7 +129,7 @@ class carddav extends rcube_plugin implements RcmInterface
     /**
      * Performs basic initialization of the plugin.
      *
-     * Particularly it reads the admin settings and initialized the loggers to the configured loglevels.
+     * Particularly it reads the admin settings and initialized the loggers to the configured log levels.
      */
     private function basicInit(): void
     {
@@ -203,7 +202,7 @@ class carddav extends rcube_plugin implements RcmInterface
         return is_string($value) ? $value : null;
     }
 
-    public function showMessage(string $msg, string $msgType = 'notice', $override = false, $timeout = 0): void
+    public function showMessage(string $msg, string $msgType = 'notice', bool $override = false, int $timeout = 0): void
     {
         $rcube = rcube::get_instance();
         $rcube->output->show_message($msg, $msgType, null, $override, $timeout);
@@ -288,7 +287,7 @@ class carddav extends rcube_plugin implements RcmInterface
         }
     }
 
-    public function sendTemplate(string $templ, $exit = true): void
+    public function sendTemplate(string $templ, bool $exit = true): void
     {
         $rcube = rcube::get_instance();
 

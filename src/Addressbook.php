@@ -26,6 +26,8 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
+use Exception;
+use InvalidArgumentException;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use rcube_addressbook;
@@ -91,7 +93,7 @@ class Addressbook extends rcube_addressbook
     /**
      * Constructs an addressbook object.
      *
-     * @param string $dbid The addressbook's database ID
+     * @param string $dbid The database ID of the addressbook
      * @param AddressbookOptions $config Options for the addressbook
      * @param list<string> $requiredProps A list of address object columns that must not be empty. If any of the fields
      *                                    is empty, the contact will be hidden.
@@ -151,12 +153,12 @@ class Addressbook extends rcube_addressbook
                 if ($filter[$k] instanceof DbAndCondition) {
                     $ftyped[] = $filter[$k];
                 } else {
-                    throw new \InvalidArgumentException(__METHOD__ . " requires a DbAndCondition[] type filter");
+                    throw new InvalidArgumentException(__METHOD__ . " requires a DbAndCondition[] type filter");
                 }
             }
             $this->filter = $ftyped;
         } else {
-            throw new \InvalidArgumentException(__METHOD__ . " requires a DbAndCondition[] type filter");
+            throw new InvalidArgumentException(__METHOD__ . " requires a DbAndCondition[] type filter");
         }
     }
 
@@ -221,12 +223,12 @@ class Addressbook extends rcube_addressbook
                 $result->count = $numRecords;
             } elseif ($this->list_page <= 1 && $numRecords < $this->page_size && $subset == 0) {
                 // If we are on the first page, no subset was requested and the number of records is smaller than the
-                // page size, there are no more records so we can skip the COUNT query
+                // page size, there are no more records, so we can skip the COUNT query
                 $result->count = $numRecords;
             } else {
                 $result->count = $this->doCount();
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger = Config::inst()->logger();
             $logger->error(__METHOD__ . " exception: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
@@ -257,7 +259,7 @@ class Addressbook extends rcube_addressbook
      * Mode "Search given fields"
      *       - Any of the given fields must match the value to be included in the result ("OR" semantics)
      *
-     * All matching is done case insensitive.
+     * All matching is done case-insensitive.
      *
      * The search settings are remembered (see set_search_set()) until reset using the reset() function. They can be
      * retrieved using get_search_set(). The remembered search settings must be considered by list_records() and
@@ -304,7 +306,7 @@ class Addressbook extends rcube_addressbook
             "search("
             . "FIELDS=[" . (is_array($fields) ? implode(", ", $fields) : $fields) . "], "
             . "VAL=" . (is_array($value) ? "[" . implode(", ", $value) . "]" : $value) . ", "
-            . "MODE=$mode, SEL=$select, NOCNT=$nocount, "
+            . "MODE=$mode, SEL=$select, NOCOUNT=$nocount, "
             . "REQ=[" . implode(", ", $required) . "]"
             . ")"
         );
@@ -389,7 +391,7 @@ class Addressbook extends rcube_addressbook
         try {
             $numCards = $this->doCount();
             return new rcube_result_set($numCards, ($this->list_page - 1) * $this->page_size);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger = Config::inst()->logger();
             $logger->error(__METHOD__ . " exception: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
@@ -431,7 +433,7 @@ class Addressbook extends rcube_addressbook
 
             $davAbook = $this->getCardDavObj();
             /** @var array{vcard: string} $contact */
-            $contact = $db->lookup(['id' => $id, "abook_id" => $this->id], ['vcard'], 'contacts');
+            $contact = $db->lookup(['id' => $id, "abook_id" => $this->id], ['vcard']);
             $vcard = $this->parseVCard($contact['vcard']);
             $save_data = $this->dataConverter->toRoundcube($vcard, $davAbook);
             $save_data['ID'] = $id;
@@ -440,7 +442,7 @@ class Addressbook extends rcube_addressbook
             $this->result->add($save_data);
 
             return $assoc ? $save_data : $this->result;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("Could not get contact $id: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, "Could not get contact $id");
             if ($assoc) {
@@ -503,16 +505,16 @@ class Addressbook extends rcube_addressbook
              * server-side one, we fall back to searching by URL if the UID search returned no results.
              * @var ?array{id: string} $contact
              */
-            [ $contact ] = $db->get(['cuid' => (string) $vcard->UID, "abook_id" => $this->id], ['id'], 'contacts');
+            [ $contact ] = $db->get(['cuid' => (string) $vcard->UID, "abook_id" => $this->id], ['id']);
             if (!isset($contact)) {
-                /** @var array{id: string} */
-                $contact = $db->lookup(['uri' => $uri, "abook_id" => $this->id], ['id'], 'contacts');
+                /** @var array{id: string} $contact */
+                $contact = $db->lookup(['uri' => $uri, "abook_id" => $this->id], ['id']);
             }
 
             if (isset($contact["id"])) {
                 return $contact["id"];
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
         }
         return false;
@@ -564,7 +566,7 @@ class Addressbook extends rcube_addressbook
             }
 
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
             $logger->error("Failed to update contact $id: " . $e->getMessage());
             return false;
@@ -627,7 +629,7 @@ class Addressbook extends rcube_addressbook
 
             // and sync back the changes to the cache
             $this->resync();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
             $logger->error("Failed to delete contacts [" . implode(",", $ids) . "]:" . $e->getMessage());
             $db->rollbackTransaction();
@@ -685,7 +687,7 @@ class Addressbook extends rcube_addressbook
 
             // CATEGORIES-type groups are still inside the DB - remove if requested
             $db->delete(["abook_id" => $abook_id], "groups");
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("delete_all: " . $e->getMessage());
             $this->set_error(self::ERROR_SAVING, $e->getMessage());
         }
@@ -720,7 +722,7 @@ class Addressbook extends rcube_addressbook
             } else {
                 $this->group_id = null;
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("set_group($group_id): " . $e->getMessage());
         }
     }
@@ -780,7 +782,7 @@ class Addressbook extends rcube_addressbook
             );
 
             return $groups;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error(__METHOD__ . "(" . ($search ?? 'null') . ", $mode) exception: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, $e->getMessage());
             return [];
@@ -805,13 +807,13 @@ class Addressbook extends rcube_addressbook
             $db = $infra->db();
 
             // As of 1.4.6, roundcube is interested in name and email properties of a group,
-            // i. e. if the group as a distribution list had an email address of its own. Otherwise, it will fall back
+            // i.e. if the group as a distribution list had an email address of its own. Otherwise, it will fall back
             // to getting the individual members' addresses
             /** @var array{id: numeric-string, name: string} $result */
             $result = $db->lookup(["id" => $group_id, "abook_id" => $this->id], ['id', 'name'], 'groups');
             $result['ID'] = $result['id'];
             return $result;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("get_group($group_id): Could not get group: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, "Could not get group $group_id");
         }
@@ -843,14 +845,14 @@ class Addressbook extends rcube_addressbook
                 return [ 'id' => $groupid, 'name' => $name ];
             } else {
                 $davAbook = $this->getCardDavObj();
-                $vcard = $this->dataConverter->fromRoundcube($save_data, null);
+                $vcard = $this->dataConverter->fromRoundcube($save_data);
                 $davAbook->createCard($vcard);
 
                 $this->resync();
 
                 return $db->lookup(['cuid' => (string) $vcard->UID], ['id', 'name'], 'groups');
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("create_group($name): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
         }
@@ -904,7 +906,7 @@ class Addressbook extends rcube_addressbook
             $this->resync();
 
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("delete_group($group_id): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
 
@@ -974,7 +976,7 @@ class Addressbook extends rcube_addressbook
 
             $this->resync();
             return $ret;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("rename_group($group_id, $newname): " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
         }
@@ -983,7 +985,7 @@ class Addressbook extends rcube_addressbook
     }
 
     /**
-     * Add the given contact records the a certain group
+     * Add the given contact records a certain group
      *
      * @param string       $group_id Group identifier
      * @param array|string $ids      List of contact identifiers to be added
@@ -1004,7 +1006,7 @@ class Addressbook extends rcube_addressbook
             $davAbook = $this->getCardDavObj();
 
             if (is_string($ids)) {
-                /** @psalm-var list<string> */
+                /** @psalm-var list<string> $ids */
                 $ids = explode(self::SEPARATOR, $ids);
             }
 
@@ -1051,7 +1053,7 @@ class Addressbook extends rcube_addressbook
                     try {
                         $vcard->add('X-ADDRESSBOOKSERVER-MEMBER', "urn:uuid:" . $contact['cuid']);
                         ++$added;
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         $logger->warning("add_to_group: Contact with ID {$contact['cuid']} not found in DB");
                     }
                 }
@@ -1086,7 +1088,7 @@ class Addressbook extends rcube_addressbook
             }
 
             $this->resync();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("add_to_group: " . $e->getMessage());
             $this->set_error(self::ERROR_SAVING, $e->getMessage());
 
@@ -1164,7 +1166,7 @@ class Addressbook extends rcube_addressbook
             }
 
             $this->resync();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("remove_from_group: " . $e->getMessage());
             $this->set_error(self::ERROR_SAVING, $e->getMessage());
 
@@ -1206,7 +1208,7 @@ class Addressbook extends rcube_addressbook
             }
 
             return $groups;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("get_record_groups($id): " . $e->getMessage());
             $this->set_error(self::ERROR_SEARCH, $e->getMessage());
             return [];
@@ -1224,7 +1226,7 @@ class Addressbook extends rcube_addressbook
     }
 
     /**
-     * Returns addressbook's refresh time in seconds
+     * Returns refresh time for the addressbook in seconds
      *
      * @return int refresh time in seconds
      */
@@ -1274,8 +1276,7 @@ class Addressbook extends rcube_addressbook
     {
         $ts_now = time();
         $ts_nextupd = intval($this->config["last_updated"]) + intval($this->config["refresh_time"]);
-        $ts_diff = ($ts_nextupd - $ts_now);
-        return $ts_diff;
+        return ($ts_nextupd - $ts_now);
     }
 
     /**
@@ -1336,8 +1337,8 @@ class Addressbook extends rcube_addressbook
         $logger = $infra->logger();
         $db = $infra->db();
 
-        // Subset is a further narrows the records contained within the active page. It must therefore not exceed the
-        // page size; it should not happen, but just in case it does we limit subset to the page size here
+        // Subset further narrows the records contained within the active page. It must therefore not exceed the
+        // page size; it should not happen, but if it did we limit subset to the page size here
         if (abs($subset) > $this->page_size) {
             $subset = ($subset < 0) ? -$this->page_size : $this->page_size;
         }
@@ -1395,7 +1396,7 @@ class Addressbook extends rcube_addressbook
                     $vcard = $this->parseVCard($vcf);
                     $davAbook = $this->getCardDavObj();
                     $save_data = $dc->toRoundcube($vcard, $davAbook);
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $logger->warning("Couldn't parse vcard $vcf");
                     continue;
                 }
@@ -1463,7 +1464,7 @@ class Addressbook extends rcube_addressbook
                 }
 
                 if (in_array($col, $this->table_cols)) { // table column
-                    // Note: we don't need to add this columns to the post match filter, because it is already
+                    // Note: we don't need to add this column to the post match filter, because it is already
                     // determined by the database search that the condition is fulfilled
                     $conditions[] = $this->rcSearchCondition($mode, $col, $fValue);
                 } else { // vCard field
@@ -1508,7 +1509,7 @@ class Addressbook extends rcube_addressbook
     private function rcSearchCondition(int $mode, string $col, string $val): DbAndCondition
     {
         $cond = new DbAndCondition();
-        $multi = (($col == "vcard") ? false : $this->dataConverter->isMultivalueProperty($col));
+        $multi = (($col != "vcard") && $this->dataConverter->isMultivalueProperty($col));
         $SEP = AbstractDatabase::MULTIVAL_SEP;
 
         if ($mode & rcube_addressbook::SEARCH_STRICT) { // exact match
@@ -1553,7 +1554,7 @@ class Addressbook extends rcube_addressbook
         // create vcard from current DB data to be updated with the new data
         $vcard = VObject\Reader::read($vcf, VObject\Reader::OPTION_FORGIVING);
         if (!($vcard instanceof VCard)) {
-            throw new \Exception("parseVCard: parsing of string did not result in a VCard object: $vcf");
+            throw new Exception("parseVCard: parsing of string did not result in a VCard object: $vcf");
         }
         return $vcard;
     }
@@ -1562,7 +1563,7 @@ class Addressbook extends rcube_addressbook
      * Removes a list of contacts from a KIND=group VCard-based group and updates the group on the server.
      *
      * An update of the card on the server will only be performed if members have actually been removed from the VCard,
-     * i. e. the function returns a value greater than 0.
+     * i.e. the function returns a value greater than 0.
      *
      * @param list<string> $contact_cuids The VCard UIDs of the contacts to remove from the group.
      * @param array{etag: string, uri: string, vcard: string} $group Save data for the group.
@@ -1632,7 +1633,7 @@ class Addressbook extends rcube_addressbook
     {
         $infra = Config::inst();
         $db = $infra->db();
-        /** @var list<array{contact_id: numeric-string}> */
+        /** @var list<array{contact_id: numeric-string}> $records */
         $records = $db->get(['group_id' => $groupid], ['contact_id'], 'group_user');
         return array_column($records, "contact_id");
     }
@@ -1664,7 +1665,7 @@ class Addressbook extends rcube_addressbook
             $vcard = $this->parseVCard($contact['vcard']);
             $groups = [];
             if (isset($vcard->{"CATEGORIES"})) {
-                /** @var list<string> */
+                /** @var list<string> $groups */
                 $groups = $vcard->CATEGORIES->getParts();
             }
 
@@ -1699,7 +1700,7 @@ class Addressbook extends rcube_addressbook
             $conditions[] = new DbAndCondition(new DbOrCondition("!{$col}", null));
         }
 
-        // TODO Better if we could handle this without a separate SQL query here, but requires join or subquery
+        // TODO Better if we could handle this without a separate SQL query here, but requires join or sub-query
         if ($this->group_id) {
             $contactsInGroup = $this->getContactIdsForGroup((string) $this->group_id);
 
@@ -1718,8 +1719,8 @@ class Addressbook extends rcube_addressbook
      *
      * Background: Some search conditions cannot be reliably filtered using the database query. This is the case if the
      * searched contact attribute is not stored as a separate database column but only found inside the vcard. In this
-     * case, we will perform a prefiltering in the database query only to check if the vcard as a whole matches the
-     * search condition, but post filtering is needed to check whether the match actually occurs in the correct
+     * case, we will perform a pre-filtering in the database query only to check if the vcard as a whole matches the
+     * search condition, but post-filtering is needed to check whether the match actually occurs in the correct
      * attribute.
      *
      * This function checks these post filter condition on a single contact that was provided by the database after

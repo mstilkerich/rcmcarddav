@@ -26,7 +26,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
-use Psr\Log\LoggerInterface;
+use Exception;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use MStilkerich\CardDavClient\AddressbookCollection;
@@ -90,7 +90,7 @@ class DelayedPhotoLoader
         try {
             $this->photoData = $this->computePhotoFromProperty();
             return $this->photoData;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return "";
         }
     }
@@ -167,7 +167,7 @@ class DelayedPhotoLoader
         try {
             $response = $this->davAbook->downloadResource($uri);
             return $response['body'];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger = Config::inst()->logger();
             $logger->warning("downloadPhoto: Attempt to download photo from $uri failed: " . $e->getMessage());
         }
@@ -233,7 +233,7 @@ class DelayedPhotoLoader
      *
      * The key is composed of the following components separated by _:
      *   - a prefix "photo" (namespace to separate from other uses by the plugin)
-     *   - a component including the user id of the roundcube user (only keys of logged in user can be retrieved);
+     *   - a component including the user id of the roundcube user (only keys of logged-in user can be retrieved);
      *     probably not needed as the cache itself is user-specific, but just in case.
      *   - a component containing the MD5 of the card UID (to find a photo cached for a VCard)
      */

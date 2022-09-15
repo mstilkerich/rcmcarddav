@@ -27,6 +27,8 @@ declare(strict_types=1);
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
 use Psr\Log\{AbstractLogger,LogLevel,InvalidArgumentException};
+use Exception;
+use rcube;
 
 class RoundcubeLogger extends AbstractLogger
 {
@@ -74,7 +76,7 @@ class RoundcubeLogger extends AbstractLogger
 
         try {
             $this->setLogLevel($loglevel);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->error($e->getMessage());
         }
     }
@@ -89,7 +91,7 @@ class RoundcubeLogger extends AbstractLogger
         if (isset(self::LOGLEVELS[$loglevel])) {
             $this->loglevel = self::LOGLEVELS[$loglevel];
         } else {
-            throw new \Exception("Attempt to set unknown loglevel for RoundcubeLogger");
+            throw new Exception("Attempt to set unknown loglevel for RoundcubeLogger");
         }
     }
 
@@ -114,7 +116,7 @@ class RoundcubeLogger extends AbstractLogger
                 $levelNumeric = self::LOGLEVELS[$level];
                 $levelShort = self::LOGLEVELS_SHORT[$level];
                 $message = "[$levelNumeric $levelShort] $message";
-                \rcube::write_log($this->logfile, $message);
+                rcube::write_log($this->logfile, $message);
             }
         } else {
             throw new InvalidArgumentException("Unknown loglevel " . print_r($level, true));
@@ -124,12 +126,11 @@ class RoundcubeLogger extends AbstractLogger
     private function redactMessage(string $message): string
     {
         // Authorization header
-        $message = preg_replace(
+        return preg_replace(
             "/^Authorization: .*$/m",
             "Authorization: --- REDACTED BY " . self::class . " ---",
             $message
         );
-        return $message;
     }
 }
 

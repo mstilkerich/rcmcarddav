@@ -66,10 +66,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *     extra_addressbooks?: array<string, PresetExtraAbook>,
  * }
  *
- * @psalm-type SettingSpecification=array{
- *     'url'|'timestr'|'string'|'bool'|'string[]'|'skip',
- *     bool
- * }
+ * @psalm-type SettingSpecification=array{'url'|'timestr'|'string'|'bool'|'string[]'|'skip', bool}
  *
  * @psalm-import-type AbookCfg from AddressbookManager
  * @psalm-import-type AccountCfg from AddressbookManager
@@ -325,7 +322,7 @@ class AdminSettings
                 try {
                     $logger->info("Adding/Updating preset $presetName for user $userId");
 
-                    // Map URL => ABOOKID of the existing extra addressbooks in the DB for this preset
+                    // Map URL => ID of the existing extra addressbooks in the DB for this preset
                     $existingExtraAbooksByUrl = [];
 
                     if (isset($existingPresets[$presetName])) {
@@ -507,7 +504,7 @@ class AdminSettings
     private function addPreset(string $presetName, array $preset, LoggerInterface $logger): void
     {
         try {
-            /** @psalm-var Preset Checked by parsePresetArray() */
+            /** @psalm-var Preset $result Checked by parsePresetArray() */
             $result = $this->parsePresetArray(
                 self::PRESET_SETTINGS,
                 $preset,
@@ -515,10 +512,8 @@ class AdminSettings
             );
 
             // Add attributes that are never user-configurable to fixed to they are updated from admin preset on login
-            foreach (['readonly'] as $attr) {
-                if (in_array($attr, $result['fixed'])) {
-                    $result['fixed'][] = $attr;
-                }
+            if (in_array('readonly', $result['fixed'])) {
+                $result['fixed'][] = 'readonly';
             }
 
             // Parse extra addressbooks
@@ -530,7 +525,7 @@ class AdminSettings
 
                 foreach (array_keys($preset['extra_addressbooks']) as $k) {
                     if (is_array($preset['extra_addressbooks'][$k])) {
-                        /** @psalm-var PresetExtraAbook Checked by parsePresetArray() */
+                        /** @psalm-var PresetExtraAbook $xabook Checked by parsePresetArray() */
                         $xabook = $this->parsePresetArray(
                             self::PRESET_SETTINGS_EXTRA_ABOOK,
                             $preset['extra_addressbooks'][$k],
@@ -621,7 +616,7 @@ class AdminSettings
      * These special addressbooks as of roundcube 1.5 are collected recipients and collected senders. The admin can
      * configure a match expression for the name or the URL of the addressbook, that is looked for in a specific preset.
      *
-     * @return array<SpecialAbookType, string> ID for each special addressbook for the a CardDAV source is selected
+     * @return array<SpecialAbookType, string> ID for each special addressbook for that a CardDAV source is selected
      */
     public function getSpecialAddressbooks(AddressbookManager $abMgr, Config $infra): array
     {

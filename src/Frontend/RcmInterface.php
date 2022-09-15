@@ -26,8 +26,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
 
-use MStilkerich\CardDavClient\{Account, AddressbookCollection};
-use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config};
+use rcube_utils;
 
 /**
  * Adapter interface to roundcube APIs.
@@ -54,7 +53,7 @@ interface RcmInterface
      * @param \rcube_utils::INPUT_* $source
      * @return ?string Field value or NULL if not available.
      */
-    public function inputValue(string $id, bool $allowHtml, int $source = \rcube_utils::INPUT_POST): ?string;
+    public function inputValue(string $id, bool $allowHtml, int $source = rcube_utils::INPUT_POST): ?string;
 
     /**
      * Shows a message to the roundcube user.
@@ -63,7 +62,7 @@ interface RcmInterface
      * @param bool $override Override last set message
      * @param int $timeout Message displaying time in seconds
      */
-    public function showMessage(string $msg, string $msgType = 'notice', $override = true, $timeout = 0): void;
+    public function showMessage(string $msg, string $msgType = 'notice', bool $override = true, int $timeout = 0): void;
 
     /**
      * Call a client (javascript) method
@@ -81,7 +80,7 @@ interface RcmInterface
     /**
      * Register a handler for a specific client-request action
      *
-     * The callback will be executed upon a request like /?_task=mail&_action=plugin.myaction
+     * The callback will be executed upon a request like /?_task=mail&_action=plugin.action
      *
      * @param string   $action   Action name (should be unique)
      * @param callable $callback Callback function
@@ -139,7 +138,7 @@ interface RcmInterface
      * @param string $templ Template name
      * @param bool   $exit  True if script should terminate (default)
      */
-    public function sendTemplate(string $templ, $exit = true): void;
+    public function sendTemplate(string $templ, bool $exit = true): void;
 
     /**
      * Build a form tag with a unique request token

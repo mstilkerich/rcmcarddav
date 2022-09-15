@@ -67,8 +67,8 @@ use MStilkerich\CardDavAddressbook4Roundcube\Config;
  */
 class UI
 {
-    /** @var FormSpec UI_FORM_NEWACCOUNT */
-    private const UI_FORM_NEWACCOUNT = [
+    /** @var FormSpec UI_FORM_NEW_ACCOUNT */
+    private const UI_FORM_NEW_ACCOUNT = [
         [
             'label' => 'AccProps_newaccount_lbl',
             'fields' => [
@@ -559,9 +559,9 @@ class UI
         try {
             $abMgr = $this->abMgr;
 
-            /** @psalm-var AccountSettings */
+            /** @psalm-var AccountSettings $newaccount */
             $newaccount = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, []);
-            /** @psalm-var AbookSettings */
+            /** @psalm-var AbookSettings $abooksettings */
             $abooksettings = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, []);
             $accountId = $abMgr->discoverAddressbooks($newaccount, $abooksettings);
             $account = $abMgr->getAccountConfig($accountId);
@@ -587,7 +587,7 @@ class UI
                 $abMgr = $this->abMgr;
                 $account = $abMgr->getAccountConfig($accountId);
                 $fixedAttributes = $this->getFixedSettings($account['presetname']);
-                /** @psalm-var AccountSettings */
+                /** @psalm-var AccountSettings $newset */
                 $newset = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, $fixedAttributes);
                 $abMgr->updateAccount($accountId, $newset);
 
@@ -623,7 +623,7 @@ class UI
                 $abookCfg = $abMgr->getAddressbookConfig($abookId);
                 $account = $abMgr->getAccountConfig($abookCfg["account_id"]);
                 $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookCfg['url']);
-                /** @psalm-var AbookSettings */
+                /** @psalm-var AbookSettings $newset */
                 $newset = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, $fixedAttributes);
                 $abMgr->updateAddressbook($abookId, $newset);
 
@@ -850,7 +850,7 @@ class UI
                 $out .= $accountIdField->show();
 
                 if ($accountId == "new") {
-                    $out .= $this->makeSettingsForm(self::UI_FORM_NEWACCOUNT, [], [], $attrib);
+                    $out .= $this->makeSettingsForm(self::UI_FORM_NEW_ACCOUNT, [], [], $attrib);
                 } else {
                     $account = $this->abMgr->getAccountConfig($accountId);
                     $fixedAttributes = $this->getFixedSettings($account['presetname']);

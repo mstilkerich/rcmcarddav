@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube\Db;
 
+use Exception;
 use PDOStatement;
 use rcube_db;
 use Psr\Log\LoggerInterface;
@@ -78,7 +79,7 @@ class Database extends AbstractDatabase
         $logger = $this->logger;
 
         if ($this->inTransaction) {
-            throw new \Exception("Cannot start nested transaction");
+            throw new Exception("Cannot start nested transaction");
         } else {
             // SQLite3 always has Serializable isolation of transactions, and does not support
             // the SET TRANSACTION command.
@@ -134,7 +135,7 @@ class Database extends AbstractDatabase
                 throw new DatabaseException($dbh->is_error());
             }
         } else {
-            throw new \Exception("Attempt to commit a transaction while not within a transaction");
+            throw new Exception("Attempt to commit a transaction while not within a transaction");
         }
     }
 
@@ -288,11 +289,11 @@ class Database extends AbstractDatabase
         // check parameters
         $numCols = count($cols);
         if (empty($rows)) {
-            throw new \Exception("Database::insert on $table called without rows to insert");
+            throw new Exception("Database::insert on $table called without rows to insert");
         }
         foreach ($rows as $row) {
             if (count($row) != $numCols) {
-                throw new \Exception("Database::insert on $table: row given that does not match $numCols columns");
+                throw new Exception("Database::insert on $table: row given that does not match $numCols columns");
             }
         }
 
@@ -377,11 +378,11 @@ class Database extends AbstractDatabase
 
         $ret = $this->retrieveRow($sql_result);
         if (!isset($ret)) {
-            throw new \Exception("Single-row query ({$sql_result->queryString}) without result/with error");
+            throw new Exception("Single-row query ({$sql_result->queryString}) without result/with error");
         }
 
         if ($this->retrieveRow($sql_result)) {
-            throw new \Exception("Single-row query ({$sql_result->queryString}) with multiple results");
+            throw new Exception("Single-row query ({$sql_result->queryString}) with multiple results");
         }
 
         return $ret;
@@ -481,7 +482,7 @@ class Database extends AbstractDatabase
             } else {
                 $msg = "The limit option needs an array parameter of two unsigned integers [offset,limit]; got: ";
                 $msg .= print_r($options['limit'], true);
-                throw new \Exception($msg);
+                throw new Exception($msg);
             }
         } else {
             $sql_result = $dbh->query($sql);
@@ -559,7 +560,7 @@ class Database extends AbstractDatabase
         } elseif (is_array($value)) {
             if (count($value) > 0) {
                 if ($ilike) {
-                    throw new \Exception("getConditionQuery $field - ILIKE match only supported for single pattern");
+                    throw new Exception("getConditionQuery $field - ILIKE match only supported for single pattern");
                 }
                 $quoted_values = array_map(
                     function (string $s) use ($dbh): string {
@@ -570,7 +571,7 @@ class Database extends AbstractDatabase
                 $sql .= $invertCondition ? " NOT IN" : " IN";
                 $sql .= " (" . implode(",", $quoted_values) . ")";
             } else {
-                throw new \Exception("getConditionQuery $field - empty values array provided");
+                throw new Exception("getConditionQuery $field - empty values array provided");
             }
         } else {
             if ($ilike) {

@@ -615,7 +615,7 @@ final class AddressbookManagerTest extends TestCase
         /** @psalm-var FullAccountRow $account0Base */
 
         return [
-            'All updateable properties updated' => [
+            'All updatable properties updated' => [
                 [ 'carddav_accounts', 0 ],
                 [
                     'accountname' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass',
@@ -649,12 +649,12 @@ final class AddressbookManagerTest extends TestCase
                 $account0Base,
                 null
             ],
-            'Try changing not updateable attribute (presetname)' => [
+            'Try changing not updatable attribute (presetname)' => [
                 [ 'carddav_accounts', 0 ],
                 [ 'presetname' => 'foo' ],
                 // preset can only be set on insert, but not updated afterwards - exception expected
                 null,
-                "Attempt to update non-updateable field presetname"
+                "Attempt to update non-updatable field presetname"
             ],
             'Try to update account with an extra unknown attribute' => [
                 [ 'carddav_accounts', 0 ],
@@ -885,7 +885,7 @@ final class AddressbookManagerTest extends TestCase
         /** @psalm-var FullAbookRow $abook0Base */
 
         return [
-            'All updateable properties updated' => [
+            'All updatable properties updated' => [
                 [ 'carddav_addressbooks', 0 ],
                 [
                     'name' => 'Updated Abook', 'active' => '0', 'last_updated' => 998877, 'refresh_time' => 42,
@@ -909,29 +909,29 @@ final class AddressbookManagerTest extends TestCase
                 [ 'last_updated' => '923' ] + $abook0Base,
                 null
             ],
-            'Try changing not updateable attribute (url)' => [
+            'Try changing not updatable attribute (url)' => [
                 [ 'carddav_addressbooks', 0 ],
                 [ 'url' => 'http://a.com/abook1' ],
                 null,
-                "Attempt to update non-updateable field url"
+                "Attempt to update non-updatable field url"
             ],
-            'Try changing not updateable attribute (discovered)' => [
+            'Try changing not updatable attribute (discovered)' => [
                 [ 'carddav_addressbooks', 0 ],
                 [ 'discovered' => '0' ],
                 null,
-                "Attempt to update non-updateable field discovered"
+                "Attempt to update non-updatable field discovered"
             ],
-            'Try changing not updateable attribute (account_id - same user)' => [
+            'Try changing not updatable attribute (account_id - same user)' => [
                 [ 'carddav_addressbooks', 0 ],
                 [ 'account_id' => ['carddav_accounts', 1] ],
                 null,
-                "Attempt to update non-updateable field account_id"
+                "Attempt to update non-updatable field account_id"
             ],
-            'Try changing not updateable attribute (account_id - other user)' => [
+            'Try changing not updatable attribute (account_id - other user)' => [
                 [ 'carddav_addressbooks', 0 ],
                 [ 'account_id' => ['carddav_accounts', 5] ],
                 null,
-                "Attempt to update non-updateable field account_id"
+                "Attempt to update non-updatable field account_id"
             ],
             'Try to update addressbook with an extra unknown attribute' => [
                 [ 'carddav_addressbooks', 0 ],
@@ -948,7 +948,7 @@ final class AddressbookManagerTest extends TestCase
      * This must consider that the updated addressbook config is also returned in subsequent invocations of
      * getAddressbookConfig().
      *
-     * It must not be possible to change non-updateable settings, especially account_id.
+     * It must not be possible to change non-updatable settings, especially account_id.
      *
      * @param TestDataKeyRef $abookFkRef
      * @param array<string, null|string|bool|int|TestDataKeyRef> $abookUpd

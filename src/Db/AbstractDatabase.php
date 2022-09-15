@@ -26,7 +26,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube\Db;
 
-use Psr\Log\LoggerInterface;
+use MStilkerich\CardDavAddressbook4Roundcube\DataConversion;
 
 /**
  * Access interface for the roundcube database.
@@ -63,8 +63,8 @@ use Psr\Log\LoggerInterface;
  *     fields:  array<string, int>,
  * }
  *
- * @psalm-import-type SaveDataFromDC from \MStilkerich\CardDavAddressbook4Roundcube\DataConversion
- * @psalm-import-type SaveDataMultiField from \MStilkerich\CardDavAddressbook4Roundcube\DataConversion
+ * @psalm-import-type SaveDataFromDC from DataConversion
+ * @psalm-import-type SaveDataMultiField from DataConversion
  */
 abstract class AbstractDatabase
 {
