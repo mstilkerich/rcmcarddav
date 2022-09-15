@@ -138,24 +138,6 @@ class AdminSettings
     ] + self::PRESET_SETTINGS_COMMON;
 
     /**
-     * @var array<ConfigurablePresetAttr, array{'account'|'addressbook', string}> PRESET_ATTR_CFGMAP
-     *   This contains the attributes that can be automatically updated from an admin preset if the admin configured
-     *   them as fixed. It maps the attribute name from the preset to the object type (account or addressbook) and
-     *   the field name in the addressbook or account configuration object.
-     */
-    private const PRESET_ATTR_CFGMAP = [
-        'accountname'     => ['account','accountname'],
-        'username'        => ['account','username'],
-        'password'        => ['account','password'],
-        'discovery_url'   => ['account','discovery_url'],
-        'rediscover_time' => ['account','rediscover_time'],
-        'active'          => ['addressbook','active'],
-        'refresh_time'    => ['addressbook','refresh_time'],
-        'use_categories'  => ['addressbook','use_categories'],
-        'readonly'        => ['addressbook','readonly'],
-    ];
-
-    /**
      * @var PasswordStoreScheme encryption scheme
      * @readonly
      */
@@ -339,7 +321,7 @@ class AdminSettings
                         $this->updatePresetSettings($presetName, $accountId, $abMgr);
                     } else {
                         // Add new account first (addressbooks follow below)
-                        $accountCfg = $this->makeDbObjFromPreset('account', $preset);
+                        $accountCfg = $preset;
                         $accountCfg['presetname'] = $presetName;
                         $accountId = $abMgr->insertAccount($accountCfg);
                     }
@@ -412,12 +394,8 @@ class AdminSettings
         // otherwise there may be user changes that should not be destroyed
         $pa = [];
         foreach ($preset['fixed'] as $k) {
-            if (isset($preset[$k]) && isset(self::PRESET_ATTR_CFGMAP[$k])) {
-                [ $attrObjType, $attrDbName ] = self::PRESET_ATTR_CFGMAP[$k];
-
-                if ($type == $attrObjType && isset($obj[$attrDbName]) && $obj[$attrDbName] != $preset[$k]) {
-                    $pa[$attrDbName] = $preset[$k];
-                }
+            if (isset($preset[$k]) && isset($obj[$k]) && $obj[$k] != $preset[$k]) {
+                $pa[$k] = $preset[$k];
             }
         }
 
@@ -457,8 +435,7 @@ class AdminSettings
             $abook = $infra->makeWebDavResource($xabookUrl, $account);
             if ($abook instanceof AddressbookCollection) {
                 // Get values for the optional settings that the admin may have configured as part of the preset
-                $presetXAbook = $this->getPreset($presetName, $xabookUrl);
-                $abookTmpl = $this->makeDbObjFromPreset('addressbook', $presetXAbook);
+                $abookTmpl = $this->getPreset($presetName, $xabookUrl);
                 $abookTmpl['account_id'] = $accountCfg['id'];
                 $abookTmpl['discovered'] = '0';
                 $abookTmpl['sync_token'] = '';
@@ -472,30 +449,6 @@ class AdminSettings
             $logger = $infra->logger();
             $logger->error("Failed to add extra addressbook $xabookUrl for preset $presetName: " . $e->getMessage());
         }
-    }
-
-    /**
-     * Creates a DB object to insert from a preset.
-     *
-     * @psalm-template T as 'addressbook'|'account'
-     * @param T $type
-     * @param Preset $preset
-     * @return AbookSettings | AccountSettings
-     * @psalm-return (T is 'addressbook' ? AbookSettings : AccountSettings)
-     */
-    public function makeDbObjFromPreset(string $type, array $preset): array
-    {
-        $result = [];
-
-        foreach (self::PRESET_ATTR_CFGMAP as $k => $spec) {
-            [ $attrObjType, $attrDbName ] = $spec;
-            if ($type == $attrObjType) {
-                $result[$attrDbName] = $preset[$k];
-            }
-        }
-
-        /** @psalm-var AbookSettings | AccountSettings $result */
-        return $result;
     }
 
     /**

@@ -352,8 +352,7 @@ class carddav extends rcube_plugin implements RcmInterface
                 $abookTmpl = [];
                 $presetName = $accountCfg['presetname'];
                 if ($presetName !== null) {
-                    $preset = $admPrefs->getPreset($presetName);
-                    $abookTmpl = $admPrefs->makeDbObjFromPreset('addressbook', $preset);
+                    $abookTmpl = $admPrefs->getPreset($presetName);
                 }
 
                 try {
