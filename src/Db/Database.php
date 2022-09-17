@@ -217,7 +217,6 @@ class Database extends AbstractDatabase
             $sqlMigrationScript = "$scriptDir/$migration/$db_backend.sql";
 
             if (file_exists($phpMigrationScript)) {
-                include $phpMigrationScript;
                 $migrationClass = "\MStilkerich\CardDavAddressbook4Roundcube\DBMigrations\Migration"
                     . substr($migration, 0, 4); // the 4-digit number
 

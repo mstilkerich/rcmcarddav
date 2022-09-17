@@ -20,6 +20,9 @@
     ],
     "require": {
         "php": ">=7.1.0",
+        "ext-gd": "*",
+        "ext-json": "*",
+        "ext-pdo": "*",
         "sabre/vobject": "^3.3.5 || ^4.0.0",
         "sabre/uri": "^2.2",
         "roundcube/plugin-installer": "^0.3.0",
@@ -43,6 +46,14 @@
     "autoload": {
         "psr-4": {
             "MStilkerich\\CardDavAddressbook4Roundcube\\": "src/"
+        },
+        "classmap": ["carddav.php", "dbmigrations/"]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MStilkerich\\Tests\\CardDavAddressbook4Roundcube\\": "tests/",
+            "MStilkerich\\Tests\\CardDavAddressbook4Roundcube\\Unit\\": "tests/unit",
+            "MStilkerich\\Tests\\CardDavAddressbook4Roundcube\\DBInteroperability\\": "tests/dbinterop"
         }
     },
     "prefer-stable" : true,

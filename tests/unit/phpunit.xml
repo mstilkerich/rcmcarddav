@@ -1,4 +1,4 @@
-<phpunit colors="true" testdox="true" bootstrap="autoload.php" verbose="true">
+<phpunit colors="true" testdox="true" bootstrap="../autoload.php" verbose="true">
     <php>
         <var name="TEST_TESTRUN" value="unit"/>
 
