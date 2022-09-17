@@ -48,6 +48,11 @@ PG_DROPDB	:= $(POSTGRES_CMD_PREFIX) dropdb
 PG_DUMP     := $(POSTGRES_CMD_PREFIX) pg_dump
 PSQL        := $(POSTGRES_CMD_PREFIX) psql
 
+# Set some options on Github actions
+ifeq ($(CI),true)
+PSALM_XOPTIONS=--shepherd --no-progress --no-cache
+endif
+
 .PHONY: all stylecheck phpcompatcheck staticanalyses psalmanalysis tests verification doc
 
 all: staticanalyses doc
@@ -63,7 +68,7 @@ phpcompatcheck:
 	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/ tests/ scripts/
 
 psalmanalysis: tests/dbinterop/DatabaseAccounts.php
-	vendor/bin/psalm --no-cache --shepherd --report=testreports/psalm.txt --report-show-info=true --no-progress
+	vendor/bin/psalm --threads=8 --report=testreports/psalm.txt --report-show-info=true --no-diff $(PSALM_XOPTIONS)
 
 # Example usage for non-HEAD version: RELEASE_VERSION=v4.1.0 make tarball
 .PHONY: tarball
