@@ -95,6 +95,8 @@ jobs:
           - 'mariadb:10.5'
           - 'mariadb:10.6'
           - 'mariadb:10.7'
+          - 'mariadb:10.8'
+          - 'mariadb:10.9'
 
     runs-on: ubuntu-20.04
 
