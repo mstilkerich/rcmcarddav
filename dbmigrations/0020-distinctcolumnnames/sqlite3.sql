@@ -1,5 +1,5 @@
 -- Note: SQLite since version 3.25 supports RENAME COLUMN
--- We supports versions starting with version 3.22, so we do not use this mechanism and instead create a copy of the
+-- We support versions starting with version 3.22, so we do not use this mechanism and instead create a copy of the
 -- table with the modifications
 
 -- disable foreign key constraint check

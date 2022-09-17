@@ -2,9 +2,9 @@
 -- We rename the existing active column to flags
 UPDATE TABLE_PREFIXcarddav_addressbooks
 	SET active=(
-		(CAST((active         != 0) as INT) << 0) |
-		(CAST((use_categories != 0) as INT) << 1) |
-		(CAST((discovered     != 0) as INT) << 2)
+		(CAST((active         != 0) as UNSIGNED INTEGER) << 0) |
+		(CAST((use_categories != 0) as UNSIGNED INTEGER) << 1) |
+		(CAST((discovered     != 0) as UNSIGNED INTEGER) << 2)
 	);
 
 -- Rename active column and adjust default value
