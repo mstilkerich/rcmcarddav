@@ -26,13 +26,11 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
-use Psr\Log\LoggerInterface;
+use Exception;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use MStilkerich\CardDavClient\AddressbookCollection;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use carddav;
-use rcube_utils;
 
 /**
  * @psalm-type SaveDataMultiField = list<string>
@@ -90,7 +88,7 @@ use rcube_utils;
  */
 class DataConversion
 {
-    /** @var string This is an empty VCard string to workaround an incompatibility of Roundcube's export code with the
+    /** @var string This is an empty VCard string to work around an incompatibility of Roundcube's export code with the
      *              DelayedPhotoLoader object that we store in the photo attribute of save_data.
      */
     private const EMPTY_VCF =
@@ -270,7 +268,7 @@ class DataConversion
      * specific for an addressbook.
      *
      * The data converter may need access to the database and the carddav server for specific operations such as storing
-     * the custom labels or downloading resources from the server that are referenced by an URI within a VCard. These
+     * the custom labels or downloading resources from the server that are referenced by a URI within a VCard. These
      * dependencies are injected with the constructor to allow for testing of this class using stub versions.
      *
      * @param string $abookId The database ID of the addressbook the data conversion object is bound to.
@@ -300,7 +298,7 @@ class DataConversion
         if (isset($this->coltypes[$attrname])) {
             return isset($this->coltypes[$attrname]['subtypes']);
         } else {
-            throw new \Exception("$attrname is not a known roundcube contact property");
+            throw new Exception("$attrname is not a known roundcube contact property");
         }
     }
 
@@ -317,7 +315,7 @@ class DataConversion
      *
      * @param  VCard $vcard Sabre VCard object
      *
-     * @return SaveDataFromDC Roundcube representation of the VCard
+     * @return SaveDataFromDC Roundcube's representation of the VCard
      */
     public function toRoundcube(VCard $vcard, AddressbookCollection $davAbook): array
     {
@@ -329,7 +327,7 @@ class DataConversion
         ];
 
         foreach (self::VCF2RC['simple'] as $vkey => $rckey) {
-            /** @var ?VObject\Property */
+            /** @var ?VObject\Property $property */
             $property = $vcard->{$vkey};
             if (isset($property)) {
                 $property = (string) $property;
@@ -348,7 +346,7 @@ class DataConversion
         $property = $vcard->N;
         if (isset($property)) {
             $attrs = [ "surname", "firstname", "middlename", "prefix", "suffix" ];
-            /** @var list<string> */
+            /** @var list<string> $N */
             $N = $property->getParts();
             for ($i = 0; $i < min(count($N), count($attrs)); $i++) {
                 if (strlen($N[$i]) > 0) {
@@ -359,7 +357,7 @@ class DataConversion
 
         $property = $vcard->ORG;
         if (isset($property)) {
-            /** @var list<string> */
+            /** @var list<string> $ORG */
             $ORG = $property->getParts();
 
             if (count($ORG) > 0) {
@@ -378,7 +376,7 @@ class DataConversion
         }
 
         foreach (self::VCF2RC['multi'] as $vkey => $rckey) {
-            /** @var ?VObject\Property */
+            /** @var ?VObject\Property $properties */
             $properties = $vcard->{$vkey};
             if (isset($properties)) {
                 // if the attribute already maps to a specific subtype, it is contained in rckey
@@ -389,7 +387,7 @@ class DataConversion
                     $label = (count($rckeyComp) < 2) ? $this->getAttrLabel($vcard, $prop, $rckey) : $rckeyComp[1];
 
                     if (method_exists($this, "toRoundcube$vkey")) {
-                        /** @var null|string|SaveDataAddressField special handler for structured property */
+                        /** @var null|string|SaveDataAddressField $propValue special handler for structured property */
                         $propValue = call_user_func([$this, "toRoundcube$vkey"], $prop);
                         if (!isset($propValue)) {
                             continue;
@@ -401,7 +399,7 @@ class DataConversion
                         }
                     }
 
-                    /** @var list<string> */
+                    /** @var list<string> $existingValues */
                     $existingValues = $save_data["$rckey:$label"] ?? [];
                     if (!in_array($propValue, $existingValues)) {
                         $save_data["$rckey:$label"][] = $propValue;
@@ -422,7 +420,7 @@ class DataConversion
     /**
      * Creates roundcube address data from an ADR VCard property.
      *
-     * @param VObject\Property The ADR property to use as input.
+     * @param VObject\Property $prop The ADR property to use as input.
      * @return ?SaveDataAddressField The roundcube address data created from the property.
      */
     private function toRoundcubeADR(VObject\Property $prop): ?array
@@ -436,7 +434,7 @@ class DataConversion
             'zipcode',  // postal code
             'country'   // country name
         ];
-        /** @var list<string> */
+        /** @var list<string> $p */
         $p = $prop->getParts();
         $addr = [];
         for ($i = 0; $i < min(count($p), count($attrs)); $i++) {
@@ -451,7 +449,7 @@ class DataConversion
     /**
      * Creates roundcube instant messaging data
      *
-     * @param VObject\Property The IMPP property to use as input.
+     * @param VObject\Property $prop The IMPP property to use as input.
      * @return ?string The roundcube data created from the property.
      */
     private function toRoundcubeIMPP(VObject\Property $prop): ?string
@@ -459,7 +457,7 @@ class DataConversion
         // Examples:
         // From iCloud Web Addressbook: IMPP;X-SERVICE-TYPE=aim;TYPE=HOME;TYPE=pref:aim:jdoe@example.com
         // From Nextcloud: IMPP;TYPE=SKYPE:jdoe@example.com
-        // Note: the nextcloud example does not have an URI value, thus it's not compliant with RFC 4770
+        // Note: the nextcloud example does not have a URI value, thus it's not compliant with RFC 4770
         $comp = explode(":", (string) $prop, 2);
         $ret = $comp[count($comp) == 2 ? 1 : 0];
         if (strlen($ret) == 0) {
@@ -702,7 +700,7 @@ class DataConversion
 
                     $mkey = str_replace("-", "_", strtoupper($vkey));
                     if (method_exists($this, "fromRoundcube$mkey")) {
-                        /** @var ?VObject\Property special handler for structured property */
+                        /** @var ?VObject\Property $prop special handler for structured property */
                         $prop = call_user_func([$this, "fromRoundcube$mkey"], $value, $vcard, $subtype);
                     } else {
                         if (strlen($value) > 0) {
@@ -728,7 +726,7 @@ class DataConversion
      * Creates an ADR property from roundcube address data and adds it to a VCard.
      *
      * This function is passed an address array as provided by roundcube and from it creates a property if at least one
-     * of the address fields is set to a non empty value. Otherwise, null is returned.
+     * of the address fields is set to a non-empty value. Otherwise, null is returned.
      *
      * @param SaveDataAddressField $address The address array as provided by roundcube
      * @param VCard $vcard The VCard to add the property to.
@@ -756,7 +754,7 @@ class DataConversion
     }
 
     /**
-     * Creates an URL property from roundcube address data and adds it to a VCard.
+     * Creates a URL property from roundcube address data and adds it to a VCard.
      *
      * The extra behavior of this function is to add a VALUE=URI parameter to the created VCard.
      *
@@ -1081,7 +1079,7 @@ class DataConversion
 
         // check X-SERVICE-TYPE parameter (seen in entries created by Apple Addressbook)
         if (isset($prop["X-SERVICE-TYPE"])) {
-            /** @var VObject\Parameter */
+            /** @var VObject\Parameter $type */
             foreach ($prop["X-SERVICE-TYPE"] as $type) {
                 $type = (string) $type;
                 $ltype = strtolower($type);
@@ -1110,7 +1108,7 @@ class DataConversion
 
         // check TYPE parameter
         if (isset($prop["TYPE"])) {
-            /** @var VObject\Parameter */
+            /** @var VObject\Parameter $type */
             foreach ($prop["TYPE"] as $type) {
                 $ltype = strtolower((string) $type);
                 $ltype = $this->coltypes["im"]["subtypealias"][$ltype] ?? $ltype;
@@ -1127,8 +1125,8 @@ class DataConversion
     /**
      * Stores a custom label in the database (X-ABLabel extension).
      *
-     * @param string Name of the type/category (phone,address,email)
-     * @param string Name of the custom label to store for the type
+     * @param string $typename Name of the type/category (phone,address,email)
+     * @param string $subtype Name of the custom label to store for the type
      */
     private function storeextrasubtype(string $typename, string $subtype): void
     {
@@ -1156,7 +1154,7 @@ class DataConversion
             }
         }
 
-        /** @var list<array{typename: string, subtype: string}> read extra subtypes */
+        /** @var list<array{typename: string, subtype: string}> $xtypes read extra subtypes */
         $xtypes = $db->get(['abook_id' => $this->abookId], ['typename', 'subtype'], 'xsubtypes');
 
         foreach ($xtypes as $row) {
@@ -1237,7 +1235,7 @@ class DataConversion
         $dname = [];
         foreach (["firstname", "surname"] as $attr) {
             if (!empty($save_data[$attr])) {
-                /** @psalm-var string */
+                /** @psalm-var string $save_data[$attr] */
                 $dname[] = $save_data[$attr];
             }
         }
@@ -1250,7 +1248,7 @@ class DataConversion
         $epKeys = preg_grep(";^(email|phone):;", array_keys($save_data));
         sort($epKeys, SORT_STRING);
         foreach ($epKeys as $epKey) {
-            /** @var SaveDataMultiField */
+            /** @var SaveDataMultiField $epVals */
             $epVals = $save_data[$epKey];
             foreach ($epVals as $epVal) {
                 if (!empty($epVal)) {

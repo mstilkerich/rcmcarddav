@@ -50,7 +50,7 @@ class DbOrCondition
      *   - string: Assert that the field value matches $value (or does not match value, if inverted)
      *   - string[]: Assert that the field matches one of the strings in the array (or none, if inverted)
      *
-     *  The text comparisons are case sensitive. If case insensitive behavior is required, ILIKE match must be used.
+     *  The text comparisons are case-sensitive. If case-insensitive behavior is required, ILIKE match must be used.
      *
      * @var ?string|string[] Value specifier of the condition
      * @readonly

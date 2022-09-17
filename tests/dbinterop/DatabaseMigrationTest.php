@@ -218,6 +218,22 @@ final class DatabaseMigrationTest extends TestCase
             ],
         ],
 
+        '0020-distinctcolumnnames' => [
+            // these rows are checked against the listed values after the migration has been executed.
+            // only the listed columns are checked
+            'checkRows' => [
+                [
+                    'table' => 'carddav_accounts',
+                    'cols' => [ 'accountname', 'discovery_url', 'presetname' ],
+                    'rows' => [
+                        [ 'Nextcloud', 'https://nc.cloud.com/c/', null ],
+                        [ 'Nextcloud',  'https://nc.cloud.com/c/', 'admPreset' ],
+                        [ 'Nextcloud', 'https://nc.cloud.com/c/', null ],
+                        [ 'Radicale', 'https://radicale.example.com/dav/', null ],
+                    ],
+                ],
+            ],
+        ],
     ];
 
     /**

@@ -224,7 +224,7 @@ final class AdminSettingsTest extends TestCase
             'Invalid preset key (empty string)' => [
                 function (array $prefs): array {
                     TestCase::assertIsArray($prefs['_GLOBAL']);
-                    $prefs[''] = [ 'name' => 'Invalid' ];
+                    $prefs[''] = [ 'accountname' => 'Invalid' ];
                     return $prefs;
                 },
                 function (array $expPrefs): array {
@@ -238,7 +238,7 @@ final class AdminSettingsTest extends TestCase
             'Invalid preset key (integer)' => [
                 function (array $prefs): array {
                     TestCase::assertIsArray($prefs['_GLOBAL']);
-                    $prefs[0] = [ 'name' => 'Invalid' ];
+                    $prefs[0] = [ 'accountname' => 'Invalid' ];
                     return $prefs;
                 },
                 function (array $expPrefs): array {
@@ -263,24 +263,10 @@ final class AdminSettingsTest extends TestCase
                 },
                 "preset definition must be an array"
             ],
-            'Invalid preset, mandatory attribute missing (name)' => [
-                function (array $prefs): array {
-                    TestCase::assertIsArray($prefs['_GLOBAL']);
-                    $prefs['Invalid'] = [ 'url' => 'example.com' ];
-                    return $prefs;
-                },
-                function (array $expPrefs): array {
-                    // invalid preset must be ignored
-                    return $expPrefs;
-                },
-                function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
-                },
-                "required setting name is not set"
-            ],
             'Invalid preset, mandatory attribute missing (extraabook.url)' => [
                 function (array $prefs): array {
                     TestCase::assertIsArray($prefs['_GLOBAL']);
-                    $prefs['Invalid'] = [ 'name' => 'Test', 'extra_addressbooks' => [['active' => true]] ];
+                    $prefs['Invalid'] = [ 'accountname' => 'Test', 'extra_addressbooks' => [['active' => true]] ];
                     return $prefs;
                 },
                 function (array $expPrefs): array {
@@ -294,7 +280,7 @@ final class AdminSettingsTest extends TestCase
             'Invalid preset, wrong type (extraabooks not an array)' => [
                 function (array $prefs): array {
                     TestCase::assertIsArray($prefs['_GLOBAL']);
-                    $prefs['Invalid'] = [ 'name' => 'Test', 'extra_addressbooks' => "example.com" ];
+                    $prefs['Invalid'] = [ 'accountname' => 'Test', 'extra_addressbooks' => "example.com" ];
                     return $prefs;
                 },
                 function (array $expPrefs): array {
@@ -309,7 +295,7 @@ final class AdminSettingsTest extends TestCase
                 function (array $prefs): array {
                     TestCase::assertIsArray($prefs['_GLOBAL']);
                     $prefs['Invalid'] = [
-                        'name' => 'Test',
+                        'accountname' => 'Test',
                         'extra_addressbooks' => [
                             ['url' => 'foo.com'],
                             "example.com"
@@ -350,11 +336,11 @@ final class AdminSettingsTest extends TestCase
             ],
         ];
 
-        foreach (['username', 'password', 'url', 'rediscover_time', 'refresh_time'] as $stringAttr) {
-            $ret["Wrong type for string attribute ($stringAttr)"] = [
-                function (array $prefs) use ($stringAttr): array {
+        foreach (['accountname', 'username', 'password', 'discovery_url', 'rediscover_time', 'refresh_time'] as $k) {
+            $ret["Wrong type for string attribute ($k)"] = [
+                function (array $prefs) use ($k): array {
                     TestCase::assertIsArray($prefs['_GLOBAL']);
-                    $prefs['Invalid'] = [ 'name' => 'Invalid', $stringAttr => 1 ];
+                    $prefs['Invalid'] = [ 'accountname' => 'Invalid', $k => 1 ];
                     return $prefs;
                 },
                 function (array $expPrefs): array {
@@ -363,7 +349,7 @@ final class AdminSettingsTest extends TestCase
                 },
                 function (AdminSettings $_admPrefs, RoundcubeLogger $_rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
                 },
-                "setting $stringAttr must be a string"
+                "setting $k must be a string"
             ];
         }
 
@@ -371,7 +357,7 @@ final class AdminSettingsTest extends TestCase
             $ret["Wrong type for timestring attribute ($timeStrAttr)"] = [
                 function (array $prefs) use ($timeStrAttr): array {
                     TestCase::assertIsArray($prefs['_GLOBAL']);
-                    $prefs['Invalid'] = [ 'name' => 'Invalid', $timeStrAttr => 'foo' ];
+                    $prefs['Invalid'] = [ 'accountname' => 'Invalid', $timeStrAttr => 'foo' ];
                     return $prefs;
                 },
                 function (array $expPrefs): array {
@@ -384,12 +370,12 @@ final class AdminSettingsTest extends TestCase
             ];
         }
 
-        foreach (['fixed', 'require_always'] as $strArrayAttr) {
+        foreach (['fixed'] as $strArrayAttr) {
             foreach ([ true, 'foo', 1, [ 'foo', 1 ] ] as $idx => $errVal) {
                 $ret["Wrong type for string array attribute ($strArrayAttr $idx)"] = [
                     function (array $prefs) use ($strArrayAttr, $errVal): array {
                         TestCase::assertIsArray($prefs['_GLOBAL']);
-                        $prefs['Invalid'] = [ 'name' => 'Invalid', $strArrayAttr => $errVal ];
+                        $prefs['Invalid'] = [ 'accountname' => 'Invalid', $strArrayAttr => $errVal ];
                         return $prefs;
                     },
                     function (array $expPrefs): array {

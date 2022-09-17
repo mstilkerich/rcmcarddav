@@ -25,12 +25,10 @@
 declare(strict_types=1);
 
 use MStilkerich\CardDavAddressbook4Roundcube\{Config, DataConversion};
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 use MStilkerich\CardDavAddressbook4Roundcube\Frontend\{AddressbookManager,RcmInterface,UI};
 use Sabre\VObject\Component\VCard;
 
 /**
- * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type SaveDataFromDC from DataConversion
  */
 // phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
@@ -131,7 +129,7 @@ class carddav extends rcube_plugin implements RcmInterface
     /**
      * Performs basic initialization of the plugin.
      *
-     * Particularly it reads the admin settings and initialized the loggers to the configured loglevels.
+     * Particularly it reads the admin settings and initialized the loggers to the configured log levels.
      */
     private function basicInit(): void
     {
@@ -204,7 +202,7 @@ class carddav extends rcube_plugin implements RcmInterface
         return is_string($value) ? $value : null;
     }
 
-    public function showMessage(string $msg, string $msgType = 'notice', $override = false, $timeout = 0): void
+    public function showMessage(string $msg, string $msgType = 'notice', bool $override = false, int $timeout = 0): void
     {
         $rcube = rcube::get_instance();
         $rcube->output->show_message($msg, $msgType, null, $override, $timeout);
@@ -289,7 +287,7 @@ class carddav extends rcube_plugin implements RcmInterface
         }
     }
 
-    public function sendTemplate(string $templ, $exit = true): void
+    public function sendTemplate(string $templ, bool $exit = true): void
     {
         $rcube = rcube::get_instance();
 
@@ -346,7 +344,7 @@ class carddav extends rcube_plugin implements RcmInterface
             $accountCfg = $abMgr->getAccountConfig($accountId);
 
             // if there is no discovery URL, we cannot perform discovery; this should only happen for presets
-            if ($accountCfg['url'] === null) {
+            if ($accountCfg['discovery_url'] === null) {
                 continue;
             }
 
@@ -354,8 +352,7 @@ class carddav extends rcube_plugin implements RcmInterface
                 $abookTmpl = [];
                 $presetName = $accountCfg['presetname'];
                 if ($presetName !== null) {
-                    $preset = $admPrefs->getPreset($presetName);
-                    $abookTmpl = $admPrefs->makeDbObjFromPreset('addressbook', $preset);
+                    $abookTmpl = $admPrefs->getPreset($presetName);
                 }
 
                 try {
@@ -382,35 +379,20 @@ class carddav extends rcube_plugin implements RcmInterface
     {
         $infra = Config::inst();
         $logger = $infra->logger();
-        $admPrefs = $infra->admPrefs();
 
         try {
             $logger->debug(__METHOD__);
             $abMgr = $this->abMgr;
 
             foreach ($abMgr->getAddressbookIds() as $abookId) {
-                $abookrow = $abMgr->getAddressbookConfig($abookId);
-                $account = $abMgr->getAccountConfig($abookrow['account_id']);
-
-                if (isset($account['presetname'])) {
-                    try {
-                        // TODO consider making readonly a DB column
-                        $preset = $admPrefs->getPreset($account['presetname'], $abookrow['url']);
-                        $readonly = $preset['readonly'];
-                    } catch (Exception $e) {
-                        // it appears the admin deleted the preset - don't show the addressbook to roundcube
-                        continue;
-                    }
-                } else {
-                    $readonly = false;
-                }
+                $abookCfg = $abMgr->getAddressbookConfig($abookId);
 
                 $p['sources']["carddav_$abookId"] = [
                     'id' => "carddav_$abookId",
-                    'name' => $abookrow['name'],
+                    'name' => $abookCfg['name'],
                     'groups' => true,
                     'autocomplete' => true,
-                    'readonly' => $readonly
+                    'readonly' => ($abookCfg['readonly'] != '0')
                 ];
             }
         } catch (Exception $e) {

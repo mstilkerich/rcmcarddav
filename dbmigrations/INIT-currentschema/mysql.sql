@@ -1,10 +1,10 @@
 -- table to store the configured accounts
 CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_accounts (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-	name TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+	accountname TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
 	username VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
 	password TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-	url VARCHAR(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+	discovery_url VARCHAR(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
 	user_id INT(10) UNSIGNED NOT NULL,
 	last_discovered BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the addressbooks were last discovered
 	rediscover_time INT NOT NULL DEFAULT 86400, -- time span (seconds) after that the addressbooks will be rediscovered, default 1d
@@ -21,13 +21,11 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_addressbooks (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT,
 	name TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
 	url VARCHAR(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-	active TINYINT UNSIGNED NOT NULL DEFAULT 1,
+	flags SMALLINT UNSIGNED NOT NULL DEFAULT 5, -- default: discovered:2 | active:0
 	last_updated BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the last update of the local database
 	refresh_time INT NOT NULL DEFAULT 3600, -- time span (seconds) after that the local database will be refreshed, default 1h
 	sync_token TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL, -- sync-token the server sent us for the last sync
 
-	use_categories INT NOT NULL DEFAULT '0',
-	discovered INT NOT NULL DEFAULT '1', -- 1: addressbook was automatically discovered; 0: addressbook was manually added, e.g. shared addressbook
 	account_id INT(10) UNSIGNED NOT NULL,
 
 	PRIMARY KEY(id),

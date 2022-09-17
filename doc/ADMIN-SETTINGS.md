@@ -111,14 +111,14 @@ A preconfigured addressbook configuration looks like this:
 $prefs['<Presetname>'] = [
     // Account attributes
     //// required attributes
-    'name'         =>  '<Account Name>',
+    'accountname'  =>  '<Account Name>',
 
     //// required attributes unless passwordless authentication is used (Kerberos)
     'username'     =>  '<CardDAV Username>',
     'password'     =>  '<CardDAV Password>',
     //// optional attributes
-    ////// if url is not specified / null, addressbook discovery is disabled (see extra_addressbooks)
-    'url'          =>  '<CardDAV Discovery URL>',
+    ////// if discovery_url is not specified / null, addressbook discovery is disabled (see extra_addressbooks)
+    'discovery_url'   =>  '<CardDAV Discovery URL>',
     'rediscover_time' => '<Rediscover Time in Hours, Format HH[:MM[:SS]]>',
     ////// hide the account/addressbooks of this preset from CardDAV settings
     'hide' => <true or false>,
@@ -133,8 +133,8 @@ $prefs['<Presetname>'] = [
     ////// attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset
     'fixed'        =>  [ < 0 or more of the other attribute keys > ],
 
-    ////// always require these attributes, even for addressbook view
-    'require_always' => ['email'],
+    ////// if true, only show contacts that have an email address (even in the addressbook view)
+    'require_always_email' => false,
 
     // optional: manually add (non-discoverable) addressbooks
     'extra_addressbooks' =>  [
@@ -152,8 +152,8 @@ $prefs['<Presetname>'] = [
             // attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset addressbook
             'fixed'        =>  [ < 0 or more of the other attribute keys > ],
 
-            // always require these attributes, even for addressbook view
-            'require_always' => ['email'],
+            // if true, only show contacts that have an email address (even in the addressbook view)
+            'require_always_email' => true,
         ],
         // ... second manually-added addressbook ...
     ],
@@ -168,15 +168,15 @@ as an internal identifier for the preset account, you should never change it thr
 changed, the effect will be as if the existing preset was deleted and and a new one was added, resulting in deletion of
 the existing addressbooks from the database and creation of new ones.
 
-### Required parameters
- - `name`: User-visible name of the account. The addressbooks will be named according to the name provided by the
-           server, unless no server-side name is provided. In the latter case, a name will be derived.
 
 ### Required parameters unless password-less authentication is used (e.g. Kerberos)
  - `username`: CardDAV username to access the addressbook.
  - `password`: CardDAV password to access the addressbook.
 
 ### Optional parameters on the account
+ - `accountname`: User-visible name of the account. The addressbooks will be named according to the name provided by the
+                  server, unless no server-side name is provided. In the latter case, a name will be derived. If not
+                  specified, the presetname will be used as default.
  - `url`: URL where to find the CardDAV addressbook(s). This URL is taken to start a discovery process for addressbooks
           according to RFC 6764. All discovered addressbooks are added. That means, even if the URL points to an
           individual addressbook that belongs to the user, all other addressbooks of the user are added as well. If this
@@ -204,12 +204,11 @@ the existing addressbooks from the database and creation of new ones.
              Note that only fixed parameters will be automatically updated for existing addressbooks created from
              presets. Otherwise the user may already have changed the setting, and his change would be lost. You can add
              any of the above keys, but the setting only affects parameters that can be changed via the settings pane
-             (e.g., readonly cannot be changed by the user anyway). Normally you will at least want to fix the url,
-             username and password for a preset.
+             (e.g., readonly cannot be changed by the user anyway). Normally you will at least want to fix the
+             discovery\_url, username and password for a preset.
              Default: empty, all settings modifiable by user
- - `require_always`: If set, this database field is required to be non-empty for ALL queries, even just for displaying
-             members. This may be useful if you have shared, read-only addressbooks with a lot of contacts that do not
-             have an email address. The following are supported: name, email, firstname, surname
+ - `require_always_email`: If true, only contacts that include an email address are shown. This may be useful if you
+             have shared, read-only addressbooks with a lot of contacts that do not have an email address.
 
 ### Examples
 
@@ -219,30 +218,30 @@ The following code snippet shows two examples for preset addressbooks.
 // Preset 1: Personal
 $prefs['Personal'] = [
     // required attributes
-    'name'         =>  'Personal',
+    'accountname'  =>  'Personal',
     // will be substituted for the roundcube username
     'username'     =>  '%u',
     // will be substituted for the roundcube password
     'password'     =>  '%p',
     // %u will be substituted for the CardDAV username
-    'url'          =>  'https://ical.example.org/caldav.php/%u/Personal',
+    'discovery_url' =>  'https://ical.example.org/caldav.php/%u/Personal',
 
     'active'       =>  true,
     'readonly'     =>  false,
     'refresh_time' => '02:00:00',
 
-    'fixed'        =>  ['url', 'username', 'password'],
+    'fixed'        =>  ['discovery_url', 'username', 'password'],
     'hide'         =>  false,
 ];
 
 // Preset 2: Corporate
 $prefs['Work'] = [
-    'name'         =>  'Corporate',
+    'accountname'  =>  'Corporate',
     'username'     =>  'CorpUser',
     'password'     =>  'C0rpPasswo2d',
-    'url'          =>  'corp.example.com',
+    'discovery_url' =>  'corp.example.com',
 
-    'fixed'        =>  ['name', 'username', 'password'],
+    'fixed'        =>  ['accountname', 'username', 'password'],
     'hide'         =>  true,
 
     'extra_addressbooks' =>  [

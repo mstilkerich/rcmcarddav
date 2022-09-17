@@ -26,9 +26,9 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
 
-use MStilkerich\CardDavAddressbook4Roundcube\Config;
-use MStilkerich\CardDavClient\Account;
+use Exception;
 use rcube;
+use MStilkerich\CardDavAddressbook4Roundcube\Config;
 
 /**
  * Various utility functions used in the Frontend.
@@ -46,7 +46,7 @@ class Utils
             '%u' => $rcusername,
             '%l' => $rcusernameParts[0],
             '%d' => $rcusernameParts[1] ?? '',
-            // %V parses username for macosx, replaces periods and @ by _, work around bugs in contacts.app
+            // %V parses username for macOS, replaces periods and @ by _, work around bugs in contacts.app
             '%V' => strtr($rcusername, "@.", "__")
         ];
 
@@ -59,9 +59,7 @@ class Utils
             );
         }
 
-        $username = strtr($username, $transTable);
-
-        return $username;
+        return strtr($username, $transTable);
     }
 
     public static function replacePlaceholdersUrl(string $url, bool $quoteRegExp = false): string
@@ -100,24 +98,10 @@ class Utils
             $ret += intval($match[3] ?? 0) * 60;
             $ret += intval($match[5] ?? 0);
         } else {
-            throw new \Exception("Time string $timeStr could not be parsed");
+            throw new Exception("Time string $timeStr could not be parsed");
         }
 
         return $ret;
-    }
-
-    /**
-     * Compares the path components of two URIs.
-     *
-     * @return bool True if the normalized path components are equal.
-     */
-    public static function compareUrlPaths(string $url1, string $url2): bool
-    {
-        $comp1 = \Sabre\Uri\parse($url1);
-        $comp2 = \Sabre\Uri\parse($url2);
-        $p1 = trim(rtrim($comp1["path"] ?? "", "/"), "/");
-        $p2 = trim(rtrim($comp2["path"] ?? "", "/"), "/");
-        return $p1 === $p2;
     }
 
     /**
@@ -150,10 +134,10 @@ class Utils
                 $rcube->config->set('carddav_des_key', '');
 
                 if ($crypted === false) {
-                    throw new \Exception("Password encryption with user password failed");
+                    throw new Exception("Password encryption with user password failed");
                 }
                 return '{ENCRYPTED}' . $crypted;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $logger = Config::inst()->logger();
                 $logger->warning(
                     "Could not encrypt password with 'encrypted' method, falling back to 'des_key': " . $e->getMessage()
@@ -168,7 +152,7 @@ class Utils
             $crypted = $rcube->encrypt($clear);
 
             if ($crypted === false) {
-                throw new \Exception("Could not encrypt password with 'des_key' method");
+                throw new Exception("Could not encrypt password with 'des_key' method");
             }
             return '{DES_KEY}' . $crypted;
         }
@@ -196,7 +180,7 @@ class Utils
                 }
 
                 return $clear;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $logger->warning("Cannot decrypt password: " . $e->getMessage());
                 return "";
             }
@@ -231,13 +215,13 @@ class Utils
         // passwords; roundcube sets SESSION[password] to the encrypted 'Bearer <accesstoken>', so we need to
         // specifically check if oauth is used for login
         if (isset($_SESSION['oauth_token'])) {
-            throw new \Exception("No password available to use for encryption because user logged in via OAuth2");
+            throw new Exception("No password available to use for encryption because user logged in via OAuth2");
         }
 
         $imap_password = $rcube->decrypt((string) $_SESSION['password']);
 
         if ($imap_password === false || strlen($imap_password) == 0) {
-            throw new \Exception("No password available to use for encryption");
+            throw new Exception("No password available to use for encryption");
         }
 
         while (strlen($imap_password) < 24) {

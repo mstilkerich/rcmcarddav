@@ -48,7 +48,7 @@ final class TestData
     public const USERS_COLUMNS = [ "username", "mail_host" ];
 
     /** @var TestDataTableDef Column names of the carddav_accounts table */
-    public const ACCOUNTS_COLUMNS = [ "name", "username", "password", "url", "user_id" ];
+    public const ACCOUNTS_COLUMNS = [ "accountname", "username", "password", "discovery_url", "user_id" ];
 
     /** @var TestDataTableDef Column names of the carddav_addressbooks table */
     public const ADDRESSBOOKS_COLUMNS = [ "name", "url", "account_id", "sync_token" ];

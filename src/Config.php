@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
+use Exception;
 use Psr\Log\{LoggerInterface,LogLevel};
 use MStilkerich\CardDavClient\{Account,WebDavResource};
 use MStilkerich\CardDavClient\Services\Discovery;
@@ -47,7 +48,7 @@ class Config
     /** @var ?Discovery Instance of the discovery service to be returned - normally null, but can be set by tests */
     public $discovery;
 
-    /** @var ?WebDavResource|\Exception
+    /** @var ?WebDavResource|Exception
      *    WebDavResource to be returned by makeWebDavResource() - normally null, but can be set by tests.
      *    If set to an instance of Exception, this exception will be thrown by makeWebDavResource() instead.
      */
@@ -114,7 +115,7 @@ class Config
             if (isset($rc)) {
                 $this->rc = $rc;
             } else {
-                throw new \Exception("Roundcube adapter not set");
+                throw new Exception("Roundcube adapter not set");
             }
         }
 
@@ -129,7 +130,7 @@ class Config
     /**
      * Returns a handle to the roundcube cache for the user.
      *
-     * Note: this must be called at a time where the user is already logged on, specifically it must not be called
+     * Note: this must be called when the user is already logged on, specifically it must not be called
      * during the constructor of the plugin.
      */
     public function cache(): rcube_cache
@@ -141,7 +142,7 @@ class Config
         }
 
         if (!isset($this->cache)) {
-            throw new \Exception("Attempt to request cache where not available yet");
+            throw new Exception("Attempt to request cache where not available yet");
         }
 
         return $this->cache;
@@ -155,7 +156,7 @@ class Config
     public function makeWebDavResource(string $uri, Account $account): WebDavResource
     {
         if (isset($this->webDavResource)) {
-            if ($this->webDavResource instanceof \Exception) {
+            if ($this->webDavResource instanceof Exception) {
                 throw $this->webDavResource;
             }
 
@@ -183,7 +184,7 @@ class Config
             ) {
                 $credentials = [ 'bearertoken' => $_SESSION['oauth_token']['access_token'] ];
             } else {
-                throw new \Exception("OAUTH2 bearer authentication requested, but no token available in roundcube");
+                throw new Exception("OAUTH2 bearer authentication requested, but no token available in roundcube");
             }
         } else {
             $credentials = [ 'username' => $username, 'password' => $password ];

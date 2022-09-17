@@ -33,6 +33,8 @@ the server from within RCMCardDAV.
 
 ### Changes in admin settings
 - Presets: Removed option `carddav_name_only`. It makes no sense with the separation of accounts / addressbooks anymore.
+- Presets: Removed feature and option `require_always`. It is now replaced by a simpler `require_always_email` feature
+  that does the same but only for the email field (#399)
 - Presets: Addressbooks of a removed preset are provided as readonly until their deletion upon next login. Previously,
   these would be provided as writeable addressbooks, as the admin `readonly` setting is no longer available. Note that
   the readonly setting is not considered a security option but an interface tweak. To prevent users from modifying an

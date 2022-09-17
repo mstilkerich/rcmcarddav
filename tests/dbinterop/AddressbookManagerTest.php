@@ -41,11 +41,15 @@ use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
  * @psalm-import-type DbGetResult from AbstractDatabase
  * @psalm-import-type TestDataKeyRef from TestData
  * @psalm-import-type TestDataRowWithKeyRef from TestData
+ * @psalm-import-type AbookCfg from AddressbookManager
+ * @psalm-import-type Int1 from AddressbookManager
  *
  * @psalm-type AddressbookSettings = array{
  *   refresh_time?: int,
- *   active?: bool,
- *   use_categories?: bool,
+ *   active?: Int1,
+ *   use_categories?: Int1,
+ *   readonly?: Int1,
+ *   require_always_email?: Int1
  * }
  */
 final class AddressbookManagerTest extends TestCase
@@ -60,7 +64,7 @@ final class AddressbookManagerTest extends TestCase
     private static $userId;
 
     /** @var list<string> */
-    private const ACCOUNT_COLS = [ "name", "username", "password", "url", "user_id", "presetname" ];
+    private const ACCOUNT_COLS = [ "accountname", "username", "password", "discovery_url", "user_id", "presetname" ];
 
     /** @var list<list<?string>> Initial test accounts */
     private const ACCOUNT_ROWS = [
@@ -74,19 +78,40 @@ final class AddressbookManagerTest extends TestCase
 
     /** @var list<string> */
     private const ABOOK_COLS = [
-        "name", "url", "active", "last_updated", "refresh_time", "sync_token", "use_categories", "discovered",
-        "account_id"
+        "name", "url", "last_updated", "refresh_time", "sync_token", "account_id", "flags"
     ];
 
-    /** @var list<list<?string>> Initial test accounts */
+    /** @var list<string> addressbook application-level fields stored in flags (starting with bit0 ascending) */
+    private const ABOOK_FLAGS = ['active', 'use_categories', 'discovered', 'readonly', 'require_always_email'];
+
+    /** @var list<string> */
+    private const ABOOKCFG_FIELDS = [
+        "name", "url", "last_updated", "refresh_time", "sync_token", "account_id", "flags",
+        "active", "use_categories", "discovered", "readonly", "require_always_email" // app-level flags
+    ];
+
+    /** @var list<list<?string>> Initial test addressbooks */
     private const ABOOK_ROWS = [
-        [ "CA1", "https://contacts.example.com/a1", '1', '123', '100', 'a1@1', '1', '1', [ "carddav_accounts", 0 ] ],
-        [ "CA2", "https://contacts.example.com/a2", '0', '123', '100', 'a2@3', '0', '0', [ "carddav_accounts", 0 ] ],
-        [ "PA1", "https://contacts.example.com/a1", '1', '123', '100', 'a1@1', '1', '1', [ "carddav_accounts", 1 ] ],
-        [ "PA2", "https://contacts.example.com/a2", '0', '123', '100', 'a2@1', '0', '0', [ "carddav_accounts", 1 ] ],
-        [ "RM1", "https://rm.example.com/rm1", '1', '123', '100', 'rm1@1', '1', '1', [ "carddav_accounts", 3 ] ],
-        [ "U2-CA1", "https://contacts.example.com/a1", '1', '123', '100', 'a1@1', '1', '1', [ "carddav_accounts", 4 ] ],
-        [ "U2-PA1", "https://contacts.example.com/a1", '1', '123', '100', 'a1@1', '0', '0', [ "carddav_accounts", 5 ] ],
+        [ "CA1",    "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 0], '7' ],
+        [ "CA2",    "https://contacts.example.com/a2",     '123', '100', 'a2@3',  ["carddav_accounts", 0], '6' ],
+        [ "PA1",    "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 1], '23' ],
+        [ "PA2",    "https://contacts.example.com/a2",     '123', '100', 'a2@1',  ["carddav_accounts", 1], '16' ],
+        [ "RM1",    "https://rm.example.com/rm1",          '123', '100', 'rm1@1', ["carddav_accounts", 3], '15' ],
+        [ "U2-CA1", "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 4], '7' ],
+        [ "U2-PA1", "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 5], '17' ],
+        [ "CA3",    "https://contacts.example.com/a3",     '123', '100', 'a3@6',  ["carddav_accounts", 0], '5' ],
+        [ "PAX",    "https://contacts.example.com/p/glb",  '123', '100', 'ax@9',  ["carddav_accounts", 1], '19' ],
+        [ "PAX2",   "https://contacts.example.com/p/glb2", '123', '100', 'ax@9',  ["carddav_accounts", 1], '27' ],
+        [ "CA4",    "https://contacts.example.com/a4",     '123', '100', 'a3@6',  ["carddav_accounts", 0], '1' ],
+    ];
+
+    /** @var array<string, Int1> Default settings for the addressbook flags */
+    private const ABOOK_FLAG_DEFAULTS = [
+        'active' => '1',
+        'use_categories' => '0',
+        'discovered' => '1',
+        'readonly' => '0',
+        'require_always_email' => '0',
     ];
 
     public static function setUpBeforeClass(): void
@@ -168,10 +193,10 @@ final class AddressbookManagerTest extends TestCase
     public function userIdProvider(): array
     {
         return [
-            'All addressbooks of user' => [ 0, false, false,  [ 0, 1, 2, 3, 4 ] ],
-            'Active addressbooks of user' => [ 0, true, false,  [ 0, 2, 4 ] ],
-            'Preset addressbooks of user' => [ 0, false, true,  [ 2, 3, 4 ] ],
-            'Active preset addressbooks of user' => [ 0, true, true,  [ 2, 4 ] ],
+            'All addressbooks of user' => [ 0, false, false,  [ 0, 1, 2, 3, 4, 7, 8, 9, 10 ] ],
+            'Active addressbooks of user' => [ 0, true, false,  [ 0, 2, 4, 7, 8, 9, 10 ] ],
+            'Preset addressbooks of user' => [ 0, false, true,  [ 2, 3, 4, 8, 9 ] ],
+            'Active preset addressbooks of user' => [ 0, true, true,  [ 2, 4, 8, 9 ] ],
             'User without addressbooks' => [ 2, false, false,  [ ] ],
         ];
     }
@@ -246,8 +271,12 @@ final class AddressbookManagerTest extends TestCase
         return [
             'Custom addressbook' => [ 0, true ],
             'Custom addressbook (inactive)' => [ 1, true ],
+            'Custom addressbook (vcard-style groups)' => [ 7, true ],
+            'Custom addressbook (non-discovered)' => [ 10, true ],
             'Preset addressbook' => [ 2, true ],
             'Preset addressbook (inactive)' => [ 3, true ],
+            'Preset addressbook (non-discovered)' => [ 8, true ],
+            'Preset addressbook (non-discovered, read-only)' => [ 9, true ],
             'Removed preset addressbook' => [ 4, true ],
             'Addressbook of other user' => [ 5, false ],
         ];
@@ -272,7 +301,69 @@ final class AddressbookManagerTest extends TestCase
 
         $abMgr = new AddressbookManager();
         $cfg = $abMgr->getAddressbookConfig($abookId);
-        $this->compareRow($cfg, self::ABOOK_COLS, self::ABOOK_ROWS[$abookIdx]);
+        $expCfg = $this->transformAbookFlagsTdRow(self::ABOOK_ROWS[$abookIdx]);
+        $this->compareRow($cfg, self::ABOOKCFG_FIELDS, $expCfg);
+    }
+
+    /**
+     * Transforms the flags DB field in an addressbook DB row to the application-level fields.
+     *
+     * @param TestDataRowWithKeyRef $testDataRow
+     * @return TestDataRowWithKeyRef
+     */
+    private function transformAbookFlagsTdRow(array $testDataRow): array
+    {
+        $flagsIdx = array_search('flags', self::ABOOK_COLS);
+        $this->assertIsInt($flagsIdx);
+
+        $flags = intval($testDataRow[$flagsIdx]);
+
+        // XXX this must match the order of the flags in the definition of ABOOKCFG_FIELDS
+        $testDataRow[] = ($flags &  1) ? '1' : '0'; // active
+        $testDataRow[] = ($flags &  2) ? '1' : '0'; // use_categories
+        $testDataRow[] = ($flags &  4) ? '1' : '0'; // discovered
+        $testDataRow[] = ($flags &  8) ? '1' : '0'; // readonly
+        $testDataRow[] = ($flags & 16) ? '1' : '0'; // require_always_email
+
+        return $testDataRow;
+    }
+
+    /**
+     * Adds the application-level flags to the given associative array.
+     * @param list<string> $flagFields
+     */
+    private function addAppFlags(int $flagsVal, array $flagFields, array $row): array
+    {
+        $mask = 1;
+        foreach ($flagFields as $attr) {
+            $row[$attr] = ($flagsVal & $mask) ? '1' : '0';
+            $mask <<= 1;
+        }
+        return $row;
+    }
+
+    /**
+     * Transforms the application-level addressbook flag fields to a flags value in an associative array.
+     *
+     * @param DbGetResult $row
+     * @return DbGetResult
+     */
+    private function transformAbookFlagsAssoc(array $row): array
+    {
+        $flags = 0;
+        $mask  = 1;
+
+        foreach (self::ABOOK_FLAGS as $attr) {
+            if (($row[$attr] ?? self::ABOOK_FLAG_DEFAULTS[$attr])) {
+                $flags |= $mask;
+            }
+
+            unset($row[$attr]); // unset so we can compare it to a DB row
+            $mask <<= 1;
+        }
+
+        $row['flags'] = (string) $flags;
+        return $row;
     }
 
     /**
@@ -299,33 +390,15 @@ final class AddressbookManagerTest extends TestCase
         $this->assertInstanceOf(Addressbook::class, $abook);
 
         // if that worked, check the properties of the addressbook
-        $abookTd = array_combine(self::ABOOK_COLS, self::$testData->resolveFkRefsInRow(self::ABOOK_ROWS[$abookIdx]));
+        $abookTd = array_combine(
+            self::ABOOKCFG_FIELDS,
+            self::$testData->resolveFkRefsInRow($this->transformAbookFlagsTdRow(self::ABOOK_ROWS[$abookIdx]))
+        );
         $this->assertIsString($abookTd['account_id']);
-        $accountCfg = $abMgr->getAccountConfig($abookTd['account_id']);
-
-        $readonly = false;
-        $requiredProps = [];
-        if (isset($accountCfg["presetname"])) {
-            $presetName = $accountCfg["presetname"];
-
-            if ($presetName == "rmpreset") {
-                $readonly = true;
-            } else {
-                $admPrefs = Config::inst()->admPrefs();
-                $presetCfg = $admPrefs->getPreset($accountCfg["presetname"], $abookTd["url"]);
-                [ 'readonly' => $readonly, 'require_always' => $requiredProps ] = $presetCfg;
-            }
-        }
-
         $this->assertSame($abookId, $abook->getId(), "Addressbook ID mismatch");
         $this->assertSame($abookTd['name'], $abook->get_name(), "Addressbook name mismatch");
         $this->assertEquals($abookTd['refresh_time'], $abook->getRefreshTime(), "Addressbook refresh time mismatch");
-        $this->assertSame($readonly, $abook->readonly, "Addressbook readonly mismatch");
-        $this->assertSame(
-            TestInfrastructure::getPrivateProperty($abook, 'requiredProps'),
-            $requiredProps,
-            "Addressbook requires properties mismatch"
-        );
+        $this->assertSame($abookTd['readonly'] == '1', $abook->readonly, "Addressbook readonly mismatch");
     }
 
     /**
@@ -351,7 +424,7 @@ final class AddressbookManagerTest extends TestCase
             $cfgs = $abMgr->getAddressbookConfigsForAccount($accountId, $discoveryType);
 
             $accountIdRefIdx = array_search('account_id', self::ABOOK_COLS);
-            $discoveryTypeIdx = array_search('discovered', self::ABOOK_COLS);
+            $flagsIdx = array_search('flags', self::ABOOK_COLS);
             $this->assertIsInt($accountIdRefIdx);
             $this->assertTrue($validId, "No exception for getAddressbookConfigsForAccount on other user's account");
 
@@ -359,10 +432,16 @@ final class AddressbookManagerTest extends TestCase
             foreach (self::ABOOK_ROWS as $idx => $row) {
                 $this->assertIsArray($row[$accountIdRefIdx]);
                 if ($row[$accountIdRefIdx][1] == $accountIdx) {
-                    if (is_null($discoveryType) || $row[$discoveryTypeIdx] == ($discoveryType ? '1' : '0')) {
+                    // only collect the addressbooks matching the current discovery type, null means all
+                    if (is_null($discoveryType) || (intval($row[$flagsIdx]) & 4) == ($discoveryType ? 4 : 0)) {
+                        // resolve the account ID foreign key
                         $row[$accountIdRefIdx] = $accountId;
-                        $row = array_combine(self::ABOOK_COLS, $row);
 
+                        // replace flags with the app-level flags
+                        $row = $this->transformAbookFlagsTdRow($row);
+                        $row = array_combine(self::ABOOKCFG_FIELDS, $row);
+
+                        // insert the id field
                         $abookId = self::$testData->getRowId('carddav_addressbooks', $idx);
                         $row['id'] = $abookId;
                         $testDataAbooksById[$abookId] = $row;
@@ -384,25 +463,27 @@ final class AddressbookManagerTest extends TestCase
         return [
             'All properties specified' => [
                 [
-                    'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass', 'url' => 'foo.com',
-                    'rediscover_time' => 500, 'last_discovered' => '100', 'presetname' => null
+                    'accountname' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
+                    'discovery_url' => 'foo.com', 'rediscover_time' => 500, 'last_discovered' => '100',
+                    'presetname' => null
                 ],
                 null
             ],
             'Only mandatory properties specified' => [
-                [ 'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass' ],
+                [ 'accountname' => 'New Account', 'username' => 'newusr', 'password' => 'newpass' ],
                 null
             ],
             'Include user_id of a different user' => [
                 [
-                    'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
+                    'accountname' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
                     'user_id' => [ 'users', 1, 'builtin' ]
                 ],
                 null
             ],
             'Include extra properties that must not be set (both unknown and unsettable ones)' => [
                 [
-                    'name' => 'New Account', 'username' => 'newusr', 'password' => 'newpass', 'presetname' => 'pres',
+                    'accountname' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
+                    'presetname' => 'pres',
                     // not settable
                     'user_id' => 5,
                     // not existing
@@ -410,14 +491,14 @@ final class AddressbookManagerTest extends TestCase
                 ],
                 null
             ],
-            'Lacks mandatory attribute (name)' => [
+            'Lacks mandatory attribute (accountname)' => [
                 [ 'username' => 'newusr', 'password' => 'newpass' ], 'Mandatory field'
             ],
             'Lacks mandatory attribute (username)' => [
-                [ 'name' => 'New Account', 'password' => 'newpass' ], 'Mandatory field'
+                [ 'accountname' => 'New Account', 'password' => 'newpass' ], 'Mandatory field'
             ],
             'Lacks mandatory attribute (password)' => [
-                [ 'name' => 'New Account', 'username' => 'newusr' ], 'Mandatory field'
+                [ 'accountname' => 'New Account', 'username' => 'newusr' ], 'Mandatory field'
             ],
         ];
     }
@@ -440,7 +521,7 @@ final class AddressbookManagerTest extends TestCase
     {
         $defaults = [
             // optional attributes with default values
-            'url' => null,
+            'discovery_url' => null,
             'rediscover_time' => '86400',
             'last_discovered' => '0',
             'presetname' => null,
@@ -485,7 +566,7 @@ final class AddressbookManagerTest extends TestCase
         // check that the row in the database is as expected
         $dbRow = self::$db->lookup($accountId, [], 'accounts');
         $this->assertIsString($accSettings['password']);
-        $expDbRow = $this->prepRowForDbRowComparison($accSettings, $defaults, $notSettable, []);
+        $expDbRow = $this->prepRowForDbRowComparison($accSettings, $defaults, $notSettable);
         $expDbRow['id'] = $accountId;
         $expDbRow['password'] = '{BASE64}' . base64_encode($accSettings['password']);
         $this->assertEquals($expDbRow, $dbRow, "Row not stored as expected in database");
@@ -520,16 +601,17 @@ final class AddressbookManagerTest extends TestCase
         /** @psalm-var FullAccountRow $account0Base */
 
         return [
-            'All updateable properties updated' => [
+            'All updatable properties updated' => [
                 [ 'carddav_accounts', 0 ],
                 [
-                    'name' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass', 'url' => 'cdav.com',
-                    'rediscover_time' => 5000, 'last_discovered' => 1000
+                    'accountname' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass',
+                    'discovery_url' => 'cdav.com', 'rediscover_time' => 5000, 'last_discovered' => 1000
                 ],
                 [
                     'id' => '0', 'user_id' => '0', // these IDs are filled by the test
-                    'name' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass', 'url' => 'cdav.com',
-                    'rediscover_time' => '5000', 'last_discovered' => '1000', 'presetname' => null
+                    'accountname' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass',
+                    'discovery_url' => 'cdav.com', 'rediscover_time' => '5000', 'last_discovered' => '1000',
+                    'presetname' => null
                 ],
                 null
             ],
@@ -553,12 +635,12 @@ final class AddressbookManagerTest extends TestCase
                 $account0Base,
                 null
             ],
-            'Try changing not updateable attribute (presetname)' => [
+            'Try changing not updatable attribute (presetname)' => [
                 [ 'carddav_accounts', 0 ],
                 [ 'presetname' => 'foo' ],
                 // preset can only be set on insert, but not updated afterwards - exception expected
                 null,
-                "Attempt to update non-updateable field presetname"
+                "Attempt to update non-updatable field presetname"
             ],
             'Try to update account with an extra unknown attribute' => [
                 [ 'carddav_accounts', 0 ],
@@ -632,17 +714,18 @@ final class AddressbookManagerTest extends TestCase
         return [
             'All properties specified' => [
                 [
-                    'name' => 'New Abook', 'url' => 'https://c.ex.com/abook1/', 'active' => true,
-                    'refresh_time' => 500, 'use_categories' => false, 'discovered' => true, 'sync_token' => 's@123',
-                    'last_updated' => 100,
+                    'name' => 'New Abook', 'url' => 'https://c.ex.com/abook1/',
+                    'refresh_time' => 500, 'sync_token' => 's@123', 'last_updated' => 100,
+                    'active' => '1', 'use_categories' => '0', 'discovered' => '1', 'readonly' => '1',
+                    'require_always_email' => '1',
                     'account_id' => ['carddav_accounts', 0]
                 ],
                 null
             ],
-            'Strings for booleans' => [
+            'Bools for booleans' => [
                 [
                     'name' => 'New Abook', 'url' => 'https://c.ex.com/abook1/', 'active' => '2',
-                    'refresh_time' => 500, 'use_categories' => '0', 'discovered' => '1', 'sync_token' => 's@123',
+                    'refresh_time' => 500, 'use_categories' => false, 'discovered' => true, 'sync_token' => 's@123',
                     'account_id' => ['carddav_accounts', 0]
                 ],
                 null
@@ -712,14 +795,15 @@ final class AddressbookManagerTest extends TestCase
      */
     public function testAddressbookIsInsertedProperly(array $abookSettings, ?string $expExceptionMsg): void
     {
-        $boolAttrs = [ 'active', 'use_categories', 'discovered' ];
         $defaults = [
             // optional attributes with default values
-            'active' => '1',
             'refresh_time' => '3600',
             'last_updated' => '0',
+            'active' => '1',
             'use_categories' => '0',
             'discovered' => '1',
+            'readonly' => '0',
+            'require_always_email' => '0',
         ];
         $notSettable = [
             // not settable by insert with initial values
@@ -755,14 +839,17 @@ final class AddressbookManagerTest extends TestCase
         );
 
         // check that the row in the database is as expected
-        $dbRow = self::$db->lookup($abookId, [], 'addressbooks');
-        $expDbRow = $this->prepRowForDbRowComparison($abookSettings, $defaults, $notSettable, $boolAttrs);
+        $expDbRow = $this->prepRowForDbRowComparison($abookSettings, $defaults, $notSettable);
         $expDbRow['id'] = $abookId;
+        $expDbRow = $this->transformAbookFlagsAssoc($expDbRow); // adds the flags field
+
+        $dbRow = self::$db->lookup($abookId, [], 'addressbooks');
         $this->assertEquals($expDbRow, $dbRow, "Row not stored as expected in database");
 
-        // check that the addressbook can also be retrieved using getAccountConfig
+        // check that the addressbook can also be retrieved using getAddressbookConfig
+        $expCfg = $this->addAppFlags(intval($expDbRow['flags']), self::ABOOK_FLAGS, $expDbRow);
         $abookCfg = $abMgr->getAddressbookConfig($abookId);
-        $this->assertEquals($expDbRow, $abookCfg, "New addressbook config not returned as expected");
+        $this->assertEquals($expCfg, $abookCfg, "New addressbook config not returned as expected");
     }
 
     /**
@@ -786,15 +873,15 @@ final class AddressbookManagerTest extends TestCase
         /** @psalm-var FullAbookRow $abook0Base */
 
         return [
-            'All updateable properties updated' => [
+            'All updatable properties updated' => [
                 [ 'carddav_addressbooks', 0 ],
                 [
-                    'name' => 'Updated Abook', 'active' => false, 'last_updated' => 998877, 'refresh_time' => 42,
-                    'sync_token' => 'abc', 'use_categories' => false,
+                    'name' => 'Updated Abook', 'active' => '0', 'last_updated' => 998877, 'refresh_time' => 42,
+                    'sync_token' => 'abc', 'use_categories' => '0', 'readonly' => '1', 'require_always_email' => '1'
                 ],
                 [
-                    'name' => 'Updated Abook', 'active' => '0', 'last_updated' => '998877', 'refresh_time' => '42',
-                    'sync_token' => 'abc', 'use_categories' => '0',
+                    'name' => 'Updated Abook', 'flags' => '28', 'last_updated' => '998877', 'refresh_time' => '42',
+                    'sync_token' => 'abc',
                 ] + $abook0Base,
                 null
             ],
@@ -810,29 +897,29 @@ final class AddressbookManagerTest extends TestCase
                 [ 'last_updated' => '923' ] + $abook0Base,
                 null
             ],
-            'Try changing not updateable attribute (url)' => [
+            'Try changing not updatable attribute (url)' => [
                 [ 'carddav_addressbooks', 0 ],
                 [ 'url' => 'http://a.com/abook1' ],
                 null,
-                "Attempt to update non-updateable field url"
+                "Attempt to update non-updatable field url"
             ],
-            'Try changing not updateable attribute (discovered)' => [
+            'Try changing not updatable attribute (discovered)' => [
                 [ 'carddav_addressbooks', 0 ],
                 [ 'discovered' => '0' ],
                 null,
-                "Attempt to update non-updateable field discovered"
+                "Attempt to update non-updatable field discovered"
             ],
-            'Try changing not updateable attribute (account_id - same user)' => [
+            'Try changing not updatable attribute (account_id - same user)' => [
                 [ 'carddav_addressbooks', 0 ],
                 [ 'account_id' => ['carddav_accounts', 1] ],
                 null,
-                "Attempt to update non-updateable field account_id"
+                "Attempt to update non-updatable field account_id"
             ],
-            'Try changing not updateable attribute (account_id - other user)' => [
+            'Try changing not updatable attribute (account_id - other user)' => [
                 [ 'carddav_addressbooks', 0 ],
                 [ 'account_id' => ['carddav_accounts', 5] ],
                 null,
-                "Attempt to update non-updateable field account_id"
+                "Attempt to update non-updatable field account_id"
             ],
             'Try to update addressbook with an extra unknown attribute' => [
                 [ 'carddav_addressbooks', 0 ],
@@ -849,7 +936,7 @@ final class AddressbookManagerTest extends TestCase
      * This must consider that the updated addressbook config is also returned in subsequent invocations of
      * getAddressbookConfig().
      *
-     * It must not be possible to change non-updateable settings, especially account_id.
+     * It must not be possible to change non-updatable settings, especially account_id.
      *
      * @param TestDataKeyRef $abookFkRef
      * @param array<string, null|string|bool|int|TestDataKeyRef> $abookUpd
@@ -882,13 +969,14 @@ final class AddressbookManagerTest extends TestCase
         $abookExpResult = $this->resolveFkRefsInRow($abookExpResult);
         $abookExpResult['id'] = $abookId;
 
-        // check that the updated addressbook can also be retrieved using getAddressbookConfig
-        $abookCfg = $abMgr->getAddressbookConfig($abookId);
-        $this->assertEquals($abookExpResult, $abookCfg, "New addressbook config not returned as expected");
-
         // check that the row in the database is as expected
         $dbRow = self::$db->lookup($abookId, [], 'addressbooks');
         $this->assertEquals($abookExpResult, $dbRow, "Row not stored as expected in database");
+
+        // check that the updated addressbook can also be retrieved using getAddressbookConfig
+        $expCfg = $this->addAppFlags(intval($abookExpResult['flags']), self::ABOOK_FLAGS, $abookExpResult);
+        $abookCfg = $abMgr->getAddressbookConfig($abookId);
+        $this->assertEquals($expCfg, $abookCfg, "New addressbook config not returned as expected");
     }
 
     /**
@@ -1080,39 +1168,50 @@ final class AddressbookManagerTest extends TestCase
         $this->assertLessThanOrEqual(1 /* tolerance */, abs($lastUpdatedExpected - intval($lastUpdated)));
     }
 
-    /** @return array<string, array{int,?TestDataKeyRef,AddressbookSettings,list<string>}> */
+    /** @return array<string, array{int,?TestDataKeyRef,AddressbookSettings,list<string>,int}> */
     public function newAbookSettingsProvider(): array
     {
         return [
             '2 new' => [
                 2,
                 [ 'carddav_accounts', 2 ], // empty account
-                [ 'active' => true, 'refresh_time' => 160, 'use_categories' => true ],
+                [
+                    'active' => '1', 'refresh_time' => 160, 'use_categories' => '1', 'readonly' => '1',
+                    'require_always_email' => '0'
+                ],
                 [ 'New 0', 'New 1' ],
+                15, // expected flags for new addressbooks
             ],
-            '2 new, 1 existing, 1 existing but non-discovered' => [
-                3,
+            '2 new, 3 existing, 1 existing but non-discovered' => [
+                5,
                 [ 'carddav_accounts', 0 ],
-                [ 'active' => false, 'refresh_time' => 60, 'use_categories' => false ],
-                [ 'CA1', 'CA2', 'New 0', 'New 2' ], // New 1 has the same URL as the discovered abook CA1
+                [
+                    'active' => '0', 'refresh_time' => 60, 'use_categories' => '0', 'readonly' => '0',
+                    'require_always_email' => '1'
+                ],
+                [ 'CA1', 'CA2', 'CA3', 'CA4', 'New 0', 'New 4' ], // New 1-3 have same URL as discovered abooks CA1-3
+                20,
             ],
             'all discovered addressbooks removed' => [
                 0,
                 [ 'carddav_accounts', 0 ],
                 [ ],
-                [ 'CA2' ], // CA2 is non-discovered and therefore must be retained
+                [ 'CA4' ], // CA4 is non-discovered and therefore must be retained
+                5,
             ],
             'empty remains empty' => [
                 0,
                 [ 'carddav_accounts', 2 ], // empty account
                 [ ],
                 [ ],
+                5,
             ],
             'new account with 1 addressbook' => [
                 1,
                 null, // new account
-                [ 'active' => false, 'refresh_time' => 60, 'use_categories' => false ],
+                [ 'refresh_time' => 60 ],
                 [ 'New 0' ],
+                5,
             ],
         ];
     }
@@ -1133,7 +1232,8 @@ final class AddressbookManagerTest extends TestCase
         int $numAbooks,
         ?array $accountFkRef,
         array $abookTmpl,
-        array $expAbookNames
+        array $expAbookNames,
+        int $expNewAbookFlags
     ): void {
         $db = TestInfrastructure::$infra->db();
 
@@ -1148,14 +1248,16 @@ final class AddressbookManagerTest extends TestCase
             /** @var FullAccountRow */
             $accountCfg = $db->lookup($accountId, [], 'accounts');
         } else {
-            $accountCfg = [ 'name' => 'New Acc', 'username' => 'usr', 'password' => 'p', 'url' => 'http://foo.bar' ];
+            $accountCfg = [
+                'accountname' => 'New Acc', 'username' => 'usr', 'password' => 'p', 'discovery_url' => 'http://foo.bar'
+            ];
         }
 
         // create a Discovery mock that "discovers" our test addressbooks
         $username = $accountCfg['username'] == '%u' ? 'testuser@example.com' : $accountCfg['username'];
         $password = $accountCfg['password'] == '%p' ? 'test' : $accountCfg['password'];
-        $this->assertNotNull($accountCfg['url']);
-        $account = new Account($accountCfg['url'], $username, $password);
+        $this->assertNotNull($accountCfg['discovery_url']);
+        $account = new Account($accountCfg['discovery_url'], $username, $password);
         $discovery = $this->createMock(Discovery::class);
         $discovery->expects($this->once())
             ->method("discoverAddressbooks")
@@ -1200,18 +1302,10 @@ final class AddressbookManagerTest extends TestCase
             }
 
             $this->assertArrayHasKey($abookName, $abooks);
-            foreach ($abookTmpl as $k => $v) {
-                if (is_bool($v)) {
-                    $v = $v ? '1' : '0';
-                }
-                if (is_int($v)) {
-                    $v = (string) $v;
-                }
-                $this->assertSame($v, $abooks[$abookName][$k], "$abookName: Setting $k not adapted from template");
-                $this->assertSame('1', $abooks[$abookName]['discovered']);
-                $this->assertSame('', $abooks[$abookName]['sync_token']);
-                $this->assertSame('0', $abooks[$abookName]['last_updated']);
-            }
+            $this->assertSame((string)($abookTmpl['refresh_time'] ?? '3600'), $abooks[$abookName]['refresh_time']);
+            $this->assertSame((string) $expNewAbookFlags, $abooks[$abookName]['flags']);
+            $this->assertSame('', $abooks[$abookName]['sync_token']);
+            $this->assertSame('0', $abooks[$abookName]['last_updated']);
         }
 
         // check that the last_discovered timestamp has been updated
@@ -1230,7 +1324,7 @@ final class AddressbookManagerTest extends TestCase
 
         // Run the test object
         $abMgr = new AddressbookManager();
-        $accountCfg = [ 'name' => 'New Acc', 'username' => 'usr', 'password' => 'p' ];
+        $accountCfg = [ 'accountname' => 'New Acc', 'username' => 'usr', 'password' => 'p' ];
         $abMgr->discoverAddressbooks($accountCfg, []);
     }
 
@@ -1251,16 +1345,14 @@ final class AddressbookManagerTest extends TestCase
      * - All attributes are converted to string types
      * - Default values for optional attributes are added
      * - Initial values for not settable attributes are added
-     * - Boolean attributes are normalized to '0' or '1'
      * - Unsets the special attribute 'extraattribute' used by this test for unsupported extra attribute
      *
      * @param array<string, null|string|int|bool> $row
      * @param array<string, ?string> $defaults
      * @param array<string, ?string> $notSettable
-     * @param list<string> $boolAttrs
      * @return array<string, ?string>
      */
-    private function prepRowForDbRowComparison(array $row, array $defaults, array $notSettable, array $boolAttrs): array
+    private function prepRowForDbRowComparison(array $row, array $defaults, array $notSettable): array
     {
         unset($row['extraattribute']);
 
@@ -1277,10 +1369,6 @@ final class AddressbookManagerTest extends TestCase
         // normalize bools, convert all attributes to string
         foreach ($row as $attr => $val) {
             if (isset($val)) {
-                if (in_array($attr, $boolAttrs)) {
-                    $val = ($val ? '1' : '0');
-                }
-
                 $result[$attr] = (string) $val;
             } else {
                 $result[$attr] = null;

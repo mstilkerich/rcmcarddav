@@ -1,10 +1,10 @@
 {
 	"Preset1": {
 		"": {
-			"name": "First Preset",
+			"accountname": "First Preset",
 			"username": "%u",
 			"password": "%p",
-			"url": "cdav.example.com/user@example.com",
+			"discovery_url": "cdav.example.com/user@example.com",
 			"rediscover_time": 3754,
 			"hide": true,
 
@@ -12,13 +12,14 @@
 			"readonly": true,
 			"refresh_time": 7200,
 			"use_categories": false,
-			"fixed": [ "name" ],
-			"require_always": [ "email" ]
+			"fixed": [ "accountname", "readonly", "require_always_email" ],
+			"require_always_email": true
 		},
 		"https://cdav.example.com/shared/book": {
-			"name": "First Preset",
+			"accountname": "First Preset",
 			"username": "%u",
 			"password": "%p",
+			"discovery_url": "cdav.example.com/user@example.com",
 			"rediscover_time": 3754,
 			"hide": true,
 
@@ -27,13 +28,14 @@
 			"readonly": false,
 			"refresh_time": 7380,
 			"use_categories": true,
-			"fixed": [ "refresh_time" ],
-			"require_always": [ "phone" ]
+			"fixed": [ "refresh_time", "readonly", "require_always_email" ],
+			"require_always_email": false
 		},
 		"https://cdav.example.com/shared/book2": {
-			"name": "First Preset",
+			"accountname": "First Preset",
 			"username": "%u",
 			"password": "%p",
+			"discovery_url": "cdav.example.com/user@example.com",
 			"rediscover_time": 3754,
 			"hide": true,
 
@@ -42,13 +44,14 @@
 			"readonly": true,
 			"refresh_time": 7200,
 			"use_categories": false,
-			"fixed": [ "name" ],
-			"require_always": [ "email" ]
+			"fixed": [ "accountname", "readonly", "require_always_email" ],
+			"require_always_email": true
 		},
 		"https://cdav.example.com/example.com/user/user@example.com": {
-			"name": "First Preset",
+			"accountname": "First Preset",
 			"username": "%u",
 			"password": "%p",
+			"discovery_url": "cdav.example.com/user@example.com",
 			"rediscover_time": 3754,
 			"hide": true,
 
@@ -57,45 +60,46 @@
 			"readonly": false,
 			"refresh_time": 7200,
 			"use_categories": false,
-			"fixed": [ "name" ],
-			"require_always": [ "email" ]
+			"fixed": [ "readonly", "require_always_email" ],
+			"require_always_email": true
 		}
 	},
 	"Minimal": {
 		"": {
-			"name": "Minimal Preset with required values only",
+			"accountname": "Minimal",
 			"username": "",
 			"password": "",
-			"url": null,
+			"discovery_url": null,
 			"rediscover_time": 86400,
 			"hide": false,
 			"active": true,
 			"readonly": false,
 			"refresh_time": 3600,
 			"use_categories": true,
-			"fixed": [ ],
-			"require_always": [ ]
+			"fixed": [ "readonly", "require_always_email" ],
+			"require_always_email": false
 		}
 	},
 	"OnlyShared": {
 		"": {
-			"name": "Preset that contains a shared example.com addressbook only",
+			"accountname": "Preset that contains a shared example.com addressbook only",
 			"username": "uonly",
 			"password": "ponly",
-			"url": null,
+			"discovery_url": null,
 			"rediscover_time": 86400,
 			"hide": false,
 			"active": true,
 			"readonly": false,
 			"refresh_time": 3600,
 			"use_categories": true,
-			"fixed": [ ],
-			"require_always": [ ]
+			"fixed": [ "readonly", "require_always_email" ],
+			"require_always_email": false
 		},
 		"https://cdavshared.example.com/shared/book": {
-			"name": "Preset that contains a shared example.com addressbook only",
+			"accountname": "Preset that contains a shared example.com addressbook only",
 			"username": "uonly",
 			"password": "ponly",
+			"discovery_url": null,
 			"rediscover_time": 86400,
 			"hide": false,
 
@@ -104,8 +108,8 @@
 			"readonly": false,
 			"refresh_time": 3600,
 			"use_categories": true,
-			"fixed": [ ],
-			"require_always": [ ]
+			"fixed": [ "readonly", "require_always_email" ],
+			"require_always_email": false
 		}
 	}
 }

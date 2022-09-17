@@ -129,7 +129,7 @@ define DUMPTBL_mysql
 $(MYSQLDUMP) --skip-comments --skip-dump-date --no-data $(1) $(CD_TABLES) | sed 's/ AUTO_INCREMENT=[0-9]\+//g' >$(2)
 endef
 define DUMPTBL_sqlite3
-/bin/echo -e '$(foreach tbl,$(CD_TABLES),.schema $(tbl)\n)' | sed -e 's/^\s*//' | sqlite3 $(1) | sed -e 's/IF NOT EXISTS "carddav_\([^"]\+\)"/carddav_\1/' -e 's/^\s\+$$//' >$(2)
+/bin/echo -e '$(foreach tbl,$(CD_TABLES),.schema --indent $(tbl)\n)' | sed -e 's/^\s*//' | sqlite3 $(1) | sed -e 's/IF NOT EXISTS "carddav_\([^"]\+\)"/carddav_\1/' -e 's/^\s\+$$//' >$(2)
 endef
 
 define EXEC_DBTESTS

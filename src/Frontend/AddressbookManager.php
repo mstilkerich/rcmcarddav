@@ -26,43 +26,69 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
 
+use Exception;
 use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config};
 use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 /**
- * Describes for each database field of an addressbook / account: type, mandatory on insert, updateable
- * @psalm-type SettingSpecification = array{'int'|'string'|'bool', bool, bool}
+ * @psalm-import-type FullAccountRow from AbstractDatabase
+ * @psalm-import-type FullAbookRow from AbstractDatabase
+ *
+ * Describes for each database field of an addressbook / account: mandatory on insert, updatable
+ * @psalm-type SettingSpecification = array{bool, bool}
+ *
+ * The data types AccountCfg / AbookCfg describe the configuration of an account / addressbook as stored in the
+ * database, with mappings of bitfields to the individual attributes.
+ *
+ * @psalm-type AccountCfg = FullAccountRow
+ *
+ * @psalm-type Int1 = '0' | '1'
+ * @psalm-type AbookCfg = array{
+ *     id: string,
+ *     account_id: string,
+ *     name: string,
+ *     url: string,
+ *     last_updated: numeric-string,
+ *     refresh_time: numeric-string,
+ *     sync_token: string,
+ *     flags: numeric-string,
+ *     active: Int1,
+ *     use_categories: Int1,
+ *     discovered: Int1,
+ *     readonly: Int1,
+ *     require_always_email: Int1
+ * }
  *
  * The data types AccountSettings / AbookSettings describe the attributes of an account / addressbook row in the
- * corresponding DB table, that can be used for inserting / updating the addressbook. Contrary to the  FullAccountRow /
- * FullAbookRow types:
+ * corresponding DB table, that can be used for inserting / updating the addressbook. Contrary to the  AccountCfg /
+ * AbookCfg types:
  *   - all keys are optional (for use of update of individual columns, others are not specified)
  *   - DB managed columns (particularly: id) are missing
  *
  * @psalm-type AccountSettings = array{
  *     id?: string,
- *     name?: string,
+ *     accountname?: string,
  *     username?: string,
  *     password?: string,
- *     url?: ?string,
+ *     discovery_url?: ?string,
  *     rediscover_time?: int | numeric-string,
  *     last_discovered?: int | numeric-string,
  *     presetname?: ?string
  * }
+ *
  * @psalm-type AbookSettings = array{
  *     account_id?: string,
  *     name?: string,
  *     url?: string,
- *     active?: bool,
- *     use_categories?: bool,
- *     refresh_time?: int | numeric-string,
  *     last_updated?: int | numeric-string,
- *     discovered?: bool,
- *     sync_token?: string
+ *     refresh_time?: int | numeric-string,
+ *     sync_token?: string,
+ *     active?: Int1 | bool,
+ *     use_categories?: Int1 | bool,
+ *     discovered?: Int1 | bool,
+ *     readonly?: Int1 | bool,
+ *     require_always_email?: Int1 | bool
  * }
- *
- * @psalm-import-type FullAccountRow from AbstractDatabase
- * @psalm-import-type FullAbookRow from AbstractDatabase
  */
 class AddressbookManager
 {
@@ -73,14 +99,14 @@ class AddressbookManager
      *      methods.
      */
     private const ACCOUNT_SETTINGS = [
-        'name' => [ 'string', true, true ],
-        'username' => [ 'string', true, true ],
-        'password' => [ 'string', true, true ],
-        'url' => [ 'string', false, true ], // discovery URI can be NULL, disables discovery
-        'rediscover_time' => [ 'int', false, true ],
-        'last_discovered' => [ 'int', false, true ],
-        'active' => [ 'bool', false, true ],
-        'presetname' => [ 'string', false, false ],
+        // [mandatory, updatable]
+        'accountname' => [ true, true ],
+        'username' => [ true, true ],
+        'password' => [ true, true ],
+        'discovery_url' => [ false, true ], // discovery URI can be NULL, disables discovery
+        'rediscover_time' => [ false, true ],
+        'last_discovered' => [ false, true ],
+        'presetname' => [ false, false ],
     ];
 
     /**
@@ -90,23 +116,27 @@ class AddressbookManager
      *      / updateAddressbook() methods.
      */
     private const ABOOK_SETTINGS = [
-        'account_id' => [ 'string', true, false ],
-        'name' => [ 'string', true, true ],
-        'url' => [ 'string', true, false ],
-        'active' => [ 'bool', false, true ],
-        'use_categories' => [ 'bool', false, true ],
-        'refresh_time' => [ 'int', false, true ],
-        'last_updated' => [ 'int', false, true ],
-        'discovered' => [ 'bool', false, false ],
-        'sync_token' => [ 'string', true, true ],
+        // [mandatory, updatable]
+        'account_id' => [ true, false ],
+        'name' => [ true, true ],
+        'url' => [ true, false ],
+        'refresh_time' => [ false, true ],
+        'last_updated' => [ false, true ],
+        'sync_token' => [ true, true ],
+
+        'active'         => [ false, true ],
+        'use_categories' => [ false, true ],
+        'discovered'     => [ false, false ],
+        'readonly'       => [ false, true ],
+        'require_always_email' => [false, true],
     ];
 
-    /** @var ?array<string, FullAccountRow> $accountsDb
+    /** @var ?array<string, AccountCfg> $accountsDb
      *    Cache of the user's account DB entries. Associative array mapping account IDs to DB rows.
      */
     private $accountsDb = null;
 
-    /** @var ?array<string, FullAbookRow> $abooksDb
+    /** @var ?array<string, AbookCfg> $abooksDb
      *    Cache of the user's addressbook DB entries. Associative array mapping addressbook IDs to DB rows.
      */
     private $abooksDb = null;
@@ -149,8 +179,8 @@ class AddressbookManager
      * Retrieves an account configuration (database row) by its database ID.
      *
      * @param string $accountId ID of the account
-     * @return FullAccountRow The addressbook config.
-     * @throws \Exception If no account with the given ID exists for this user.
+     * @return AccountCfg The addressbook config.
+     * @throws Exception If no account with the given ID exists for this user.
      */
     public function getAccountConfig(string $accountId): array
     {
@@ -164,7 +194,7 @@ class AddressbookManager
             return $accountCfg;
         }
 
-        throw new \Exception("No carddav account with ID $accountId");
+        throw new Exception("No carddav account with ID $accountId");
     }
 
     /**
@@ -195,7 +225,7 @@ class AddressbookManager
     /**
      * Updates some settings of an account in the database.
      *
-     * If the given account ID does not refer to an account of the logged in user, nothing is changed.
+     * If the given ID does not refer to an account of the logged-in user, nothing is changed.
      *
      * @param string $accountId ID of the account
      * @param AccountSettings $pa Array with the settings to update
@@ -241,13 +271,33 @@ class AddressbookManager
             $db->delete($accountId, 'accounts');
 
             $db->endTransaction();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $db->rollbackTransaction();
             throw $e;
         } finally {
             $this->accountsDb = null;
             $this->abooksDb = null;
         }
+    }
+
+    /**
+     * Converts an addressbook DB row to an addressbook config.
+     *
+     * This means that fields that are stored differently in the DB than presented at application level are converted
+     * from DB format to application level. Currently, this conversion is only needed for bitfields.
+     *
+     * @param FullAbookRow $abookrow
+     * @return AbookCfg
+     */
+    private function abookRow2Cfg(array $abookrow): array
+    {
+        // set the application-level fields from the DB-level fields
+        foreach (AbstractDatabase::FLAGS_COLS['addressbooks']['fields'] as $cfgAttr => $bitPos) {
+            $abookrow[$cfgAttr] = (($abookrow['flags'] & (1 << $bitPos)) ? '1' : '0');
+        }
+
+        /** @psalm-var AbookCfg $abookrow Psalm does not keep track of the type of individual array members above */
+        return $abookrow;
     }
 
     /**
@@ -269,7 +319,8 @@ class AddressbookManager
             if (!empty($allAccountIds)) {
                 /** @var FullAbookRow $abookrow */
                 foreach ($db->get(['account_id' => $allAccountIds], [], 'addressbooks') as $abookrow) {
-                    $this->abooksDb[$abookrow["id"]] = $abookrow;
+                    $abookCfg = $this->abookRow2Cfg($abookrow);
+                    $this->abooksDb[$abookrow["id"]] = $abookCfg;
                 }
             }
         }
@@ -297,8 +348,8 @@ class AddressbookManager
      * Retrieves an addressbook configuration (database row) by its database ID.
      *
      * @param string $abookId ID of the addressbook
-     * @return FullAbookRow The addressbook config.
-     * @throws \Exception If no addressbook with the given ID exists for this user.
+     * @return AbookCfg The addressbook config.
+     * @throws Exception If no addressbook with the given ID exists for this user.
      */
     public function getAddressbookConfig(string $abookId): array
     {
@@ -310,7 +361,7 @@ class AddressbookManager
             return $this->abooksDb[$abookId];
         }
 
-        throw new \Exception("No carddav addressbook with ID $abookId");
+        throw new Exception("No carddav addressbook with ID $abookId");
     }
 
     /**
@@ -318,7 +369,7 @@ class AddressbookManager
      *
      * @param string $accountId
      * @param ?bool  $discoveredType If set, only return discovered (true) / non-discovered (false) addressbooks
-     * @return array<string, FullAbookRow> The addressbook configs, indexed by addressbook id.
+     * @return array<string, AbookCfg> The addressbook configs, indexed by addressbook id.
      */
     public function getAddressbookConfigsForAccount(string $accountId, ?bool $discoveredType = null): array
     {
@@ -328,15 +379,13 @@ class AddressbookManager
         // make sure the cache is filled
         $this->getAddressbookIds(false);
 
-        $abooks = array_filter(
+        return array_filter(
             $this->abooksDb,
             function (array $v) use ($accountId, $discoveredType): bool {
                 return $v["account_id"] == $accountId &&
                     (is_null($discoveredType) || $v["discovered"] == $discoveredType) ;
             }
         );
-
-        return $abooks;
     }
 
     /**
@@ -344,38 +393,19 @@ class AddressbookManager
      *
      * @param string $abookId ID of the addressbook
      * @return Addressbook The addressbook object.
-     * @throws \Exception If no addressbook with the given ID exists for this user.
+     * @throws Exception If no addressbook with the given ID exists for this user.
      */
     public function getAddressbook(string $abookId): Addressbook
     {
-        $infra = Config::inst();
-        $admPrefs = $infra->admPrefs();
-
         $config = $this->getAddressbookConfig($abookId);
         $account = $this->getAccountConfig($config["account_id"]);
-
-        $readonly = false;
-        $requiredProps = [];
-
-        if (isset($account["presetname"])) {
-            try {
-                $preset = $admPrefs->getPreset($account["presetname"], $config['url']);
-                $readonly = $preset["readonly"];
-                $requiredProps = $preset["require_always"];
-            } catch (\Exception $e) {
-                // preset may not exist anymore, addressbook will be removed on next login. For now provide it as
-                // readonly addressbook
-                $readonly = true;
-            }
-        }
 
         // username and password may be stored as placeholders in the database
         // the URL is always stored without placeholders and needs not be replaced
         $config['username'] = Utils::replacePlaceholdersUsername($account["username"]);
         $config['password'] = Utils::replacePlaceholdersPassword($account["password"]);
 
-        $abook = new Addressbook($abookId, $config, $readonly, $requiredProps);
-        return $abook;
+        return new Addressbook($abookId, $config);
     }
 
     /**
@@ -387,7 +417,8 @@ class AddressbookManager
     {
         $db = Config::inst()->db();
 
-        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ABOOK_SETTINGS, true);
+        [ 'default' => $flagsInit, 'fields' => $flagAttrs ] = AbstractDatabase::FLAGS_COLS['addressbooks'];
+        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ABOOK_SETTINGS, true, $flagAttrs, $flagsInit);
 
         // getAccountConfig() throws an exception if the ID is invalid / no account of the current user
         $this->getAccountConfig($pa['account_id'] ?? '');
@@ -400,14 +431,17 @@ class AddressbookManager
     /**
      * Updates some settings of an addressbook in the database.
      *
-     * If the given addresbook ID does not refer to an addressbook of the logged in user, nothing is changed.
+     * If the given ID does not refer to an addressbook of the logged-in user, nothing is changed.
      *
      * @param string $abookId ID of the addressbook
      * @param AbookSettings $pa Array with the settings to update
      */
     public function updateAddressbook(string $abookId, array $pa): void
     {
-        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ABOOK_SETTINGS, false);
+        $abookCfg = $this->getAddressbookConfig($abookId);
+        $flagAttrs = AbstractDatabase::FLAGS_COLS['addressbooks']['fields'];
+        $flagsInit = intval($abookCfg['flags']);
+        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ABOOK_SETTINGS, false, $flagAttrs, $flagsInit);
 
         $accountIds = $this->getAccountIds();
         if (!empty($cols) && !empty($accountIds)) {
@@ -428,7 +462,7 @@ class AddressbookManager
      * @param bool $cacheOnly If true, only the cached addressbook data is deleted and the sync reset, but the
      *                        addressbook itself is retained.
      *
-     * @throws \Exception If any of the given addressbook IDs does not refer to an addressbook of the user.
+     * @throws Exception If any of the given addressbook IDs does not refer to an addressbook of the user.
      */
     public function deleteAddressbooks(array $abookIds, bool $skipTransaction = false, bool $cacheOnly = false): void
     {
@@ -446,7 +480,7 @@ class AddressbookManager
 
             $userAbookIds = $this->getAddressbookIds(false);
             if (count(array_diff($abookIds, $userAbookIds)) > 0) {
-                throw new \Exception("request with IDs not referring to addressbooks of current user");
+                throw new Exception("request with IDs not referring to addressbooks of current user");
             }
 
             // we explicitly delete all data belonging to the addressbook, since
@@ -464,7 +498,7 @@ class AddressbookManager
             $db->delete(['abook_id' => $abookIds], 'groups');
 
             // ...contacts
-            $db->delete(['abook_id' => $abookIds], 'contacts');
+            $db->delete(['abook_id' => $abookIds]);
 
             // and finally the addressbooks themselves
             if ($cacheOnly) {
@@ -476,7 +510,7 @@ class AddressbookManager
             if (!$skipTransaction) {
                 $db->endTransaction();
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             if (!$skipTransaction) {
                 $db->rollbackTransaction();
             }
@@ -494,25 +528,25 @@ class AddressbookManager
      *
      * The function discovers the addressbooks for that account. Upon successful discovery, the account is
      * inserted/updated in the database, including setting of the last_discovered time. The auto-discovered addressbooks
-     * of an existing account are updated accordingly, i.e. new addressboooks are inserted, and addressbooks that are no
+     * of an existing account are updated accordingly, i.e. new addressbooks are inserted, and addressbooks that are no
      * longer discovered are also removed from the local db.
      *
      * @param AccountSettings $accountCfg Array with the settings for the account
      * @param AbookSettings $abookTmpl Array with default settings for new addressbooks
      * @return string The database ID of the account
      *
-     * @throws \Exception If the discovery failed for some reason. In this case, the state in the db remains unchanged.
+     * @throws Exception If the discovery failed for some reason. In this case, the state in the db remains unchanged.
      */
     public function discoverAddressbooks(array $accountCfg, array $abookTmpl): string
     {
         $infra = Config::inst();
 
-        if (!isset($accountCfg['url'])) {
-            throw new \Exception('Cannot discover addressbooks for an account lacking a discovery URI');
+        if (!isset($accountCfg['discovery_url'])) {
+            throw new Exception('Cannot discover addressbooks for an account lacking a discovery URI');
         }
 
         $account = Config::makeAccount(
-            Utils::replacePlaceholdersUrl($accountCfg['url']),
+            Utils::replacePlaceholdersUrl($accountCfg['discovery_url']),
             Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
             Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
             null
@@ -546,7 +580,7 @@ class AddressbookManager
 
         // store discovered addressbooks
         $abookTmpl['account_id'] = $accountId;
-        $abookTmpl['discovered'] = true;
+        $abookTmpl['discovered'] = '1';
         $abookTmpl['sync_token'] = '';
         foreach ($newbooks as $abook) {
             $abookTmpl['name'] = $abook->getName();
@@ -558,19 +592,18 @@ class AddressbookManager
     }
 
     /**
-     * Resyncs the given addressbook.
+     * Re-syncs the given addressbook.
      *
      * @param Addressbook $abook The addressbook object
      * @return int The duration in seconds that the sync took
      */
     public function resyncAddressbook(Addressbook $abook): int
     {
-        // To avoid unneccessary work followed by roll back with other time-triggered refreshes, we temporarily
+        // To avoid unnecessary work followed by roll back with other time-triggered refreshes, we temporarily
         // set the last_updated time such that the next due time will be five minutes from now
         $ts_delay = time() + 300 - $abook->getRefreshTime();
         $this->updateAddressbook($abook->getId(), ["last_updated" => $ts_delay]);
-        $duration = $abook->resync();
-        return $duration;
+        return $abook->resync();
     }
 
     /**
@@ -585,36 +618,55 @@ class AddressbookManager
      *   $settings, others are ignored.
      * @param bool $isInsert
      *   True if the row is prepared for insertion, false if row is prepared for update. For insert, the row will be
-     *   checked to include all mandatory attributes. For update, the row will be checked to not include non-updateable
+     *   checked to include all mandatory attributes. For update, the row will be checked to not include non-updatable
      *   attributes.
+     * @param array<string,int> $flagAttrs Attributes mapped to flags field and their bit positions
+     * @param int $flagsInit
+     *   The start value of the flags field. Only the values of application-level attributes contained in $settings will
+     *   be changed.
      *
      * @return array{list<string>, list<string>}
      *   An array with two members: The first is an array of column names for insert/update. The second is the matching
      *   array of values.
      */
-    private function prepareDbRow(array $settings, array $fieldspec, bool $isInsert): array
-    {
+    private function prepareDbRow(
+        array $settings,
+        array $fieldspec,
+        bool $isInsert,
+        array $flagAttrs = [],
+        int $flagsInit = 0
+    ): array {
         $cols = []; // column names
         $vals = []; // columns values
 
-        foreach ($fieldspec as $col => $spec) {
-            [ $type, $mandatory, $updateable ] = $spec;
+        $setFlags = false; // if true, append the flags column with flagsInit value
 
+        foreach ($fieldspec as $col => [ $mandatory, $updatable ]) {
             if (isset($settings[$col])) {
-                if ($isInsert || $updateable) {
-                    $cols[] = $col;
-
-                    if ($type == 'bool') {
-                        $vals[] = ($settings[$col] ? '1' : '0');
+                if ($isInsert || $updatable) {
+                    if (isset($flagAttrs[$col])) {
+                        $setFlags = true;
+                        $mask = 1 << $flagAttrs[$col];
+                        if ($settings[$col]) {
+                            $flagsInit |= $mask;
+                        } else {
+                            $flagsInit &= ~$mask;
+                        }
                     } else {
+                        $cols[] = $col;
                         $vals[] = (string) $settings[$col];
                     }
                 } else {
-                    throw new \Exception(__METHOD__ . ": Attempt to update non-updateable field $col");
+                    throw new Exception(__METHOD__ . ": Attempt to update non-updatable field $col");
                 }
             } elseif ($mandatory && $isInsert) {
-                throw new \Exception(__METHOD__ . ": Mandatory field $col missing");
+                throw new Exception(__METHOD__ . ": Mandatory field $col missing");
             }
+        }
+
+        if ($setFlags) {
+            $cols[] = 'flags';
+            $vals[] = (string) $flagsInit;
         }
 
         return [ $cols, $vals ];

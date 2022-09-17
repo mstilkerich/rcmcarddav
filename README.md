@@ -35,6 +35,8 @@ A (hopefully growing) documentation for various topics is found in the [doc](doc
   - The semantics of the URL of a preset changed for the special case where an addressbook outside the user's
     addressbook home was directly specified by URL (use case: shared addressbook that is not shared into the user's
     namespace). The new way to specify addressbooks that cannot be discovered is to use `extra_addressbooks`.
+  - The discovery URL for a preset must now be given via the `discovery_url` preset attribute, `url` is not available in
+    the preset anymore and used for the URLs of extra addressbooks.
   - The `carddav_name_only` option was removed.
   - The `rediscover_mode` option was removed. Now you can configure the new option `rediscover_time` to specify the
     time interval after that an addressbook re-discovery shall be performed.

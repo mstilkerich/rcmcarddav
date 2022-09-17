@@ -26,9 +26,11 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube\Db;
 
+use Exception;
+
 /**
  * Exception subclass for errors in database operations reported by the database.
  */
-class DatabaseException extends \Exception
+class DatabaseException extends Exception
 {
 }

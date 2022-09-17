@@ -35,10 +35,10 @@ use carddav;
 
 /**
  * @psalm-type AddressbookSettings = array{
- *   name?: string,
+ *   accountname?: string,
  *   username?: string,
  *   password?: string,
- *   url?: string,
+ *   discovery_url?: string,
  *   refresh_time?: string,
  *   active?: "1",
  *   use_categories?: "1",
@@ -82,10 +82,10 @@ final class SettingsUITest extends TestCase
     public function newAbookSettingsProvider(): array
     {
         $base = [
-            'name' => 'ExampleAcc',
+            'accountname' => 'ExampleAcc',
             'username' => 'testNewAddressbookIsCorrectlySaved',
             'password' => 'thePassword',
-            'url' => 'https://example.com',
+            'discovery_url' => 'https://example.com',
         ];
 
         return [
@@ -94,42 +94,42 @@ final class SettingsUITest extends TestCase
             'Direct URI to user addressbook' => [
                 AddressbookCollection::class,
                 2,
-                ['active' => '1', 'url' => 'https://www.example.com/dav/abook1'] + $base,
+                ['active' => '1', 'discovery_url' => 'https://www.example.com/dav/abook1'] + $base,
                 false, // all user addressbooks should be discovered
                 "3600"
             ],
             'URI to non-addressbook resource' => [
                 WebDavCollection::class,
                 2,
-                ['active' => '1', 'url' => 'https://www.example.com/dav'] + $base,
+                ['active' => '1', 'discovery_url' => 'https://www.example.com/dav'] + $base,
                 false, // all user addressbooks should be discovered
                 "3600"
             ],
             'URI to non-personal addressbook (public/shared)' => [
                 AddressbookCollection::class,
                 2,
-                ['active' => '1', 'url' => 'https://www.example.com/public/book'] + $base,
+                ['active' => '1', 'discovery_url' => 'https://www.example.com/public/book'] + $base,
                 true, // only the non-personal addressbook should be discovered
                 "3600"
             ],
             'Direct URI to user addressbook with different host' => [
                 AddressbookCollection::class,
                 2,
-                ['active' => '1', 'url' => 'https://dav.example.com/dav/abook1'] + $base,
+                ['active' => '1', 'discovery_url' => 'https://dav.example.com/dav/abook1'] + $base,
                 false, // all user addressbooks should be discovered
                 "3600"
             ],
             'URI to non-personal addressbook (public/shared) with different host' => [
                 AddressbookCollection::class,
                 2,
-                ['active' => '1', 'url' => 'https://dav.example.com/public/book'] + $base,
+                ['active' => '1', 'discovery_url' => 'https://dav.example.com/public/book'] + $base,
                 true, // only the non-personal addressbook should be discovered
                 "3600"
             ],
             'URI to non-personal addressbook (public/shared) without protocol in URI' => [
                 AddressbookCollection::class,
                 2,
-                ['active' => '1', 'url' => 'dav.example.com/public/book'] + $base,
+                ['active' => '1', 'discovery_url' => 'dav.example.com/public/book'] + $base,
                 true, // only the non-personal addressbook should be discovered
                 "3600"
             ],
@@ -167,7 +167,7 @@ final class SettingsUITest extends TestCase
         // create a Discovery mock that "discovers" our test addressbooks
         $username = $settings['username'] ?? '';
         $password = $settings['password'] ?? '';
-        $discoveryUrl = $settings['url'] ?? '';
+        $discoveryUrl = $settings['discovery_url'] ?? '';
         if (!str_contains($discoveryUrl, '://')) {
             $discoveryUrl = "https://$discoveryUrl";
         }

@@ -26,11 +26,24 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
 
-use MStilkerich\CardDavClient\Account;
+use Exception;
+use rcube;
+use rcube_utils;
+use rcmail_output;
+use html;
+use html_checkbox;
+use html_hiddenfield;
+use html_radiobutton;
+use html_table;
+use html_inputfield;
 use MStilkerich\CardDavAddressbook4Roundcube\Config;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
 
 /**
+ * @psalm-import-type AbookCfg from AddressbookManager
+ * @psalm-import-type AccountCfg from AddressbookManager
+ * @psalm-import-type AbookSettings from AddressbookManager
+ * @psalm-import-type AccountSettings from AddressbookManager
+ *
  * UIFieldType:
  *   - text: a single-line text box where the user can enter text
  *   - plain: a read-only plain text shown in the form, non-interactive. Field is only shown when a value is available.
@@ -51,20 +64,16 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  * @psalm-type FieldSpec = array{0: string, 1: string, 2: UiFieldType, 3?: string, 4?: list<array{string,string}>}
  * @psalm-type FieldSetSpec = array{label: string, fields: list<FieldSpec>}
  * @psalm-type FormSpec = list<FieldSetSpec>
- * @psalm-import-type FullAbookRow from AbstractDatabase
- * @psalm-import-type FullAccountRow from AbstractDatabase
- * @psalm-import-type AbookSettings from AddressbookManager
- * @psalm-import-type AccountSettings from AddressbookManager
  */
 class UI
 {
-    /** @var FormSpec UI_FORM_NEWACCOUNT */
-    private const UI_FORM_NEWACCOUNT = [
+    /** @var FormSpec UI_FORM_NEW_ACCOUNT */
+    private const UI_FORM_NEW_ACCOUNT = [
         [
             'label' => 'AccProps_newaccount_lbl',
             'fields' => [
-                [ 'AccProps_accountname_lbl', 'name', 'text' ],
-                [ 'AccProps_discoveryurl_lbl', 'url', 'text' ],
+                [ 'AccProps_accountname_lbl', 'accountname', 'text' ],
+                [ 'AccProps_discoveryurl_lbl', 'discovery_url', 'text' ],
                 [ 'AccProps_username_lbl', 'username', 'text' ],
                 [ 'AccProps_password_lbl', 'password', 'password' ],
             ]
@@ -94,8 +103,8 @@ class UI
             'label' => 'AccAbProps_basicinfo_seclbl',
             'fields' => [
                 [ 'AccProps_frompreset_lbl', 'presetname', 'plain' ],
-                [ 'AccProps_accountname_lbl', 'name', 'text' ],
-                [ 'AccProps_discoveryurl_lbl', 'url', 'text' ],
+                [ 'AccProps_accountname_lbl', 'accountname', 'text' ],
+                [ 'AccProps_discoveryurl_lbl', 'discovery_url', 'text' ],
                 [ 'AccProps_username_lbl', 'username', 'text' ],
                 [ 'AccProps_password_lbl', 'password', 'password' ],
             ]
@@ -249,11 +258,11 @@ class UI
         usort(
             $accounts,
             /**
-             * @param FullAccountRow $a
-             * @param FullAccountRow $b
+             * @param AccountCfg $a
+             * @param AccountCfg $b
              */
             function (array $a, array $b): int {
-                return strcasecmp($a['name'], $b['name']);
+                return strcasecmp($a['accountname'], $b['accountname']);
             }
         );
 
@@ -264,17 +273,17 @@ class UI
                 'id'    => 'rcmli_acc' . $account["id"],
                 'class' => 'account' . (isset($account["presetname"]) ? ' preset' : '')
             ];
-            $accountListItems[] = \html::tag('li', $attribs, $this->makeAccountListItem($account));
+            $accountListItems[] = html::tag('li', $attribs, $this->makeAccountListItem($account));
         }
 
         $rc->addGuiObject('addressbookslist', $attrib['id']);
-        return \html::tag('ul', $attrib, implode('', $accountListItems));
+        return html::tag('ul', $attrib, implode('', $accountListItems));
     }
 
     /**
      * Creates the HTML code within the ListItem of an account in the addressbook list.
      *
-     * @param FullAccountRow $account
+     * @param AccountCfg $account
      */
     private function makeAccountListItem(array $account): string
     {
@@ -285,15 +294,15 @@ class UI
         usort(
             $account['addressbooks'],
             /**
-             * @param FullAbookRow $a
-             * @param FullAbookRow $b
+             * @param AbookCfg $a
+             * @param AbookCfg $b
              */
             function (array $a, array $b): int {
                 return strcasecmp($a['name'], $b['name']);
             }
         );
 
-        $content = \html::a(['href' => '#'], \rcube::Q($account["name"]));
+        $content = html::a(['href' => '#'], rcube::Q($account["accountname"]));
 
         $addressbookListItems = [];
         foreach (($account["addressbooks"] ?? []) as $abook) {
@@ -303,12 +312,12 @@ class UI
             ];
 
             $abookHtml = $this->makeAbookListItem($abook, $account['presetname']);
-            $addressbookListItems[] = \html::tag('li', $attribs, $abookHtml);
+            $addressbookListItems[] = html::tag('li', $attribs, $abookHtml);
         }
 
         if (!empty($addressbookListItems)) {
-            $content .= \html::div('treetoggle expanded', '&nbsp;');
-            $content .= \html::tag('ul', ['style' => null], implode("\n", $addressbookListItems));
+            $content .= html::div('treetoggle expanded', '&nbsp;');
+            $content .= html::tag('ul', ['style' => null], implode("\n", $addressbookListItems));
         }
 
         return $content;
@@ -317,23 +326,23 @@ class UI
     /**
      * Creates the HTML code within the ListItem of an addressbook in the addressbook list.
      *
-     * @param FullAbookRow $abook
+     * @param AbookCfg $abook
      */
     private function makeAbookListItem(array $abook, ?string $presetName): string
     {
         $infra = Config::inst();
         $rc = $infra->rc();
 
-        $checkboxActive = new \html_checkbox([
+        $checkboxActive = new html_checkbox([
             'name'    => '_active[]',
             'title'   => $rc->locText('AbToggleActive_cb_tit'),
-            'onclick' => \rcmail_output::JS_OBJECT_NAME .
+            'onclick' => rcmail_output::JS_OBJECT_NAME .
             ".command('plugin.carddav-AbToggleActive', this.value, this.checked)",
         ]);
 
         $fixedAttributes = $this->getFixedSettings($presetName, $abook['url']);
 
-        $abookHtml = \html::a(['href' => '#'], \rcube::Q($abook["name"]));
+        $abookHtml = html::a(['href' => '#'], rcube::Q($abook["name"]));
         $abookHtml .= $checkboxActive->show(
             $abook["active"] ? $abook['id'] : '',
             ['value' => $abook['id'], 'disabled' => in_array('active', $fixedAttributes)]
@@ -359,21 +368,21 @@ class UI
         $active  = $rc->inputValue("active", false);
 
         if (isset($abookId) && isset($active)) {
-            $active = ($active != "0"); // if this is some invalid value, just consider it as activated
+            $active = ($active != "0") ? '1' : '0'; // if this is some invalid value, just consider it as activated
             $suffix = $active ? "" : "_de";
             try {
                 $abMgr = $this->abMgr;
-                $abookrow = $abMgr->getAddressbookConfig($abookId);
-                $account = $abMgr->getAccountConfig($abookrow["account_id"]);
-                $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookrow['url']);
+                $abookCfg = $abMgr->getAddressbookConfig($abookId);
+                $account = $abMgr->getAccountConfig($abookCfg["account_id"]);
+                $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookCfg['url']);
 
                 if (in_array('active', $fixedAttributes)) {
-                    throw new \Exception("active is a fixed setting for addressbook $abookId");
+                    throw new Exception("active is a fixed setting for addressbook $abookId");
                 } else {
                     $abMgr->updateAddressbook($abookId, ['active' => $active ]);
                     $rc->showMessage($rc->locText("AbToggleActive_msg_ok$suffix"), 'confirmation');
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $logger->error("Failure to toggle addressbook activation: " . $e->getMessage());
                 $rc->showMessage($rc->locText("AbToggleActive_msg_fail$suffix"), 'error');
                 $rc->clientCommand('carddav_AbResetActive', $abookId, !$active);
@@ -393,7 +402,7 @@ class UI
         $logger = $infra->logger();
 
         // GET - Account selected in list; this is set to "new" if the user pressed the add account button
-        $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GET);
+        $accountId = $rc->inputValue("accountid", false, rcube_utils::INPUT_GET);
 
         if (isset($accountId)) {
             $rc->setPagetitle($rc->locText('accountproperties'));
@@ -420,7 +429,7 @@ class UI
                 $abMgr->deleteAccount($accountId);
                 $rc->showMessage($rc->locText("AccRm_msg_ok"), 'confirmation');
                 $rc->clientCommand('carddav_RemoveListElem', $accountId);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $logger->error("Error saving account preferences: " . $e->getMessage());
                 $rc->showMessage($rc->locText("AccRm_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
             }
@@ -473,7 +482,7 @@ class UI
                     }
                     $rc->clientCommand('carddav_InsertListElem', $records);
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $logger->error("Error in account rediscovery: " . $e->getMessage());
                 $rc->showMessage($rc->locText("AccRedisc_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
             }
@@ -506,11 +515,11 @@ class UI
                 }
 
                 // update the form data so the last_updated time is current
-                $abookrow = $abMgr->getAddressbookConfig($abookId);
-                $formData = $this->makeSettingsFormData(self::UI_FORM_ABOOK, $abookrow);
+                $abookCfg = $abMgr->getAddressbookConfig($abookId);
+                $formData = $this->makeSettingsFormData(self::UI_FORM_ABOOK, $abookCfg);
                 $rc->showMessage($rc->locText("${syncType}_msg_ok", $msgParams), 'notice', false);
                 $rc->clientCommand('carddav_UpdateForm', $formData);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $msgParams['errormsg'] = $e->getMessage();
                 $logger->error("Failed to sync ($syncType) addressbook: " . $msgParams['errormsg']);
                 $rc->showMessage($rc->locText("${syncType}_msg_fail", $msgParams), 'warning', false);
@@ -530,7 +539,7 @@ class UI
         $logger = $infra->logger();
 
         // GET - Addressbook selected in list
-        $abookId = $rc->inputValue("abookid", false, \rcube_utils::INPUT_GET);
+        $abookId = $rc->inputValue("abookid", false, rcube_utils::INPUT_GET);
 
         if (isset($abookId)) {
             $rc->setPagetitle($rc->locText('abookproperties'));
@@ -550,9 +559,9 @@ class UI
         try {
             $abMgr = $this->abMgr;
 
-            /** @psalm-var AccountSettings */
+            /** @psalm-var AccountSettings $newaccount */
             $newaccount = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, []);
-            /** @psalm-var AbookSettings */
+            /** @psalm-var AbookSettings $abooksettings */
             $abooksettings = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, []);
             $accountId = $abMgr->discoverAddressbooks($newaccount, $abooksettings);
             $account = $abMgr->getAccountConfig($accountId);
@@ -560,7 +569,7 @@ class UI
             $newLi = $this->makeAccountListItem($account);
             $rc->clientCommand('carddav_InsertListElem', [[$accountId, $newLi]], ['acc', $accountId]);
             $rc->showMessage($rc->locText("AccAdd_msg_ok"), 'confirmation');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error("Error creating CardDAV account: " . $e->getMessage());
             $rc->showMessage($rc->locText("AccAbSave_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
         }
@@ -578,18 +587,18 @@ class UI
                 $abMgr = $this->abMgr;
                 $account = $abMgr->getAccountConfig($accountId);
                 $fixedAttributes = $this->getFixedSettings($account['presetname']);
-                /** @psalm-var AccountSettings */
+                /** @psalm-var AccountSettings $newset */
                 $newset = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, $fixedAttributes);
                 $abMgr->updateAccount($accountId, $newset);
 
                 // update account data and echo formatted field data to client
                 $account = $abMgr->getAccountConfig($accountId);
                 $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, $account);
-                $formData["_acc$accountId"] = [ 'parent', $account["name"] ];
+                $formData["_acc$accountId"] = [ 'parent', $account["accountname"] ];
 
                 $rc->clientCommand('carddav_UpdateForm', $formData);
                 $rc->showMessage($rc->locText("AccAbSave_msg_ok"), 'confirmation');
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $logger->error("Error saving account preferences: " . $e->getMessage());
                 $rc->showMessage($rc->locText("AccAbSave_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
             }
@@ -611,21 +620,21 @@ class UI
         if (isset($abookId)) {
             try {
                 $abMgr = $this->abMgr;
-                $abookrow = $abMgr->getAddressbookConfig($abookId);
-                $account = $abMgr->getAccountConfig($abookrow["account_id"]);
-                $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookrow['url']);
-                /** @psalm-var AbookSettings */
+                $abookCfg = $abMgr->getAddressbookConfig($abookId);
+                $account = $abMgr->getAccountConfig($abookCfg["account_id"]);
+                $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookCfg['url']);
+                /** @psalm-var AbookSettings $newset */
                 $newset = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, $fixedAttributes);
                 $abMgr->updateAddressbook($abookId, $newset);
 
                 // update addressbook data and echo formatted field data to client
-                $abookrow = $abMgr->getAddressbookConfig($abookId);
-                $formData = $this->makeSettingsFormData(self::UI_FORM_ABOOK, $abookrow);
-                $formData["_abook$abookId"] = [ 'parent', $abookrow["name"] ];
+                $abookCfg = $abMgr->getAddressbookConfig($abookId);
+                $formData = $this->makeSettingsFormData(self::UI_FORM_ABOOK, $abookCfg);
+                $formData["_abook$abookId"] = [ 'parent', $abookCfg["name"] ];
 
                 $rc->showMessage($rc->locText("AccAbSave_msg_ok"), 'confirmation');
                 $rc->clientCommand('carddav_UpdateForm', $formData);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $logger->error("Error saving addressbook preferences: " . $e->getMessage());
                 $rc->showMessage($rc->locText("AccAbSave_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
             }
@@ -646,7 +655,7 @@ class UI
 
         $out = '';
         foreach ($formSpec as $fieldSet) {
-            $table = new \html_table(['cols' => 2]);
+            $table = new html_table(['cols' => 2]);
 
             foreach ($fieldSet['fields'] as $fieldSpec) {
                 [ $fieldLabel, $fieldKey, $uiType ] = $fieldSpec;
@@ -658,15 +667,15 @@ class UI
                     continue;
                 }
 
-                $readonly = in_array($fieldKey, $fixedAttributes);
-                $table->add(['class' => 'title'], \html::label(['for' => $fieldKey], $rc->locText($fieldLabel)));
-                $table->add([], $this->uiField($fieldSpec, $fieldValue, $readonly));
+                $fixed = in_array($fieldKey, $fixedAttributes);
+                $table->add(['class' => 'title'], html::label(['for' => $fieldKey], $rc->locText($fieldLabel)));
+                $table->add([], $this->uiField($fieldSpec, $fieldValue, $fixed));
             }
 
-            $out .= \html::tag(
+            $out .= html::tag(
                 'fieldset',
                 [],
-                \html::tag('legend', [], $rc->locText($fieldSet['label'])) . $table->show($attrib)
+                html::tag('legend', [], $rc->locText($fieldSet['label'])) . $table->show($attrib)
             );
         }
 
@@ -728,7 +737,7 @@ class UI
                 // fall through to plain text
 
             case 'plain':
-                return \rcube::Q($fieldValue);
+                return rcube::Q($fieldValue);
 
             case 'timestr':
                 $t = intval($fieldValue);
@@ -743,13 +752,13 @@ class UI
                 return '';
         }
 
-        throw new \Exception("Unknown UI element type $uiType for $fieldKey");
+        throw new Exception("Unknown UI element type $uiType for $fieldKey");
     }
 
     /**
      * @param FieldSpec $fieldSpec
      */
-    private function uiField(array $fieldSpec, string $fieldValue, bool $readonly): string
+    private function uiField(array $fieldSpec, string $fieldValue, bool $fixed): string
     {
         [, $fieldKey, $uiType ] = $fieldSpec;
 
@@ -760,37 +769,37 @@ class UI
         switch ($uiType) {
             case 'datetime':
             case 'plain':
-                return \html::span(['id' => "rcmcrd_plain_$fieldKey"], $fieldValueFormatted);
+                return html::span(['id' => "rcmcrd_plain_$fieldKey"], $fieldValueFormatted);
 
             case 'timestr':
                 $uiType = 'text'; // choose the proper HTML UI type
             case 'text':
             case 'password':
-                $input = new \html_inputfield([
+                $input = new html_inputfield([
                     'name' => $fieldKey,
                     'type' => $uiType,
                     'value' => $fieldValueFormatted,
                     'size' => 60,
-                    'disabled' => $readonly,
+                    'disabled' => $fixed,
                 ]);
                 return $input->show();
 
             case 'radio':
                 $ul = '';
-                $radioBtn = new \html_radiobutton(['name' => $fieldKey, 'disabled' => $readonly]);
+                $radioBtn = new html_radiobutton(['name' => $fieldKey, 'disabled' => $fixed]);
 
                 foreach (($fieldSpec[4] ?? []) as $selectionSpec) {
                     [ $selValue, $selLabel ] = $selectionSpec;
-                    $ul .= \html::tag(
+                    $ul .= html::tag(
                         'li',
                         [],
                         $radioBtn->show($fieldValueFormatted, ['value' => $selValue]) . $rc->locText($selLabel)
                     );
                 }
-                return \html::tag('ul', ['class' => 'proplist'], $ul);
+                return html::tag('ul', ['class' => 'proplist'], $ul);
         }
 
-        throw new \Exception("Unknown UI element type $uiType for $fieldKey");
+        throw new Exception("Unknown UI element type $uiType for $fieldKey");
     }
 
     // INFO: name, url, group type, refresh time, time of last refresh, discovered vs. manually added,
@@ -804,20 +813,20 @@ class UI
         $out = '';
 
         try {
-            $abookId = $rc->inputValue("abookid", false, \rcube_utils::INPUT_GET);
+            $abookId = $rc->inputValue("abookid", false, rcube_utils::INPUT_GET);
             if (isset($abookId)) {
-                $abookrow = $this->abMgr->getAddressbookConfig($abookId);
-                $account = $this->abMgr->getAccountConfig($abookrow["account_id"]);
-                $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookrow['url']);
+                $abookCfg = $this->abMgr->getAddressbookConfig($abookId);
+                $account = $this->abMgr->getAccountConfig($abookCfg["account_id"]);
+                $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookCfg['url']);
 
                 // HIDDEN FIELDS
-                $abookIdField = new \html_hiddenfield(['name' => "abookid", 'value' => $abookId]);
+                $abookIdField = new html_hiddenfield(['name' => "abookid", 'value' => $abookId]);
                 $out .= $abookIdField->show();
 
-                $out .= $this->makeSettingsForm(self::UI_FORM_ABOOK, $abookrow, $fixedAttributes, $attrib);
+                $out .= $this->makeSettingsForm(self::UI_FORM_ABOOK, $abookCfg, $fixedAttributes, $attrib);
                 $out = $rc->requestForm($attrib, $out);
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error($e->getMessage());
         }
 
@@ -834,14 +843,14 @@ class UI
         $out = '';
 
         try {
-            $accountId = $rc->inputValue("accountid", false, \rcube_utils::INPUT_GET);
+            $accountId = $rc->inputValue("accountid", false, rcube_utils::INPUT_GET);
             if (isset($accountId)) {
                 // HIDDEN FIELDS
-                $accountIdField = new \html_hiddenfield(['name' => "accountid", 'value' => $accountId]);
+                $accountIdField = new html_hiddenfield(['name' => "accountid", 'value' => $accountId]);
                 $out .= $accountIdField->show();
 
                 if ($accountId == "new") {
-                    $out .= $this->makeSettingsForm(self::UI_FORM_NEWACCOUNT, [], [], $attrib);
+                    $out .= $this->makeSettingsForm(self::UI_FORM_NEW_ACCOUNT, [], [], $attrib);
                 } else {
                     $account = $this->abMgr->getAccountConfig($accountId);
                     $fixedAttributes = $this->getFixedSettings($account['presetname']);
@@ -850,7 +859,7 @@ class UI
 
                 $out = $rc->requestForm($attrib, $out);
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger->error($e->getMessage());
         }
 
@@ -900,7 +909,7 @@ class UI
                     case 'timestr':
                         try {
                             $fieldValue = Utils::parseTimeParameter($fieldValue);
-                        } catch (\Exception $e) {
+                        } catch (Exception $e) {
                             // ignore format error, keep old value
                             $logger->warning("Format error in timestring parameter $fieldKey: $fieldValue (ignored)");
                             continue 2;

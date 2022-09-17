@@ -2,10 +2,10 @@
 	"accounts": [
 		{
 			"id": 42,
-			"name": "Test Account",
+			"accountname": "Test Account",
 			"username": "theUser",
 			"password": "thePassword",
-			"url": "https://carddav.example.com/",
+			"discovery_url": "https://carddav.example.com/",
 			"user_id": "1000",
 			"last_discovered": 12345,
 			"rediscover_time": 86400,
@@ -17,12 +17,10 @@
 			"id": 42,
 			"name": "Test Addressbook",
 			"url": "https://carddav.example.com/book42",
-			"active": 1,
+			"flags": 7,
 			"last_updated": 12345,
 			"refresh_time": 3600,
 			"sync_token": "sync@3600",
-			"use_categories": 1,
-			"discovered": 1,
 			"account_id": 42
 		}
 	],

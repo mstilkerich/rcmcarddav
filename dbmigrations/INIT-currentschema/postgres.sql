@@ -7,10 +7,10 @@ CREATE SEQUENCE TABLE_PREFIXcarddav_accounts_seq
 
 CREATE TABLE TABLE_PREFIXcarddav_accounts (
 	id integer DEFAULT nextval('TABLE_PREFIXcarddav_accounts_seq'::text) PRIMARY KEY,
-	name TEXT NOT NULL,
+	accountname TEXT NOT NULL,
 	username VARCHAR(255) NOT NULL,
 	password TEXT NOT NULL,
-	url TEXT,
+	discovery_url TEXT,
 	user_id integer NOT NULL REFERENCES TABLE_PREFIXusers (user_id) ON DELETE CASCADE ON UPDATE CASCADE,
 	last_discovered BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the addressbooks were last discovered
 	rediscover_time INT NOT NULL DEFAULT 86400, -- time span (seconds) after that the addressbooks will be rediscovered, default 1d
@@ -31,13 +31,11 @@ CREATE TABLE TABLE_PREFIXcarddav_addressbooks (
 	id integer DEFAULT nextval('TABLE_PREFIXcarddav_addressbooks_seq'::text) PRIMARY KEY,
 	name TEXT NOT NULL,
 	url TEXT NOT NULL,
-	active SMALLINT NOT NULL DEFAULT 1,
+	flags SMALLINT NOT NULL DEFAULT 5, -- default: discovered:2 | active:0
 	last_updated BIGINT NOT NULL DEFAULT 0, -- time stamp (seconds since epoch) of the last update of the local database
 	refresh_time INT NOT NULL DEFAULT 3600, -- time span (seconds) after that the local database will be refreshed, default 1h
 	sync_token TEXT NOT NULL DEFAULT '', -- sync-token the server sent us for the last sync
 
-	use_categories SMALLINT NOT NULL DEFAULT 0,
-	discovered SMALLINT NOT NULL DEFAULT 1, -- 1: addressbook was automatically discovered; 0: addressbook was manually added, e.g. shared addressbook
 	account_id integer NOT NULL REFERENCES TABLE_PREFIXcarddav_accounts (id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 CREATE INDEX TABLE_PREFIXcarddav_addressbooks_account_id_idx ON TABLE_PREFIXcarddav_addressbooks(account_id);
