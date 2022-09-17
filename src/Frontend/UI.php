@@ -104,7 +104,7 @@ class UI
             'fields' => [
                 [ 'AccProps_frompreset_lbl', 'presetname', 'plain' ],
                 [ 'AccProps_accountname_lbl', 'accountname', 'text' ],
-                [ 'AccProps_discoveryurl_lbl', 'url', 'text' ],
+                [ 'AccProps_discoveryurl_lbl', 'discovery_url', 'text' ],
                 [ 'AccProps_username_lbl', 'username', 'text' ],
                 [ 'AccProps_password_lbl', 'password', 'password' ],
             ]

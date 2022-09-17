@@ -133,8 +133,8 @@ $prefs['<Presetname>'] = [
     ////// attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset
     'fixed'        =>  [ < 0 or more of the other attribute keys > ],
 
-    ////// always require these attributes, even for addressbook view
-    'require_always' => ['email'],
+    ////// if true, only show contacts that have an email address (even in the addressbook view)
+    'require_always_email' => false,
 
     // optional: manually add (non-discoverable) addressbooks
     'extra_addressbooks' =>  [
@@ -152,8 +152,8 @@ $prefs['<Presetname>'] = [
             // attributes that are fixed (i.e., not editable by the user) and auto-updated for this preset addressbook
             'fixed'        =>  [ < 0 or more of the other attribute keys > ],
 
-            // always require these attributes, even for addressbook view
-            'require_always' => ['email'],
+            // if true, only show contacts that have an email address (even in the addressbook view)
+            'require_always_email' => true,
         ],
         // ... second manually-added addressbook ...
     ],
@@ -207,9 +207,8 @@ the existing addressbooks from the database and creation of new ones.
              (e.g., readonly cannot be changed by the user anyway). Normally you will at least want to fix the
              discovery\_url, username and password for a preset.
              Default: empty, all settings modifiable by user
- - `require_always`: If set, this database field is required to be non-empty for ALL queries, even just for displaying
-             members. This may be useful if you have shared, read-only addressbooks with a lot of contacts that do not
-             have an email address. The following are supported: name, email, firstname, surname
+ - `require_always_email`: If true, only contacts that include an email address are shown. This may be useful if you
+             have shared, read-only addressbooks with a lot of contacts that do not have an email address.
 
 ### Examples
 

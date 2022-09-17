@@ -12,8 +12,8 @@
 			"readonly": true,
 			"refresh_time": 7200,
 			"use_categories": false,
-			"fixed": [ "accountname" ],
-			"require_always": [ "email" ]
+			"fixed": [ "accountname", "readonly", "require_always_email" ],
+			"require_always_email": true
 		},
 		"https://cdav.example.com/shared/book": {
 			"accountname": "First Preset",
@@ -28,8 +28,8 @@
 			"readonly": false,
 			"refresh_time": 7380,
 			"use_categories": true,
-			"fixed": [ "refresh_time" ],
-			"require_always": [ "phone" ]
+			"fixed": [ "refresh_time", "readonly", "require_always_email" ],
+			"require_always_email": false
 		},
 		"https://cdav.example.com/shared/book2": {
 			"accountname": "First Preset",
@@ -44,8 +44,8 @@
 			"readonly": true,
 			"refresh_time": 7200,
 			"use_categories": false,
-			"fixed": [ "accountname" ],
-			"require_always": [ "email" ]
+			"fixed": [ "accountname", "readonly", "require_always_email" ],
+			"require_always_email": true
 		},
 		"https://cdav.example.com/example.com/user/user@example.com": {
 			"accountname": "First Preset",
@@ -60,8 +60,8 @@
 			"readonly": false,
 			"refresh_time": 7200,
 			"use_categories": false,
-			"fixed": [ "accountname" ],
-			"require_always": [ "email" ]
+			"fixed": [ "readonly", "require_always_email" ],
+			"require_always_email": true
 		}
 	},
 	"Minimal": {
@@ -76,8 +76,8 @@
 			"readonly": false,
 			"refresh_time": 3600,
 			"use_categories": true,
-			"fixed": [ ],
-			"require_always": [ ]
+			"fixed": [ "readonly", "require_always_email" ],
+			"require_always_email": false
 		}
 	},
 	"OnlyShared": {
@@ -92,8 +92,8 @@
 			"readonly": false,
 			"refresh_time": 3600,
 			"use_categories": true,
-			"fixed": [ ],
-			"require_always": [ ]
+			"fixed": [ "readonly", "require_always_email" ],
+			"require_always_email": false
 		},
 		"https://cdavshared.example.com/shared/book": {
 			"accountname": "Preset that contains a shared example.com addressbook only",
@@ -108,8 +108,8 @@
 			"readonly": false,
 			"refresh_time": 3600,
 			"use_categories": true,
-			"fixed": [ ],
-			"require_always": [ ]
+			"fixed": [ "readonly", "require_always_email" ],
+			"require_always_email": false
 		}
 	}
 }

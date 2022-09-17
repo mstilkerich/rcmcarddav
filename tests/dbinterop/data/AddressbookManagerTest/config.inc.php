@@ -16,7 +16,7 @@ $prefs = [
 
         'readonly'       => false,
 
-        'require_always' => ['email'],
+        'require_always_email' => true,
 
         'extra_addressbooks' => [
             [

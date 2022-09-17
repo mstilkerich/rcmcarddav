@@ -73,18 +73,19 @@ abstract class AbstractDatabase
      *
      * This column can be used to store application-level boolean attributes of an entity as bits of an integer DB
      * column. This array defines:
-     *   - which table have a flags column (as determined by having a key in this table)
+     *   - which tables have a flags column (as determined by having a key in this table)
      *   - the default value of the flags column according to the DB schema
      *   - the application-level attribute names and their respective bit position
      */
     public const FLAGS_COLS = [
         'addressbooks' => [
             'default' => 5, // the default value of the flags column as defined in the schema
-            'fields' => [   // application-level bool attributes and their bitpositions
-                'active'         => 0,
-                'use_categories' => 1,
-                'discovered'     => 2,
-                'readonly'       => 3,
+            'fields' => [   // application-level bool attributes and their bit positions
+                'active'               => 0,
+                'use_categories'       => 1,
+                'discovered'           => 2,
+                'readonly'             => 3,
+                'require_always_email' => 4,
             ]
         ],
     ];
@@ -117,7 +118,7 @@ abstract class AbstractDatabase
     abstract public function rollbackTransaction(): void;
 
     /**
-     * Checks if the database schema is up to date and performs migrations if needed.
+     * Checks if the database schema is up-to-date and performs migrations if needed.
      *
      * @param string $dbPrefix The optional prefix to all database table names as configured in Roundcube.
      * @param string $scriptDir Path of the parent directory containing all the migration scripts, each in a subdir.
@@ -226,7 +227,7 @@ abstract class AbstractDatabase
         string $vcfstr,
         array $save_data,
         ?string $dbid = null
-    ) {
+    ): string {
         // build email search string
         $email_keys = preg_grep('/^email(:|$)/', array_keys($save_data));
         $email_addrs = [];
@@ -275,7 +276,7 @@ abstract class AbstractDatabase
         ?string $etag = null,
         ?string $uri = null,
         ?string $vcfstr = null
-    ) {
+    ): string {
         return $this->storeAddressObject('groups', $abookid, $etag, $uri, $vcfstr, $save_data, $dbid);
     }
 
@@ -363,7 +364,7 @@ abstract class AbstractDatabase
         if (is_string($conditions)) {
             $cond = [ new DbAndCondition(new DbOrCondition("id", $conditions)) ];
         } elseif (isset($conditions[0]) && $conditions[0] instanceof DbAndCondition) {
-            /** @var list<DbAndCondition> */
+            /** @var list<DbAndCondition> $cond */
             $cond = $conditions;
         } else {
             $cond = [];

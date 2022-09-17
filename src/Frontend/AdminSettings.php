@@ -36,7 +36,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
  * @psalm-type ConfigurablePresetAttr = 'accountname'|'discovery_url'|'username'|'password'|'rediscover_time'|
- *                                      'active'|'refresh_time'|'use_categories'|'readonly'
+ *                                      'active'|'refresh_time'|'use_categories'|'readonly'|'require_always_email'
  * @psalm-type SpecialAbookType = 'collected_recipients'|'collected_senders'
  * @psalm-type SpecialAbookMatch = array{preset: string, matchname?: string, matchurl?: string}
  *
@@ -47,7 +47,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *     refresh_time: int,
  *     use_categories: bool,
  *     fixed: list<ConfigurablePresetAttr>,
- *     require_always: list<string>,
+ *     require_always_email: bool,
  * }
  *
  * @psalm-type Preset = array{
@@ -62,7 +62,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *     refresh_time: int,
  *     use_categories: bool,
  *     fixed: list<ConfigurablePresetAttr>,
- *     require_always: list<string>,
+ *     require_always_email: bool,
  *     extra_addressbooks?: array<string, PresetExtraAbook>,
  * }
  *
@@ -78,6 +78,12 @@ class AdminSettings
     /** @var list<PasswordStoreScheme> List of supported password store schemes */
     public const PWSTORE_SCHEMES = [ 'plain', 'base64', 'des_key', 'encrypted' ];
 
+    /**
+     * @var list<string> ALWAYS_FIXED
+     *     List of attributes that are always fixed. This makes sure the attribute is updated from the preset on login.
+     */
+    private const ALWAYS_FIXED = ['readonly', 'require_always_email'];
+
     /** @var Preset Default values for the preset attributes */
     private const PRESET_DEFAULTS = [
         'accountname'        => '',
@@ -92,7 +98,7 @@ class AdminSettings
         'refresh_time'       => 3600,
         'use_categories'     => true,
         'fixed'              => [],
-        'require_always'     => [],
+        'require_always_email' => false,
     ];
 
     /**
@@ -107,7 +113,7 @@ class AdminSettings
         'refresh_time'   => [ 'timestr',  false ],
         'use_categories' => [ 'bool',     false ],
         'fixed'          => [ 'string[]', false ],
-        'require_always' => [ 'string[]', false ],
+        'require_always_email' => [ 'bool', false ],
     ];
 
     /**
@@ -464,11 +470,6 @@ class AdminSettings
                 ['accountname' => $presetName] + self::PRESET_DEFAULTS
             );
 
-            // Add attributes that are never user-configurable to fixed to they are updated from admin preset on login
-            if (in_array('readonly', $result['fixed'])) {
-                $result['fixed'][] = 'readonly';
-            }
-
             // Parse extra addressbooks
             $result['extra_addressbooks'] = [];
             if (isset($preset['extra_addressbooks'])) {
@@ -557,6 +558,15 @@ class AdminSettings
                 throw new Exception("required setting $attr is not set");
             } else {
                 $result[$attr] = $defaults[$attr];
+            }
+        }
+
+        /** @psalm-var Preset|PresetExtraAbook $result */
+
+        // Add attributes that are never user-configurable to fixed to they are updated from admin preset on login
+        foreach (self::ALWAYS_FIXED as $attr) {
+            if (!in_array($attr, $result['fixed'])) {
+                $result['fixed'][] = $attr;
             }
         }
 

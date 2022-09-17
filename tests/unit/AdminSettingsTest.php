@@ -370,7 +370,7 @@ final class AdminSettingsTest extends TestCase
             ];
         }
 
-        foreach (['fixed', 'require_always'] as $strArrayAttr) {
+        foreach (['fixed'] as $strArrayAttr) {
             foreach ([ true, 'foo', 1, [ 'foo', 1 ] ] as $idx => $errVal) {
                 $ret["Wrong type for string array attribute ($strArrayAttr $idx)"] = [
                     function (array $prefs) use ($strArrayAttr, $errVal): array {

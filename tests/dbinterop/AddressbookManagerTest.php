@@ -48,7 +48,8 @@ use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
  *   refresh_time?: int,
  *   active?: Int1,
  *   use_categories?: Int1,
- *   readonly?: Int1
+ *   readonly?: Int1,
+ *   require_always_email?: Int1
  * }
  */
 final class AddressbookManagerTest extends TestCase
@@ -81,26 +82,26 @@ final class AddressbookManagerTest extends TestCase
     ];
 
     /** @var list<string> addressbook application-level fields stored in flags (starting with bit0 ascending) */
-    private const ABOOK_FLAGS = ['active', 'use_categories', 'discovered', 'readonly'];
+    private const ABOOK_FLAGS = ['active', 'use_categories', 'discovered', 'readonly', 'require_always_email'];
 
     /** @var list<string> */
     private const ABOOKCFG_FIELDS = [
         "name", "url", "last_updated", "refresh_time", "sync_token", "account_id", "flags",
-        "active", "use_categories", "discovered", "readonly" // app-level flags
+        "active", "use_categories", "discovered", "readonly", "require_always_email" // app-level flags
     ];
 
     /** @var list<list<?string>> Initial test addressbooks */
     private const ABOOK_ROWS = [
         [ "CA1",    "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 0], '7' ],
         [ "CA2",    "https://contacts.example.com/a2",     '123', '100', 'a2@3',  ["carddav_accounts", 0], '6' ],
-        [ "PA1",    "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 1], '7' ],
-        [ "PA2",    "https://contacts.example.com/a2",     '123', '100', 'a2@1',  ["carddav_accounts", 1], '0' ],
+        [ "PA1",    "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 1], '23' ],
+        [ "PA2",    "https://contacts.example.com/a2",     '123', '100', 'a2@1',  ["carddav_accounts", 1], '16' ],
         [ "RM1",    "https://rm.example.com/rm1",          '123', '100', 'rm1@1', ["carddav_accounts", 3], '15' ],
         [ "U2-CA1", "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 4], '7' ],
-        [ "U2-PA1", "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 5], '1' ],
+        [ "U2-PA1", "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 5], '17' ],
         [ "CA3",    "https://contacts.example.com/a3",     '123', '100', 'a3@6',  ["carddav_accounts", 0], '5' ],
-        [ "PAX",    "https://contacts.example.com/p/glb",  '123', '100', 'ax@9',  ["carddav_accounts", 1], '3' ],
-        [ "PAX2",   "https://contacts.example.com/p/glb2", '123', '100', 'ax@9',  ["carddav_accounts", 1], '11' ],
+        [ "PAX",    "https://contacts.example.com/p/glb",  '123', '100', 'ax@9',  ["carddav_accounts", 1], '19' ],
+        [ "PAX2",   "https://contacts.example.com/p/glb2", '123', '100', 'ax@9',  ["carddav_accounts", 1], '27' ],
         [ "CA4",    "https://contacts.example.com/a4",     '123', '100', 'a3@6',  ["carddav_accounts", 0], '1' ],
     ];
 
@@ -110,6 +111,7 @@ final class AddressbookManagerTest extends TestCase
         'use_categories' => '0',
         'discovered' => '1',
         'readonly' => '0',
+        'require_always_email' => '0',
     ];
 
     public static function setUpBeforeClass(): void
@@ -317,10 +319,11 @@ final class AddressbookManagerTest extends TestCase
         $flags = intval($testDataRow[$flagsIdx]);
 
         // XXX this must match the order of the flags in the definition of ABOOKCFG_FIELDS
-        $testDataRow[] = ($flags & 1) ? '1' : '0'; // active
-        $testDataRow[] = ($flags & 2) ? '1' : '0'; // use_categories
-        $testDataRow[] = ($flags & 4) ? '1' : '0'; // discovered
-        $testDataRow[] = ($flags & 8) ? '1' : '0'; // readonly
+        $testDataRow[] = ($flags &  1) ? '1' : '0'; // active
+        $testDataRow[] = ($flags &  2) ? '1' : '0'; // use_categories
+        $testDataRow[] = ($flags &  4) ? '1' : '0'; // discovered
+        $testDataRow[] = ($flags &  8) ? '1' : '0'; // readonly
+        $testDataRow[] = ($flags & 16) ? '1' : '0'; // require_always_email
 
         return $testDataRow;
     }
@@ -392,27 +395,10 @@ final class AddressbookManagerTest extends TestCase
             self::$testData->resolveFkRefsInRow($this->transformAbookFlagsTdRow(self::ABOOK_ROWS[$abookIdx]))
         );
         $this->assertIsString($abookTd['account_id']);
-        $accountCfg = $abMgr->getAccountConfig($abookTd['account_id']);
-
-        $requiredProps = [];
-        if (isset($accountCfg["presetname"])) {
-            $presetName = $accountCfg["presetname"];
-            if ($presetName != 'rmpreset') {
-                $admPrefs = Config::inst()->admPrefs();
-                $presetCfg = $admPrefs->getPreset($accountCfg["presetname"], $abookTd["url"]);
-                $requiredProps = $presetCfg['require_always'];
-            }
-        }
-
         $this->assertSame($abookId, $abook->getId(), "Addressbook ID mismatch");
         $this->assertSame($abookTd['name'], $abook->get_name(), "Addressbook name mismatch");
         $this->assertEquals($abookTd['refresh_time'], $abook->getRefreshTime(), "Addressbook refresh time mismatch");
         $this->assertSame($abookTd['readonly'] == '1', $abook->readonly, "Addressbook readonly mismatch");
-        $this->assertSame(
-            TestInfrastructure::getPrivateProperty($abook, 'requiredProps'),
-            $requiredProps,
-            "Addressbook requires properties mismatch"
-        );
     }
 
     /**
@@ -731,6 +717,7 @@ final class AddressbookManagerTest extends TestCase
                     'name' => 'New Abook', 'url' => 'https://c.ex.com/abook1/',
                     'refresh_time' => 500, 'sync_token' => 's@123', 'last_updated' => 100,
                     'active' => '1', 'use_categories' => '0', 'discovered' => '1', 'readonly' => '1',
+                    'require_always_email' => '1',
                     'account_id' => ['carddav_accounts', 0]
                 ],
                 null
@@ -816,6 +803,7 @@ final class AddressbookManagerTest extends TestCase
             'use_categories' => '0',
             'discovered' => '1',
             'readonly' => '0',
+            'require_always_email' => '0',
         ];
         $notSettable = [
             // not settable by insert with initial values
@@ -889,10 +877,10 @@ final class AddressbookManagerTest extends TestCase
                 [ 'carddav_addressbooks', 0 ],
                 [
                     'name' => 'Updated Abook', 'active' => '0', 'last_updated' => 998877, 'refresh_time' => 42,
-                    'sync_token' => 'abc', 'use_categories' => '0', 'readonly' => 1,
+                    'sync_token' => 'abc', 'use_categories' => '0', 'readonly' => '1', 'require_always_email' => '1'
                 ],
                 [
-                    'name' => 'Updated Abook', 'flags' => '12', 'last_updated' => '998877', 'refresh_time' => '42',
+                    'name' => 'Updated Abook', 'flags' => '28', 'last_updated' => '998877', 'refresh_time' => '42',
                     'sync_token' => 'abc',
                 ] + $abook0Base,
                 null
@@ -1187,16 +1175,22 @@ final class AddressbookManagerTest extends TestCase
             '2 new' => [
                 2,
                 [ 'carddav_accounts', 2 ], // empty account
-                [ 'active' => '1', 'refresh_time' => 160, 'use_categories' => '1', 'readonly' => '1' ],
+                [
+                    'active' => '1', 'refresh_time' => 160, 'use_categories' => '1', 'readonly' => '1',
+                    'require_always_email' => '0'
+                ],
                 [ 'New 0', 'New 1' ],
                 15, // expected flags for new addressbooks
             ],
             '2 new, 3 existing, 1 existing but non-discovered' => [
                 5,
                 [ 'carddav_accounts', 0 ],
-                [ 'active' => '0', 'refresh_time' => 60, 'use_categories' => '0', 'readonly' => '0' ],
+                [
+                    'active' => '0', 'refresh_time' => 60, 'use_categories' => '0', 'readonly' => '0',
+                    'require_always_email' => '1'
+                ],
                 [ 'CA1', 'CA2', 'CA3', 'CA4', 'New 0', 'New 4' ], // New 1-3 have same URL as discovered abooks CA1-3
-                4,
+                20,
             ],
             'all discovered addressbooks removed' => [
                 0,

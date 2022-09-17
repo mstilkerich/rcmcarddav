@@ -34,7 +34,7 @@ $prefs['Preset1'] = [
     'use_categories' => false,
 
     'fixed'        =>  [ 'accountname' ],
-    'require_always' => ['email'],
+    'require_always_email' => true,
 
     'extra_addressbooks' =>  [
         [
@@ -47,7 +47,7 @@ $prefs['Preset1'] = [
             'use_categories' => true,
 
             'fixed'        =>  [ 'refresh_time' ],
-            'require_always' => ['phone'],
+            'require_always_email' => false
         ],
         [
             'url'          =>  'https://cdav.example.com/shared/book2',
@@ -57,6 +57,7 @@ $prefs['Preset1'] = [
             'url'          =>  'https://cdav.example.com/%d/%l/%u',
             // all the optional attributes should default to the settings in the account
             'readonly'     =>  false,
+            'fixed'        =>  [ 'readonly' ],
         ],
     ],
 ];

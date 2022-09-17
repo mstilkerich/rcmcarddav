@@ -42,6 +42,13 @@ use rcube_addressbook;
  * @psalm-import-type SaveData from DataConversion
  *
  * @psalm-type Int1 = '0'|'1'
+ *
+ * @psalm-type CfgOverride = array{
+ *   refresh_time?: numeric-string,
+ *   last_updated?: numeric-string,
+ *   readonly?: Int1,
+ *   require_always_email?: Int1,
+ * }
  */
 final class AddressbookTest extends TestCase
 {
@@ -68,10 +75,9 @@ final class AddressbookTest extends TestCase
     }
 
     /**
-     * @param list<string> $reqCols List of require_always columns
-     * @param array{refresh_time?: numeric-string, last_updated?: numeric-string, readonly?: Int1} $cfgOverride
+     * @param CfgOverride $cfgOverride
      */
-    private function createAbook(array $reqCols = [], array $cfgOverride = []): Addressbook
+    private function createAbook(array $cfgOverride = []): Addressbook
     {
         $db = $this->db;
         $db->importData('tests/unit/data/syncHandlerTest/initial/db.json');
@@ -89,7 +95,7 @@ final class AddressbookTest extends TestCase
         /** @psalm-var AddressbookOptions */
         $abookcfg = $cfgOverride + $abookcfg + $accountcfg;
 
-        $abook = new Addressbook("42", $abookcfg, $reqCols);
+        $abook = new Addressbook("42", $abookcfg);
         $davobj = $this->createStub(AddressbookCollection::class);
         $davobj->method('downloadResource')->will($this->returnCallback([Utils::class, 'downloadResource']));
         TestInfrastructure::setPrivateProperty($abook, 'davAbook', $davobj);
@@ -130,35 +136,35 @@ final class AddressbookTest extends TestCase
         $accountcfg = $db->lookup($abookcfg['id'], [], 'accounts');
         /** @psalm-var AddressbookOptions */
         $abookOptions = ['readonly' => '1'] + $abookcfg + $accountcfg;
-        $roAbook = new Addressbook("42", $abookOptions, []);
+        $roAbook = new Addressbook("42", $abookOptions);
         $this->assertSame(true, $roAbook->readonly);
     }
 
     /**
-     * @return list<array{int,string,?string,int,int,null|0|string,?list<string>,list<string>,int,list<string>}>
+     * @return list<array{int,string,?string,int,int,null|0|string,?list<string>,bool,int,list<string>}>
      */
     public function listRecordsDataProvider(): array
     {
         return [
-            // subset, sort_col, sort_order, page, pagesize, group, cols, expCount, expRecords
-            [ 0, 'name', 'ASC', 1, 10, 0, null, [], 6, ["56", "51", "50", "52", "53", "54"] ],
-            [ 0, 'name', 'DESC', 1, 10, "0", null, [], 6, ["54", "53", "52", "50", "51", "56"] ],
-            [ 0, 'firstname', null, 1, 10, null, null, [], 6, ["51", "52", "53", "56", "50", "54"] ],
-            [ 0, 'name', 'ASC', 1, 4, 0, null, [], 6, ["56", "51", "50", "52"] ],
-            [ 0, 'name', 'ASC', 2, 4, 0, null, [], 6, ["53", "54"] ],
-            [ 0, 'name', 'DESC', 3, 2, 0, null, [], 6, ["51", "56"] ],
-            [ 1, 'name', 'DESC', 2, 2, 0, null, [], 6, ["52"] ],
-            [ 2, 'name', 'DESC', 2, 2, 0, null, [], 6, ["52", "50"] ],
-            [ 3, 'name', 'DESC', 2, 2, 0, null, [], 6, ["52", "50"] ],
-            [ -1, 'name', 'DESC', 2, 2, 0, null, [], 6, ["50"] ],
-            [ -2, 'name', 'DESC', 2, 2, 0, null, [], 6, ["52", "50"] ],
-            [ -3, 'name', 'DESC', 2, 2, 0, null, [], 6, ["52", "50"] ],
-            [ 0, 'name', 'ASC', 1, 10, "500", null, [], 2, ["56", "50"] ],
-            [ 0, 'name', 'ASC', 1, 10, 0, ['name','email'], [], 6, ["56", "51", "50", "52", "53", "54"] ],
-            [ 0, 'name', 'ASC', 1, 10, 0, ['organization', 'firstname'], [], 6, ["56", "51", "50", "52", "53", "54"] ],
-            [ 0, 'name', 'ASC', 1, 10, 0, null, ['email'], 5, ["51", "50", "52", "53", "54"] ],
-            [ 0, 'name', 'ASC', 1, 10, 0, null, ['email', 'surname'], 2, ["50", "54"] ],
-            [ 0, 'name', 'ASC', 2, 2, 0, null, ['email'], 5, ["52", "53"] ],
+            // subset, sort_col, sort_order, page, pagesize, group, cols, reqCols, expCount, expRecords
+            [ 0,  'name', 'ASC',  1, 10,  0,     null, false, 6, ["56", "51", "50", "52", "53", "54"] ],
+            [ 0,  'name', 'DESC', 1, 10, "0",    null, false, 6, ["54", "53", "52", "50", "51", "56"] ],
+            [ 0,  'firstname', null,  1, 10,     null, null, false, 6, ["51", "52", "53", "56", "50", "54"] ],
+            [ 0,  'name', 'ASC',  1,  4,  0,     null, false, 6, ["56", "51", "50", "52"] ],
+            [ 0,  'name', 'ASC',  2,  4,  0,     null, false, 6, ["53", "54"] ],
+            [ 0,  'name', 'DESC', 3,  2,  0,     null, false, 6, ["51", "56"] ],
+            [ 1,  'name', 'DESC', 2,  2,  0,     null, false, 6, ["52"] ],
+            [ 2,  'name', 'DESC', 2,  2,  0,     null, false, 6, ["52", "50"] ],
+            [ 3,  'name', 'DESC', 2,  2,  0,     null, false, 6, ["52", "50"] ],
+            [ -1, 'name', 'DESC', 2,  2,  0,     null, false, 6, ["50"] ],
+            [ -2, 'name', 'DESC', 2,  2,  0,     null, false, 6, ["52", "50"] ],
+            [ -3, 'name', 'DESC', 2,  2,  0,     null, false, 6, ["52", "50"] ],
+            [ 0,  'name', 'ASC',  1, 10,  "500", null, false, 2, ["56", "50"] ],
+            [ 0,  'name', 'ASC',  1, 10,  0, ['name','email'], false, 6, ["56", "51", "50", "52", "53", "54"] ],
+            [ 0,  'name', 'ASC',  1, 10,  0, ['organization', 'firstname'],
+                                                       false, 6, ["56", "51", "50", "52", "53", "54"] ],
+            [ 0,  'name', 'ASC',  1, 10,  0,     null, true,  5, ["51", "50", "52", "53", "54"] ],
+            [ 0,  'name', 'ASC',  2,  2,  0,     null, true,  5, ["52", "53"] ],
         ];
     }
 
@@ -169,7 +175,6 @@ final class AddressbookTest extends TestCase
      * @param list<string> $expRecords
      * @param null|0|string $gid
      * @param ?list<string> $cols
-     * @param list<string> $reqCols
      */
     public function testListRecordsReturnsExpectedRecords(
         int $subset,
@@ -179,11 +184,11 @@ final class AddressbookTest extends TestCase
         int $pagesize,
         $gid,
         ?array $cols,
-        array $reqCols,
+        bool $reqEmail,
         int $expCount,
         array $expRecords
     ): void {
-        $abook = $this->createAbookForSearchTest($sortCol, $sortOrder, $page, $pagesize, $gid, $reqCols);
+        $abook = $this->createAbookForSearchTest($sortCol, $sortOrder, $page, $pagesize, $gid, $reqEmail);
 
         $rset = $abook->list_records($cols, $subset);
         $this->assertNull($abook->get_error());
@@ -216,7 +221,6 @@ final class AddressbookTest extends TestCase
      * Initializes an addressbook for the tests of list_records(), count() and search().
      *
      * @param null|0|string $gid
-     * @param list<string> $reqCols
      */
     private function createAbookForSearchTest(
         string $sortCol,
@@ -224,9 +228,9 @@ final class AddressbookTest extends TestCase
         int $page,
         int $pagesize,
         $gid,
-        array $reqCols
+        bool $reqEmail
     ): Addressbook {
-        $abook = $this->createAbook($reqCols);
+        $abook = $this->createAbook(['require_always_email' => ($reqEmail ? '1' : '0')]);
         $abook->set_page($page);
         $this->assertSame($page, $abook->list_page);
         $abook->set_pagesize($pagesize);
@@ -252,7 +256,6 @@ final class AddressbookTest extends TestCase
      * @param list<string> $expRecords
      * @param null|0|string $gid
      * @param ?list<string> $cols
-     * @param list<string> $reqCols
      */
     public function testCountProvidesExpectedNumberOfRecords(
         int $subset,
@@ -262,11 +265,11 @@ final class AddressbookTest extends TestCase
         int $pagesize,
         $gid,
         ?array $cols,
-        array $reqCols,
+        bool $reqEmail,
         int $expCount,
         array $expRecords
     ): void {
-        $abook = $this->createAbookForSearchTest($sortCol, $sortOrder, $page, $pagesize, $gid, $reqCols);
+        $abook = $this->createAbookForSearchTest($sortCol, $sortOrder, $page, $pagesize, $gid, $reqEmail);
         $rset = $abook->count();
         $this->assertNull($abook->get_error());
         $this->assertSame(($page - 1) * $pagesize, $rset->first);
@@ -280,7 +283,7 @@ final class AddressbookTest extends TestCase
      *     string|string[], string|string[], int, bool, bool,
      *     string,?string,int,int,
      *     null|0|string,
-     *     list<string>,
+     *     bool,
      *     string|string[],
      *     int,list<string>
      * }>
@@ -292,84 +295,84 @@ final class AddressbookTest extends TestCase
                 'ID', "50", 0, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 1, ["50"]
             ],
             'Direct ID search with key property from addressbook' => [
                 'id', "50", 0, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 1, ["50"]
             ],
             'Direct ID search multiple id as string' => [
                 'ID', "50,56,52,70", 0, true, false, // 70 belongs to a different addressbook and must not be returned
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 3, ["56", "50", "52"]
             ],
             'Direct ID search multiple id as array' => [
                 'ID', ["50", "56", "52"], 0, true, false,
                 'name', 'DESC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 3, ["52", "50", "56"]
             ],
             'Single DB field search with prefix search' => [
                 ['name'], ["ROB"], rcube_addressbook::SEARCH_PREFIX, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 1, ["53"]
             ],
             'Single Multivalue DB field search with contains search' => [
                 ['email'], ["north@7kingdoms.com"], rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 2, ["60", "50"]
             ],
             'Single Multivalue DB field search with strict search' => [
                 ['email'], ["north@7kingdoms.com"], rcube_addressbook::SEARCH_STRICT, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 1, ["60"]
             ],
             'Multi DB field search with contains search' => [
                 ['name', 'email'], ["Lannister", "@example"], rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 1, ["51"]
             ],
             'Multi DB/vcard field search with contains search' => [
                 ['name', 'jobtitle'], ["Stark", "Warden"], rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 1, ["50"]
             ],
             'Vcard field search with post-search drop' => [ // vcard as a whole matches, but not the asked for field
                 ['assistant'], ["Wesker"], rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 0, []
             ],
             'Vcard field search with exact match' => [
                 ['assistant'], ["Dr. Alexander Isaacs"], rcube_addressbook::SEARCH_STRICT, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 1, ["60"]
             ],
             'Vcard field search with exact match (no match)' => [
                 ['assistant'], ["Dr. Alexander Isaac"], rcube_addressbook::SEARCH_STRICT, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 0, []
             ],
             'Multi Vcard field search with exact match' => [
@@ -377,7 +380,7 @@ final class AddressbookTest extends TestCase
                 rcube_addressbook::SEARCH_PREFIX, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 1, ["60"]
             ],
             'All fields search' => [
@@ -385,7 +388,7 @@ final class AddressbookTest extends TestCase
                 rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 1, ["60"]
             ],
             'Two fields OR search' => [
@@ -393,7 +396,7 @@ final class AddressbookTest extends TestCase
                 rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 3, ["50", "53", "54"]
             ],
             'Mixed DB/vcard fields OR search' => [
@@ -401,7 +404,7 @@ final class AddressbookTest extends TestCase
                 rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], [],
+                false, [],
                 4, ["60", "50", "53", "54"]
             ],
             'Results for 2nd page only' => [
@@ -409,7 +412,7 @@ final class AddressbookTest extends TestCase
                 rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 2, 2,
                 0,
-                [], [],
+                false, [],
                 6, ["50", "52"]
             ],
             'Results for 2nd page only (select only)' => [
@@ -417,7 +420,7 @@ final class AddressbookTest extends TestCase
                 rcube_addressbook::SEARCH_ALL, true, true,
                 'name', 'ASC', 2, 2,
                 0,
-                [], [],
+                false, [],
                 2, ["50", "52"]
             ],
             'Results for 2nd page only (count only)' => [
@@ -425,31 +428,31 @@ final class AddressbookTest extends TestCase
                 rcube_addressbook::SEARCH_ALL, false, false,
                 'name', 'ASC', 2, 2,
                 0,
-                [], [],
+                false, [],
                 6, []
             ],
             'With required DB field' => [
-                '*', 'example',
+                '*', 'stark',
                 rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], ['organization'],
-                3, ["60", "50", "54"]
+                false, ['firstname'],
+                2, ["56", "50"]
             ],
             'With required DB field (plus required abook field)' => [
-                '*', 'example',
+                '*', 'stark',
                 rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                ['firstname'], ['organization'],
-                2, ["50", "54"]
+                true, ['firstname'],
+                1, ["50"]
             ],
             'With required VCard field' => [
                 '*', 'example',
                 rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], ['jobtitle'],
+                false, ['jobtitle'],
                 2, ["60", "50"]
             ],
             'With required VCard field (as string)' => [
@@ -457,7 +460,7 @@ final class AddressbookTest extends TestCase
                 rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 0,
-                [], 'jobtitle',
+                false, 'jobtitle',
                 2, ["60", "50"]
             ],
             'With required VCard field and group filter' => [
@@ -465,7 +468,7 @@ final class AddressbookTest extends TestCase
                 rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 "500",
-                [], 'jobtitle',
+                false, 'jobtitle',
                 1, ["50"]
             ],
             'With required VCard field and group filter for empty group' => [
@@ -473,7 +476,7 @@ final class AddressbookTest extends TestCase
                 rcube_addressbook::SEARCH_ALL, true, false,
                 'name', 'ASC', 1, 10,
                 "504",
-                [], 'jobtitle',
+                false, 'jobtitle',
                 0, []
             ],
         ];
@@ -486,7 +489,7 @@ final class AddressbookTest extends TestCase
      * @param string|string[] $fields
      * @param string|string[] $value
      * @param null|0|string $gid
-     * @param list<string> $reqColsBk Required columns for the addressbook
+     * @param bool $reqEmail If true, set require_always_email parameter for the addressbook
      * @param string|string[] $reqColsCl Required columns search() parameter
      * @param list<string> $expRecords
      */
@@ -501,12 +504,12 @@ final class AddressbookTest extends TestCase
         int $page,
         int $pagesize,
         $gid,
-        array $reqColsBk,
+        bool $reqEmail,
         $reqColsCl,
         int $expCount,
         array $expRecords
     ): void {
-        $abook = $this->createAbookForSearchTest($sortCol, $sortOrder, $page, $pagesize, $gid, $reqColsBk);
+        $abook = $this->createAbookForSearchTest($sortCol, $sortOrder, $page, $pagesize, $gid, $reqEmail);
         $db = $this->db;
         $db->importData('tests/unit/data/addressbookTest/db2.json');
 
@@ -774,7 +777,7 @@ final class AddressbookTest extends TestCase
      */
     public function testCheckResyncDueProvidesExpDelta(int $now, string $rt, string $lu, int $expDue): void
     {
-        $abook = $this->createAbook([], ['refresh_time' => $rt, 'last_updated' => $lu]);
+        $abook = $this->createAbook(['refresh_time' => $rt, 'last_updated' => $lu]);
         $this->assertSame(intval($rt), $abook->getRefreshTime());
 
         // allow a tolerance of 1 second

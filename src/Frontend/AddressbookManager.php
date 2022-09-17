@@ -55,7 +55,8 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *     active: Int1,
  *     use_categories: Int1,
  *     discovered: Int1,
- *     readonly: Int1
+ *     readonly: Int1,
+ *     require_always_email: Int1
  * }
  *
  * The data types AccountSettings / AbookSettings describe the attributes of an account / addressbook row in the
@@ -85,7 +86,8 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
  *     active?: Int1 | bool,
  *     use_categories?: Int1 | bool,
  *     discovered?: Int1 | bool,
- *     readonly?: Int1 | bool
+ *     readonly?: Int1 | bool,
+ *     require_always_email?: Int1 | bool
  * }
  */
 class AddressbookManager
@@ -126,6 +128,7 @@ class AddressbookManager
         'use_categories' => [ false, true ],
         'discovered'     => [ false, false ],
         'readonly'       => [ false, true ],
+        'require_always_email' => [false, true],
     ];
 
     /** @var ?array<string, AccountCfg> $accountsDb
@@ -394,29 +397,15 @@ class AddressbookManager
      */
     public function getAddressbook(string $abookId): Addressbook
     {
-        $infra = Config::inst();
-        $admPrefs = $infra->admPrefs();
-
         $config = $this->getAddressbookConfig($abookId);
         $account = $this->getAccountConfig($config["account_id"]);
-
-        $requiredProps = [];
-
-        if (isset($account["presetname"])) {
-            try {
-                $preset = $admPrefs->getPreset($account["presetname"], $config['url']);
-                $requiredProps = $preset["require_always"];
-            } catch (Exception $e) {
-                // preset may not exist anymore, addressbook will be removed on next login
-            }
-        }
 
         // username and password may be stored as placeholders in the database
         // the URL is always stored without placeholders and needs not be replaced
         $config['username'] = Utils::replacePlaceholdersUsername($account["username"]);
         $config['password'] = Utils::replacePlaceholdersPassword($account["password"]);
 
-        return new Addressbook($abookId, $config, $requiredProps);
+        return new Addressbook($abookId, $config);
     }
 
     /**

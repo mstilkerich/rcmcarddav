@@ -98,6 +98,7 @@ class DelayedPhotoLoader
     /**
      * Tells whether the vcard export has been performed already by this exporter.
      * @return bool True if toString() was _not_ previously executed.
+     * @noinspection PhpUnused This method is used by the tests only.
      */
     public function pristine(): bool
     {

@@ -47,6 +47,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition
  *   url: string,
  *   use_categories: Int1,
  *   readonly: Int1,
+ *   require_always_email: Int1,
  *   last_updated: numeric-string,
  *   refresh_time: numeric-string,
  *   sync_token: string
@@ -75,9 +76,6 @@ class Addressbook extends rcube_addressbook
     /** @var list<DbAndCondition> An additional filter to limit contact searches */
     private $filter = [];
 
-    /** @var list<string> A list of contact fields that must not be empty, otherwise the contact will be hidden. */
-    private $requiredProps;
-
     /** @var ?rcube_result_set The result of the last get_record(), list_records() or search() operation */
     private $result = null;
 
@@ -95,20 +93,14 @@ class Addressbook extends rcube_addressbook
      *
      * @param string $dbid The database ID of the addressbook
      * @param AddressbookOptions $config Options for the addressbook
-     * @param list<string> $requiredProps A list of address object columns that must not be empty. If any of the fields
-     *                                    is empty, the contact will be hidden.
      */
-    public function __construct(
-        string $dbid,
-        array $config,
-        array $requiredProps
-    ) {
+    public function __construct(string $dbid, array $config)
+    {
         $this->config = $config;
         $this->primary_key = 'id';
         $this->groups   = true;
         $this->readonly = ($config['readonly'] != '0');
         $this->date_cols = ['birthday', 'anniversary'];
-        $this->requiredProps = $requiredProps;
         $this->id       = $dbid;
 
         $this->dataConverter = new DataConversion($dbid);
@@ -319,7 +311,9 @@ class Addressbook extends rcube_addressbook
         // Compute the corresponding search clause and append to the existing one from (1)
 
         // this is an optional filter configured by the administrator that requires the given fields be not empty
-        $required = array_unique(array_merge($required, $this->requiredProps));
+        if ($this->config['require_always_email'] && !in_array('email', $required)) {
+            $required[] = 'email';
+        }
 
         foreach (array_intersect($required, $this->table_cols) as $col) {
             $filter[] = new DbAndCondition(new DbOrCondition("!{$col}", ""));
@@ -382,7 +376,7 @@ class Addressbook extends rcube_addressbook
      * Count the number of contacts in the database matching the current filter criteria.
      *
      * The current filter criteria are defined by the search filter (see search()/set_search_set()), the currently
-     * active group (see set_group()), and the required contact properties (see $requiredProps), if applicable.
+     * active group (see set_group()), and, if configured require_always_email, the required email property.
      *
      * @return rcube_result_set Result set with values for 'count' and 'first'
      */
@@ -1685,7 +1679,7 @@ class Addressbook extends rcube_addressbook
      *
      * It must consider:
      *   - Always constrain list to current addressbook
-     *   - The required non-empty fields configured by the admin ($this->requiredProps)
+     *   - The required non-empty email configured by the admin ($this->config['require_always_email'])
      *   - A search filter set by roundcube ($this->filter)
      *   - A currently selected group ($this->group_id)
      *
@@ -1695,9 +1689,9 @@ class Addressbook extends rcube_addressbook
     {
         $conditions = $this->filter;
         $conditions[] = new DbAndCondition(new DbOrCondition("abook_id", $this->id));
-        foreach (array_intersect($this->requiredProps, $this->table_cols) as $col) {
-            $conditions[] = new DbAndCondition(new DbOrCondition("!{$col}", ""));
-            $conditions[] = new DbAndCondition(new DbOrCondition("!{$col}", null));
+        if ($this->config['require_always_email']) {
+            $conditions[] = new DbAndCondition(new DbOrCondition("!email", ""));
+            $conditions[] = new DbAndCondition(new DbOrCondition("!email", null));
         }
 
         // TODO Better if we could handle this without a separate SQL query here, but requires join or sub-query
