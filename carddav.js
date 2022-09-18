@@ -1,7 +1,7 @@
 /*
  * RCMCardDAV - CardDAV plugin for Roundcube webmail
  *
- * Copyright (C) 2011-2021 Benjamin Schieder <rcmcarddav@wegwerf.anderdonau.de>,
+ * Copyright (C) 2011-2022 Benjamin Schieder <rcmcarddav@wegwerf.anderdonau.de>,
  *                         Michael Stilkerich <ms@mike2k.de>
  *
  * This file is part of RCMCardDAV.
