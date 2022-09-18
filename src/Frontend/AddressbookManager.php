@@ -24,11 +24,11 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
+namespace MStilkerich\RCMCardDAV\Frontend;
 
 use Exception;
-use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook, Config};
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
+use MStilkerich\RCMCardDAV\{Addressbook, Config};
+use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
 
 /**
  * @psalm-import-type FullAccountRow from AbstractDatabase

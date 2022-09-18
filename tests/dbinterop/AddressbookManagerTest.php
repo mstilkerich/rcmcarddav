@@ -24,16 +24,16 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
+namespace MStilkerich\Tests\RCMCardDAV\DBInteroperability;
 
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavClient\{Account,AddressbookCollection};
 use MStilkerich\CardDavClient\Services\Discovery;
-use MStilkerich\CardDavAddressbook4Roundcube\Config;
-use MStilkerich\CardDavAddressbook4Roundcube\Addressbook;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
-use MStilkerich\CardDavAddressbook4Roundcube\Frontend\AddressbookManager;
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
+use MStilkerich\RCMCardDAV\Config;
+use MStilkerich\RCMCardDAV\Addressbook;
+use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
+use MStilkerich\RCMCardDAV\Frontend\AddressbookManager;
+use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 
 /**
  * @psalm-import-type FullAccountRow from AbstractDatabase

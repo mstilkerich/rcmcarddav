@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
+namespace MStilkerich\RCMCardDAV\Frontend;
 
 use rcube_utils;
 

@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube\Db;
+namespace MStilkerich\RCMCardDAV\Db;
 
 use rcube_db;
 use Psr\Log\LoggerInterface;

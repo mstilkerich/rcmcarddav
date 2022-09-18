@@ -24,9 +24,9 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube\Db;
+namespace MStilkerich\RCMCardDAV\Db;
 
-use MStilkerich\CardDavAddressbook4Roundcube\DataConversion;
+use MStilkerich\RCMCardDAV\DataConversion;
 
 /**
  * Access interface for the roundcube database.

@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube;
+namespace MStilkerich\Tests\RCMCardDAV;
 
 use Psr\Log\{AbstractLogger,LogLevel,LoggerInterface};
 use PHPUnit\Framework\TestCase;

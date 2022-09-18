@@ -24,10 +24,10 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
+namespace MStilkerich\Tests\RCMCardDAV\DBInteroperability;
 
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database,AbstractDatabase};
+use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
+use MStilkerich\RCMCardDAV\Db\{Database,AbstractDatabase};
 use PHPUnit\Framework\TestCase;
 use rcube_db;
 

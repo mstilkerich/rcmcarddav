@@ -24,17 +24,17 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
+namespace MStilkerich\Tests\RCMCardDAV\Unit;
 
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use rcube_cache;
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\{TestInfrastructure,TestLogger};
+use MStilkerich\Tests\RCMCardDAV\{TestInfrastructure,TestLogger};
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 use MStilkerich\CardDavClient\{Account,AddressbookCollection};
-use MStilkerich\CardDavAddressbook4Roundcube\{DataConversion,DelayedPhotoLoader,DelayedVCardExporter};
-use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
+use MStilkerich\RCMCardDAV\{DataConversion,DelayedPhotoLoader,DelayedVCardExporter};
+use MStilkerich\RCMCardDAV\Db\Database;
 
 final class DataConversionTest extends TestCase
 {

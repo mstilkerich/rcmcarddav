@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube\Db;
+namespace MStilkerich\RCMCardDAV\Db;
 
 /**
  * Represents one OR-condition to be used for queries in AbstractDatabase operations as part of an AND-condition.

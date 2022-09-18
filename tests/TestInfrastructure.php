@@ -24,13 +24,13 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube;
+namespace MStilkerich\Tests\RCMCardDAV;
 
 use PHPUnit\Framework\TestCase;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
-use MStilkerich\CardDavAddressbook4Roundcube\Frontend\AdminSettings;
+use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
+use MStilkerich\RCMCardDAV\Frontend\AdminSettings;
 
 final class TestInfrastructure
 {
@@ -54,7 +54,7 @@ final class TestInfrastructure
         $logger = self::logger();
         $admPrefs = new AdminSettings($admSettingsPath, $logger, $logger);
         self::$infra = new Config($db, $logger, $admPrefs);
-        \MStilkerich\CardDavAddressbook4Roundcube\Config::$inst = self::$infra;
+        \MStilkerich\RCMCardDAV\Config::$inst = self::$infra;
     }
 
     public static function logger(): TestLogger

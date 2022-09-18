@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
+namespace MStilkerich\RCMCardDAV\Frontend;
 
 use Exception;
 use rcube;
@@ -36,7 +36,7 @@ use html_hiddenfield;
 use html_radiobutton;
 use html_table;
 use html_inputfield;
-use MStilkerich\CardDavAddressbook4Roundcube\Config;
+use MStilkerich\RCMCardDAV\Config;
 
 /**
  * @psalm-import-type AbookCfg from AddressbookManager

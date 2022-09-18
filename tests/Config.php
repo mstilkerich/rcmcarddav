@@ -24,16 +24,16 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube;
+namespace MStilkerich\Tests\RCMCardDAV;
 
 use PHPUnit\Framework\TestCase;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
-use MStilkerich\CardDavAddressbook4Roundcube\Frontend\AdminSettings;
+use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
+use MStilkerich\RCMCardDAV\Frontend\AdminSettings;
 use rcube_cache;
 
-class Config extends \MStilkerich\CardDavAddressbook4Roundcube\Config
+class Config extends \MStilkerich\RCMCardDAV\Config
 {
     public function __construct(AbstractDatabase $db, TestLogger $logger, AdminSettings $admPrefs)
     {

@@ -24,11 +24,11 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
+namespace MStilkerich\RCMCardDAV\Frontend;
 
 use Exception;
 use Psr\Log\LoggerInterface;
-use MStilkerich\CardDavAddressbook4Roundcube\{Config, RoundcubeLogger};
+use MStilkerich\RCMCardDAV\{Config, RoundcubeLogger};
 use MStilkerich\CardDavClient\AddressbookCollection;
 
 /**

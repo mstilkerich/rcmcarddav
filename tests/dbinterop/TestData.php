@@ -24,9 +24,9 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
+namespace MStilkerich\Tests\RCMCardDAV\DBInteroperability;
 
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
+use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
 use PHPUnit\Framework\TestCase;
 
 /**

@@ -24,10 +24,10 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube;
+namespace MStilkerich\Tests\RCMCardDAV;
 
 use PHPUnit\Framework\TestCase;
-use MStilkerich\CardDavAddressbook4Roundcube\Frontend\RcmInterface;
+use MStilkerich\RCMCardDAV\Frontend\RcmInterface;
 
 class RcmAdapterStub implements RcmInterface
 {

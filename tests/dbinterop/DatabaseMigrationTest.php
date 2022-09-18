@@ -24,15 +24,15 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
+namespace MStilkerich\Tests\RCMCardDAV\DBInteroperability;
 
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
+use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\DatabaseException;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\DbAndCondition;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\DbOrCondition;
+use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
+use MStilkerich\RCMCardDAV\Db\Database;
+use MStilkerich\RCMCardDAV\Db\DatabaseException;
+use MStilkerich\RCMCardDAV\Db\DbAndCondition;
+use MStilkerich\RCMCardDAV\Db\DbOrCondition;
 
 /**
  * @psalm-import-type TestDataRow from TestData

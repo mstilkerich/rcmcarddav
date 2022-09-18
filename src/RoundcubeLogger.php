@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube;
+namespace MStilkerich\RCMCardDAV;
 
 use Psr\Log\{AbstractLogger,LogLevel,InvalidArgumentException};
 use Exception;

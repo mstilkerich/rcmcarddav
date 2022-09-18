@@ -24,11 +24,11 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
+namespace MStilkerich\Tests\RCMCardDAV\Unit;
 
 use PHPUnit\Framework\TestCase;
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
+use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
+use MStilkerich\RCMCardDAV\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
 
 /**
  * Implementation of the database access interface to the roundcube DB for unit tests.

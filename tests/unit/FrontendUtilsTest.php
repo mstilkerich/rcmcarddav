@@ -24,12 +24,12 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
+namespace MStilkerich\Tests\RCMCardDAV\Unit;
 
-use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
+use MStilkerich\RCMCardDAV\Db\Database;
+use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
-use MStilkerich\CardDavAddressbook4Roundcube\Frontend\Utils;
+use MStilkerich\RCMCardDAV\Frontend\Utils;
 
 final class FrontendUtilsTest extends TestCase
 {

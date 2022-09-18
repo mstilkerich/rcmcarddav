@@ -24,14 +24,14 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
+namespace MStilkerich\Tests\RCMCardDAV\Unit;
 
 use PHPUnit\Framework\TestCase;
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
-use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook,DataConversion,DelayedPhotoLoader};
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\DbAndCondition;
+use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
+use MStilkerich\RCMCardDAV\{Addressbook,DataConversion,DelayedPhotoLoader};
+use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
+use MStilkerich\RCMCardDAV\Db\Database;
+use MStilkerich\RCMCardDAV\Db\DbAndCondition;
 use MStilkerich\CardDavClient\AddressbookCollection;
 use rcube_addressbook;
 

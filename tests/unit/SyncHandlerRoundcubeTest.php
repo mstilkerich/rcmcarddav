@@ -24,15 +24,15 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
+namespace MStilkerich\Tests\RCMCardDAV\Unit;
 
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
+use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\CardDavClient\AddressbookCollection;
-use MStilkerich\CardDavAddressbook4Roundcube\{Addressbook,DataConversion,SyncHandlerRoundcube};
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
+use MStilkerich\RCMCardDAV\{Addressbook,DataConversion,SyncHandlerRoundcube};
+use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
 
 /**
  * Tests for the SyncHandlerRoundcube class.

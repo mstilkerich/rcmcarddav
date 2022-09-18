@@ -28,14 +28,14 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube;
+namespace MStilkerich\RCMCardDAV;
 
 use Psr\Log\LoggerInterface;
 use Sabre\VObject\Component\VCard;
 use Sabre\VObject;
 use MStilkerich\CardDavClient\AddressbookCollection;
 use MStilkerich\CardDavClient\Services\SyncHandler;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\AbstractDatabase;
+use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
 use carddav;
 
 /**

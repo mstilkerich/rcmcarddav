@@ -24,12 +24,12 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
+namespace MStilkerich\Tests\RCMCardDAV\Unit;
 
-use MStilkerich\CardDavAddressbook4Roundcube\RoundcubeLogger;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\Database;
-use MStilkerich\CardDavAddressbook4Roundcube\Frontend\AdminSettings;
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
+use MStilkerich\RCMCardDAV\RoundcubeLogger;
+use MStilkerich\RCMCardDAV\Db\Database;
+use MStilkerich\RCMCardDAV\Frontend\AdminSettings;
+use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 
 final class AdminSettingsTest extends TestCase

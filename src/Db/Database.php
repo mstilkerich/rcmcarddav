@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube\Db;
+namespace MStilkerich\RCMCardDAV\Db;
 
 use Exception;
 use PDOStatement;
@@ -218,7 +218,7 @@ class Database extends AbstractDatabase
             $sqlMigrationScript = "$scriptDir/$migration/$db_backend.sql";
 
             if (file_exists($phpMigrationScript)) {
-                $migrationClass = "\MStilkerich\CardDavAddressbook4Roundcube\DBMigrations\Migration"
+                $migrationClass = "\MStilkerich\RCMCardDAV\DBMigrations\Migration"
                     . substr($migration, 0, 4); // the 4-digit number
 
                 /**

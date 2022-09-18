@@ -24,11 +24,11 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube\Frontend;
+namespace MStilkerich\RCMCardDAV\Frontend;
 
 use Exception;
 use rcube;
-use MStilkerich\CardDavAddressbook4Roundcube\Config;
+use MStilkerich\RCMCardDAV\Config;
 
 /**
  * Various utility functions used in the Frontend.

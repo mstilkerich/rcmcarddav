@@ -24,11 +24,11 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\DBInteroperability;
+namespace MStilkerich\Tests\RCMCardDAV\DBInteroperability;
 
 use MStilkerich\CardDavClient\{Account,AddressbookCollection,WebDavResource,WebDavCollection};
 use MStilkerich\CardDavClient\Services\Discovery;
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
+use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use carddav;
 

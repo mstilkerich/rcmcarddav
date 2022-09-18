@@ -24,14 +24,14 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube;
+namespace MStilkerich\RCMCardDAV;
 
 use Exception;
 use Psr\Log\{LoggerInterface,LogLevel};
 use MStilkerich\CardDavClient\{Account,WebDavResource};
 use MStilkerich\CardDavClient\Services\Discovery;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\{Database, AbstractDatabase};
-use MStilkerich\CardDavAddressbook4Roundcube\Frontend\{RcmInterface, AdminSettings};
+use MStilkerich\RCMCardDAV\Db\{Database, AbstractDatabase};
+use MStilkerich\RCMCardDAV\Frontend\{RcmInterface, AdminSettings};
 use rcube;
 use rcube_cache;
 

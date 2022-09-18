@@ -24,14 +24,14 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\Tests\CardDavAddressbook4Roundcube\Unit;
+namespace MStilkerich\Tests\RCMCardDAV\Unit;
 
 use PHasher;
 use PHPUnit\Framework\TestCase;
 use Sabre\VObject\Component\VCard;
-use MStilkerich\CardDavAddressbook4Roundcube\DataConversion;
-use MStilkerich\CardDavAddressbook4Roundcube\DelayedPhotoLoader;
-use MStilkerich\Tests\CardDavAddressbook4Roundcube\TestInfrastructure;
+use MStilkerich\RCMCardDAV\DataConversion;
+use MStilkerich\RCMCardDAV\DelayedPhotoLoader;
+use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 
 /**
  * @psalm-import-type SaveData from DataConversion

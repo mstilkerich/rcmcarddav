@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace MStilkerich\CardDavAddressbook4Roundcube;
+namespace MStilkerich\RCMCardDAV;
 
 use Exception;
 use InvalidArgumentException;
@@ -34,7 +34,7 @@ use rcube_addressbook;
 use rcube_result_set;
 use MStilkerich\CardDavClient\AddressbookCollection;
 use MStilkerich\CardDavClient\Services\Sync;
-use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
+use MStilkerich\RCMCardDAV\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
 
 /**
  * @psalm-import-type SaveData from DataConversion

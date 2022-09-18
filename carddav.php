@@ -24,8 +24,8 @@
 
 declare(strict_types=1);
 
-use MStilkerich\CardDavAddressbook4Roundcube\{Config, DataConversion};
-use MStilkerich\CardDavAddressbook4Roundcube\Frontend\{AddressbookManager,RcmInterface,UI};
+use MStilkerich\RCMCardDAV\{Config, DataConversion};
+use MStilkerich\RCMCardDAV\Frontend\{AddressbookManager,RcmInterface,UI};
 use Sabre\VObject\Component\VCard;
 
 /**
