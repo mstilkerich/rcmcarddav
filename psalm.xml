@@ -26,10 +26,6 @@
         </ignoreFiles>
     </projectFiles>
 
-    <extraFiles>
-        <directory name="roundcubemail/program/"/>
-    </extraFiles>
-
     <plugins>
         <pluginClass class="Psalm\PhpUnitPlugin\Plugin"/>
     </plugins>
