@@ -316,7 +316,7 @@ class Addressbook extends rcube_addressbook
         }
 
         foreach (array_intersect($required, $this->table_cols) as $col) {
-            $filter[] = new DbAndCondition(new DbOrCondition("!{$col}", ""));
+            $filter[] = new DbAndCondition(new DbOrCondition("!$col", ""));
         }
         $required = array_diff($required, $this->table_cols);
 
@@ -1000,8 +1000,9 @@ class Addressbook extends rcube_addressbook
             $davAbook = $this->getCardDavObj();
 
             if (is_string($ids)) {
+                $ids_string = $ids;
                 /** @psalm-var list<string> $ids */
-                $ids = explode(self::SEPARATOR, $ids);
+                $ids = explode(self::SEPARATOR, $ids_string);
             }
 
             $db->startTransaction();
@@ -1256,7 +1257,7 @@ class Addressbook extends rcube_addressbook
         );
 
         $duration = time() - $start_refresh;
-        $logger->info("sync of addressbook {$this->id} ({$this->get_name()}) took $duration seconds");
+        $logger->info("sync of addressbook $this->id ({$this->get_name()}) took $duration seconds");
 
         return $duration;
     }
@@ -1507,20 +1508,20 @@ class Addressbook extends rcube_addressbook
         $SEP = AbstractDatabase::MULTIVAL_SEP;
 
         if ($mode & rcube_addressbook::SEARCH_STRICT) { // exact match
-            $cond->add("%{$col}", $val);
+            $cond->add("%$col", $val);
 
             if ($multi) {
-                $cond->add("%{$col}", "{$val}{$SEP}%")        // line beginning match 'name@domain.com, %'
-                     ->add("%{$col}", "%{$SEP}{$val}{$SEP}%") // middle match '%, name@domain.com, %'
-                     ->add("%{$col}", "%{$SEP}{$val}");       // line end match '%, name@domain.com'
+                $cond->add("%$col", "$val$SEP%")        // line beginning match 'name@domain.com, %'
+                     ->add("%$col", "%$SEP$val$SEP%") // middle match '%, name@domain.com, %'
+                     ->add("%$col", "%$SEP$val");       // line end match '%, name@domain.com'
             }
         } elseif ($mode & rcube_addressbook::SEARCH_PREFIX) { // prefix match (abc*)
-            $cond->add("%{$col}", "{$val}%");
+            $cond->add("%$col", "$val%");
             if ($multi) {
-                $cond->add("%{$col}", "%{$SEP}{$val}%"); // middle/end match '%, name%'
+                $cond->add("%$col", "%$SEP$val%"); // middle/end match '%, name%'
             }
         } else { // "contains" match (*abc*)
-            $cond->add("%{$col}", "%{$val}%");
+            $cond->add("%$col", "%$val%");
         }
 
         return $cond;
