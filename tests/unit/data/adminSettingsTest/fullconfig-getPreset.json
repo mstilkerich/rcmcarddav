@@ -8,6 +8,7 @@
 			"rediscover_time": 3754,
 			"hide": true,
 
+			"name": "%a (%N)",
 			"active": false,
 			"readonly": true,
 			"refresh_time": 7200,
@@ -24,6 +25,7 @@
 			"hide": true,
 
 			"url": "https://cdav.example.com/shared/book",
+			"name": "%N",
 			"active": true,
 			"readonly": false,
 			"refresh_time": 7380,
@@ -40,6 +42,7 @@
 			"hide": true,
 
 			"url": "https://cdav.example.com/shared/book2",
+			"name": "%a (%N)",
 			"active": false,
 			"readonly": true,
 			"refresh_time": 7200,
@@ -56,6 +59,7 @@
 			"hide": true,
 
 			"url": "https://cdav.example.com/example.com/user/user@example.com",
+			"name": "%a (%N)",
 			"active": false,
 			"readonly": false,
 			"refresh_time": 7200,
@@ -72,6 +76,7 @@
 			"discovery_url": null,
 			"rediscover_time": 86400,
 			"hide": false,
+			"name": "%N",
 			"active": true,
 			"readonly": false,
 			"refresh_time": 3600,
@@ -88,6 +93,7 @@
 			"discovery_url": null,
 			"rediscover_time": 86400,
 			"hide": false,
+			"name": "%N",
 			"active": true,
 			"readonly": false,
 			"refresh_time": 3600,
@@ -104,6 +110,7 @@
 			"hide": false,
 
 			"url": "https://cdavshared.example.com/shared/book",
+			"name": "%N",
 			"active": true,
 			"readonly": false,
 			"refresh_time": 3600,

@@ -1600,7 +1600,7 @@ class Addressbook extends rcube_addressbook
     /**
      * Creates the AddressbookCollection object of the CardDavClient library.
      */
-    private function getCardDavObj(): AddressbookCollection
+    public function getCardDavObj(): AddressbookCollection
     {
         if (!isset($this->davAbook)) {
             $url = $this->config["url"];

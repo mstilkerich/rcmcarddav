@@ -1335,6 +1335,7 @@ final class AddressbookManagerTest extends TestCase
     {
         $davobj = $this->createStub(AddressbookCollection::class);
         $davobj->method('getName')->will($this->returnValue($name));
+        $davobj->method('getDisplayname')->will($this->returnValue($name));
         $davobj->method('getUri')->will($this->returnValue($url));
         return $davobj;
     }

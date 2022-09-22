@@ -70,8 +70,9 @@ $prefs['<Presetname>'] = [
     ////// hide the account/addressbooks of this preset from CardDAV settings
     'hide' => <true or false>,
 
-    // Auto-discovered addressbook attributes
+    // Auto-discovered addressbook attributes, and for extra addressbooks if not overridden there
     //// optional attributes
+    'name'         => '<Template for name of addressbooks>',
     'active'       =>  <true or false>,
     'readonly'     =>  <true or false>,
     'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
@@ -91,6 +92,7 @@ $prefs['<Presetname>'] = [
             'url'          =>  '<Addressbook URL>',
 
             // optional attributes - if not specified, values from account are applied
+            'name'         => '<Template for name of addressbook>',
             'active'       =>  <true or false>,
             'readonly'     =>  <true or false>,
             'refresh_time' => '<Refresh Time in Hours, Format HH[:MM[:SS]]>',
