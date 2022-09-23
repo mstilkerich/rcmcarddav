@@ -64,6 +64,8 @@ $labels = Array(
 	// basicinfo
 	'AbProps_abname_lbl' => "Bezeichnung des Adressbuchs",
 	'AbProps_url_lbl'=> "URL",
+	'AbProps_srvname_lbl' => 'Serverseitige Bezeichnung',
+	'AbProps_srvdesc_lbl' => 'Serverseitige Beschreibung',
 
 	'AbProps_syncinfo_seclbl' => 'Synchronisation',
 	'AbProps_refresh_time_lbl'=> "Aktualisierungsintervall (Stunden)",
