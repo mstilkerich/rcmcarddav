@@ -93,7 +93,7 @@ final class DataConversionTest extends TestCase
      */
     public function vcardImportSamplesProvider(): array
     {
-        return $this->vcardSamplesProvider('tests/unit/data/vcardImport');
+        return $this->vcardSamplesProvider('tests/Unit/data/vcardImport');
     }
 
     /**
@@ -137,7 +137,7 @@ final class DataConversionTest extends TestCase
             ->will($this->returnValue("49"));
 
         $dc = new DataConversion("42");
-        $vcard = TestInfrastructure::readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
+        $vcard = TestInfrastructure::readVCard("tests/Unit/data/vcardImport/XAbLabel.vcf");
         $dc->toRoundcube($vcard, $this->abook);
     }
 
@@ -181,7 +181,7 @@ final class DataConversionTest extends TestCase
             ->method("insert");
 
         $dc = new DataConversion("42");
-        $vcard = TestInfrastructure::readVCard("tests/unit/data/vcardImport/XAbLabel.vcf");
+        $vcard = TestInfrastructure::readVCard("tests/Unit/data/vcardImport/XAbLabel.vcf");
         $dc->toRoundcube($vcard, $this->abook);
     }
 
@@ -190,7 +190,7 @@ final class DataConversionTest extends TestCase
      */
     public function vcardCreateSamplesProvider(): array
     {
-        return $this->vcardSamplesProvider('tests/unit/data/vcardCreate');
+        return $this->vcardSamplesProvider('tests/Unit/data/vcardCreate');
     }
 
     /**
@@ -239,8 +239,8 @@ final class DataConversionTest extends TestCase
             )
             ->will($this->returnValue([]));
         $dc = new DataConversion("42");
-        $vcardExpected = TestInfrastructure::readVCard('tests/unit/data/singleTest/Errors.vcf');
-        $saveData = Utils::readSaveDataFromJson('tests/unit/data/singleTest/Errors.json');
+        $vcardExpected = TestInfrastructure::readVCard('tests/Unit/data/singleTest/Errors.vcf');
+        $saveData = Utils::readSaveDataFromJson('tests/Unit/data/singleTest/Errors.json');
         $result = $dc->fromRoundcube($saveData);
 
         $this->compareVCards($vcardExpected, $result, true);
@@ -254,7 +254,7 @@ final class DataConversionTest extends TestCase
      */
     public function vcardUpdateSamplesProvider(): array
     {
-        return $this->vcardSamplesProvider('tests/unit/data/vcardUpdate');
+        return $this->vcardSamplesProvider('tests/Unit/data/vcardUpdate');
     }
 
     /**
@@ -292,10 +292,10 @@ final class DataConversionTest extends TestCase
     public function cachePhotosSamplesProvider(): array
     {
         return [
-            "InlinePhoto.vcf" => ["tests/unit/data/vcardImport/InlinePhoto", false, false],
-            "UriPhotoCrop.vcf" => ["tests/unit/data/vcardImport/UriPhotoCrop", true, true],
-            "InvalidUriPhoto.vcf" => ["tests/unit/data/vcardImport/InvalidUriPhoto", true, false],
-            "UriPhoto.vcf" => ["tests/unit/data/vcardImport/UriPhoto", true, true],
+            "InlinePhoto.vcf" => ["tests/Unit/data/vcardImport/InlinePhoto", false, false],
+            "UriPhotoCrop.vcf" => ["tests/Unit/data/vcardImport/UriPhotoCrop", true, true],
+            "InvalidUriPhoto.vcf" => ["tests/Unit/data/vcardImport/InvalidUriPhoto", true, false],
+            "UriPhoto.vcf" => ["tests/Unit/data/vcardImport/UriPhoto", true, true],
         ];
     }
 
@@ -368,7 +368,7 @@ final class DataConversionTest extends TestCase
         $cache = $this->cache;
 
         // we use this file as some placeholder for cached data that is not used in any of the vcards photos
-        $cachedPhotoData = file_get_contents("tests/unit/data/srv/pixel.jpg");
+        $cachedPhotoData = file_get_contents("tests/Unit/data/srv/pixel.jpg");
         $this->assertNotFalse($cachedPhotoData);
 
         $vcard = TestInfrastructure::readVCard("$basename.vcf");
@@ -419,7 +419,7 @@ final class DataConversionTest extends TestCase
         $cache = $this->cache;
 
         // we use this file as some placeholder for cached data that is not used in any of the vcards photos
-        $cachedPhotoData = file_get_contents("tests/unit/data/srv/pixel.jpg");
+        $cachedPhotoData = file_get_contents("tests/Unit/data/srv/pixel.jpg");
         $this->assertNotFalse($cachedPhotoData);
 
         $vcard = TestInfrastructure::readVCard("$basename.vcf");
@@ -486,7 +486,7 @@ final class DataConversionTest extends TestCase
      */
     public function testPhotoloaderHandlesVcardWithoutPhotoProperty(): void
     {
-        $vcard = TestInfrastructure::readVCard("tests/unit/data/vcardImport/AllAttr.vcf");
+        $vcard = TestInfrastructure::readVCard("tests/Unit/data/vcardImport/AllAttr.vcf");
         $this->assertNull($vcard->PHOTO);
 
         $proxy = new DelayedPhotoLoader($vcard, $this->abook);
@@ -539,7 +539,7 @@ final class DataConversionTest extends TestCase
      */
     public function vcardExportSamplesProvider(): array
     {
-        return $this->vcardSamplesProvider('tests/unit/data/vcardExport');
+        return $this->vcardSamplesProvider('tests/Unit/data/vcardExport');
     }
 
     /**

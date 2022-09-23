@@ -21,8 +21,8 @@
         <directory name="tests/"/>
 
         <ignoreFiles>
-            <directory name="tests/dbinterop/data" />
-            <directory name="tests/unit/data" />
+            <directory name="tests/DBInteroperability/data" />
+            <directory name="tests/Unit/data" />
         </ignoreFiles>
     </projectFiles>
 

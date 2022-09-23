@@ -67,7 +67,7 @@ stylecheck:
 phpcompatcheck:
 	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/ tests/ scripts/
 
-psalmanalysis: tests/dbinterop/DatabaseAccounts.php
+psalmanalysis: tests/DBInteroperability/DatabaseAccounts.php
 	vendor/bin/psalm --threads=8 --report=testreports/psalm.txt --report-show-info=true --no-diff $(PSALM_XOPTIONS)
 
 # Example usage for non-HEAD version: RELEASE_VERSION=v4.1.0 make tarball
@@ -133,23 +133,23 @@ define DUMPTBL_sqlite3
 endef
 
 define EXEC_DBTESTS
-.INTERMEDIATE: tests/dbinterop/phpunit-$(1).xml
-tests/dbinterop/phpunit-$(1).xml: tests/dbinterop/phpunit.tmpl.xml
-	sed -e 's/%TEST_DBTYPE%/$(1)/g' tests/dbinterop/phpunit.tmpl.xml >tests/dbinterop/phpunit-$(1).xml
+.INTERMEDIATE: tests/DBInteroperability/phpunit-$(1).xml
+tests/DBInteroperability/phpunit-$(1).xml: tests/DBInteroperability/phpunit.tmpl.xml
+	sed -e 's/%TEST_DBTYPE%/$(1)/g' tests/DBInteroperability/phpunit.tmpl.xml >tests/DBInteroperability/phpunit-$(1).xml
 
 .PHONY: tests-$(1)
-tests-$(1): tests/dbinterop/phpunit-$(1).xml tests/dbinterop/DatabaseAccounts.php
+tests-$(1): tests/DBInteroperability/phpunit-$(1).xml tests/DBInteroperability/DatabaseAccounts.php
 	@echo
 	@echo  ==========================================================
 	@echo "      EXECUTING DBINTEROP TESTS FOR DB $(1)"
 	@echo  ==========================================================
 	@echo
 	@mkdir -p testreports
-	@[ -f tests/dbinterop/DatabaseAccounts.php ] || { echo "Create tests/dbinterop/DatabaseAccounts.php from template tests/dbinterop/DatabaseAccounts.php.dist to execute tests"; exit 1; }
+	@[ -f tests/DBInteroperability/DatabaseAccounts.php ] || { echo "Create tests/DBInteroperability/DatabaseAccounts.php from template tests/DBInteroperability/DatabaseAccounts.php.dist to execute tests"; exit 1; }
 	$$(call CREATEDB_$(1))
 	$$(call EXECDBSCRIPT_$(1),$(TESTDB_$(1)),dbmigrations/INIT-currentschema/$(1).sql)
 	$$(call DUMPTBL_$(1),$(TESTDB_$(1)),testreports/$(1)-init.sql)
-	vendor/bin/phpunit -c tests/dbinterop/phpunit-$(1).xml
+	vendor/bin/phpunit -c tests/DBInteroperability/phpunit-$(1).xml
 	@echo Performing schema comparison of initial schema to schema resulting from migrations
 	$$(call DUMPTBL_$(1),$(MIGTESTDB_$(1)),testreports/$(1)-mig.sql)
 	diff testreports/$(1)-mig.sql testreports/$(1)-init.sql
@@ -161,21 +161,21 @@ tests: $(foreach dbtype,$(DBTYPES),tests-$(dbtype)) unittests
 	vendor/bin/phpcov merge --html testreports/coverage testreports
 
 # For github CI system - if DatabaseAccounts.php is not available, create from DatabaseAccounts.php.dist
-tests/dbinterop/DatabaseAccounts.php: | tests/dbinterop/DatabaseAccounts.php.dist
+tests/DBInteroperability/DatabaseAccounts.php: | tests/DBInteroperability/DatabaseAccounts.php.dist
 	cp $| $@
 
 .PHONY: unittests
-unittests: tests/unit/phpunit.xml
+unittests: tests/Unit/phpunit.xml
 	@echo
 	@echo  ==========================================================
 	@echo "                   EXECUTING UNIT TESTS"
 	@echo  ==========================================================
 	@echo
-	vendor/bin/phpunit -c tests/unit/phpunit.xml
+	vendor/bin/phpunit -c tests/Unit/phpunit.xml
 
 .PHONY: checktestspecs
 checktestspecs:
-	@for d in tests/unit/data/vcard*; do \
+	@for d in tests/Unit/data/vcard*; do \
 		for vcf in $$d/*.vcf; do \
 			f=$$(basename "$$vcf" .vcf); \
 			grep -q -- "- $$f:" $$d/README.md || { echo "No test description for $$d/$$f"; exit 1; } \

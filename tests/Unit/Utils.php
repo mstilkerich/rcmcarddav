@@ -45,7 +45,7 @@ class Utils
     public static function downloadResource(string $uri): array
     {
         if (preg_match(',^http://localhost/(.+),', $uri, $matches) && isset($matches[1])) {
-            $filename = "tests/unit/data/srv/$matches[1]";
+            $filename = "tests/Unit/data/srv/$matches[1]";
             TestCase::assertFileIsReadable($filename);
             return [ 'body' => file_get_contents($filename) ];
         }

@@ -66,7 +66,7 @@ class JsonDatabase extends AbstractDatabase
      */
     public function __construct(
         array $jsonDbData = [],
-        string $jsonDbSchema = "tests/unit/data/jsonDb/schema.json"
+        string $jsonDbSchema = "tests/Unit/data/jsonDb/schema.json"
     ) {
         $schema = TestInfrastructure::readJsonArray($jsonDbSchema);
         $this->validateSchema($schema);

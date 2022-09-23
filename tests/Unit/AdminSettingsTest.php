@@ -57,7 +57,7 @@ final class AdminSettingsTest extends TestCase
      */
     public function configFileProvider(): array
     {
-        $base = 'tests/unit/data/adminSettingsTest';
+        $base = 'tests/Unit/data/adminSettingsTest';
 
         return [
             'Non-existent config file' => [ "$base/notExistent" ],
@@ -106,7 +106,7 @@ final class AdminSettingsTest extends TestCase
      */
     public function testGetPresetReturnsAddressbookSpecificConfig(): void
     {
-        $cfgFileBase = 'tests/unit/data/adminSettingsTest/fullconfig';
+        $cfgFileBase = 'tests/Unit/data/adminSettingsTest/fullconfig';
         /** @var array<string, array<string, array>> */
         $expPrefs = TestInfrastructure::readJsonArray("$cfgFileBase-getPreset.json");
 
@@ -428,7 +428,7 @@ final class AdminSettingsTest extends TestCase
         $validateFunc,
         string $expLogMsg
     ): void {
-        $prefs = TestInfrastructure::readPhpPrefsArray('tests/unit/data/adminSettingsTest/fullconfig.inc.php');
+        $prefs = TestInfrastructure::readPhpPrefsArray('tests/Unit/data/adminSettingsTest/fullconfig.inc.php');
 
         // modify prefs
         $prefs = $modifyPrefsFunc($prefs);
@@ -449,7 +449,7 @@ final class AdminSettingsTest extends TestCase
         $admPrefs = new AdminSettings($tmpfile, $logger, $loggerHttp);
 
         // compare to expected settings
-        $expPrefs = TestInfrastructure::readJsonArray("tests/unit/data/adminSettingsTest/fullconfig.json");
+        $expPrefs = TestInfrastructure::readJsonArray("tests/Unit/data/adminSettingsTest/fullconfig.json");
         $expPrefs = $modifyExpResultFunc($expPrefs);
         $this->assertSame($expPrefs['pwStoreScheme'], $admPrefs->pwStoreScheme);
         $this->assertSame($expPrefs['forbidCustomAddressbooks'], $admPrefs->forbidCustomAddressbooks);

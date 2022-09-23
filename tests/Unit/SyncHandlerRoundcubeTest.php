@@ -105,7 +105,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
     public function testSyncHandlerProvidesExistingCacheState(): void
     {
         $db = $this->db;
-        $db->importData('tests/unit/data/syncHandlerTest/initial/db.json');
+        $db->importData('tests/Unit/data/syncHandlerTest/initial/db.json');
 
         [ $dc, $abook, $rcAbook ] = $this->initStubs();
 
@@ -136,7 +136,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
      */
     public function testInitialSyncOnEmptyDatabase(): void
     {
-        $vcfFiles = (glob("tests/unit/data/syncHandlerTest/initial/*.vcf"));
+        $vcfFiles = (glob("tests/Unit/data/syncHandlerTest/initial/*.vcf"));
         $this->assertIsArray($vcfFiles);
         $this->assertTrue(sort($vcfFiles));
         $this->initialSyncTestHelper($vcfFiles);
@@ -151,7 +151,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
      */
     public function testInitialSyncOnEmptyDatabaseInReverseOrder(): void
     {
-        $vcfFiles = (glob("tests/unit/data/syncHandlerTest/initial/*.vcf"));
+        $vcfFiles = (glob("tests/Unit/data/syncHandlerTest/initial/*.vcf"));
         $this->assertIsArray($vcfFiles);
         $this->assertTrue(rsort($vcfFiles));
         $this->initialSyncTestHelper($vcfFiles);
@@ -163,7 +163,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
     private function initialSyncTestHelper(array $vcfFiles): void
     {
         $db = $this->db;
-        $db->importData('tests/unit/data/syncHandlerTest/initialdb.json');
+        $db->importData('tests/Unit/data/syncHandlerTest/initialdb.json');
         $logger = TestInfrastructure::logger();
         [ $dc, $abook, $rcAbook ] = $this->initStubs();
 
@@ -207,15 +207,15 @@ final class SyncHandlerRoundcubeTest extends TestCase
     public function testFollowupSync1(): void
     {
         $db = $this->db;
-        $db->importData('tests/unit/data/syncHandlerTest/initial/db.json');
+        $db->importData('tests/Unit/data/syncHandlerTest/initial/db.json');
         [ $dc, $abook, $rcAbook ] = $this->initStubs();
 
-        $vcfFiles = (glob("tests/unit/data/syncHandlerTest/increment1/*.vcf"));
+        $vcfFiles = (glob("tests/Unit/data/syncHandlerTest/increment1/*.vcf"));
         $this->assertIsArray($vcfFiles);
 
         // get list of cards to report as deleted
         $deleted = file(
-            "tests/unit/data/syncHandlerTest/increment1/remove.txt",
+            "tests/Unit/data/syncHandlerTest/increment1/remove.txt",
             FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES
         );
         $this->assertIsArray($deleted);
@@ -246,7 +246,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
 
     private function compareResultDb(JsonDatabase $db, string $syncStage): void
     {
-        $expDb = new JsonDatabase(["tests/unit/data/syncHandlerTest/$syncStage/db.json"]);
+        $expDb = new JsonDatabase(["tests/Unit/data/syncHandlerTest/$syncStage/db.json"]);
 
         // Compare database with expected state
         $expDb->compareTables('contacts', $db);

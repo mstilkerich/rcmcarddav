@@ -80,7 +80,7 @@ final class AddressbookTest extends TestCase
     private function createAbook(array $cfgOverride = []): Addressbook
     {
         $db = $this->db;
-        $db->importData('tests/unit/data/syncHandlerTest/initial/db.json');
+        $db->importData('tests/Unit/data/syncHandlerTest/initial/db.json');
 
         /** @var FullAbookRow */
         $abookcfg = $db->lookup("42", [], 'addressbooks');
@@ -202,7 +202,7 @@ final class AddressbookTest extends TestCase
         $this->assertSame($expRecords, $lrOrder, "Card order mismatch");
         for ($i = 0; $i < count($expRecords); ++$i) {
             $id = $expRecords[$i];
-            $fn = "tests/unit/data/addressbookTest/c{$id}.json";
+            $fn = "tests/Unit/data/addressbookTest/c{$id}.json";
             $saveDataExp = Utils::readSaveDataFromJson($fn);
             if (isset($cols)) {
                 $saveDataExp = $this->stripSaveDataToDbColumns($saveDataExp, $cols);
@@ -511,7 +511,7 @@ final class AddressbookTest extends TestCase
     ): void {
         $abook = $this->createAbookForSearchTest($sortCol, $sortOrder, $page, $pagesize, $gid, $reqEmail);
         $db = $this->db;
-        $db->importData('tests/unit/data/addressbookTest/db2.json');
+        $db->importData('tests/Unit/data/addressbookTest/db2.json');
 
         // Try with search() and a second time with set_search_set() + list_records()
         for ($run = 0; $run < 2; ++$run) {
@@ -547,7 +547,7 @@ final class AddressbookTest extends TestCase
                 $this->assertSame($expRecords, $lrOrder, "Card order mismatch (run $run)");
                 for ($i = 0; $i < count($expRecords); ++$i) {
                     $id = $expRecords[$i];
-                    $fn = "tests/unit/data/addressbookTest/c{$id}.json";
+                    $fn = "tests/Unit/data/addressbookTest/c{$id}.json";
                     $saveDataExp = Utils::readSaveDataFromJson($fn);
                     /** @var array $saveDataRc */
                     $saveDataRc = $rset->records[$i];
@@ -621,7 +621,7 @@ final class AddressbookTest extends TestCase
         $db = $this->db;
 
         // import contact belonging to different addressbook
-        $db->importData('tests/unit/data/addressbookTest/db2.json');
+        $db->importData('tests/Unit/data/addressbookTest/db2.json');
 
         $saveDataRc = $abook->get_record($id, $assoc);
 
@@ -655,7 +655,7 @@ final class AddressbookTest extends TestCase
             // we must use a record with an URI photo to check it remains wrapped in a photo loader
             $this->assertInstanceOf(DelayedPhotoLoader::class, $saveDataRc['photo'], "photo not wrapped");
 
-            $fn = "tests/unit/data/addressbookTest/c{$id}.json";
+            $fn = "tests/Unit/data/addressbookTest/c{$id}.json";
             $saveDataExp = Utils::readSaveDataFromJson($fn);
             Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
 
@@ -698,7 +698,7 @@ final class AddressbookTest extends TestCase
         $this->assertSame($expRecords, $lrOrder, "Group order mismatch");
         for ($i = 0; $i < count($expRecords); ++$i) {
             $id = $expRecords[$i];
-            $fn = "tests/unit/data/addressbookTest/g{$id}.json";
+            $fn = "tests/Unit/data/addressbookTest/g{$id}.json";
             $saveDataExp = Utils::readSaveDataFromJson($fn);
             $saveDataRc = $groups[$i];
             Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
@@ -726,7 +726,7 @@ final class AddressbookTest extends TestCase
         $db = $this->db;
 
         // import contact belonging to different addressbook
-        $db->importData('tests/unit/data/addressbookTest/db2.json');
+        $db->importData('tests/Unit/data/addressbookTest/db2.json');
 
         $saveDataRc = $abook->get_group($id);
 
@@ -743,7 +743,7 @@ final class AddressbookTest extends TestCase
         } else {
             $this->assertIsArray($saveDataRc);
 
-            $fn = "tests/unit/data/addressbookTest/g{$id}.json";
+            $fn = "tests/Unit/data/addressbookTest/g{$id}.json";
             $saveDataExp = Utils::readSaveDataFromJson($fn);
             Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
         }

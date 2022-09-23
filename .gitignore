@@ -8,7 +8,7 @@ composer.lock
 *.tgz
 .*.swp
 /testreports
-/tests/dbinterop/DatabaseAccounts.php
+/tests/DBInteroperability/DatabaseAccounts.php
 /doc/api/
 /.phpdoc/
 /roundcubemail

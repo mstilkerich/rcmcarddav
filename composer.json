@@ -50,9 +50,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "MStilkerich\\Tests\\RCMCardDAV\\": "tests/",
-            "MStilkerich\\Tests\\RCMCardDAV\\Unit\\": "tests/unit",
-            "MStilkerich\\Tests\\RCMCardDAV\\DBInteroperability\\": "tests/dbinterop"
+            "MStilkerich\\Tests\\RCMCardDAV\\": "tests/"
         },
         "classmap": ["roundcubemail/program/"]
     },
