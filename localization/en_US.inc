@@ -64,12 +64,15 @@ $labels = Array(
 	// basicinfo
 	'AbProps_abname_lbl' => "Name of the addressbook",
 	'AbProps_url_lbl' => 'URL',
+	'AbProps_srvname_lbl' => 'Server-side name',
+	'AbProps_srvdesc_lbl' => 'Server-side description',
 
 	'AbProps_syncinfo_seclbl' => 'Synchronization',
 	'AbProps_refresh_time_lbl' => "Update interval (hours)",
 	'AbProps_lastupdate_time_lbl'=>'Time of last update',
 
 	'AccAbProps_miscsettings_seclbl' => 'Miscellaneous settings',
+	'AccAbProps_abookinitsettings_seclbl' => 'Initial settings for addressbooks in this account',
 	'AbProps_newgroupstype_lbl' => 'Type of new contact groups',
 	'AbProps_grouptype_vcard_lbl' => 'Separate KIND=group (RFC6350) VCards for new groups (best compatibility with Apple applications)',
 	'AbProps_grouptype_categories_lbl' => 'Store groups as CATEGORIES inside contact VCards (best compatibility with non-Apple applications)',
@@ -77,6 +80,7 @@ $labels = Array(
 	// Add new account page
 	'AccProps_newaccount_lbl' => 'Add new CardDAV account',
 
+	// Labels used in messages emitted by backend
 	'Be_etagmismatch_msg' => 'Update failed because address object changed at the server side',
 );
 ?>

@@ -28,6 +28,7 @@ namespace MStilkerich\RCMCardDAV\Frontend;
 
 use Exception;
 use MStilkerich\RCMCardDAV\{Addressbook, Config};
+use MStilkerich\CardDavClient\AddressbookCollection;
 use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
 
 /**
@@ -579,11 +580,13 @@ class AddressbookManager
         }
 
         // store discovered addressbooks
+        $accountCfg = $this->getAccountConfig($accountId);
         $abookTmpl['account_id'] = $accountId;
         $abookTmpl['discovered'] = '1';
         $abookTmpl['sync_token'] = '';
+        $abookNameTmpl = $abookTmpl['name'] ?? '%N';
         foreach ($newbooks as $abook) {
-            $abookTmpl['name'] = $abook->getName();
+            $abookTmpl['name'] = $this->replacePlaceholdersAbookName($abookNameTmpl, $accountCfg, $abook);
             $abookTmpl['url'] = $abook->getUri();
             $this->insertAddressbook($abookTmpl);
         }
@@ -604,6 +607,46 @@ class AddressbookManager
         $ts_delay = time() + 300 - $abook->getRefreshTime();
         $this->updateAddressbook($abook->getId(), ["last_updated" => $ts_delay]);
         return $abook->resync();
+    }
+
+    /**
+     * Replaces the placeholders in an addressbook name template.
+     * @param string $name The name template
+     * @param AccountCfg $accountCfg The configuration of the account the addressbook belongs to
+     * @param AddressbookCollection $abook The addressbook collection object to query server-side properties
+     * @return string
+     */
+    public function replacePlaceholdersAbookName(
+        string $name,
+        array $accountCfg,
+        AddressbookCollection $abook
+    ): string {
+        $name = Utils::replacePlaceholdersUsername($name);
+        $abName = '';
+        $abDesc = '';
+
+        // avoid network connection if none of the server-side fields are needed
+        if (strpos($name, '%N') !== false || strpos($name, '%D') !== false) {
+            $abName = $abook->getDisplayName();
+            $abDesc = $abook->getDescription();
+        }
+
+        $transTable = [
+            '%N' => $abName,
+            '%D' => $abDesc,
+            '%a' => $accountCfg['accountname'],
+            '%c' => $abook->getBasename(),
+            '%k' => $accountCfg['presetname'] ?? ''
+        ];
+
+        $name = strtr($name, $transTable);
+
+        // if the template expands to an empty string, we use the last path component as default
+        if (strlen($name) === 0) {
+            $name = $abook->getBasename();
+        }
+
+        return $name;
     }
 
     /**

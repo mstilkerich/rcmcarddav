@@ -82,6 +82,12 @@ class UI
             'label' => 'AccAbProps_miscsettings_seclbl',
             'fields' => [
                 [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr', '86400' ],
+            ]
+        ],
+        [
+            'label' => 'AccAbProps_abookinitsettings_seclbl',
+            'fields' => [
+                [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
                 [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
                 [
                     'AbProps_newgroupstype_lbl',
@@ -125,6 +131,8 @@ class UI
             'fields' => [
                 [ 'AbProps_abname_lbl', 'name', 'text' ],
                 [ 'AbProps_url_lbl', 'url', 'plain' ],
+                [ 'AbProps_srvname_lbl', 'srvname', 'plain' ],
+                [ 'AbProps_srvdesc_lbl', 'srvdesc', 'plain' ],
             ]
         ],
         [
@@ -515,7 +523,7 @@ class UI
                 }
 
                 // update the form data so the last_updated time is current
-                $abookCfg = $abMgr->getAddressbookConfig($abookId);
+                $abookCfg = $this->getEnhancedAbookConfig($abookId);
                 $formData = $this->makeSettingsFormData(self::UI_FORM_ABOOK, $abookCfg);
                 $rc->showMessage($rc->locText("${syncType}_msg_ok", $msgParams), 'notice', false);
                 $rc->clientCommand('carddav_UpdateForm', $formData);
@@ -628,7 +636,7 @@ class UI
                 $abMgr->updateAddressbook($abookId, $newset);
 
                 // update addressbook data and echo formatted field data to client
-                $abookCfg = $abMgr->getAddressbookConfig($abookId);
+                $abookCfg = $this->getEnhancedAbookConfig($abookId);
                 $formData = $this->makeSettingsFormData(self::UI_FORM_ABOOK, $abookCfg);
                 $formData["_abook$abookId"] = [ 'parent', $abookCfg["name"] ];
 
@@ -680,6 +688,23 @@ class UI
         }
 
         return $out;
+    }
+
+    /**
+     * Gets the addressbook config enhanced with extra fields shown in the details page but not stored in the DB.
+     *
+     * @param string $abookId The addressbook ID
+     * @return AbookCfg The enhanced addressbook configuration
+     */
+    private function getEnhancedAbookConfig(string $abookId): array
+    {
+        $abMgr = $this->abMgr;
+        $abook = $this->abMgr->getAddressbook($abookId);
+        $davAbook = $abook->getCardDavObj();
+        $abookCfg = $abMgr->getAddressbookConfig($abookId);
+        $abookCfg['srvname'] = $davAbook->getDisplayName() ?? '';
+        $abookCfg['srvdesc'] = $davAbook->getDescription() ?? '';
+        return $abookCfg;
     }
 
     /**
@@ -815,8 +840,9 @@ class UI
         try {
             $abookId = $rc->inputValue("abookid", false, rcube_utils::INPUT_GET);
             if (isset($abookId)) {
-                $abookCfg = $this->abMgr->getAddressbookConfig($abookId);
-                $account = $this->abMgr->getAccountConfig($abookCfg["account_id"]);
+                $abMgr = $this->abMgr;
+                $abookCfg = $this->getEnhancedAbookConfig($abookId);
+                $account = $abMgr->getAccountConfig($abookCfg["account_id"]);
                 $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookCfg['url']);
 
                 // HIDDEN FIELDS

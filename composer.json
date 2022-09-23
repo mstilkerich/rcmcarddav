@@ -24,9 +24,8 @@
         "ext-json": "*",
         "ext-pdo": "*",
         "sabre/vobject": "^3.3.5 || ^4.0.0",
-        "sabre/uri": "^2.2",
         "roundcube/plugin-installer": "^0.3.0",
-        "mstilkerich/carddavclient": "^1.2.3"
+        "mstilkerich/carddavclient": "dev-master"
     },
     "require-dev": {
         "vimeo/psalm": ">= 3.11",
@@ -54,7 +53,8 @@
             "MStilkerich\\Tests\\RCMCardDAV\\": "tests/",
             "MStilkerich\\Tests\\RCMCardDAV\\Unit\\": "tests/unit",
             "MStilkerich\\Tests\\RCMCardDAV\\DBInteroperability\\": "tests/dbinterop"
-        }
+        },
+        "classmap": ["roundcubemail/program/"]
     },
     "prefer-stable" : true,
     "config": {

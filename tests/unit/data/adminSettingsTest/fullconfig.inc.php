@@ -28,6 +28,7 @@ $prefs['Preset1'] = [
 
     // Auto-discovered addressbook attributes
     //// optional attributes
+    'name'         =>  "%a (%N)",
     'active'       =>  "0",
     'readonly'     =>  "1",
     'refresh_time' => '2',
@@ -41,6 +42,7 @@ $prefs['Preset1'] = [
             // required attributes
             'url'          =>  'https://cdav.example.com/shared/book',
             // optional attributes - if not specified, values from account are applied
+            'name'         =>  '%N',
             'active'       =>  true,
             'readonly'     =>  false,
             'refresh_time' => '2:3',

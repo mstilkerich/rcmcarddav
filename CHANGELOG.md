@@ -32,7 +32,9 @@ state that may exist on the server and lays the basics for possible future featu
 the server from within RCMCardDAV.
 
 ### Changes in admin settings
-- Presets: Removed option `carddav_name_only`. It makes no sense with the separation of accounts / addressbooks anymore.
+- Presets: Replaced option `carddav_name_only` with the `name` option, which can define a template for naming
+  addressbooks. The old naming with `carddav_name_only=false` is equivalent to `name='%a (%N)', whereas with
+  `carddav_name_only=true` would correspond to `name='%N'` (#368)
 - Presets: Removed feature and option `require_always`. It is now replaced by a simpler `require_always_email` feature
   that does the same but only for the email field (#399)
 - Presets: Addressbooks of a removed preset are provided as readonly until their deletion upon next login. Previously,

@@ -22,6 +22,7 @@
 			"discovery_url": "cdav.example.com/user@example.com",
 			"rediscover_time": 3754,
 			"hide": true,
+			"name": "%a (%N)",
 			"active": false,
 			"readonly": true,
 			"refresh_time": 7200,
@@ -31,6 +32,7 @@
 			"extra_addressbooks": {
 				"https://cdav.example.com/shared/book": {
 					"url": "https://cdav.example.com/shared/book",
+					"name": "%N",
 					"active": true,
 					"readonly": false,
 					"refresh_time": 7380,
@@ -40,6 +42,7 @@
 				},
 				"https://cdav.example.com/shared/book2": {
 					"url": "https://cdav.example.com/shared/book2",
+					"name": "%a (%N)",
 					"active": false,
 					"readonly": true,
 					"refresh_time": 7200,
@@ -49,6 +52,7 @@
 				},
 				"https://cdav.example.com/example.com/user/user@example.com": {
 					"url": "https://cdav.example.com/example.com/user/user@example.com",
+					"name": "%a (%N)",
 					"active": false,
 					"readonly": false,
 					"refresh_time": 7200,
@@ -65,6 +69,7 @@
 			"discovery_url": null,
 			"rediscover_time": 86400,
 			"hide": false,
+			"name": "%N",
 			"active": true,
 			"readonly": false,
 			"refresh_time": 3600,
@@ -81,6 +86,7 @@
 			"discovery_url": null,
 			"rediscover_time": 86400,
 			"hide": false,
+			"name": "%N",
 			"active": true,
 			"readonly": false,
 			"refresh_time": 3600,
@@ -90,6 +96,7 @@
 			"extra_addressbooks": {
 				"https://cdavshared.example.com/shared/book": {
 					"url": "https://cdavshared.example.com/shared/book",
+					"name": "%N",
 					"active": true,
 					"readonly": false,
 					"refresh_time": 3600,

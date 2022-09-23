@@ -1179,7 +1179,7 @@ final class AddressbookManagerTest extends TestCase
                     'active' => '1', 'refresh_time' => 160, 'use_categories' => '1', 'readonly' => '1',
                     'require_always_email' => '0'
                 ],
-                [ 'New 0', 'New 1' ],
+                [ 'a0', 'New 1' ],
                 15, // expected flags for new addressbooks
             ],
             '2 new, 3 existing, 1 existing but non-discovered' => [
@@ -1187,9 +1187,16 @@ final class AddressbookManagerTest extends TestCase
                 [ 'carddav_accounts', 0 ],
                 [
                     'active' => '0', 'refresh_time' => 60, 'use_categories' => '0', 'readonly' => '0',
-                    'require_always_email' => '1'
+                    'require_always_email' => '1', 'name' => '%c - %a (%D)'
                 ],
-                [ 'CA1', 'CA2', 'CA3', 'CA4', 'New 0', 'New 4' ], // New 1-3 have same URL as discovered abooks CA1-3
+                [
+                    'a0 - Custom Account (Desc 0)',
+                    'a4 - Custom Account (Desc 4)',
+                    'CA1',
+                    'CA2',
+                    'CA3',
+                    'CA4',
+                ], // New 1-3 have same URL as discovered abooks CA1-3
                 20,
             ],
             'all discovered addressbooks removed' => [
@@ -1210,7 +1217,7 @@ final class AddressbookManagerTest extends TestCase
                 1,
                 null, // new account
                 [ 'refresh_time' => 60 ],
-                [ 'New 0' ],
+                [ 'a0' ],
                 5,
             ],
         ];
@@ -1240,7 +1247,11 @@ final class AddressbookManagerTest extends TestCase
         // create some test addressbooks to be discovered
         $abookObjs = [];
         for ($i = 0; $i < $numAbooks; ++$i) {
-            $abookObjs[] = $this->makeAbookCollStub("New $i", "https://contacts.example.com/a$i");
+            $abookObjs[] = $this->makeAbookCollStub(
+                ($i % 2) === 1 ? "New $i" : null,
+                "https://contacts.example.com/a$i",
+                "Desc $i"
+            );
         }
 
         if (isset($accountFkRef)) {
@@ -1297,7 +1308,7 @@ final class AddressbookManagerTest extends TestCase
 
         // check that the properties of the new addressbooks are taken from the template
         foreach ($expAbookNames as $abookName) {
-            if (strpos($abookName, 'New ') === false) {
+            if (strpos($abookName, 'New ') === false && preg_match('/^a\d+$/', $abookName) != 1) {
                 continue;
             }
 
@@ -1331,10 +1342,15 @@ final class AddressbookManagerTest extends TestCase
     /**
      * Creates an AddressbookCollection stub that implements getUri() and getName().
      */
-    private function makeAbookCollStub(string $name, string $url): AddressbookCollection
+    private function makeAbookCollStub(?string $name, string $url, ?string $desc): AddressbookCollection
     {
         $davobj = $this->createStub(AddressbookCollection::class);
-        $davobj->method('getName')->will($this->returnValue($name));
+        $urlComp = explode('/', rtrim($url, '/'));
+        $baseName = $urlComp[count($urlComp) - 1];
+        $davobj->method('getName')->will($this->returnValue($name ?? $baseName));
+        $davobj->method('getBasename')->will($this->returnValue($baseName));
+        $davobj->method('getDisplayname')->will($this->returnValue($name));
+        $davobj->method('getDescription')->will($this->returnValue($desc));
         $davobj->method('getUri')->will($this->returnValue($url));
         return $davobj;
     }

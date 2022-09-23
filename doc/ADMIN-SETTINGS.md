@@ -69,7 +69,7 @@ The password scheme is configured in `$prefs['_GLOBAL']['pwstore_scheme']`. The 
 When the password scheme setting is changed, only passwords stored/updated after the change of the setting will be
 stored with the new scheme.
 
-## Placeholder substitutions in Username, Password and URL
+## Placeholder substitutions in Username, Password, URL and Addressbook Name
 
 It is possible to use placeholders inside the account/addressbook fields. This is mainly useful in combination with
 addressbooks preconfigured by the admin. The available substitutions depend on the field.
@@ -98,6 +98,23 @@ In the password field, the following special values are substituted:
 
 Substitution only works if the password is exactly the placeholder, i.e. this placeholder is not replaced if it is part
 of a larger string. The placeholder is also stored as password in the database, not the actual password of the user.
+
+### Addressbook name template
+
+When a new addressbook is created for an account, it needs to be assigned a name. RCMCardDAV supports to define a
+template string that can include the following placeholders to determine that name:
+
+ - All placeholders available for [username and URL](#username-and-url) are supported.
+ - `%N`: Server-side name of the addressbook (`DAV:displayname` property)
+ - `%D`: Server-side description of the addressbook (`CARDDAV:addressbook-description` property)
+ - `%c`: Last part of the addressbook collection URI
+ - `%k`: Presetname (only for admin presets, evaluates to empty string for user-defined addressbooks)
+ - `%a`: Name of the account the addressbook belongs to
+
+If `name` is among the fixed attributes of an admin preset, the addressbook name will be kept up-to-date with the
+template. Note that when the template contains elements referring to server-side attributes (e.g., addressbook name on
+the server), this may include extra network operations during login of the user to check the current server-side
+properties.
 
 ## Preconfigured CardDAV accounts and addressbooks (Presets)
 
@@ -163,11 +180,10 @@ $prefs['<Presetname>'] = [
 
 The following describes the configuration options for a preset addressbook.
 
-`<Presetname>` needs to be a unique preset name. `<Presetname>` must not be `_GLOBAL`. The presetname is only used for
-as an internal identifier for the preset account, you should never change it throughout the preset's lifetime. If
-changed, the effect will be as if the existing preset was deleted and and a new one was added, resulting in deletion of
-the existing addressbooks from the database and creation of new ones.
-
+`<Presetname>` needs to be a unique preset name. `<Presetname>` must not be `_GLOBAL`. The presetname is used as the
+internal identifier for the preset account, you should never change it throughout the preset's lifetime. If changed, the
+effect will be as if the existing preset was deleted and and a new one was added, resulting in deletion of the existing
+addressbooks from the database and creation of new ones.
 
 ### Required parameters unless password-less authentication is used (e.g. Kerberos)
  - `username`: CardDAV username to access the addressbook.
@@ -188,6 +204,12 @@ the existing addressbooks from the database and creation of new ones.
  - `hide`: Whether this preset should be hidden from the CardDAV listing on the preferences page.
 
 ### Optional parameters on the addressbooks
+ - `name`:   Gives a template string for the name assigned to new addressbooks. For the available placeholders in this
+             template string, see [placeholder substitution for addressbook name](#addressbook-name-template). By
+             default, the server-side name of the addressbook is used as addressbook name. If the result of evaluating
+             the template string is empty, the last URL component will be used. This is the suggested approach for a
+             client to assign an addressbook name by RFC 6352.
+             Default: `%N` (server-side name), `%c` if template evaluates to empty string
  - `active`: If this parameter is false, the addressbook is not used by roundcube unless the user changes this setting.
              Default: true
  - `readonly`: If this parameter is true, the addressbook will only be accessible in read-only mode, i.e., the user will
@@ -226,6 +248,7 @@ $prefs['Personal'] = [
     // %u will be substituted for the CardDAV username
     'discovery_url' =>  'https://ical.example.org/caldav.php/%u/Personal',
 
+    'name'         => '%a (%N)',
     'active'       =>  true,
     'readonly'     =>  false,
     'refresh_time' => '02:00:00',

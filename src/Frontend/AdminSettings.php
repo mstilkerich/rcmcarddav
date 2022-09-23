@@ -36,12 +36,14 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
  * @psalm-type ConfigurablePresetAttr = 'accountname'|'discovery_url'|'username'|'password'|'rediscover_time'|
- *                                      'active'|'refresh_time'|'use_categories'|'readonly'|'require_always_email'
+ *                                      'active'|'refresh_time'|'use_categories'|'readonly'|'require_always_email'|
+ *                                      'name'
  * @psalm-type SpecialAbookType = 'collected_recipients'|'collected_senders'
  * @psalm-type SpecialAbookMatch = array{preset: string, matchname?: string, matchurl?: string}
  *
  * @psalm-type PresetExtraAbook = array{
  *     url: string,
+ *     name: string,
  *     active: bool,
  *     readonly: bool,
  *     refresh_time: int,
@@ -57,6 +59,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *     discovery_url: ?string,
  *     rediscover_time: int,
  *     hide: bool,
+ *     name: string,
  *     active: bool,
  *     readonly: bool,
  *     refresh_time: int,
@@ -93,6 +96,7 @@ class AdminSettings
         'rediscover_time'    => 86400,
 
         'hide'               => false,
+        'name'               => '%N',
         'active'             => true,
         'readonly'           => false,
         'refresh_time'       => 3600,
@@ -107,7 +111,8 @@ class AdminSettings
      *   also be overridden for extra addressbooks in their preset configuration.
      */
     private const PRESET_SETTINGS_COMMON = [
-        // type, mandatory
+        //                    type,       mandatory
+        'name'           => [ 'string',   false ],
         'active'         => [ 'bool',     false ],
         'readonly'       => [ 'bool',     false ],
         'refresh_time'   => [ 'timestr',  false ],
@@ -123,7 +128,7 @@ class AdminSettings
      *   attributes.
      */
     private const PRESET_SETTINGS_EXTRA_ABOOK = [
-        // type, mandatory, default value
+        //                    type,       mandatory
         'url'            => [ 'url',      true  ],
     ] + self::PRESET_SETTINGS_COMMON;
 
@@ -133,7 +138,7 @@ class AdminSettings
      *   be specified by the admin, and the default value for optional attributes.
      */
     private const PRESET_SETTINGS = [
-        // type, mandatory, default value
+        //                        type,       mandatory
         'accountname'        => [ 'string',   false ],
         'username'           => [ 'string',   false ],
         'password'           => [ 'string',   false ],
@@ -374,46 +379,83 @@ class AdminSettings
      */
     private function updatePresetSettings(string $presetName, string $accountId, AddressbookManager $abMgr): void
     {
-        $account = $abMgr->getAccountConfig($accountId);
-        $this->updatePresetObject($account, 'account', $presetName, $abMgr);
+        $accountCfg = $abMgr->getAccountConfig($accountId);
+        $this->updatePresetAccount($accountCfg, $presetName, $abMgr);
 
-        $abooks = $abMgr->getAddressbookConfigsForAccount($accountId);
-        foreach ($abooks as $abook) {
-            $this->updatePresetObject($abook, 'addressbook', $presetName, $abMgr);
+        $abookCfgs = $abMgr->getAddressbookConfigsForAccount($accountId);
+        foreach ($abookCfgs as $abookCfg) {
+            $this->updatePresetAddressbook($accountCfg, $abookCfg, $presetName, $abMgr);
         }
     }
 
     /**
-     * Updates the fixed fields of one preset object (account or addressbook) with the current admin settings.
+     * Updates the fixed fields of a preset account with the current admin settings.
      *
      * Only fixed fields are updated, as non-fixed fields may have been changed by the user.
      *
-     * @param AbookCfg | AccountCfg $obj
-     * @param 'addressbook'|'account' $type
+     * @param AccountCfg $accountCfg
      */
-    private function updatePresetObject(array $obj, string $type, string $presetName, AddressbookManager $abMgr): void
+    private function updatePresetAccount(array $accountCfg, string $presetName, AddressbookManager $abMgr): void
     {
-        // extra addressbooks (discovered == 0) can have individual preset settings
-        $preset = $this->getPreset($presetName, $obj['url'] ?? null);
+        $preset = $this->getPreset($presetName);
 
         // update only those attributes marked as fixed by the admin
         // otherwise there may be user changes that should not be destroyed
         $pa = [];
         foreach ($preset['fixed'] as $k) {
-            if (isset($preset[$k]) && isset($obj[$k]) && $obj[$k] != $preset[$k]) {
+            if (isset($preset[$k]) && isset($accountCfg[$k]) && $accountCfg[$k] != $preset[$k]) {
                 $pa[$k] = $preset[$k];
             }
         }
 
         // only update if something changed
         if (!empty($pa)) {
-            if ($type == 'account') {
-                /** @psalm-var AccountSettings $pa */
-                $abMgr->updateAccount($obj['id'], $pa);
-            } else {
-                /** @psalm-var AbookSettings $pa */
-                $abMgr->updateAddressbook($obj['id'], $pa);
+            /** @psalm-var AccountSettings $pa */
+            $abMgr->updateAccount($accountCfg['id'], $pa);
+        }
+    }
+
+    /**
+     * Updates the fixed fields of one preset addressbook with the current admin settings.
+     *
+     * Only fixed fields are updated, as non-fixed fields may have been changed by the user.
+     *
+     * @param AccountCfg $accountCfg
+     * @param AbookCfg $abookCfg
+     */
+    private function updatePresetAddressbook(
+        array $accountCfg,
+        array $abookCfg,
+        string $presetName,
+        AddressbookManager $abMgr
+    ): void {
+        // extra addressbooks (discovered == 0) can have individual preset settings
+        $preset = $this->getPreset($presetName, $abookCfg['url']);
+
+        // update only those attributes marked as fixed by the admin
+        // otherwise there may be user changes that should not be destroyed
+        $pa = [];
+        foreach ($preset['fixed'] as $k) {
+            if (isset($preset[$k]) && isset($abookCfg[$k])) {
+                if ($k === 'name') {
+                    $abook = $abMgr->getAddressbook($abookCfg['id']);
+                    $preset['name'] = $abMgr->replacePlaceholdersAbookName(
+                        $preset['name'],
+                        $accountCfg,
+                        $abook->getCardDavObj()
+                    );
+                }
+
+                if ($abookCfg[$k] != $preset[$k]) {
+                    $pa[$k] = $preset[$k];
+                }
             }
+        }
+
+        // only update if something changed
+        if (!empty($pa)) {
+            /** @psalm-var AbookSettings $pa */
+            $abMgr->updateAddressbook($abookCfg['id'], $pa);
         }
     }
 
