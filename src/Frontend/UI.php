@@ -82,6 +82,12 @@ class UI
             'label' => 'AccAbProps_miscsettings_seclbl',
             'fields' => [
                 [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr', '86400' ],
+            ]
+        ],
+        [
+            'label' => 'AccAbProps_abookinitsettings_seclbl',
+            'fields' => [
+                [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
                 [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
                 [
                     'AbProps_newgroupstype_lbl',

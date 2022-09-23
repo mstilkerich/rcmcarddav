@@ -23,12 +23,12 @@ $labels = Array(
 
 	'AccRedisc_btnlbl' => 'Entdecken',
 	'AccRedisc_btntit' => 'Adressbücher des Kontos neu entdecken',
-	'AccRedisc_msg_ok' => 'Adressbücher des Kontos erfolgreich entdeckt ($new neue, $rm entfertnte Adressbücher)',
-	'AccRedisc_msg_fail' => 'Account rediscovery failed: $errormsg',
+	'AccRedisc_msg_ok' => 'Adressbücher des Kontos erfolgreich entdeckt ($new neue, $rm entfernte Adressbücher)',
+	'AccRedisc_msg_fail' => 'Wiederentdeckung der Adressbücher fehlgeschlagen: $errormsg',
 
 	'AbSync_btnlbl' => 'Resynchronisieren',
-	'AbSync_btntit' => 'Addressbuch resynchronisieren',
-	'AbSync_menulbl_aria' => "Aktionen zur Synchronisation des Addressbuchs",
+	'AbSync_btntit' => 'Adressbuch resynchronisieren',
+	'AbSync_menulbl_aria' => "Aktionen zur Synchronisation des Adressbuchs",
 	'AbClrCache_btnlbl' => 'Synchronisation zurücksetzen (zwischengespeicherte Adressbuch-Daten löschen)',
 	'AbSync_msg_ok' => 'CardDAV-Adressbuch $name synchronisiert (Dauer: $duration Sekunden)',
 	'AbSync_msg_fail' => 'Synchronisation des CardDAV-Adressbuchs $name fehlgeschlagen: $errormsg',
@@ -42,7 +42,7 @@ $labels = Array(
 	'AccActions_menulbl_aria' => 'CardDAV-Aktionsmenü',
 
 	// Account details page
-	'AccProps_rclbl' => 'Konto Eigenschaften',
+	'AccProps_rclbl' => 'Konto-Eigenschaften',
 
 	'AccAbSave_msg_ok' => 'Einstellungen erfolgreich gespeichert',
 	'AccAbSave_msg_fail' => 'Speichern der Einstellungen fehlgeschlagen ($errormsg)',
@@ -70,6 +70,7 @@ $labels = Array(
 	'AbProps_lastupdate_time_lbl'=>'Zuletzt aktualisiert',
 
 	'AccAbProps_miscsettings_seclbl' => 'Verschiedene Einstellungen',
+	'AccAbProps_abookinitsettings_seclbl' => 'Start-Einstellungen für Adressbücher dieses Kontos',
 	'AbProps_newgroupstype_lbl' => 'Typ für neu angelegte Kontaktgruppen',
 	'AbProps_grouptype_vcard_lbl' => 'Gesonderte KIND=group (RFC6350) VCards für neue Gruppen (beste Kompatibilität mit Apple-Anwendungen)',
 	'AbProps_grouptype_categories_lbl' => 'Gruppen in der CATEGORIES-Eigenschaft innerhalb der Kontakt-VCards speichern (beste Kompatibilität mit nicht-Apple Anwendungen)',
