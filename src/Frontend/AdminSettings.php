@@ -323,7 +323,7 @@ class AdminSettings
 
                         // Update the extra addressbooks with the current set of the admin
                         $existingExtraAbooksByUrl = array_column(
-                            $abMgr->getAddressbookConfigsForAccount($accountId, false),
+                            $abMgr->getAddressbookConfigsForAccount($accountId, AddressbookManager::ABF_EXTRA),
                             'id',
                             'url'
                         );

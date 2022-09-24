@@ -122,6 +122,23 @@ class UI
                 [ 'AccProps_lastdiscovered_time_lbl', 'last_discovered', 'datetime' ],
             ]
         ],
+        [
+            'label' => 'AccAbProps_abookinitsettings_seclbl',
+            'fields' => [
+                [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
+                [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
+                [
+                    'AbProps_newgroupstype_lbl',
+                    'use_categories',
+                    'radio',
+                    '1',
+                    [
+                        [ '0', 'AbProps_grouptype_vcard_lbl' ],
+                        [ '1', 'AbProps_grouptype_categories_lbl' ],
+                    ]
+                ],
+            ]
+        ],
     ];
 
     /** @var FormSpec UI_FORM_ABOOK */
@@ -460,11 +477,19 @@ class UI
             try {
                 $abMgr = $this->abMgr;
 
-                $abookIdsPrev = array_column($abMgr->getAddressbookConfigsForAccount($accountId, true), 'id', 'url');
+                $abookIdsPrev = array_column(
+                    $abMgr->getAddressbookConfigsForAccount($accountId, AddressbookManager::ABF_DISCOVERED),
+                    'id',
+                    'url'
+                );
 
                 $accountCfg = $abMgr->getAccountConfig($accountId);
                 $abMgr->discoverAddressbooks($accountCfg, []);
-                $abookIds = array_column($abMgr->getAddressbookConfigsForAccount($accountId, true), 'id', 'url');
+                $abookIds = array_column(
+                    $abMgr->getAddressbookConfigsForAccount($accountId, AddressbookManager::ABF_DISCOVERED),
+                    'id',
+                    'url'
+                );
 
                 $abooksNew = array_diff_key($abookIds, $abookIdsPrev);
                 $abooksRm  = array_diff_key($abookIdsPrev, $abookIds);
@@ -567,13 +592,12 @@ class UI
         try {
             $abMgr = $this->abMgr;
 
-            /** @psalm-var AccountSettings $newaccount */
-            $newaccount = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, []);
-            /** @psalm-var AbookSettings $abooksettings */
-            $abooksettings = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, []);
-            $accountId = $abMgr->discoverAddressbooks($newaccount, $abooksettings);
-            $account = $abMgr->getAccountConfig($accountId);
+            /** @psalm-var AccountSettings&AbookSettings $accAbookFormVals */
+            $accAbookFormVals = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, []);
+            $accountId = $abMgr->discoverAddressbooks($accAbookFormVals, $accAbookFormVals);
+            $this->setTemplateAddressbook($accountId, $accAbookFormVals);
 
+            $account = $abMgr->getAccountConfig($accountId);
             $newLi = $this->makeAccountListItem($account);
             $rc->clientCommand('carddav_InsertListElem', [[$accountId, $newLi]], ['acc', $accountId]);
             $rc->showMessage($rc->locText("AccAdd_msg_ok"), 'confirmation');
@@ -595,13 +619,16 @@ class UI
                 $abMgr = $this->abMgr;
                 $account = $abMgr->getAccountConfig($accountId);
                 $fixedAttributes = $this->getFixedSettings($account['presetname']);
-                /** @psalm-var AccountSettings $newset */
-                $newset = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, $fixedAttributes);
-                $abMgr->updateAccount($accountId, $newset);
+                /** @psalm-var AccountSettings&AbookSettings $accAbookFormVals */
+                $accAbookFormVals = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, $fixedAttributes);
+                $abMgr->updateAccount($accountId, $accAbookFormVals);
+                // update template addressbook
+                $this->setTemplateAddressbook($accountId, $accAbookFormVals);
 
                 // update account data and echo formatted field data to client
                 $account = $abMgr->getAccountConfig($accountId);
-                $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, $account);
+                $abook = $abMgr->getTemplateAddressbookForAccount($accountId);
+                $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, array_merge($account, $abook ?? []));
                 $formData["_acc$accountId"] = [ 'parent', $account["accountname"] ];
 
                 $rc->clientCommand('carddav_UpdateForm', $formData);
@@ -878,9 +905,16 @@ class UI
                 if ($accountId == "new") {
                     $out .= $this->makeSettingsForm(self::UI_FORM_NEW_ACCOUNT, [], [], $attrib);
                 } else {
-                    $account = $this->abMgr->getAccountConfig($accountId);
+                    $abMgr = $this->abMgr;
+                    $account = $abMgr->getAccountConfig($accountId);
+                    $abook = $abMgr->getTemplateAddressbookForAccount($accountId);
                     $fixedAttributes = $this->getFixedSettings($account['presetname']);
-                    $out .= $this->makeSettingsForm(self::UI_FORM_ACCOUNT, $account, $fixedAttributes, $attrib);
+                    $out .= $this->makeSettingsForm(
+                        self::UI_FORM_ACCOUNT,
+                        array_merge($account, $abook ?? []),
+                        $fixedAttributes,
+                        $attrib
+                    );
                 }
 
                 $out = $rc->requestForm($attrib, $out);
@@ -967,6 +1001,35 @@ class UI
 
         /** @psalm-var AccountSettings|AbookSettings */
         return $result;
+    }
+
+    /**
+     * Creates or updates the template addressbook for an account.
+     *
+     * The template addressbook holds the initial addressbook settings that new addressbooks that are added to the
+     * account are assigned to.
+     *
+     * Creation is normally done when the user creates an account, but in case no template addressbook exists yet it can
+     * also happen when the user saves account settings. Update is done when a user saves the account settings and the
+     * template addressbook already exists.
+     *
+     * @param string $accountId Id of the account to set the template addressbook for
+     * @param AbookSettings $abookCfg Addressbook settings to store in the template. Missing settings get defaults.
+     */
+    private function setTemplateAddressbook(string $accountId, array $abookCfg): void
+    {
+        $abMgr = $this->abMgr;
+        $abook = $abMgr->getTemplateAddressbookForAccount($accountId);
+        if ($abook === null) {
+            $abookCfg['account_id'] = $accountId;
+            $abookCfg['discovered'] = '0';
+            $abookCfg['template'] = '1';
+            $abookCfg['url'] = ''; // URL is mandatory but n/a for template addressbook
+            $abookCfg['sync_token'] = ''; // mandatory but n/a
+            $abMgr->insertAddressbook($abookCfg);
+        } else {
+            $abMgr->updateAddressbook($abook['id'], $abookCfg);
+        }
     }
 }
 
