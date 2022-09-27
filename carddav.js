@@ -167,8 +167,8 @@ rcube_webmail.prototype.carddav_UpdateForm = function (formData) {
       // name in the addressbook list.
       case 'parent':
         node = $('#rcmli' + fieldKey + ' > a', win.parent.document)
-        node.text(fieldValue)
-        nodeUpdate = { html: node }
+        node.children('span').text(fieldValue)
+        nodeUpdate = { html: node.prop('outerHTML') }
 
         win.parent.window.rcmail.addressbooks_list.update(fieldKey, nodeUpdate, true)
         break

@@ -330,7 +330,11 @@ class UI
             }
         );
 
-        $content = html::a(['href' => '#'], rcube::Q($account["accountname"]));
+        // we wrap the link text in a span element to have the same structure as for the addressbook list items
+        $content = html::a(
+            ['href' => '#'],
+            html::span([], rcube::Q($account["accountname"]))
+        );
 
         $addressbookListItems = [];
         foreach (($account["addressbooks"] ?? []) as $abook) {
@@ -361,6 +365,11 @@ class UI
         $infra = Config::inst();
         $rc = $infra->rc();
 
+        // The link text contains a span element with the addressbook name and the checkbox for toggling the activation
+        // status of the addressbook. This is needed because the treelist widget can deal with a link element only on
+        // dynamic updates, and the activation checkboxes would vanish on reordering the list. We cannot put the span
+        // around the anchor element and the checkbox element because the stylesheets expect the anchor element as a
+        // direct child of the li element.
         $checkboxActive = new html_checkbox([
             'name'    => '_active[]',
             'title'   => $rc->locText('AbToggleActive_cb_tit'),
@@ -370,12 +379,14 @@ class UI
 
         $fixedAttributes = $this->getFixedSettings($presetName, $abook['url']);
 
-        $abookHtml = html::a(['href' => '#'], rcube::Q($abook["name"]));
-        $abookHtml .= $checkboxActive->show(
+        $linkText = html::span([], rcube::Q($abook["name"]));
+
+        $linkText .= $checkboxActive->show(
             $abook["active"] ? $abook['id'] : '',
             ['value' => $abook['id'], 'disabled' => in_array('active', $fixedAttributes)]
         );
-        return $abookHtml;
+
+        return html::a(['href' => '#'], $linkText);
     }
 
     /**
