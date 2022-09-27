@@ -50,6 +50,7 @@ use MStilkerich\RCMCardDAV\Config;
  *   - datetime: a read-only date/time plain text shown in the form, non-interactive
  *   - timestr: a text box where the user is expected to enter a time interval in the form HH[:MM[:SS]]
  *   - radio: a selection from options offered as a list of radio buttons
+ *   - checkbox: a toggle for a setting that can be turned on or off
  *   - password: a text box where the user is expected to enter a password. Stored data will never be provided as form
  *               data.
  *
@@ -60,7 +61,7 @@ use MStilkerich\RCMCardDAV\Config;
  *   [3]: (optional) default value of the field
  *   [4]: (optional) for UI type radio, a list of key-label pairs for the options of the selection
  *
- * @psalm-type UiFieldType = 'text'|'plain'|'datetime'|'timestr'|'radio'|'password'
+ * @psalm-type UiFieldType = 'text'|'plain'|'datetime'|'timestr'|'radio'|'password'|'checkbox'
  * @psalm-type FieldSpec = array{0: string, 1: string, 2: UiFieldType, 3?: string, 4?: list<array{string,string}>}
  * @psalm-type FieldSetSpec = array{label: string, fields: list<FieldSpec>}
  * @psalm-type FormSpec = list<FieldSetSpec>
@@ -88,6 +89,7 @@ class UI
             'label' => 'AccAbProps_abookinitsettings_seclbl',
             'fields' => [
                 [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
+                [ 'AbProps_active_lbl', 'active', 'checkbox', '1' ],
                 [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
                 [
                     'AbProps_newgroupstype_lbl',
@@ -126,6 +128,7 @@ class UI
             'label' => 'AccAbProps_abookinitsettings_seclbl',
             'fields' => [
                 [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
+                [ 'AbProps_active_lbl', 'active', 'checkbox', '1' ],
                 [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
                 [
                     'AbProps_newgroupstype_lbl',
@@ -798,6 +801,7 @@ class UI
 
             case 'text':
             case 'radio':
+            case 'checkbox':
                 return $fieldValue;
 
             case 'password':
@@ -849,6 +853,10 @@ class UI
                     );
                 }
                 return html::tag('ul', ['class' => 'proplist'], $ul);
+
+            case 'checkbox':
+                $checkbox = new html_checkbox(['name' => $fieldKey, 'value' => '1']);
+                return $checkbox->show(empty($fieldValue) ? '' : '1');
         }
 
         throw new Exception("Unknown UI element type $uiType for $fieldKey");
@@ -956,7 +964,11 @@ class UI
 
                 $fieldValue = $rc->inputValue($fieldKey, ($uiType == 'password'));
                 if (!isset($fieldValue)) {
-                    continue;
+                    if ($uiType === 'checkbox') {
+                        $fieldValue = '0';
+                    } else {
+                        continue;
+                    }
                 }
 
                 // some types require data conversion / validation
@@ -983,6 +995,10 @@ class UI
                             $logger->warning("Not allowed value $fieldValue POSTed for $fieldKey (ignored)");
                             continue 2;
                         }
+                        break;
+
+                    case 'checkbox':
+                        $fieldValue = empty($fieldValue) ? '0' : '1';
                         break;
 
                     case 'password':
