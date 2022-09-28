@@ -866,7 +866,7 @@ class UI
                 return html::tag('ul', ['class' => 'proplist'], $ul);
 
             case 'checkbox':
-                $checkbox = new html_checkbox(['name' => $fieldKey, 'value' => '1']);
+                $checkbox = new html_checkbox(['name' => $fieldKey, 'value' => '1', 'disabled' => $fixed]);
                 return $checkbox->show(empty($fieldValue) ? '' : '1');
         }
 
