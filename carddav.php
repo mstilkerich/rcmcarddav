@@ -349,13 +349,8 @@ class carddav extends rcube_plugin implements RcmInterface
             }
 
             if (($accountCfg['last_discovered'] + $accountCfg['rediscover_time']) < time()) {
-                $abookTmpl = [];
-                $presetName = $accountCfg['presetname'];
-                if ($presetName !== null) {
-                    $abookTmpl = $admPrefs->getPreset($presetName);
-                }
-
                 try {
+                    $abookTmpl = $admPrefs->getAddressbookTemplate($abMgr, $accountId);
                     $logger->info("Performing re-discovery for account $accountId");
                     $abMgr->discoverAddressbooks($accountCfg, $abookTmpl);
                 } catch (Exception $e) {

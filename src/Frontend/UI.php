@@ -490,6 +490,7 @@ class UI
         if (isset($accountId)) {
             try {
                 $abMgr = $this->abMgr;
+                $admPrefs = $infra->admPrefs();
 
                 $abookIdsPrev = array_column(
                     $abMgr->getAddressbookConfigsForAccount($accountId, AddressbookManager::ABF_DISCOVERED),
@@ -498,7 +499,8 @@ class UI
                 );
 
                 $accountCfg = $abMgr->getAccountConfig($accountId);
-                $abMgr->discoverAddressbooks($accountCfg, []);
+                $abookTmpl = $admPrefs->getAddressbookTemplate($abMgr, $accountId);
+                $abMgr->discoverAddressbooks($accountCfg, $abookTmpl);
                 $abookIds = array_column(
                     $abMgr->getAddressbookConfigsForAccount($accountId, AddressbookManager::ABF_DISCOVERED),
                     'id',
@@ -641,8 +643,8 @@ class UI
 
                 // update account data and echo formatted field data to client
                 $account = $abMgr->getAccountConfig($accountId);
-                $abook = $abMgr->getTemplateAddressbookForAccount($accountId);
-                $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, array_merge($account, $abook ?? []));
+                $abookTmpl = $abMgr->getTemplateAddressbookForAccount($accountId);
+                $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, array_merge($account, $abookTmpl ?? []));
                 $formData["_acc$accountId"] = [ 'parent', $account["accountname"] ];
 
                 $rc->clientCommand('carddav_UpdateForm', $formData);

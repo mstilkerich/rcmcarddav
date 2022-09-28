@@ -67,6 +67,9 @@ features over the old one, but it provides the basis for extensions by new featu
 - All standard skins (classic, larry, elastic) are supported, but I spent only limited effort for classic and larry,
   since these have been removed from the roundcube 1.6 core distribution and it is unclear to what extent they will be
   maintained in the future.
+- It is now possible to configure the initial settings for new addressbooks added to an account (#398). These are used
+  when a rediscovery is performed and new addressbooks are found. These settings are available in the configuration of
+  the respective account.
 
 ### Other changes
 - Fix: When setting CardDAV addressbooks for collected recipients/senders from the admin configuration, the setting

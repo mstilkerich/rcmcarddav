@@ -373,6 +373,8 @@ class AdminSettings
     /**
      * Updates the fixed fields of account and addressbooks derived from a preset with the current admin settings.
      *
+     * This is done for all addressbooks of the account, including the template addressbook.
+     *
      * Only fixed fields are updated, as non-fixed fields may have been changed by the user.
      *
      * @param AddressbookManager $abMgr The addressbook manager.
@@ -382,7 +384,7 @@ class AdminSettings
         $accountCfg = $abMgr->getAccountConfig($accountId);
         $this->updatePresetAccount($accountCfg, $presetName, $abMgr);
 
-        $abookCfgs = $abMgr->getAddressbookConfigsForAccount($accountId);
+        $abookCfgs = $abMgr->getAddressbookConfigsForAccount($accountId, AddressbookManager::ABF_ALL);
         foreach ($abookCfgs as $abookCfg) {
             $this->updatePresetAddressbook($accountCfg, $abookCfg, $presetName, $abMgr);
         }
@@ -437,7 +439,8 @@ class AdminSettings
         $pa = [];
         foreach ($preset['fixed'] as $k) {
             if (isset($preset[$k]) && isset($abookCfg[$k])) {
-                if ($k === 'name') {
+                // no expansion of name template string for the template addressbook
+                if (empty($abookCfg['template']) && $k === 'name') {
                     $abook = $abMgr->getAddressbook($abookCfg['id']);
                     $preset['name'] = $abMgr->replacePlaceholdersAbookName(
                         $preset['name'],
@@ -689,6 +692,48 @@ class AdminSettings
         }
 
         return $ret;
+    }
+
+    /**
+     * Provides the addressbook template for new addressbooks of an account, incorporating fixed settings of presets.
+     *
+     * This function can be used for both user-defined and preset accounts.
+     *
+     * For a user-defined account, it will simply provide the addressbook template of that account, if available, or
+     * otherwise an empty array.
+     *
+     * For a preset account, it will provide the preset settings unless a template addressbook is also available for the
+     * account. In the latter case, it will adapt the template addressbook to overwrite all fixed fields with the
+     * settings from the preset.
+     *
+     * @param AddressbookManager $abMgr
+     * @param string $accountId ID of the account for that the addressbook template shall be provided
+     * @return AbookSettings The initial addressbook settings
+     */
+    public function getAddressbookTemplate(AddressbookManager $abMgr, string $accountId): array
+    {
+        $accountCfg = $abMgr->getAccountConfig($accountId);
+        $abookTmpl = $abMgr->getTemplateAddressbookForAccount($accountId);
+
+        $presetName = $accountCfg['presetname'];
+        if ($presetName !== null) {
+            $preset = $this->getPreset($presetName);
+            if ($abookTmpl === null) {
+                $abookTmpl = $preset;
+            } else {
+                // take the fixed attributes from the preset
+                foreach (array_keys($abookTmpl) as $attr) {
+                    if (in_array($attr, $preset['fixed'])) {
+                        if (isset($preset[$attr])) {
+                            $abookTmpl[$attr] = $preset[$attr];
+                        }
+                    }
+                }
+                /** @psalm-var AbookSettings $abookTmpl */
+            }
+        }
+
+        return $abookTmpl ?? [];
     }
 }
 
