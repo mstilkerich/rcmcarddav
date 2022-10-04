@@ -421,7 +421,7 @@ final class DatabaseMigrationTest extends TestCase
             $expRows = TestInfrastructure::sortRowList($expRows);
 
             // finally: compare the expected rows equal the actual ones
-            $this->assertEquals(
+            $this->assertSame(
                 $expRows,
                 $records,
                 "checkRows failed $mig / $tbl: Exp: " . print_r($expRows, true) . "; got: " . print_r($records, true)

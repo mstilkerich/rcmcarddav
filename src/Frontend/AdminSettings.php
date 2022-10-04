@@ -34,6 +34,12 @@ use MStilkerich\CardDavClient\AddressbookCollection;
 /**
  * Represents the administrative settings of the plugin.
  *
+ * @psalm-import-type Int1 from AddressbookManager
+ * @psalm-import-type AbookCfg from AddressbookManager
+ * @psalm-import-type AccountCfg from AddressbookManager
+ * @psalm-import-type AccountSettings from AddressbookManager
+ * @psalm-import-type AbookSettings from AddressbookManager
+ *
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
  * @psalm-type ConfigurablePresetAttr = 'accountname'|'discovery_url'|'username'|'password'|'rediscover_time'|
  *                                      'active'|'refresh_time'|'use_categories'|'readonly'|'require_always_email'|
@@ -44,12 +50,12 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  * @psalm-type PresetExtraAbook = array{
  *     url: string,
  *     name: string,
- *     active: bool,
- *     readonly: bool,
- *     refresh_time: int,
- *     use_categories: bool,
+ *     active: Int1,
+ *     readonly: Int1,
+ *     refresh_time: numeric-string,
+ *     use_categories: Int1,
  *     fixed: list<ConfigurablePresetAttr>,
- *     require_always_email: bool,
+ *     require_always_email: Int1,
  * }
  *
  * @psalm-type Preset = array{
@@ -57,24 +63,19 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *     username: string,
  *     password: string,
  *     discovery_url: ?string,
- *     rediscover_time: int,
- *     hide: bool,
+ *     rediscover_time: numeric-string,
+ *     hide: Int1,
  *     name: string,
- *     active: bool,
- *     readonly: bool,
- *     refresh_time: int,
- *     use_categories: bool,
+ *     active: Int1,
+ *     readonly: Int1,
+ *     refresh_time: numeric-string,
+ *     use_categories: Int1,
  *     fixed: list<ConfigurablePresetAttr>,
- *     require_always_email: bool,
+ *     require_always_email: Int1,
  *     extra_addressbooks?: array<string, PresetExtraAbook>,
  * }
  *
  * @psalm-type SettingSpecification=array{'url'|'timestr'|'string'|'bool'|'string[]'|'skip', bool}
- *
- * @psalm-import-type AbookCfg from AddressbookManager
- * @psalm-import-type AccountCfg from AddressbookManager
- * @psalm-import-type AccountSettings from AddressbookManager
- * @psalm-import-type AbookSettings from AddressbookManager
  */
 class AdminSettings
 {
@@ -93,16 +94,16 @@ class AdminSettings
         'username'           => '',
         'password'           => '',
         'discovery_url'      => null,
-        'rediscover_time'    => 86400,
+        'rediscover_time'    => '86400',
 
-        'hide'               => false,
+        'hide'               => '0',
         'name'               => '%N',
-        'active'             => true,
-        'readonly'           => false,
-        'refresh_time'       => 3600,
-        'use_categories'     => true,
+        'active'             => '1',
+        'readonly'           => '0',
+        'refresh_time'       => '3600',
+        'use_categories'     => '1',
         'fixed'              => [],
-        'require_always_email' => false,
+        'require_always_email' => '0',
     ];
 
     /**
@@ -570,7 +571,7 @@ class AdminSettings
                     case 'url':
                         if (is_string($preset[$attr])) {
                             if ($type == 'timestr') {
-                                $result[$attr] = Utils::parseTimeParameter($preset[$attr]);
+                                $result[$attr] = (string) Utils::parseTimeParameter($preset[$attr]);
                             } elseif ($type == 'url') {
                                 $result[$attr] = Utils::replacePlaceholdersUrl($preset[$attr]);
                             } else {
@@ -582,7 +583,7 @@ class AdminSettings
                         break;
 
                     case 'bool':
-                        $result[$attr] = !empty($preset[$attr]);
+                        $result[$attr] = empty($preset[$attr]) ? '0' : '1';
                         break;
 
                     case 'string[]':

@@ -46,7 +46,7 @@ use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
  * @psalm-import-type Int1 from AddressbookManager
  *
  * @psalm-type AddressbookSettings = array{
- *   refresh_time?: int,
+ *   refresh_time?: numeric-string,
  *   active?: Int1,
  *   use_categories?: Int1,
  *   readonly?: Int1,
@@ -1196,7 +1196,7 @@ final class AddressbookManagerTest extends TestCase
                 2,
                 [ 'carddav_accounts', 2 ], // empty account
                 [
-                    'active' => '1', 'refresh_time' => 160, 'use_categories' => '1', 'readonly' => '1',
+                    'active' => '1', 'refresh_time' => '160', 'use_categories' => '1', 'readonly' => '1',
                     'require_always_email' => '0'
                 ],
                 [ 'a0', 'New 1' ],
@@ -1206,7 +1206,7 @@ final class AddressbookManagerTest extends TestCase
                 5,
                 [ 'carddav_accounts', 0 ],
                 [
-                    'active' => '0', 'refresh_time' => 60, 'use_categories' => '0', 'readonly' => '0',
+                    'active' => '0', 'refresh_time' => '60', 'use_categories' => '0', 'readonly' => '0',
                     'require_always_email' => '1', 'name' => '%c - %a (%D)'
                 ],
                 [
@@ -1236,7 +1236,7 @@ final class AddressbookManagerTest extends TestCase
             'new account with 1 addressbook' => [
                 1,
                 null, // new account
-                [ 'refresh_time' => 60 ],
+                [ 'refresh_time' => '60' ],
                 [ 'a0' ],
                 5,
             ],
@@ -1338,7 +1338,7 @@ final class AddressbookManagerTest extends TestCase
             }
 
             $this->assertArrayHasKey($abookName, $abooks);
-            $this->assertSame((string)($abookTmpl['refresh_time'] ?? '3600'), $abooks[$abookName]['refresh_time']);
+            $this->assertSame($abookTmpl['refresh_time'] ?? '3600', $abooks[$abookName]['refresh_time']);
             $this->assertSame((string) $expNewAbookFlags, $abooks[$abookName]['flags']);
             $this->assertSame('', $abooks[$abookName]['sync_token']);
             $this->assertSame('0', $abooks[$abookName]['last_updated']);

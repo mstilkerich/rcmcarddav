@@ -228,7 +228,7 @@ class JsonDatabase extends AbstractDatabase
         // check parameters
         TestCase::assertArrayHasKey($table, $this->schema, "compareTables of unknown table $table");
         TestCase::assertArrayHasKey($table, $otherDb->schema, "compareTables of unknown table $table");
-        TestCase::assertEquals($this->schema[$table], $otherDb->schema[$table], "Schema of table $table mismatch");
+        TestCase::assertSame($this->schema[$table], $otherDb->schema[$table], "Schema of table $table mismatch");
         TestCase::assertArrayHasKey($table, $this->data, "compareTables of unknown table $table");
         TestCase::assertArrayHasKey($table, $otherDb->data, "compareTables of unknown table $table");
 
@@ -256,7 +256,7 @@ class JsonDatabase extends AbstractDatabase
         for ($i = 0; $i < count($t1sorted); ++$i) {
             $diff = $this->compareRows($table, $otherDb, $t1sorted[$i], $t2sorted[$i]);
             if ($diff !== 0) {
-                TestCase::assertEquals($t1sorted[$i], $t2sorted[$i], "$table row $i differs");
+                TestCase::assertSame($t1sorted[$i], $t2sorted[$i], "$table row $i differs");
             }
         }
     }

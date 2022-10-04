@@ -770,6 +770,11 @@ class UI
     }
 
     /**
+     * Provides the list of fixed attributes of a preset account, optionally for a specific addressbook.
+     *
+     * Extra addressbooks can override fixed attributes of the account. If the parameter $abookUrl is given, the fixed
+     * settings applicable for the addressbook with that URL are returned.
+     *
      * @return list<string> The list of fixed attributes
      */
     private function getFixedSettings(?string $presetName, ?string $abookUrl = null): array
@@ -927,12 +932,13 @@ class UI
                     $out .= $this->makeSettingsForm(self::UI_FORM_NEW_ACCOUNT, [], [], $attrib);
                 } else {
                     $abMgr = $this->abMgr;
+                    $admPrefs = $infra->admPrefs();
                     $account = $abMgr->getAccountConfig($accountId);
-                    $abook = $abMgr->getTemplateAddressbookForAccount($accountId);
+                    $abook = $admPrefs->getAddressbookTemplate($abMgr, $accountId);
                     $fixedAttributes = $this->getFixedSettings($account['presetname']);
                     $out .= $this->makeSettingsForm(
                         self::UI_FORM_ACCOUNT,
-                        array_merge($account, $abook ?? []),
+                        array_merge($account, $abook),
                         $fixedAttributes,
                         $attrib
                     );

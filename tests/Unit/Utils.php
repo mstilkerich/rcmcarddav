@@ -102,7 +102,9 @@ class Utils
             unset($saveDataRc["_carddav_vcard"]);
         }
 
-        TestCase::assertEquals($saveDataExp, $saveDataRc, $msg);
+        ksort($saveDataExp);
+        ksort($saveDataRc);
+        TestCase::assertSame($saveDataExp, $saveDataRc, $msg);
     }
 
     /**

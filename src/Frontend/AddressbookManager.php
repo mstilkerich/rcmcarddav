@@ -73,8 +73,8 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  *     username?: string,
  *     password?: string,
  *     discovery_url?: ?string,
- *     rediscover_time?: int | numeric-string,
- *     last_discovered?: int | numeric-string,
+ *     rediscover_time?: numeric-string,
+ *     last_discovered?: numeric-string,
  *     presetname?: ?string
  * }
  *
@@ -82,15 +82,15 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  *     account_id?: string,
  *     name?: string,
  *     url?: string,
- *     last_updated?: int | numeric-string,
- *     refresh_time?: int | numeric-string,
+ *     last_updated?: numeric-string,
+ *     refresh_time?: numeric-string,
  *     sync_token?: string,
- *     active?: Int1 | bool,
- *     use_categories?: Int1 | bool,
- *     discovered?: Int1 | bool,
- *     readonly?: Int1 | bool,
- *     require_always_email?: Int1 | bool,
- *     template?: Int1 | bool
+ *     active?: Int1,
+ *     use_categories?: Int1,
+ *     discovered?: Int1,
+ *     readonly?: Int1,
+ *     require_always_email?: Int1,
+ *     template?: Int1
  * }
  *
  * Type for an addressbook filter on the addressbook flags mask, expvalue
@@ -605,7 +605,7 @@ class AddressbookManager
 
         if (isset($accountCfg['id'])) {
             $accountId = $accountCfg['id'];
-            $this->updateAccount($accountId, [ 'last_discovered' => time() ]);
+            $this->updateAccount($accountId, [ 'last_discovered' => (string) time() ]);
 
             // get locally existing addressbooks for this account
             $newbooks = []; // AddressbookCollection[] with new addressbooks at the server side
@@ -626,7 +626,7 @@ class AddressbookManager
             // delete all addressbooks we cannot find on the server anymore
             $this->deleteAddressbooks(array_values($dbbooks));
         } else {
-            $accountCfg['last_discovered'] = time();
+            $accountCfg['last_discovered'] = (string) time();
             $accountId = $this->insertAccount($accountCfg);
             $newbooks = $abooks;
         }
@@ -657,7 +657,7 @@ class AddressbookManager
         // To avoid unnecessary work followed by roll back with other time-triggered refreshes, we temporarily
         // set the last_updated time such that the next due time will be five minutes from now
         $ts_delay = time() + 300 - $abook->getRefreshTime();
-        $this->updateAddressbook($abook->getId(), ["last_updated" => $ts_delay]);
+        $this->updateAddressbook($abook->getId(), ["last_updated" => (string) $ts_delay]);
         return $abook->resync();
     }
 

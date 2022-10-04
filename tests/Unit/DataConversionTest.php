@@ -666,7 +666,7 @@ final class DataConversionTest extends TestCase
             if ($dbgid == "Property PHOTO") {
                 Utils::comparePhoto((string) $exp[$i]->getValue(), (string) $rc[$i]->getValue());
             } else {
-                TestCase::assertEquals($exp[$i]->getValue(), $rc[$i]->getValue(), "Nodes $dbgid differ");
+                TestCase::assertSame($exp[$i]->getValue(), $rc[$i]->getValue(), "Nodes $dbgid differ");
             }
         }
     }

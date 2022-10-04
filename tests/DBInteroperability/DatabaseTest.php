@@ -143,7 +143,7 @@ final class DatabaseTest extends TestCase
         $records = TestInfrastructure::sortRowList($records);
 
         $expRows = self::selectRows($expCuids);
-        $this->assertEquals($expRows, $records);
+        $this->assertSame($expRows, $records);
     }
 
     /**
@@ -157,7 +157,7 @@ final class DatabaseTest extends TestCase
         $records = $db->get([], []);
         $records = TestInfrastructure::xformDatabaseResultToRowList(self::COMPARE_COLS, $records, false);
         $records = TestInfrastructure::sortRowList($records);
-        $this->assertEquals($records, TestInfrastructure::sortRowList(self::$rows));
+        $this->assertSame($records, TestInfrastructure::sortRowList(self::$rows));
 
         // selection of columns
         $records = $db->get([], ['name', 'firstname', 'email']);
@@ -167,7 +167,7 @@ final class DatabaseTest extends TestCase
         $expRows = TestInfrastructure::arrayColumns(self::COMPARE_COLS, ['name', 'firstname', 'email'], self::$rows);
         $expRows = TestInfrastructure::sortRowList($expRows);
 
-        $this->assertEquals($expRows, $records);
+        $this->assertSame($expRows, $records);
     }
 
     /**
@@ -196,7 +196,7 @@ final class DatabaseTest extends TestCase
         $this->assertCount(1, $expCuids);
         $records = TestInfrastructure::xformDatabaseResultToRowList(self::COMPARE_COLS, [$row], false);
         $expRows = self::selectRows($expCuids);
-        $this->assertEquals($expRows, $records);
+        $this->assertSame($expRows, $records);
     }
 
     /**
@@ -250,7 +250,7 @@ final class DatabaseTest extends TestCase
         $records = TestInfrastructure::sortRowList($records);
 
         $expRows = self::selectRows(["2", "3"]);
-        $this->assertEquals($expRows, $records);
+        $this->assertSame($expRows, $records);
     }
 
     /**
@@ -279,7 +279,7 @@ final class DatabaseTest extends TestCase
         $records = TestInfrastructure::sortRowList($records);
 
         $expRows = self::selectRows(["2"]);
-        $this->assertEquals($expRows, $records);
+        $this->assertSame($expRows, $records);
     }
 
     /**
@@ -414,7 +414,7 @@ final class DatabaseTest extends TestCase
         $recsInsideExp = array_merge($recsOrig, [$newid]);
         sort($recsInsideExp);
 
-        TestCase::assertEquals(
+        TestCase::assertSame(
             $recsInsideExp,
             $recsInside,
             "Rows inside transaction do not contain original plus new inserted row"
@@ -424,7 +424,7 @@ final class DatabaseTest extends TestCase
         /** @var list<string> */
         $recsAfter = array_column($db->get([], ['id'], 'contacts'), 'id');
         sort($recsAfter);
-        TestCase::assertEquals($recsOrig, $recsAfter, "Rows after rollback differ from original ones");
+        TestCase::assertSame($recsOrig, $recsAfter, "Rows after rollback differ from original ones");
     }
 
     /**
