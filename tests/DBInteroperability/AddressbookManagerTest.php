@@ -1197,10 +1197,10 @@ final class AddressbookManagerTest extends TestCase
                 [ 'carddav_accounts', 2 ], // empty account
                 [
                     'active' => '1', 'refresh_time' => '160', 'use_categories' => '1', 'readonly' => '1',
-                    'require_always_email' => '0'
+                    'require_always_email' => '0', 'template' => '1'
                 ],
                 [ 'a0', 'New 1' ],
-                15, // expected flags for new addressbooks
+                15, // expected flags for new addressbooks, template must not be set
             ],
             '2 new, 3 existing, 1 existing but non-discovered' => [
                 5,
