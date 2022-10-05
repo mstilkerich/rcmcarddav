@@ -635,6 +635,7 @@ class AddressbookManager
         $accountCfg = $this->getAccountConfig($accountId);
         $abookTmpl['account_id'] = $accountId;
         $abookTmpl['discovered'] = '1';
+        $abookTmpl['template'] = '0';
         $abookTmpl['sync_token'] = '';
         $abookNameTmpl = $abookTmpl['name'] ?? '%N';
         foreach ($newbooks as $abook) {
