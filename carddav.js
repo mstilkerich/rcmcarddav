@@ -145,7 +145,7 @@ rcube_webmail.prototype.carddav_UpdateForm = function (formData) {
     const fieldValue = formData[fieldKey][1]
 
     const inputSelectorByName = 'input[name="' + fieldKey + '"]'
-    let node, nodeUpdate
+    let node, nodeUpdate, listAccSel
 
     switch (fieldType) {
       case 'text':
@@ -166,11 +166,16 @@ rcube_webmail.prototype.carddav_UpdateForm = function (formData) {
       // this is a special case to update an element given by a CSS selector in the parent document, i.e. update the
       // name in the addressbook list.
       case 'parent':
-        node = $('#rcmli' + fieldKey + ' > a', win.parent.document)
+        listAccSel = '#rcmli' + fieldKey
+        node = $(listAccSel + ' > a', win.parent.document)
         node.children('span').text(fieldValue)
         nodeUpdate = { html: node.prop('outerHTML') }
 
         win.parent.window.rcmail.addressbooks_list.update(fieldKey, nodeUpdate, true)
+        // fixup the checkboxes (note: this is elastic-specific)
+        if (typeof UI === 'object' && typeof UI.pretty_checkbox === 'function') {
+          $(listAccSel + ' input[type="checkbox"]', parent.document).each(function () { UI.pretty_checkbox(this) })
+        }
         break
     }
   }
