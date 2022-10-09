@@ -86,6 +86,7 @@ abstract class AbstractDatabase
                 'discovered'           => 2,
                 'readonly'             => 3,
                 'require_always_email' => 4,
+                'template'             => 5, // pseudo-addressbook that stores initial settings for new addressbooks
             ]
         ],
     ];

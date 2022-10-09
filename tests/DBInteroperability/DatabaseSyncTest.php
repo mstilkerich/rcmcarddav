@@ -123,7 +123,7 @@ final class DatabaseSyncTest extends TestCase
             // it would also be ok if both failed with no changes to the DB or both succeeded with a result matching
             // serial execution of the two transactions, but these are not expected by any of the three DBs
             $this->assertTrue($parWins xor $cldWins, "Exactly one transaction must succeed ($parWins/$cldWins, $fn)");
-            $this->assertEquals("UNITTEST-SYNC-" . ($parWins ? "PAR" : "CLD"), $fn, "Winner's update not visible");
+            $this->assertSame("UNITTEST-SYNC-" . ($parWins ? "PAR" : "CLD"), $fn, "Winner's update not visible");
         }
     }
 

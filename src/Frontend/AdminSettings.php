@@ -34,6 +34,12 @@ use MStilkerich\CardDavClient\AddressbookCollection;
 /**
  * Represents the administrative settings of the plugin.
  *
+ * @psalm-import-type Int1 from AddressbookManager
+ * @psalm-import-type AbookCfg from AddressbookManager
+ * @psalm-import-type AccountCfg from AddressbookManager
+ * @psalm-import-type AccountSettings from AddressbookManager
+ * @psalm-import-type AbookSettings from AddressbookManager
+ *
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
  * @psalm-type ConfigurablePresetAttr = 'accountname'|'discovery_url'|'username'|'password'|'rediscover_time'|
  *                                      'active'|'refresh_time'|'use_categories'|'readonly'|'require_always_email'|
@@ -44,12 +50,12 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  * @psalm-type PresetExtraAbook = array{
  *     url: string,
  *     name: string,
- *     active: bool,
- *     readonly: bool,
- *     refresh_time: int,
- *     use_categories: bool,
+ *     active: Int1,
+ *     readonly: Int1,
+ *     refresh_time: numeric-string,
+ *     use_categories: Int1,
  *     fixed: list<ConfigurablePresetAttr>,
- *     require_always_email: bool,
+ *     require_always_email: Int1,
  * }
  *
  * @psalm-type Preset = array{
@@ -57,24 +63,19 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *     username: string,
  *     password: string,
  *     discovery_url: ?string,
- *     rediscover_time: int,
- *     hide: bool,
+ *     rediscover_time: numeric-string,
+ *     hide: Int1,
  *     name: string,
- *     active: bool,
- *     readonly: bool,
- *     refresh_time: int,
- *     use_categories: bool,
+ *     active: Int1,
+ *     readonly: Int1,
+ *     refresh_time: numeric-string,
+ *     use_categories: Int1,
  *     fixed: list<ConfigurablePresetAttr>,
- *     require_always_email: bool,
+ *     require_always_email: Int1,
  *     extra_addressbooks?: array<string, PresetExtraAbook>,
  * }
  *
  * @psalm-type SettingSpecification=array{'url'|'timestr'|'string'|'bool'|'string[]'|'skip', bool}
- *
- * @psalm-import-type AbookCfg from AddressbookManager
- * @psalm-import-type AccountCfg from AddressbookManager
- * @psalm-import-type AccountSettings from AddressbookManager
- * @psalm-import-type AbookSettings from AddressbookManager
  */
 class AdminSettings
 {
@@ -93,16 +94,16 @@ class AdminSettings
         'username'           => '',
         'password'           => '',
         'discovery_url'      => null,
-        'rediscover_time'    => 86400,
+        'rediscover_time'    => '86400',
 
-        'hide'               => false,
+        'hide'               => '0',
         'name'               => '%N',
-        'active'             => true,
-        'readonly'           => false,
-        'refresh_time'       => 3600,
-        'use_categories'     => true,
+        'active'             => '1',
+        'readonly'           => '0',
+        'refresh_time'       => '3600',
+        'use_categories'     => '1',
         'fixed'              => [],
-        'require_always_email' => false,
+        'require_always_email' => '0',
     ];
 
     /**
@@ -323,7 +324,7 @@ class AdminSettings
 
                         // Update the extra addressbooks with the current set of the admin
                         $existingExtraAbooksByUrl = array_column(
-                            $abMgr->getAddressbookConfigsForAccount($accountId, false),
+                            $abMgr->getAddressbookConfigsForAccount($accountId, AddressbookManager::ABF_EXTRA),
                             'id',
                             'url'
                         );
@@ -373,6 +374,8 @@ class AdminSettings
     /**
      * Updates the fixed fields of account and addressbooks derived from a preset with the current admin settings.
      *
+     * This is done for all addressbooks of the account, including the template addressbook.
+     *
      * Only fixed fields are updated, as non-fixed fields may have been changed by the user.
      *
      * @param AddressbookManager $abMgr The addressbook manager.
@@ -382,7 +385,7 @@ class AdminSettings
         $accountCfg = $abMgr->getAccountConfig($accountId);
         $this->updatePresetAccount($accountCfg, $presetName, $abMgr);
 
-        $abookCfgs = $abMgr->getAddressbookConfigsForAccount($accountId);
+        $abookCfgs = $abMgr->getAddressbookConfigsForAccount($accountId, AddressbookManager::ABF_ALL);
         foreach ($abookCfgs as $abookCfg) {
             $this->updatePresetAddressbook($accountCfg, $abookCfg, $presetName, $abMgr);
         }
@@ -437,7 +440,8 @@ class AdminSettings
         $pa = [];
         foreach ($preset['fixed'] as $k) {
             if (isset($preset[$k]) && isset($abookCfg[$k])) {
-                if ($k === 'name') {
+                // no expansion of name template string for the template addressbook
+                if (empty($abookCfg['template']) && $k === 'name') {
                     $abook = $abMgr->getAddressbook($abookCfg['id']);
                     $preset['name'] = $abMgr->replacePlaceholdersAbookName(
                         $preset['name'],
@@ -567,7 +571,7 @@ class AdminSettings
                     case 'url':
                         if (is_string($preset[$attr])) {
                             if ($type == 'timestr') {
-                                $result[$attr] = Utils::parseTimeParameter($preset[$attr]);
+                                $result[$attr] = (string) Utils::parseTimeParameter($preset[$attr]);
                             } elseif ($type == 'url') {
                                 $result[$attr] = Utils::replacePlaceholdersUrl($preset[$attr]);
                             } else {
@@ -579,7 +583,7 @@ class AdminSettings
                         break;
 
                     case 'bool':
-                        $result[$attr] = !empty($preset[$attr]);
+                        $result[$attr] = empty($preset[$attr]) ? '0' : '1';
                         break;
 
                     case 'string[]':
@@ -689,6 +693,48 @@ class AdminSettings
         }
 
         return $ret;
+    }
+
+    /**
+     * Provides the addressbook template for new addressbooks of an account, incorporating fixed settings of presets.
+     *
+     * This function can be used for both user-defined and preset accounts.
+     *
+     * For a user-defined account, it will simply provide the addressbook template of that account, if available, or
+     * otherwise an empty array.
+     *
+     * For a preset account, it will provide the preset settings unless a template addressbook is also available for the
+     * account. In the latter case, it will adapt the template addressbook to overwrite all fixed fields with the
+     * settings from the preset.
+     *
+     * @param AddressbookManager $abMgr
+     * @param string $accountId ID of the account for that the addressbook template shall be provided
+     * @return AbookSettings The initial addressbook settings
+     */
+    public function getAddressbookTemplate(AddressbookManager $abMgr, string $accountId): array
+    {
+        $accountCfg = $abMgr->getAccountConfig($accountId);
+        $abookTmpl = $abMgr->getTemplateAddressbookForAccount($accountId);
+
+        $presetName = $accountCfg['presetname'];
+        if ($presetName !== null) {
+            $preset = $this->getPreset($presetName);
+            if ($abookTmpl === null) {
+                $abookTmpl = $preset;
+            } else {
+                // take the fixed attributes from the preset
+                foreach (array_keys($abookTmpl) as $attr) {
+                    if (in_array($attr, $preset['fixed'])) {
+                        if (isset($preset[$attr])) {
+                            $abookTmpl[$attr] = $preset[$attr];
+                        }
+                    }
+                }
+                /** @psalm-var AbookSettings $abookTmpl */
+            }
+        }
+
+        return $abookTmpl ?? [];
     }
 }
 

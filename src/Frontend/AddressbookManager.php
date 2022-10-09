@@ -57,7 +57,8 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  *     use_categories: Int1,
  *     discovered: Int1,
  *     readonly: Int1,
- *     require_always_email: Int1
+ *     require_always_email: Int1,
+ *     template: Int1
  * }
  *
  * The data types AccountSettings / AbookSettings describe the attributes of an account / addressbook row in the
@@ -72,8 +73,8 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  *     username?: string,
  *     password?: string,
  *     discovery_url?: ?string,
- *     rediscover_time?: int | numeric-string,
- *     last_discovered?: int | numeric-string,
+ *     rediscover_time?: numeric-string,
+ *     last_discovered?: numeric-string,
  *     presetname?: ?string
  * }
  *
@@ -81,18 +82,53 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  *     account_id?: string,
  *     name?: string,
  *     url?: string,
- *     last_updated?: int | numeric-string,
- *     refresh_time?: int | numeric-string,
+ *     last_updated?: numeric-string,
+ *     refresh_time?: numeric-string,
  *     sync_token?: string,
- *     active?: Int1 | bool,
- *     use_categories?: Int1 | bool,
- *     discovered?: Int1 | bool,
- *     readonly?: Int1 | bool,
- *     require_always_email?: Int1 | bool
+ *     active?: Int1,
+ *     use_categories?: Int1,
+ *     discovered?: Int1,
+ *     readonly?: Int1,
+ *     require_always_email?: Int1,
+ *     template?: Int1
  * }
+ *
+ * Type for an addressbook filter on the addressbook flags mask, expvalue
+ *
+ * @psalm-type AbookFilter = array{int, int}
  */
 class AddressbookManager
 {
+    /**
+     * @var AbookFilter Filter yields all addressbooks, including templates.
+     */
+    public const ABF_ALL = [ 0, 0 ];
+
+    /**
+     * @var AbookFilter Filter yields all addressbooks, templates excluded.
+     */
+    public const ABF_REGULAR = [ 0x20, 0x00 ];
+
+    /**
+     * @var AbookFilter Filter yields all active addressbooks, templates excluded.
+     */
+    public const ABF_ACTIVE = [ 0x21, 0x01 ];
+
+    /**
+     * @var AbookFilter Filter yields all discovered addressbooks, templates excluded.
+     */
+    public const ABF_DISCOVERED = [ 0x24, 0x04 ];
+
+    /**
+     * @var AbookFilter Filter yields all non-discovered/extra addressbooks, templates excluded.
+     */
+    public const ABF_EXTRA = [ 0x24, 0x00 ];
+
+    /**
+     * @var AbookFilter Filter yields the template addressbook.
+     */
+    public const ABF_TEMPLATE = [ 0x20, 0x20 ];
+
     /**
      * @var array<string,SettingSpecification>
      *      List of user-/admin-configurable settings for an account. Note: The array must contain all fields of the
@@ -130,6 +166,7 @@ class AddressbookManager
         'discovered'     => [ false, false ],
         'readonly'       => [ false, true ],
         'require_always_email' => [false, true],
+        'template'       => [false, false],
     ];
 
     /** @var ?array<string, AccountCfg> $accountsDb
@@ -263,7 +300,7 @@ class AddressbookManager
             // getAccountConfig() throws an exception if the ID is invalid / no account of the current user
             $this->getAccountConfig($accountId);
 
-            $abookIds = array_column($this->getAddressbookConfigsForAccount($accountId), 'id');
+            $abookIds = array_column($this->getAddressbookConfigsForAccount($accountId, self::ABF_ALL), 'id');
 
             // we explicitly delete all data belonging to the account, since
             // cascaded deletes are not supported by all database backends
@@ -305,11 +342,11 @@ class AddressbookManager
      * Returns the IDs of all the user's addressbooks, optionally filtered.
      *
      * @psalm-assert !null $this->abooksDb
-     * @param bool $activeOnly If true, only the active addressbooks of the user are returned.
+     * @param AbookFilter $filter
      * @param bool $presetsOnly If true, only the addressbooks created from an admin preset are returned.
      * @return list<string>
      */
-    public function getAddressbookIds(bool $activeOnly = true, bool $presetsOnly = false): array
+    public function getAddressbookIds(array $filter = self::ABF_ACTIVE, bool $presetsOnly = false): array
     {
         $db = Config::inst()->db();
 
@@ -336,11 +373,10 @@ class AddressbookManager
             });
         }
 
-        if ($activeOnly) {
-            $result = array_filter($result, function (array $v): bool {
-                return $v["active"] == "1";
-            });
-        }
+        // filter out template addressbooks
+        $result = array_filter($result, function (array $v) use ($filter): bool {
+            return (($v["flags"] & $filter[0]) === $filter[1]);
+        });
 
         return array_column($result, 'id');
     }
@@ -355,7 +391,7 @@ class AddressbookManager
     public function getAddressbookConfig(string $abookId): array
     {
         // make sure the cache is loaded
-        $this->getAddressbookIds(false);
+        $this->getAddressbookIds();
 
         // check that this addressbook ID actually refers to one of the user's addressbooks
         if (isset($this->abooksDb[$abookId])) {
@@ -369,22 +405,22 @@ class AddressbookManager
      * Returns the addressbooks for the given account.
      *
      * @param string $accountId
-     * @param ?bool  $discoveredType If set, only return discovered (true) / non-discovered (false) addressbooks
+     * @param AbookFilter $filter
      * @return array<string, AbookCfg> The addressbook configs, indexed by addressbook id.
      */
-    public function getAddressbookConfigsForAccount(string $accountId, ?bool $discoveredType = null): array
+    public function getAddressbookConfigsForAccount(string $accountId, array $filter = self::ABF_REGULAR): array
     {
         // make sure the given account is an account of this user - otherwise, an exception is thrown
         $this->getAccountConfig($accountId);
 
         // make sure the cache is filled
-        $this->getAddressbookIds(false);
+        $this->getAddressbookIds();
 
         return array_filter(
             $this->abooksDb,
-            function (array $v) use ($accountId, $discoveredType): bool {
+            function (array $v) use ($accountId, $filter): bool {
                 return $v["account_id"] == $accountId &&
-                    (is_null($discoveredType) || $v["discovered"] == $discoveredType) ;
+                    (($v["flags"] & $filter[0]) === $filter[1]) ;
             }
         );
     }
@@ -407,6 +443,18 @@ class AddressbookManager
         $config['password'] = Utils::replacePlaceholdersPassword($account["password"]);
 
         return new Addressbook($abookId, $config);
+    }
+
+
+    /**
+     * Gets the template addressbook configuration for an account, if available.
+     *
+     * @return ?AbookCfg The template addressbook config for the account, null if none exists.
+     */
+    public function getTemplateAddressbookForAccount(string $accountId): ?array
+    {
+        $tmplAbooks = $this->getAddressbookConfigsForAccount($accountId, self::ABF_TEMPLATE);
+        return empty($tmplAbooks) ? null : reset($tmplAbooks);
     }
 
     /**
@@ -479,7 +527,7 @@ class AddressbookManager
                 $db->startTransaction(false);
             }
 
-            $userAbookIds = $this->getAddressbookIds(false);
+            $userAbookIds = $this->getAddressbookIds(self::ABF_ALL);
             if (count(array_diff($abookIds, $userAbookIds)) > 0) {
                 throw new Exception("request with IDs not referring to addressbooks of current user");
             }
@@ -542,7 +590,7 @@ class AddressbookManager
     {
         $infra = Config::inst();
 
-        if (!isset($accountCfg['discovery_url'])) {
+        if ((!isset($accountCfg['discovery_url'])) || strlen($accountCfg['discovery_url']) === 0) {
             throw new Exception('Cannot discover addressbooks for an account lacking a discovery URI');
         }
 
@@ -557,11 +605,15 @@ class AddressbookManager
 
         if (isset($accountCfg['id'])) {
             $accountId = $accountCfg['id'];
-            $this->updateAccount($accountId, [ 'last_discovered' => time() ]);
+            $this->updateAccount($accountId, [ 'last_discovered' => (string) time() ]);
 
             // get locally existing addressbooks for this account
             $newbooks = []; // AddressbookCollection[] with new addressbooks at the server side
-            $dbbooks = array_column($this->getAddressbookConfigsForAccount($accountId, true), 'id', 'url');
+            $dbbooks = array_column(
+                $this->getAddressbookConfigsForAccount($accountId, self::ABF_DISCOVERED),
+                'id',
+                'url'
+            );
             foreach ($abooks as $abook) {
                 $abookUri = $abook->getUri();
                 if (isset($dbbooks[$abookUri])) {
@@ -574,7 +626,7 @@ class AddressbookManager
             // delete all addressbooks we cannot find on the server anymore
             $this->deleteAddressbooks(array_values($dbbooks));
         } else {
-            $accountCfg['last_discovered'] = time();
+            $accountCfg['last_discovered'] = (string) time();
             $accountId = $this->insertAccount($accountCfg);
             $newbooks = $abooks;
         }
@@ -583,6 +635,7 @@ class AddressbookManager
         $accountCfg = $this->getAccountConfig($accountId);
         $abookTmpl['account_id'] = $accountId;
         $abookTmpl['discovered'] = '1';
+        $abookTmpl['template'] = '0';
         $abookTmpl['sync_token'] = '';
         $abookNameTmpl = $abookTmpl['name'] ?? '%N';
         foreach ($newbooks as $abook) {
@@ -605,7 +658,7 @@ class AddressbookManager
         // To avoid unnecessary work followed by roll back with other time-triggered refreshes, we temporarily
         // set the last_updated time such that the next due time will be five minutes from now
         $ts_delay = time() + 300 - $abook->getRefreshTime();
-        $this->updateAddressbook($abook->getId(), ["last_updated" => $ts_delay]);
+        $this->updateAddressbook($abook->getId(), ["last_updated" => (string) $ts_delay]);
         return $abook->resync();
     }
 

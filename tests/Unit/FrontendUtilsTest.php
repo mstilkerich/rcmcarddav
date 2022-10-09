@@ -79,7 +79,7 @@ final class FrontendUtilsTest extends TestCase
     public function testTimeParameterParsedCorrectly(string $timestr, ?int $seconds): void
     {
         if (isset($seconds)) {
-            $this->assertEquals($seconds, Utils::parseTimeParameter($timestr));
+            $this->assertSame($seconds, Utils::parseTimeParameter($timestr));
         } else {
             $this->expectException(\Exception::class);
             $this->expectExceptionMessage("Time string $timestr could not be parsed");

@@ -42,10 +42,11 @@ use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
  * @psalm-import-type TestDataKeyRef from TestData
  * @psalm-import-type TestDataRowWithKeyRef from TestData
  * @psalm-import-type AbookCfg from AddressbookManager
+ * @psalm-import-type AbookFilter from AddressbookManager
  * @psalm-import-type Int1 from AddressbookManager
  *
  * @psalm-type AddressbookSettings = array{
- *   refresh_time?: int,
+ *   refresh_time?: numeric-string,
  *   active?: Int1,
  *   use_categories?: Int1,
  *   readonly?: Int1,
@@ -82,12 +83,14 @@ final class AddressbookManagerTest extends TestCase
     ];
 
     /** @var list<string> addressbook application-level fields stored in flags (starting with bit0 ascending) */
-    private const ABOOK_FLAGS = ['active', 'use_categories', 'discovered', 'readonly', 'require_always_email'];
+    private const ABOOK_FLAGS = [
+        'active', 'use_categories', 'discovered', 'readonly', 'require_always_email', 'template'
+    ];
 
     /** @var list<string> */
     private const ABOOKCFG_FIELDS = [
         "name", "url", "last_updated", "refresh_time", "sync_token", "account_id", "flags",
-        "active", "use_categories", "discovered", "readonly", "require_always_email" // app-level flags
+        "active", "use_categories", "discovered", "readonly", "require_always_email", "template" // app-level flags
     ];
 
     /** @var list<list<?string>> Initial test addressbooks */
@@ -103,6 +106,7 @@ final class AddressbookManagerTest extends TestCase
         [ "PAX",    "https://contacts.example.com/p/glb",  '123', '100', 'ax@9',  ["carddav_accounts", 1], '19' ],
         [ "PAX2",   "https://contacts.example.com/p/glb2", '123', '100', 'ax@9',  ["carddav_accounts", 1], '27' ],
         [ "CA4",    "https://contacts.example.com/a4",     '123', '100', 'a3@6',  ["carddav_accounts", 0], '1' ],
+        [ "CATMPL", "",                                    '0',   '300', '',      ["carddav_accounts", 0], '33' ],
     ];
 
     /** @var array<string, Int1> Default settings for the addressbook flags */
@@ -112,6 +116,7 @@ final class AddressbookManagerTest extends TestCase
         'discovered' => '1',
         'readonly' => '0',
         'require_always_email' => '0',
+        'template' => '0',
     ];
 
     public static function setUpBeforeClass(): void
@@ -188,28 +193,29 @@ final class AddressbookManagerTest extends TestCase
     }
 
     /**
-     * @return array<string, array{int, bool, bool, list<int>}>
+     * @return array<string, array{int, AbookFilter, bool, list<int>}>
      */
     public function userIdProvider(): array
     {
         return [
-            'All addressbooks of user' => [ 0, false, false,  [ 0, 1, 2, 3, 4, 7, 8, 9, 10 ] ],
-            'Active addressbooks of user' => [ 0, true, false,  [ 0, 2, 4, 7, 8, 9, 10 ] ],
-            'Preset addressbooks of user' => [ 0, false, true,  [ 2, 3, 4, 8, 9 ] ],
-            'Active preset addressbooks of user' => [ 0, true, true,  [ 2, 4, 8, 9 ] ],
-            'User without addressbooks' => [ 2, false, false,  [ ] ],
+            'All addressbooks of user' => [0, AddressbookManager::ABF_REGULAR, false,  [ 0, 1, 2, 3, 4, 7, 8, 9, 10 ]],
+            'Active addressbooks of user' => [0, AddressbookManager::ABF_ACTIVE, false,  [ 0, 2, 4, 7, 8, 9, 10 ]],
+            'Preset addressbooks of user' => [0, AddressbookManager::ABF_REGULAR, true,  [ 2, 3, 4, 8, 9 ]],
+            'Active preset addressbooks of user' => [0, AddressbookManager::ABF_ACTIVE, true,  [ 2, 4, 8, 9 ]],
+            'User without addressbooks'   => [ 2, AddressbookManager::ABF_REGULAR, false,  [ ] ],
         ];
     }
 
     /**
      * Tests that the correct addressbook IDs for a user can be retrieved.
+     * @param AbookFilter $abFilter
      * @param list<int> $expAbookIdxs
      *
      * @dataProvider userIdProvider
      */
     public function testAddressbookIdsCanBeCorrectlyRetrieved(
         int $userIdx,
-        bool $activeOnly,
+        array $abFilter,
         bool $presetOnly,
         array $expAbookIdxs
     ): void {
@@ -217,7 +223,7 @@ final class AddressbookManagerTest extends TestCase
         $_SESSION['user_id'] = self::$testData->getRowId('users', $userIdx, 'builtin');
 
         $abMgr = new AddressbookManager();
-        $abookIds = $abMgr->getAddressbookIds($activeOnly, $presetOnly);
+        $abookIds = $abMgr->getAddressbookIds($abFilter, $presetOnly);
         sort($abookIds);
 
         $abookIdsExp = [];
@@ -324,6 +330,7 @@ final class AddressbookManagerTest extends TestCase
         $testDataRow[] = ($flags &  4) ? '1' : '0'; // discovered
         $testDataRow[] = ($flags &  8) ? '1' : '0'; // readonly
         $testDataRow[] = ($flags & 16) ? '1' : '0'; // require_always_email
+        $testDataRow[] = ($flags & 32) ? '1' : '0'; // template
 
         return $testDataRow;
     }
@@ -421,7 +428,11 @@ final class AddressbookManagerTest extends TestCase
         $abMgr = new AddressbookManager();
 
         foreach ([null, false, true] as $discoveryType) {
-            $cfgs = $abMgr->getAddressbookConfigsForAccount($accountId, $discoveryType);
+            $abFilter = is_null($discoveryType) ?
+                AddressbookManager::ABF_REGULAR :
+                ($discoveryType ? AddressbookManager::ABF_DISCOVERED : AddressbookManager::ABF_EXTRA);
+
+            $cfgs = $abMgr->getAddressbookConfigsForAccount($accountId, $abFilter);
 
             $accountIdRefIdx = array_search('account_id', self::ABOOK_COLS);
             $flagsIdx = array_search('flags', self::ABOOK_COLS);
@@ -431,21 +442,30 @@ final class AddressbookManagerTest extends TestCase
             $testDataAbooksById = [];
             foreach (self::ABOOK_ROWS as $idx => $row) {
                 $this->assertIsArray($row[$accountIdRefIdx]);
-                if ($row[$accountIdRefIdx][1] == $accountIdx) {
-                    // only collect the addressbooks matching the current discovery type, null means all
-                    if (is_null($discoveryType) || (intval($row[$flagsIdx]) & 4) == ($discoveryType ? 4 : 0)) {
-                        // resolve the account ID foreign key
-                        $row[$accountIdRefIdx] = $accountId;
 
-                        // replace flags with the app-level flags
-                        $row = $this->transformAbookFlagsTdRow($row);
-                        $row = array_combine(self::ABOOKCFG_FIELDS, $row);
+                // skip addressbooks of different account
+                if ($row[$accountIdRefIdx][1] !== $accountIdx) {
+                    continue;
+                }
 
-                        // insert the id field
-                        $abookId = self::$testData->getRowId('carddav_addressbooks', $idx);
-                        $row['id'] = $abookId;
-                        $testDataAbooksById[$abookId] = $row;
-                    }
+                // skip template addressbooks
+                if ((intval($row[$flagsIdx]) & 32) !== 0) {
+                    continue;
+                }
+
+                // only collect the addressbooks matching the current discovery type, null means all
+                if (is_null($discoveryType) || (intval($row[$flagsIdx]) & 4) == ($discoveryType ? 4 : 0)) {
+                    // resolve the account ID foreign key
+                    $row[$accountIdRefIdx] = $accountId;
+
+                    // replace flags with the app-level flags
+                    $row = $this->transformAbookFlagsTdRow($row);
+                    $row = array_combine(self::ABOOKCFG_FIELDS, $row);
+
+                    // insert the id field
+                    $abookId = self::$testData->getRowId('carddav_addressbooks', $idx);
+                    $row['id'] = $abookId;
+                    $testDataAbooksById[$abookId] = $row;
                 }
             }
 
@@ -818,13 +838,13 @@ final class AddressbookManagerTest extends TestCase
         }
 
         $abMgr = new AddressbookManager();
-        $abookIdsBefore = $abMgr->getAddressbookIds(false);
+        $abookIdsBefore = $abMgr->getAddressbookIds(AddressbookManager::ABF_REGULAR);
 
         // insert the new addressbook
         /** @psalm-suppress InvalidArgument For test purposes, we may feed invalid data */
         $abookId = $abMgr->insertAddressbook($abookSettings);
         $this->assertNull($expExceptionMsg, "Expected exception was not thrown");
-        $abookIdsAfter = $abMgr->getAddressbookIds(false);
+        $abookIdsAfter = $abMgr->getAddressbookIds(AddressbookManager::ABF_REGULAR);
 
         // check that new addressbooks is reported with getAddressbookIds
         $this->assertCount(
@@ -1087,7 +1107,7 @@ final class AddressbookManagerTest extends TestCase
         }
 
         $abMgr = new AddressbookManager();
-        $abookIdsBefore = $abMgr->getAddressbookIds(false);
+        $abookIdsBefore = $abMgr->getAddressbookIds(AddressbookManager::ABF_REGULAR);
 
         // delete the addressbooks
         $abMgr->deleteAddressbooks($abookIds, false, $cacheOnly);
@@ -1107,7 +1127,7 @@ final class AddressbookManagerTest extends TestCase
         }
 
         // check that addressbook IDs returned now lack the deleted addressbooks' IDs
-        $abookIdsAfter = $abMgr->getAddressbookIds(false);
+        $abookIdsAfter = $abMgr->getAddressbookIds(AddressbookManager::ABF_REGULAR);
         if ($cacheOnly) {
             $this->assertEqualsCanonicalizing($abookIdsBefore, $abookIdsAfter);
         } else {
@@ -1176,17 +1196,17 @@ final class AddressbookManagerTest extends TestCase
                 2,
                 [ 'carddav_accounts', 2 ], // empty account
                 [
-                    'active' => '1', 'refresh_time' => 160, 'use_categories' => '1', 'readonly' => '1',
-                    'require_always_email' => '0'
+                    'active' => '1', 'refresh_time' => '160', 'use_categories' => '1', 'readonly' => '1',
+                    'require_always_email' => '0', 'template' => '1'
                 ],
                 [ 'a0', 'New 1' ],
-                15, // expected flags for new addressbooks
+                15, // expected flags for new addressbooks, template must not be set
             ],
             '2 new, 3 existing, 1 existing but non-discovered' => [
                 5,
                 [ 'carddav_accounts', 0 ],
                 [
-                    'active' => '0', 'refresh_time' => 60, 'use_categories' => '0', 'readonly' => '0',
+                    'active' => '0', 'refresh_time' => '60', 'use_categories' => '0', 'readonly' => '0',
                     'require_always_email' => '1', 'name' => '%c - %a (%D)'
                 ],
                 [
@@ -1216,7 +1236,7 @@ final class AddressbookManagerTest extends TestCase
             'new account with 1 addressbook' => [
                 1,
                 null, // new account
-                [ 'refresh_time' => 60 ],
+                [ 'refresh_time' => '60' ],
                 [ 'a0' ],
                 5,
             ],
@@ -1297,7 +1317,12 @@ final class AddressbookManagerTest extends TestCase
         // check DB records
         /** @var array<string, FullAbookRow> */
         $abooks = array_column(
-            $db->get(['account_id' => $accountIdRet], [], 'addressbooks', ['order' => ['name']]),
+            array_filter(
+                $db->get(['account_id' => $accountIdRet], [], 'addressbooks', ['order' => ['name']]),
+                function (array $v): bool {
+                    return ((intval($v["flags"]) & 32) === 0);
+                }
+            ),
             null,
             'name'
         );
@@ -1313,7 +1338,7 @@ final class AddressbookManagerTest extends TestCase
             }
 
             $this->assertArrayHasKey($abookName, $abooks);
-            $this->assertSame((string)($abookTmpl['refresh_time'] ?? '3600'), $abooks[$abookName]['refresh_time']);
+            $this->assertSame($abookTmpl['refresh_time'] ?? '3600', $abooks[$abookName]['refresh_time']);
             $this->assertSame((string) $expNewAbookFlags, $abooks[$abookName]['flags']);
             $this->assertSame('', $abooks[$abookName]['sync_token']);
             $this->assertSame('0', $abooks[$abookName]['last_updated']);

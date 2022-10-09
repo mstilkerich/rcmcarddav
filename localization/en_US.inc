@@ -63,6 +63,7 @@ $labels = Array(
 	'AbProps_rclbl' => 'Addressbook properties',
 	// basicinfo
 	'AbProps_abname_lbl' => "Name of the addressbook",
+	'AbProps_active_lbl' => "Activate new addressbooks",
 	'AbProps_url_lbl' => 'URL',
 	'AbProps_srvname_lbl' => 'Server-side name',
 	'AbProps_srvdesc_lbl' => 'Server-side description',

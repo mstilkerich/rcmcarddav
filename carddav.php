@@ -344,18 +344,13 @@ class carddav extends rcube_plugin implements RcmInterface
             $accountCfg = $abMgr->getAccountConfig($accountId);
 
             // if there is no discovery URL, we cannot perform discovery; this should only happen for presets
-            if ($accountCfg['discovery_url'] === null) {
+            if (strlen($accountCfg['discovery_url'] ?? '') === 0) {
                 continue;
             }
 
             if (($accountCfg['last_discovered'] + $accountCfg['rediscover_time']) < time()) {
-                $abookTmpl = [];
-                $presetName = $accountCfg['presetname'];
-                if ($presetName !== null) {
-                    $abookTmpl = $admPrefs->getPreset($presetName);
-                }
-
                 try {
+                    $abookTmpl = $admPrefs->getAddressbookTemplate($abMgr, $accountId);
                     $logger->info("Performing re-discovery for account $accountId");
                     $abMgr->discoverAddressbooks($accountCfg, $abookTmpl);
                 } catch (Exception $e) {

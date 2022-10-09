@@ -50,6 +50,7 @@ use MStilkerich\RCMCardDAV\Config;
  *   - datetime: a read-only date/time plain text shown in the form, non-interactive
  *   - timestr: a text box where the user is expected to enter a time interval in the form HH[:MM[:SS]]
  *   - radio: a selection from options offered as a list of radio buttons
+ *   - checkbox: a toggle for a setting that can be turned on or off
  *   - password: a text box where the user is expected to enter a password. Stored data will never be provided as form
  *               data.
  *
@@ -60,7 +61,7 @@ use MStilkerich\RCMCardDAV\Config;
  *   [3]: (optional) default value of the field
  *   [4]: (optional) for UI type radio, a list of key-label pairs for the options of the selection
  *
- * @psalm-type UiFieldType = 'text'|'plain'|'datetime'|'timestr'|'radio'|'password'
+ * @psalm-type UiFieldType = 'text'|'plain'|'datetime'|'timestr'|'radio'|'password'|'checkbox'
  * @psalm-type FieldSpec = array{0: string, 1: string, 2: UiFieldType, 3?: string, 4?: list<array{string,string}>}
  * @psalm-type FieldSetSpec = array{label: string, fields: list<FieldSpec>}
  * @psalm-type FormSpec = list<FieldSetSpec>
@@ -88,6 +89,7 @@ class UI
             'label' => 'AccAbProps_abookinitsettings_seclbl',
             'fields' => [
                 [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
+                [ 'AbProps_active_lbl', 'active', 'checkbox', '1' ],
                 [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
                 [
                     'AbProps_newgroupstype_lbl',
@@ -120,6 +122,24 @@ class UI
             'fields' => [
                 [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr' ],
                 [ 'AccProps_lastdiscovered_time_lbl', 'last_discovered', 'datetime' ],
+            ]
+        ],
+        [
+            'label' => 'AccAbProps_abookinitsettings_seclbl',
+            'fields' => [
+                [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
+                [ 'AbProps_active_lbl', 'active', 'checkbox', '1' ],
+                [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
+                [
+                    'AbProps_newgroupstype_lbl',
+                    'use_categories',
+                    'radio',
+                    '1',
+                    [
+                        [ '0', 'AbProps_grouptype_vcard_lbl' ],
+                        [ '1', 'AbProps_grouptype_categories_lbl' ],
+                    ]
+                ],
             ]
         ],
     ];
@@ -310,7 +330,11 @@ class UI
             }
         );
 
-        $content = html::a(['href' => '#'], rcube::Q($account["accountname"]));
+        // we wrap the link text in a span element to have the same structure as for the addressbook list items
+        $content = html::a(
+            ['href' => '#'],
+            html::span([], rcube::Q($account["accountname"]))
+        );
 
         $addressbookListItems = [];
         foreach (($account["addressbooks"] ?? []) as $abook) {
@@ -341,6 +365,11 @@ class UI
         $infra = Config::inst();
         $rc = $infra->rc();
 
+        // The link text contains a span element with the addressbook name and the checkbox for toggling the activation
+        // status of the addressbook. This is needed because the treelist widget can deal with a link element only on
+        // dynamic updates, and the activation checkboxes would vanish on reordering the list. We cannot put the span
+        // around the anchor element and the checkbox element because the stylesheets expect the anchor element as a
+        // direct child of the li element.
         $checkboxActive = new html_checkbox([
             'name'    => '_active[]',
             'title'   => $rc->locText('AbToggleActive_cb_tit'),
@@ -350,12 +379,14 @@ class UI
 
         $fixedAttributes = $this->getFixedSettings($presetName, $abook['url']);
 
-        $abookHtml = html::a(['href' => '#'], rcube::Q($abook["name"]));
-        $abookHtml .= $checkboxActive->show(
+        $linkText = html::span([], rcube::Q($abook["name"]));
+
+        $linkText .= $checkboxActive->show(
             $abook["active"] ? $abook['id'] : '',
             ['value' => $abook['id'], 'disabled' => in_array('active', $fixedAttributes)]
         );
-        return $abookHtml;
+
+        return html::a(['href' => '#'], $linkText);
     }
 
     /**
@@ -459,12 +490,22 @@ class UI
         if (isset($accountId)) {
             try {
                 $abMgr = $this->abMgr;
+                $admPrefs = $infra->admPrefs();
 
-                $abookIdsPrev = array_column($abMgr->getAddressbookConfigsForAccount($accountId, true), 'id', 'url');
+                $abookIdsPrev = array_column(
+                    $abMgr->getAddressbookConfigsForAccount($accountId, AddressbookManager::ABF_DISCOVERED),
+                    'id',
+                    'url'
+                );
 
                 $accountCfg = $abMgr->getAccountConfig($accountId);
-                $abMgr->discoverAddressbooks($accountCfg, []);
-                $abookIds = array_column($abMgr->getAddressbookConfigsForAccount($accountId, true), 'id', 'url');
+                $abookTmpl = $admPrefs->getAddressbookTemplate($abMgr, $accountId);
+                $abMgr->discoverAddressbooks($accountCfg, $abookTmpl);
+                $abookIds = array_column(
+                    $abMgr->getAddressbookConfigsForAccount($accountId, AddressbookManager::ABF_DISCOVERED),
+                    'id',
+                    'url'
+                );
 
                 $abooksNew = array_diff_key($abookIds, $abookIdsPrev);
                 $abooksRm  = array_diff_key($abookIdsPrev, $abookIds);
@@ -567,13 +608,12 @@ class UI
         try {
             $abMgr = $this->abMgr;
 
-            /** @psalm-var AccountSettings $newaccount */
-            $newaccount = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, []);
-            /** @psalm-var AbookSettings $abooksettings */
-            $abooksettings = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, []);
-            $accountId = $abMgr->discoverAddressbooks($newaccount, $abooksettings);
-            $account = $abMgr->getAccountConfig($accountId);
+            /** @psalm-var AccountSettings&AbookSettings $accAbookFormVals */
+            $accAbookFormVals = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, []);
+            $accountId = $abMgr->discoverAddressbooks($accAbookFormVals, $accAbookFormVals);
+            $this->setTemplateAddressbook($accountId, $accAbookFormVals);
 
+            $account = $abMgr->getAccountConfig($accountId);
             $newLi = $this->makeAccountListItem($account);
             $rc->clientCommand('carddav_InsertListElem', [[$accountId, $newLi]], ['acc', $accountId]);
             $rc->showMessage($rc->locText("AccAdd_msg_ok"), 'confirmation');
@@ -595,13 +635,16 @@ class UI
                 $abMgr = $this->abMgr;
                 $account = $abMgr->getAccountConfig($accountId);
                 $fixedAttributes = $this->getFixedSettings($account['presetname']);
-                /** @psalm-var AccountSettings $newset */
-                $newset = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, $fixedAttributes);
-                $abMgr->updateAccount($accountId, $newset);
+                /** @psalm-var AccountSettings&AbookSettings $accAbookFormVals */
+                $accAbookFormVals = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, $fixedAttributes);
+                $abMgr->updateAccount($accountId, $accAbookFormVals);
+                // update template addressbook
+                $this->setTemplateAddressbook($accountId, $accAbookFormVals);
 
                 // update account data and echo formatted field data to client
                 $account = $abMgr->getAccountConfig($accountId);
-                $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, $account);
+                $abookTmpl = $abMgr->getTemplateAddressbookForAccount($accountId);
+                $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, array_merge($account, $abookTmpl ?? []));
                 $formData["_acc$accountId"] = [ 'parent', $account["accountname"] ];
 
                 $rc->clientCommand('carddav_UpdateForm', $formData);
@@ -727,6 +770,11 @@ class UI
     }
 
     /**
+     * Provides the list of fixed attributes of a preset account, optionally for a specific addressbook.
+     *
+     * Extra addressbooks can override fixed attributes of the account. If the parameter $abookUrl is given, the fixed
+     * settings applicable for the addressbook with that URL are returned.
+     *
      * @return list<string> The list of fixed attributes
      */
     private function getFixedSettings(?string $presetName, ?string $abookUrl = null): array
@@ -771,6 +819,7 @@ class UI
 
             case 'text':
             case 'radio':
+            case 'checkbox':
                 return $fieldValue;
 
             case 'password':
@@ -822,6 +871,10 @@ class UI
                     );
                 }
                 return html::tag('ul', ['class' => 'proplist'], $ul);
+
+            case 'checkbox':
+                $checkbox = new html_checkbox(['name' => $fieldKey, 'value' => '1', 'disabled' => $fixed]);
+                return $checkbox->show(empty($fieldValue) ? '' : '1');
         }
 
         throw new Exception("Unknown UI element type $uiType for $fieldKey");
@@ -878,9 +931,17 @@ class UI
                 if ($accountId == "new") {
                     $out .= $this->makeSettingsForm(self::UI_FORM_NEW_ACCOUNT, [], [], $attrib);
                 } else {
-                    $account = $this->abMgr->getAccountConfig($accountId);
+                    $abMgr = $this->abMgr;
+                    $admPrefs = $infra->admPrefs();
+                    $account = $abMgr->getAccountConfig($accountId);
+                    $abook = $admPrefs->getAddressbookTemplate($abMgr, $accountId);
                     $fixedAttributes = $this->getFixedSettings($account['presetname']);
-                    $out .= $this->makeSettingsForm(self::UI_FORM_ACCOUNT, $account, $fixedAttributes, $attrib);
+                    $out .= $this->makeSettingsForm(
+                        self::UI_FORM_ACCOUNT,
+                        array_merge($account, $abook),
+                        $fixedAttributes,
+                        $attrib
+                    );
                 }
 
                 $out = $rc->requestForm($attrib, $out);
@@ -922,7 +983,11 @@ class UI
 
                 $fieldValue = $rc->inputValue($fieldKey, ($uiType == 'password'));
                 if (!isset($fieldValue)) {
-                    continue;
+                    if ($uiType === 'checkbox') {
+                        $fieldValue = '0';
+                    } else {
+                        continue;
+                    }
                 }
 
                 // some types require data conversion / validation
@@ -951,6 +1016,10 @@ class UI
                         }
                         break;
 
+                    case 'checkbox':
+                        $fieldValue = empty($fieldValue) ? '0' : '1';
+                        break;
+
                     case 'password':
                         // the password is not echoed back in a settings form. If the user did not enter a new password
                         // and just changed some other settings, make sure we do not overwrite the stored password with
@@ -967,6 +1036,56 @@ class UI
 
         /** @psalm-var AccountSettings|AbookSettings */
         return $result;
+    }
+
+    /**
+     * Creates or updates the template addressbook for an account.
+     *
+     * The template addressbook holds the initial addressbook settings that new addressbooks that are added to the
+     * account are assigned to.
+     *
+     * Creation is normally done when the user creates an account, but in case no template addressbook exists yet it can
+     * also happen when the user saves account settings. Update is done when a user saves the account settings and the
+     * template addressbook already exists.
+     *
+     * @param string $accountId Id of the account to set the template addressbook for
+     * @param AbookSettings $abookCfg Addressbook settings to store in the template. Missing settings get defaults.
+     */
+    private function setTemplateAddressbook(string $accountId, array $abookCfg): void
+    {
+        $abMgr = $this->abMgr;
+        $abook = $abMgr->getTemplateAddressbookForAccount($accountId);
+        if ($abook === null) {
+            $accountCfg = $abMgr->getAccountConfig($accountId);
+
+            if (isset($accountCfg['presetname'])) {
+                $infra = Config::inst();
+                $admPrefs = $infra->admPrefs();
+                $presetName = $accountCfg['presetname'];
+                $fixedAttributes = $this->getFixedSettings($presetName);
+                $preset = $admPrefs->getPreset($presetName);
+
+                // For a preset, set all fixed attributes to those from the preset to make sure we don't miss mandatory
+                // fields that are not part of the submitted form data
+                foreach ($fixedAttributes as $attr) {
+                    if (key_exists($attr, $preset)) {
+                        $abookCfg[$attr] = $preset[$attr];
+                    }
+                }
+            }
+
+            /** @psalm-var AbookSettings $abookCfg The fields in preset are compatible with AbookSettings */
+
+            // Set attributes with fixed known values for a template addressbook
+            $abookCfg['account_id'] = $accountId;
+            $abookCfg['discovered'] = '0';
+            $abookCfg['template'] = '1';
+            $abookCfg['url'] = ''; // URL is mandatory but n/a for template addressbook
+            $abookCfg['sync_token'] = ''; // mandatory but n/a
+            $abMgr->insertAddressbook($abookCfg);
+        } else {
+            $abMgr->updateAddressbook($abook['id'], $abookCfg);
+        }
     }
 }
 

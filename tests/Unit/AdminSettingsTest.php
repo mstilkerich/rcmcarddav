@@ -93,8 +93,8 @@ final class AdminSettingsTest extends TestCase
         $this->assertSame($expPrefs['forbidCustomAddressbooks'], $admPrefs->forbidCustomAddressbooks);
         $this->assertSame($expPrefs['hidePreferences'], $admPrefs->hidePreferences);
 
-        $this->assertEquals($expPrefs["presets"], TestInfrastructure::getPrivateProperty($admPrefs, 'presets'));
-        $this->assertEquals(
+        $this->assertSame($expPrefs["presets"], TestInfrastructure::getPrivateProperty($admPrefs, 'presets'));
+        $this->assertSame(
             $expPrefs["specialAbookMatchers"],
             TestInfrastructure::getPrivateProperty($admPrefs, 'specialAbookMatchers')
         );
@@ -118,12 +118,15 @@ final class AdminSettingsTest extends TestCase
                 if (strlen($url) == 0) {
                     $preset = $admPrefs->getPreset($presetName);
                     $presetUnknown = $admPrefs->getPreset($presetName, "http://not.a.known.url/of/an/abook");
-                    $this->assertEquals($presetExp, $presetUnknown, "Unknown abook URL should return base properties");
+                    $this->assertSame($presetExp, $presetUnknown, "Unknown abook URL should return base properties");
                 } else {
                     $preset = $admPrefs->getPreset($presetName, $url);
                 }
 
-                $this->assertEquals($presetExp, $preset);
+                // PHP arrays are ordered, including string keys
+                ksort($presetExp);
+                ksort($preset);
+                $this->assertSame($presetExp, $preset);
             }
         }
     }
@@ -454,7 +457,7 @@ final class AdminSettingsTest extends TestCase
         $this->assertSame($expPrefs['pwStoreScheme'], $admPrefs->pwStoreScheme);
         $this->assertSame($expPrefs['forbidCustomAddressbooks'], $admPrefs->forbidCustomAddressbooks);
         $this->assertSame($expPrefs['hidePreferences'], $admPrefs->hidePreferences);
-        $this->assertEquals($expPrefs["presets"], TestInfrastructure::getPrivateProperty($admPrefs, 'presets'));
+        $this->assertSame($expPrefs["presets"], TestInfrastructure::getPrivateProperty($admPrefs, 'presets'));
 
         // extra validation function
         $validateFunc($admPrefs, $logger, $loggerHttp);

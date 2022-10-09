@@ -92,7 +92,7 @@ final class CarddavTest extends TestCase
             $id = "carddav_" . self::$testData->getRowId("carddav_addressbooks", $idx);
 
             $this->assertArrayHasKey($id, $res["sources"], print_r($res, true));
-            $this->assertEquals($abookrow[0], $res["sources"][$id]["name"]);
+            $this->assertSame($abookrow[0], $res["sources"][$id]["name"]);
             $this->assertFalse($res["sources"][$id]["readonly"]);
             $this->assertTrue($res["sources"][$id]["autocomplete"]);
             $this->assertTrue($res["sources"][$id]["groups"]);
