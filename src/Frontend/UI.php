@@ -1056,6 +1056,27 @@ class UI
         $abMgr = $this->abMgr;
         $abook = $abMgr->getTemplateAddressbookForAccount($accountId);
         if ($abook === null) {
+            $accountCfg = $abMgr->getAccountConfig($accountId);
+
+            if (isset($accountCfg['presetname'])) {
+                $infra = Config::inst();
+                $admPrefs = $infra->admPrefs();
+                $presetName = $accountCfg['presetname'];
+                $fixedAttributes = $this->getFixedSettings($presetName);
+                $preset = $admPrefs->getPreset($presetName);
+
+                // For a preset, set all fixed attributes to those from the preset to make sure we don't miss mandatory
+                // fields that are not part of the submitted form data
+                foreach ($fixedAttributes as $attr) {
+                    if (key_exists($attr, $preset)) {
+                        $abookCfg[$attr] = $preset[$attr];
+                    }
+                }
+            }
+
+            /** @psalm-var AbookSettings $abookCfg The fields in preset are compatible with AbookSettings */
+
+            // Set attributes with fixed known values for a template addressbook
             $abookCfg['account_id'] = $accountId;
             $abookCfg['discovered'] = '0';
             $abookCfg['template'] = '1';
