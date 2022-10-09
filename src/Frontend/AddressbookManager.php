@@ -590,7 +590,7 @@ class AddressbookManager
     {
         $infra = Config::inst();
 
-        if (!isset($accountCfg['discovery_url'])) {
+        if ((!isset($accountCfg['discovery_url'])) || strlen($accountCfg['discovery_url']) === 0) {
             throw new Exception('Cannot discover addressbooks for an account lacking a discovery URI');
         }
 
