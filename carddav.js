@@ -168,13 +168,22 @@ rcube_webmail.prototype.carddav_UpdateForm = function (formData) {
       case 'parent':
         listAccSel = '#rcmli' + fieldKey
         node = $(listAccSel + ' > a', win.parent.document)
-        node.children('span').text(fieldValue)
-        nodeUpdate = { html: node.prop('outerHTML') }
 
-        win.parent.window.rcmail.addressbooks_list.update(fieldKey, nodeUpdate, true)
-        // fixup the checkboxes (note: this is elastic-specific)
-        if (typeof UI === 'object' && typeof UI.pretty_checkbox === 'function') {
-          $(listAccSel + ' input[type="checkbox"]', parent.document).each(function () { UI.pretty_checkbox(this) })
+        // For some reason, the toggle active checkbox of the node doesn't work anymore after using the
+        // treelist.update() function. What can be observed is that the list select handler is called upon clicking the
+        // checkbox and before the ToggleActive handler is called, the ToggleActive handler will then be skipped because
+        // the list select handler sets the rcmail object busy. The select handler is normally not called when clicking
+        // the checkbox, and I haven't figured out so far why the behavior is different after treelist.update().
+        // Therefore, we only carry out the change if necessary.
+        if (node.children('span').text() !== fieldValue) {
+          node.children('span').text(fieldValue)
+          nodeUpdate = { html: node.prop('outerHTML') }
+          win.parent.window.rcmail.addressbooks_list.update(fieldKey, nodeUpdate, true)
+
+          // fixup the checkboxes (note: this is elastic-specific)
+          if (typeof UI === 'object' && typeof UI.pretty_checkbox === 'function') {
+            $(listAccSel + ' input[type="checkbox"]', parent.document).each(function () { UI.pretty_checkbox(this) })
+          }
         }
         break
     }
