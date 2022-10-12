@@ -193,10 +193,10 @@ addressbooks from the database and creation of new ones.
  - `accountname`: User-visible name of the account. The addressbooks will be named according to the name provided by the
                   server, unless no server-side name is provided. In the latter case, a name will be derived. If not
                   specified, the presetname will be used as default.
- - `url`: URL where to find the CardDAV addressbook(s). This URL is taken to start a discovery process for addressbooks
-          according to RFC 6764. All discovered addressbooks are added. That means, even if the URL points to an
-          individual addressbook that belongs to the user, all other addressbooks of the user are added as well. If this
-          behavior is not intended, you can disable discovery omitting this parameter and specify the
+ - `discovery_url`: URL where to find the CardDAV addressbook(s). This URL is taken to start a discovery process for
+          addressbooks according to RFC 6764. All discovered addressbooks are added. That means, even if the URL points
+          to an individual addressbook that belongs to the user, all other addressbooks of the user are added as well.
+          If this behavior is not intended, you can disable discovery omitting this parameter and specify the
           addressbook URLs manually using `extra_addressbooks`. Default: `null`
  - `rediscover_time`: Time interval after which the addressbooks for the account should be rediscovered, in hours.
                       Format: `HH[:MM[:SS]]`
