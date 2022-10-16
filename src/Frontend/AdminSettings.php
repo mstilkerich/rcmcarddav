@@ -492,7 +492,7 @@ class AdminSettings
                 $abookTmpl['discovered'] = '0';
                 $abookTmpl['sync_token'] = '';
                 $abookTmpl['url'] = $xabookUrl;
-                $abookTmpl['name'] = $abook->getName();
+                $abookTmpl['name'] = $abMgr->replacePlaceholdersAbookName($abookTmpl['name'], $accountCfg, $abook);
                 $abMgr->insertAddressbook($abookTmpl);
             } else {
                 throw new Exception("no addressbook collection at given URL");
