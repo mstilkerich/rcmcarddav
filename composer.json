@@ -25,6 +25,7 @@
         "ext-pdo": "*",
         "sabre/vobject": "^3.3.5 || ^4.0.0",
         "roundcube/plugin-installer": "^0.3.0",
+        "psr/log": "^1.0 || ^2.0 || ^3.0",
         "mstilkerich/carddavclient": "dev-master"
     },
     "require-dev": {
@@ -32,7 +33,6 @@
         "phpcompatibility/php-compatibility": "*",
         "phpunit/phpunit": "~9",
         "phpunit/phpcov": "*",
-        "wa72/simplelogger": "^1.1",
         "dealerdirect/phpcodesniffer-composer-installer": ">= 0.7.0",
         "aodto/phasher": "dev-master",
         "psalm/plugin-phpunit": "^0.15.0"

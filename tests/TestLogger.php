@@ -59,20 +59,22 @@ class TestLogger extends AbstractLogger
         LogLevel::EMERGENCY => "EMG"
     ];
 
-    /** @var LoggerInterface Logger object used to store log messages produced during the tests */
-    private $fileLogger;
+    /** @var resource $logh File handle to the log file */
+    private $logh;
 
     /** @var string[][] In-Memory buffer of log messages to assert log messages */
     private $logBuffer = [];
 
-    public function __construct()
+    public function __construct(string $logFileName = 'test.log')
     {
-        $logfile = "testreports/{$GLOBALS['TEST_TESTRUN']}/test.log";
-        if (file_exists($logfile)) {
-            unlink($logfile);
+        $logfile = "testreports/{$GLOBALS['TEST_TESTRUN']}/$logFileName";
+        $logh = fopen($logfile, 'w');
+
+        if ($logh === false) {
+            throw new \Exception("could not open log file: $logfile");
         }
 
-        $this->fileLogger = new \Wa72\SimpleLogger\FileLogger($logfile, \Psr\Log\LogLevel::DEBUG);
+        $this->logh = $logh;
     }
 
     /**
@@ -86,6 +88,7 @@ class TestLogger extends AbstractLogger
     public function __destruct()
     {
         $this->reset();
+        fclose($this->logh);
     }
 
     /**
@@ -96,14 +99,16 @@ class TestLogger extends AbstractLogger
      * @param array $context
      * @return void
      */
-    public function log($level, $message, array $context = array())
+    public function log($level, $message, array $context = array()): void
     {
         TestCase::assertIsString($level);
         TestCase::assertNotNull(self::LOGLEVELS[$level]);
 
         $levelNumeric = self::LOGLEVELS[$level];
         $levelShort = self::LOGLEVELS_SHORT[$level];
-        $this->fileLogger->log($level, "[$levelNumeric $levelShort] $message", $context);
+
+        // interpolation of context placeholders is not implemented
+        fprintf($this->logh, "[%s]: %s\n", date('Y-m-d H:i:s'), "[$levelNumeric $levelShort] $message");
 
         // only warnings or more critical messages are interesting for testing
         if (self::LOGLEVELS[$level] >= self::LOGLEVELS[LogLevel::WARNING]) {

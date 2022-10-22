@@ -103,7 +103,7 @@ class RoundcubeLogger extends AbstractLogger
      * @param array $context
      * @return void
      */
-    public function log($level, $message, array $context = array())
+    public function log($level, $message, array $context = array()): void
     {
         if (is_string($level) && isset(self::LOGLEVELS[$level])) {
             if (self::LOGLEVELS[$level] >= $this->loglevel) {
