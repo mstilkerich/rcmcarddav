@@ -240,8 +240,12 @@ class DelayedPhotoLoader
     private function determineCacheKey(): string
     {
         $uid = (string) $this->vcard->UID;
-        $userid = $_SESSION['user_id'];
-        assert(is_string($userid), "user must be logged on to use photo cache");
+
+        if (!isset($_SESSION['user_id'])) {
+            throw new \Exception("determineCacheKey: user must be logged on to use photo cache");
+        }
+
+        $userid = (string) $_SESSION['user_id'];
 
         $key  = "photo_";
         $key .= $userid . "_" ;
