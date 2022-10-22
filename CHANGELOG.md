@@ -1,5 +1,9 @@
 # Changelog for RCMCardDAV
 
+## Changes since 5.0.0-beta1
+
+- Fix: Assertion failure in DelayedPhotoLoader (Fixes: #404)
+
 ## Version 5.0.0-beta1 (to 4.4.4)
 
 __NOTE: Before upgrading to v5, please read the upgrade notes in README.md.__
