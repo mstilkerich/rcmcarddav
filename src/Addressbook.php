@@ -40,6 +40,7 @@ use MStilkerich\CardDavAddressbook4Roundcube\Db\{AbstractDatabase,DbAndCondition
 /**
  * @psalm-import-type FullAbookRow from AbstractDatabase
  * @psalm-import-type SaveData from DataConversion
+ * @psalm-import-type SaveDataAddressField from DataConversion
  *
  * @psalm-type GroupSaveData = array{
  *   ID: string,
@@ -1761,6 +1762,16 @@ class Addressbook extends rcube_addressbook
             if (!isset($save_data[$requiredField]) || $save_data[$requiredField] == "") {
                 return false;
             }
+        }
+
+        // normalize address structured data to string
+        if (isset($save_data['address'])) {
+            $mergedAddrs = [];
+            /** @psalm-var list<SaveDataAddressField> $save_data['address'] */
+            foreach ($save_data['address'] as $addrStruct) {
+                $mergedAddrs[] = implode(' ', $addrStruct);
+            }
+            $save_data['address'] = $mergedAddrs;
         }
 
         $filterMatches = 0;

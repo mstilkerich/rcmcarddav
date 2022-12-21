@@ -1,5 +1,9 @@
 # Changelog for RCMCardDAV
 
+## Version 4.4.5 (to 4.4.4)
+
+- Fix: Internal server error with PHP8 when searching address fields of contacts (Fixes: #410)
+
 ## Version 4.4.4 (to 4.4.3)
 
 - Fix PHP 8.1 warning on loss of precision by using integer division
