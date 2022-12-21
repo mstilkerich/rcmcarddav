@@ -2,6 +2,7 @@
 
 ## Changes since 5.0.0-beta1
 
+- Fix: Internal server error with PHP8 when searching address fields of contacts (Fixes: #410)
 - Fix: Assertion failure in DelayedPhotoLoader (Fixes: #404)
 
 ## Version 5.0.0-beta1 (to 4.4.4)

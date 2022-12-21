@@ -56,7 +56,7 @@ use carddav;
  *     maidenname?: string,
  *     organization?: string,
  *     department?: string
- * } & array<string, SaveDataMultiField|SaveDataAddressField>
+ * } & array<string, SaveDataMultiField|list<SaveDataAddressField>>
  *
  * @psalm-type SaveDataFromDC = array{
  *     name: string,
@@ -81,7 +81,7 @@ use carddav;
  *     department?: string,
  *     vcard?: string,
  *     _carddav_vcard?: VCard,
- * } & array<string, SaveDataMultiField|SaveDataAddressField>
+ * } & array<string, SaveDataMultiField|list<SaveDataAddressField>>
  *
  * @psalm-type ColTypeDef = array{subtypes?: list<string>, subtypealias?: array<string,string>}
  * @psalm-type ColTypeDefs = array<string,ColTypeDef>

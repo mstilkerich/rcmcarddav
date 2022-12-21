@@ -38,6 +38,8 @@ use MStilkerich\RCMCardDAV\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
 
 /**
  * @psalm-import-type SaveData from DataConversion
+ * @psalm-import-type SaveDataAddressField from DataConversion
+ *
  * @psalm-type Int1 = '0' | '1'
  *
  * @psalm-type AddressbookOptions = array{
@@ -1757,6 +1759,16 @@ class Addressbook extends rcube_addressbook
             if (!isset($save_data[$requiredField]) || $save_data[$requiredField] == "") {
                 return false;
             }
+        }
+
+        // normalize address structured data to string
+        if (isset($save_data['address'])) {
+            $mergedAddrs = [];
+            /** @psalm-var list<SaveDataAddressField> $save_data['address'] */
+            foreach ($save_data['address'] as $addrStruct) {
+                $mergedAddrs[] = implode(' ', $addrStruct);
+            }
+            $save_data['address'] = $mergedAddrs;
         }
 
         $filterMatches = 0;

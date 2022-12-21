@@ -333,6 +333,13 @@ final class AddressbookTest extends TestCase
                 false, [],
                 2, ["60", "50"]
             ],
+            'Single Multivalue DB structured-content field search with contains search' => [
+                ['address'], ["Kanto"], rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                false, [],
+                1, ["60"]
+            ],
             'Single Multivalue DB field search with strict search' => [
                 ['email'], ["north@7kingdoms.com"], rcube_addressbook::SEARCH_STRICT, true, false,
                 'name', 'ASC', 1, 10,
@@ -390,6 +397,14 @@ final class AddressbookTest extends TestCase
                 0,
                 false, [],
                 1, ["60"]
+            ],
+            'All fields search (no matches)' => [
+                '*', 'Birkin22',
+                rcube_addressbook::SEARCH_ALL, true, false,
+                'name', 'ASC', 1, 10,
+                0,
+                false, [],
+                0, []
             ],
             'Two fields OR search' => [
                 ['organization', 'name'], 'the',
