@@ -8,7 +8,7 @@ inputs:
   rcube-version:
     description: 'Roundcube version to use'
     required: false
-    default: 'master'
+    default: 'release-1.6'
 runs:
   using: "composite"
   steps:
