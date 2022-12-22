@@ -40,6 +40,7 @@ use MStilkerich\RCMCardDAV\Config;
 
 /**
  * @psalm-import-type AbookCfg from AddressbookManager
+ * @psalm-import-type EnhancedAbookCfg from AddressbookManager
  * @psalm-import-type AccountCfg from AddressbookManager
  * @psalm-import-type AbookSettings from AddressbookManager
  * @psalm-import-type AccountSettings from AddressbookManager
@@ -68,115 +69,118 @@ use MStilkerich\RCMCardDAV\Config;
  */
 class UI
 {
-    /** @var FormSpec UI_FORM_NEW_ACCOUNT */
-    private const UI_FORM_NEW_ACCOUNT = [
-        [
-            'label' => 'AccProps_newaccount_lbl',
-            'fields' => [
-                [ 'AccProps_accountname_lbl', 'accountname', 'text' ],
-                [ 'AccProps_discoveryurl_lbl', 'discovery_url', 'text' ],
-                [ 'AccProps_username_lbl', 'username', 'text' ],
-                [ 'AccProps_password_lbl', 'password', 'password' ],
-            ]
-        ],
-        [
-            'label' => 'AccAbProps_miscsettings_seclbl',
-            'fields' => [
-                [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr', '86400' ],
-            ]
-        ],
-        [
-            'label' => 'AccAbProps_abookinitsettings_seclbl',
-            'fields' => [
-                [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
-                [ 'AbProps_active_lbl', 'active', 'checkbox', '1' ],
-                [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
-                [
-                    'AbProps_newgroupstype_lbl',
-                    'use_categories',
-                    'radio',
-                    '1',
+    /**
+     * Specifications of the UI settings forms. These are used for creating the HTML form as well as extracting the
+     * submitted form fields from a POST request.
+     *
+     * @var array<string, FormSpec> FORMSPECS
+     */
+    private const FORMSPECS = [
+        'newaccount' => [
+            [
+                'label' => 'AccProps_newaccount_lbl',
+                'fields' => [
+                    [ 'AccProps_accountname_lbl', 'accountname', 'text' ],
+                    [ 'AccProps_discoveryurl_lbl', 'discovery_url', 'text' ],
+                    [ 'AccProps_username_lbl', 'username', 'text' ],
+                    [ 'AccProps_password_lbl', 'password', 'password' ],
+                ]
+            ],
+            [
+                'label' => 'AccAbProps_miscsettings_seclbl',
+                'fields' => [
+                    [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr', '86400' ],
+                ]
+            ],
+            [
+                'label' => 'AccAbProps_abookinitsettings_seclbl',
+                'fields' => [
+                    [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
+                    [ 'AbProps_active_lbl', 'active', 'checkbox', '1' ],
+                    [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
                     [
-                        [ '0', 'AbProps_grouptype_vcard_lbl' ],
-                        [ '1', 'AbProps_grouptype_categories_lbl' ],
-                    ]
-                ],
-            ]
+                        'AbProps_newgroupstype_lbl',
+                        'use_categories',
+                        'radio',
+                        '1',
+                        [
+                            [ '0', 'AbProps_grouptype_vcard_lbl' ],
+                            [ '1', 'AbProps_grouptype_categories_lbl' ],
+                        ]
+                    ],
+                ]
+            ],
         ],
-    ];
-
-    /** @var FormSpec UI_FORM_ACCOUNT */
-    private const UI_FORM_ACCOUNT = [
-        [
-            'label' => 'AccAbProps_basicinfo_seclbl',
-            'fields' => [
-                [ 'AccProps_frompreset_lbl', 'presetname', 'plain' ],
-                [ 'AccProps_accountname_lbl', 'accountname', 'text' ],
-                [ 'AccProps_discoveryurl_lbl', 'discovery_url', 'text' ],
-                [ 'AccProps_username_lbl', 'username', 'text' ],
-                [ 'AccProps_password_lbl', 'password', 'password' ],
-            ]
-        ],
-        [
-            'label' => 'AccProps_discoveryinfo_seclbl',
-            'fields' => [
-                [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr' ],
-                [ 'AccProps_lastdiscovered_time_lbl', 'last_discovered', 'datetime' ],
-            ]
-        ],
-        [
-            'label' => 'AccAbProps_abookinitsettings_seclbl',
-            'fields' => [
-                [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
-                [ 'AbProps_active_lbl', 'active', 'checkbox', '1' ],
-                [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
-                [
-                    'AbProps_newgroupstype_lbl',
-                    'use_categories',
-                    'radio',
-                    '1',
+        'account' => [
+            [
+                'label' => 'AccAbProps_basicinfo_seclbl',
+                'fields' => [
+                    [ 'AccProps_frompreset_lbl', 'presetname', 'plain' ],
+                    [ 'AccProps_accountname_lbl', 'accountname', 'text' ],
+                    [ 'AccProps_discoveryurl_lbl', 'discovery_url', 'text' ],
+                    [ 'AccProps_username_lbl', 'username', 'text' ],
+                    [ 'AccProps_password_lbl', 'password', 'password' ],
+                ]
+            ],
+            [
+                'label' => 'AccProps_discoveryinfo_seclbl',
+                'fields' => [
+                    [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr' ],
+                    [ 'AccProps_lastdiscovered_time_lbl', 'last_discovered', 'datetime' ],
+                ]
+            ],
+            [
+                'label' => 'AccAbProps_abookinitsettings_seclbl',
+                'fields' => [
+                    [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
+                    [ 'AbProps_active_lbl', 'active', 'checkbox', '1' ],
+                    [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
                     [
-                        [ '0', 'AbProps_grouptype_vcard_lbl' ],
-                        [ '1', 'AbProps_grouptype_categories_lbl' ],
-                    ]
-                ],
-            ]
+                        'AbProps_newgroupstype_lbl',
+                        'use_categories',
+                        'radio',
+                        '1',
+                        [
+                            [ '0', 'AbProps_grouptype_vcard_lbl' ],
+                            [ '1', 'AbProps_grouptype_categories_lbl' ],
+                        ]
+                    ],
+                ]
+            ],
         ],
-    ];
-
-    /** @var FormSpec UI_FORM_ABOOK */
-    private const UI_FORM_ABOOK = [
-        [
-            'label' => 'AccAbProps_basicinfo_seclbl',
-            'fields' => [
-                [ 'AbProps_abname_lbl', 'name', 'text' ],
-                [ 'AbProps_url_lbl', 'url', 'plain' ],
-                [ 'AbProps_srvname_lbl', 'srvname', 'plain' ],
-                [ 'AbProps_srvdesc_lbl', 'srvdesc', 'plain' ],
-            ]
-        ],
-        [
-            'label' => 'AbProps_syncinfo_seclbl',
-            'fields' => [
-                [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr' ],
-                [ 'AbProps_lastupdate_time_lbl', 'last_updated', 'datetime' ],
-            ]
-        ],
-        [
-            'label' => 'AccAbProps_miscsettings_seclbl',
-            'fields' => [
-                [
-                    'AbProps_newgroupstype_lbl',
-                    'use_categories',
-                    'radio',
-                    '1',
+        'addressbook' => [
+            [
+                'label' => 'AccAbProps_basicinfo_seclbl',
+                'fields' => [
+                    [ 'AbProps_abname_lbl', 'name', 'text' ],
+                    [ 'AbProps_url_lbl', 'url', 'plain' ],
+                    [ 'AbProps_srvname_lbl', 'srvname', 'plain' ],
+                    [ 'AbProps_srvdesc_lbl', 'srvdesc', 'plain' ],
+                ]
+            ],
+            [
+                'label' => 'AbProps_syncinfo_seclbl',
+                'fields' => [
+                    [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr' ],
+                    [ 'AbProps_lastupdate_time_lbl', 'last_updated', 'datetime' ],
+                ]
+            ],
+            [
+                'label' => 'AccAbProps_miscsettings_seclbl',
+                'fields' => [
                     [
-                        [ '0', 'AbProps_grouptype_vcard_lbl' ],
-                        [ '1', 'AbProps_grouptype_categories_lbl' ],
-                    ]
-                ],
-            ]
-        ],
+                        'AbProps_newgroupstype_lbl',
+                        'use_categories',
+                        'radio',
+                        '1',
+                        [
+                            [ '0', 'AbProps_grouptype_vcard_lbl' ],
+                            [ '1', 'AbProps_grouptype_categories_lbl' ],
+                        ]
+                    ],
+                ]
+            ],
+        ]
     ];
 
     /**
@@ -565,7 +569,7 @@ class UI
 
                 // update the form data so the last_updated time is current
                 $abookCfg = $this->getEnhancedAbookConfig($abookId);
-                $formData = $this->makeSettingsFormData(self::UI_FORM_ABOOK, $abookCfg);
+                $formData = $this->makeSettingsFormData('addressbook', $abookCfg);
                 $rc->showMessage($rc->locText("${syncType}_msg_ok", $msgParams), 'notice', false);
                 $rc->clientCommand('carddav_UpdateForm', $formData);
             } catch (Exception $e) {
@@ -608,10 +612,10 @@ class UI
         try {
             $abMgr = $this->abMgr;
 
-            /** @psalm-var AccountSettings&AbookSettings $accAbookFormVals */
-            $accAbookFormVals = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, []);
-            $accountId = $abMgr->discoverAddressbooks($accAbookFormVals, $accAbookFormVals);
-            $this->setTemplateAddressbook($accountId, $accAbookFormVals);
+            $accFormVals = $this->getSettingsFromPOST('account', []);
+            $abookFormVals = $this->getSettingsFromPOST('addressbook', []);
+            $accountId = $abMgr->discoverAddressbooks($accFormVals, $abookFormVals);
+            $this->setTemplateAddressbook($accountId, $abookFormVals);
 
             $account = $abMgr->getAccountConfig($accountId);
             $newLi = $this->makeAccountListItem($account);
@@ -635,16 +639,16 @@ class UI
                 $abMgr = $this->abMgr;
                 $account = $abMgr->getAccountConfig($accountId);
                 $fixedAttributes = $this->getFixedSettings($account['presetname']);
-                /** @psalm-var AccountSettings&AbookSettings $accAbookFormVals */
-                $accAbookFormVals = $this->getSettingsFromPOST(self::UI_FORM_ACCOUNT, $fixedAttributes);
-                $abMgr->updateAccount($accountId, $accAbookFormVals);
+                $accFormVals = $this->getSettingsFromPOST('account', $fixedAttributes);
+                $abookFormVals = $this->getSettingsFromPOST('addressbook', $fixedAttributes);
+                $abMgr->updateAccount($accountId, $accFormVals);
                 // update template addressbook
-                $this->setTemplateAddressbook($accountId, $accAbookFormVals);
+                $this->setTemplateAddressbook($accountId, $abookFormVals);
 
                 // update account data and echo formatted field data to client
                 $account = $abMgr->getAccountConfig($accountId);
                 $abookTmpl = $abMgr->getTemplateAddressbookForAccount($accountId);
-                $formData = $this->makeSettingsFormData(self::UI_FORM_ACCOUNT, array_merge($account, $abookTmpl ?? []));
+                $formData = $this->makeSettingsFormData('account', array_merge($account, $abookTmpl ?? []));
                 $formData["_acc$accountId"] = [ 'parent', $account["accountname"] ];
 
                 $rc->clientCommand('carddav_UpdateForm', $formData);
@@ -674,13 +678,12 @@ class UI
                 $abookCfg = $abMgr->getAddressbookConfig($abookId);
                 $account = $abMgr->getAccountConfig($abookCfg["account_id"]);
                 $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookCfg['url']);
-                /** @psalm-var AbookSettings $newset */
-                $newset = $this->getSettingsFromPOST(self::UI_FORM_ABOOK, $fixedAttributes);
+                $newset = $this->getSettingsFromPOST('addressbook', $fixedAttributes);
                 $abMgr->updateAddressbook($abookId, $newset);
 
                 // update addressbook data and echo formatted field data to client
                 $abookCfg = $this->getEnhancedAbookConfig($abookId);
-                $formData = $this->makeSettingsFormData(self::UI_FORM_ABOOK, $abookCfg);
+                $formData = $this->makeSettingsFormData('addressbook', $abookCfg);
                 $formData["_abook$abookId"] = [ 'parent', $abookCfg["name"] ];
 
                 $rc->showMessage($rc->locText("AccAbSave_msg_ok"), 'confirmation');
@@ -695,16 +698,17 @@ class UI
     }
 
     /**
-     * @param FormSpec $formSpec Specification of the form
+     * @param key-of<self::FORMSPECS> $objType Key of formspec
      * @param array<string, ?string> $vals Values for the form fields
      * @param list<string> $fixedAttributes A list of non-changeable settings by choice of the admin
      */
-    private function makeSettingsForm(array $formSpec, array $vals, array $fixedAttributes, array $attrib): string
+    private function makeSettingsForm(string $objType, array $vals, array $fixedAttributes, array $attrib): string
     {
         $infra = Config::inst();
         $rc = $infra->rc();
 
         $out = '';
+        $formSpec = self::FORMSPECS[$objType];
         foreach ($formSpec as $fieldSet) {
             $table = new html_table(['cols' => 2]);
 
@@ -737,7 +741,7 @@ class UI
      * Gets the addressbook config enhanced with extra fields shown in the details page but not stored in the DB.
      *
      * @param string $abookId The addressbook ID
-     * @return AbookCfg The enhanced addressbook configuration
+     * @return EnhancedAbookCfg The enhanced addressbook configuration
      */
     private function getEnhancedAbookConfig(string $abookId): array
     {
@@ -751,11 +755,12 @@ class UI
     }
 
     /**
-     * @param FormSpec $formSpec Specification of the form
+     * @param key-of<self::FORMSPECS> $objType Key of formspec
      * @param array<string, ?string> $vals Values for the form fields
      */
-    private function makeSettingsFormData(array $formSpec, array $vals): array
+    private function makeSettingsFormData(string $objType, array $vals): array
     {
+        $formSpec = self::FORMSPECS[$objType];
         $formData = [];
         foreach ($formSpec as $fieldSet) {
             foreach ($fieldSet['fields'] as $fieldSpec) {
@@ -902,7 +907,7 @@ class UI
                 $abookIdField = new html_hiddenfield(['name' => "abookid", 'value' => $abookId]);
                 $out .= $abookIdField->show();
 
-                $out .= $this->makeSettingsForm(self::UI_FORM_ABOOK, $abookCfg, $fixedAttributes, $attrib);
+                $out .= $this->makeSettingsForm('addressbook', $abookCfg, $fixedAttributes, $attrib);
                 $out = $rc->requestForm($attrib, $out);
             }
         } catch (Exception $e) {
@@ -929,7 +934,7 @@ class UI
                 $out .= $accountIdField->show();
 
                 if ($accountId == "new") {
-                    $out .= $this->makeSettingsForm(self::UI_FORM_NEW_ACCOUNT, [], [], $attrib);
+                    $out .= $this->makeSettingsForm('newaccount', [], [], $attrib);
                 } else {
                     $abMgr = $this->abMgr;
                     $admPrefs = $infra->admPrefs();
@@ -937,7 +942,7 @@ class UI
                     $abook = $admPrefs->getAddressbookTemplate($abMgr, $accountId);
                     $fixedAttributes = $this->getFixedSettings($account['presetname']);
                     $out .= $this->makeSettingsForm(
-                        self::UI_FORM_ACCOUNT,
+                        'account',
                         array_merge($account, $abook),
                         $fixedAttributes,
                         $attrib
@@ -960,15 +965,17 @@ class UI
      *
      * For fixed settings of preset accounts/addressbooks, no setting values will be contained.
      *
-     * @param FormSpec $formSpec Specification of the settings form
+     * @param 'account'|'addressbook' $objType Key of form spec
      * @param list<string> $fixedAttributes A list of non-changeable settings by choice of the admin
-     * @return AccountSettings|AbookSettings An array with addressbook column keys and their setting.
+     * @return ($objType is 'account' ? AccountSettings : AbookSettings) Array with obj column keys and their setting.
      */
-    private function getSettingsFromPOST(array $formSpec, array $fixedAttributes): array
+    private function getSettingsFromPOST(string $objType, array $fixedAttributes): array
     {
         $infra = Config::inst();
         $logger = $infra->logger();
         $rc = $infra->rc();
+
+        $formSpec = self::FORMSPECS[$objType];
 
         // Fill $result with all values that have been POSTed
         $result = [];
@@ -1034,8 +1041,13 @@ class UI
             }
         }
 
-        /** @psalm-var AccountSettings|AbookSettings */
-        return $result;
+        if ($objType == 'account') {
+            /** @psalm-var AccountSettings $result */
+            return $result;
+        } else {
+            /** @psalm-var AbookSettings $result */
+            return $result;
+        }
     }
 
     /**

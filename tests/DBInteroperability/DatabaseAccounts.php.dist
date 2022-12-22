@@ -7,7 +7,7 @@ namespace MStilkerich\Tests\RCMCardDAV\DBInteroperability;
 final class DatabaseAccounts
 {
     /**
-     * @var array<string, list<string>> Definitions of test database accounts.
+     * @var array<string, non-empty-list<string>> Definitions of test database accounts.
      *      Each entry maps a DB type (arbitrary name) to a dsnw string as required by roundcube
      */
     public const ACCOUNTS = [

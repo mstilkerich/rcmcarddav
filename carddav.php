@@ -462,9 +462,8 @@ class carddav extends rcube_plugin implements RcmInterface
     {
         /** @psalm-var SaveDataFromDC $save_data */
         foreach ($saveDataSet["result"]->records as &$save_data) {
-            $vcard = $save_data["_carddav_vcard"] ?? null;
-            if ($vcard instanceof VCard) {
-                $vcf = DataConversion::exportVCard($vcard, $save_data);
+            if (isset($save_data["_carddav_vcard"])) {
+                $vcf = DataConversion::exportVCard($save_data["_carddav_vcard"], $save_data);
                 $save_data["vcard"] = $vcf;
             }
         }

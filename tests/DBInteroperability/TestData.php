@@ -36,8 +36,8 @@ use PHPUnit\Framework\TestCase;
  * database and enables to resolve foreign key references in subsequently inserted rows.
  *
  * @psalm-type TestDataKeyRef = array{0: string, 1: int, 2?: string}
- * @psalm-type TestDataRowWithKeyRef = array<int, null|string|TestDataKeyRef>
- * @psalm-type TestDataRow = array<int, null|string>
+ * @psalm-type TestDataRowWithKeyRef = list<null|string|TestDataKeyRef>
+ * @psalm-type TestDataRow = list<null|string>
  * @psalm-type TestDataTableDef = list<string>
  * @psalm-type TableName = string
  * @psalm-type CacheKeyPrefix = string

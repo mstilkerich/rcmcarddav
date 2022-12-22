@@ -41,6 +41,7 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  * The data types AccountCfg / AbookCfg describe the configuration of an account / addressbook as stored in the
  * database, with mappings of bitfields to the individual attributes.
  *
+ * For account, there are currently no bitfields, thus AccountCfg and FullAccountRow are the same.
  * @psalm-type AccountCfg = FullAccountRow
  *
  * @psalm-type Int1 = '0' | '1'
@@ -61,14 +62,18 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  *     template: Int1
  * }
  *
+ * XXX temporary workaround for vimeo/psalm#8984 - This should be defined in UI.php instead
+ * @psalm-type EnhancedAbookCfg = AbookCfg & array{srvname: string, srvdesc: string}
+ *
  * The data types AccountSettings / AbookSettings describe the attributes of an account / addressbook row in the
  * corresponding DB table, that can be used for inserting / updating the addressbook. Contrary to the  AccountCfg /
  * AbookCfg types:
  *   - all keys are optional (for use of update of individual columns, others are not specified)
  *   - DB managed columns (particularly: id) are missing
+ *   - Additional entries are permitted, the consuming APIs of this class take care to only interpret the relevant
+ *     entries. This is to allow AbookCfg / AccountCfg objects to be used as AccountSettings / AbookSettings objects.
  *
  * @psalm-type AccountSettings = array{
- *     id?: string,
  *     accountname?: string,
  *     username?: string,
  *     password?: string,
@@ -76,7 +81,7 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  *     rediscover_time?: numeric-string,
  *     last_discovered?: numeric-string,
  *     presetname?: ?string
- * }
+ * } & array<string, ?string>
  *
  * @psalm-type AbookSettings = array{
  *     account_id?: string,
@@ -91,11 +96,11 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  *     readonly?: Int1,
  *     require_always_email?: Int1,
  *     template?: Int1
- * }
+ * } & array<string, ?string>
  *
  * Type for an addressbook filter on the addressbook flags mask, expvalue
  *
- * @psalm-type AbookFilter = array{int, int}
+ * @psalm-type AbookFilter = list{int, int}
  */
 class AddressbookManager
 {
@@ -600,6 +605,9 @@ class AddressbookManager
             Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
             null
         );
+
+        /** @psalm-var AccountSettings $accountCfg XXX temporary workaround for vimeo/psalm#8980 */
+
         $discover = $infra->makeDiscoveryService();
         $abooks = $discover->discoverAddressbooks($account);
 
@@ -641,6 +649,7 @@ class AddressbookManager
         foreach ($newbooks as $abook) {
             $abookTmpl['name'] = $this->replacePlaceholdersAbookName($abookNameTmpl, $accountCfg, $abook);
             $abookTmpl['url'] = $abook->getUri();
+            /** @psalm-var AbookSettings $abookTmpl XXX temporary workaround for vimeo/psalm#8980 */
             $this->insertAddressbook($abookTmpl);
         }
 

@@ -52,7 +52,7 @@ final class TestInfrastructureDB
         return $db;
     }
 
-    /** @return list<string> */
+    /** @return non-empty-list<string> */
     public static function dbSettings(): array
     {
         TestCase::assertIsString($GLOBALS["TEST_DBTYPE"]);

@@ -36,6 +36,11 @@ use MStilkerich\CardDavClient\{Account,AddressbookCollection};
 use MStilkerich\RCMCardDAV\{DataConversion,DelayedPhotoLoader,DelayedVCardExporter};
 use MStilkerich\RCMCardDAV\Db\Database;
 
+/**
+ * XXX temporary workaround for vimeo/psalm#8980
+ * @psalm-import-type SaveDataFromDC from DataConversion
+ */
+
 final class DataConversionTest extends TestCase
 {
     /** @var rcube_cache & MockObject */
@@ -72,7 +77,7 @@ final class DataConversionTest extends TestCase
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list{string, string}>
      */
     private function vcardSamplesProvider(string $basedir): array
     {
@@ -89,7 +94,7 @@ final class DataConversionTest extends TestCase
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list{string, string}>
      */
     public function vcardImportSamplesProvider(): array
     {
@@ -186,7 +191,7 @@ final class DataConversionTest extends TestCase
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list{string, string}>
      */
     public function vcardCreateSamplesProvider(): array
     {
@@ -250,7 +255,7 @@ final class DataConversionTest extends TestCase
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list{string, string}>
      */
     public function vcardUpdateSamplesProvider(): array
     {
@@ -535,7 +540,7 @@ final class DataConversionTest extends TestCase
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list{string, string}>
      */
     public function vcardExportSamplesProvider(): array
     {
@@ -571,6 +576,9 @@ final class DataConversionTest extends TestCase
         $vcardOrig = $saveData["_carddav_vcard"] ?? null;
         $this->assertInstanceOf(VCard::class, $vcardOrig);
 
+        /**
+         * @psalm-var SaveDataFromDC $saveData XXX temporary workaround for vimeo/psalm#8980
+         */
         $vcfExported = DataConversion::exportVCard($vcardOrig, $saveData);
         $this->assertPhotoDownloadWarning($logger, $vcfFile);
         $vcardExported = VObject\Reader::read($vcfExported);

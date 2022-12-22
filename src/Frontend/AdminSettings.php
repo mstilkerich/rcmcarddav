@@ -187,6 +187,7 @@ class AdminSettings
         $prefs = [];
         if (file_exists($configfile)) {
             include($configfile);
+            /** @psalm-var mixed $prefs Will be set in the configfile. */
         }
 
         $gprefs = [];
@@ -730,10 +731,10 @@ class AdminSettings
                         }
                     }
                 }
-                /** @psalm-var AbookSettings $abookTmpl */
             }
         }
 
+        /** @psalm-var ?AbookSettings $abookTmpl */
         return $abookTmpl ?? [];
     }
 }

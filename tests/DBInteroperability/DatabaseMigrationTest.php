@@ -46,6 +46,7 @@ use MStilkerich\RCMCardDAV\Db\DbOrCondition;
  * }
  * @psalm-type MigtestDatasetSpec = array{
  *   insertRows?: list<InsertRowsSpec>,
+ *   checkRows?: list<InsertRowsSpec>,
  * }
  */
 final class DatabaseMigrationTest extends TestCase
@@ -239,7 +240,7 @@ final class DatabaseMigrationTest extends TestCase
     /**
      * Provides the migrations in the proper order to perform one by one.
      *
-     * @return array<string, array{list<string>}>
+     * @return array<string, list{non-empty-list<string>}>
      */
     public function migrationsProvider(): array
     {
@@ -268,8 +269,8 @@ final class DatabaseMigrationTest extends TestCase
      * the schema in the migration database should be equal to the INIT schema in the main database.
      * Note that the actual schema comparison is performed outside PHP unit by the surrounding make recipe.
      *
-     * @param list<string> $migs List of migrations. The last in the list shall be performed by the test, the others are
-     *                           expected to already have been performed.
+     * @param non-empty-list<string> $migs List of migrations. The last in the list shall be performed by the test, the
+     *                                     others are expected to already have been performed.
      * @dataProvider migrationsProvider
      */
     public function testSchemaMigrationWorks(array $migs): void

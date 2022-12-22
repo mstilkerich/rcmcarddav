@@ -29,13 +29,13 @@
         "mstilkerich/carddavclient": "dev-master"
     },
     "require-dev": {
-        "vimeo/psalm": ">= 3.11",
         "phpcompatibility/php-compatibility": "*",
         "phpunit/phpunit": "~9",
         "phpunit/phpcov": "*",
         "dealerdirect/phpcodesniffer-composer-installer": ">= 0.7.0",
         "aodto/phasher": "dev-master",
-        "psalm/plugin-phpunit": "^0.15.0"
+        "vimeo/psalm": "^5.4",
+        "psalm/plugin-phpunit": "*"
     },
     "extra": {
         "roundcube": {

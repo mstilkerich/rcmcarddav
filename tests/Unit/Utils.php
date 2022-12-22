@@ -71,6 +71,7 @@ class Utils
             }
         }
 
+        /** @psalm-var SaveData $phpArray XXX temporary workaround because of vimeo/psalm#8980 */
         return $phpArray;
     }
 

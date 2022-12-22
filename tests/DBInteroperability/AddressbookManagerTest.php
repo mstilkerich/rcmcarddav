@@ -50,7 +50,9 @@ use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
  *   active?: Int1,
  *   use_categories?: Int1,
  *   readonly?: Int1,
- *   require_always_email?: Int1
+ *   require_always_email?: Int1,
+ *   template?: Int1,
+ *   name?: string,
  * }
  */
 final class AddressbookManagerTest extends TestCase
@@ -1188,7 +1190,7 @@ final class AddressbookManagerTest extends TestCase
         $this->assertLessThanOrEqual(1 /* tolerance */, abs($lastUpdatedExpected - intval($lastUpdated)));
     }
 
-    /** @return array<string, array{int,?TestDataKeyRef,AddressbookSettings,list<string>,int}> */
+    /** @return array<string, list{int,?TestDataKeyRef,AddressbookSettings,list<string>,int}> */
     public function newAbookSettingsProvider(): array
     {
         return [

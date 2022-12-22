@@ -349,6 +349,7 @@ class DataConversion
             /** @var list<string> $N */
             $N = $property->getParts();
             for ($i = 0; $i < min(count($N), count($attrs)); $i++) {
+                /** @psalm-var int<0, 4> $i XXX Psalm 5.4.0 does not eval count() for the interval type */
                 if (strlen($N[$i]) > 0) {
                     $save_data[$attrs[$i]] = $N[$i];
                 }
@@ -399,7 +400,7 @@ class DataConversion
                         }
                     }
 
-                    /** @var list<string> $existingValues */
+                    /** @var list<string>|list<SaveDataAddressField> $existingValues */
                     $existingValues = $save_data["$rckey:$label"] ?? [];
                     if (!in_array($propValue, $existingValues)) {
                         $save_data["$rckey:$label"][] = $propValue;
@@ -414,6 +415,8 @@ class DataConversion
         }
 
         $save_data['_carddav_vcard'] = $vcard;
+
+        /** @psalm-var SaveDataFromDC $save_data XXX temporary workaround for vimeo/psalm#8980 */
         return $save_data;
     }
 
@@ -438,6 +441,7 @@ class DataConversion
         $p = $prop->getParts();
         $addr = [];
         for ($i = 0; $i < min(count($p), count($attrs)); $i++) {
+            /** @psalm-var int<0, 6> $i XXX Psalm 5.4.0 does not eval count() for the interval type */
             if (strlen($p[$i]) > 0) {
                 $addr[$attrs[$i]] = $p[$i];
             }
@@ -459,7 +463,7 @@ class DataConversion
         // From Nextcloud: IMPP;TYPE=SKYPE:jdoe@example.com
         // Note: the nextcloud example does not have a URI value, thus it's not compliant with RFC 4770
         $comp = explode(":", (string) $prop, 2);
-        $ret = $comp[count($comp) == 2 ? 1 : 0];
+        $ret = $comp[1] ?? $comp[0];
         if (strlen($ret) == 0) {
             return null;
         }
@@ -479,10 +483,14 @@ class DataConversion
     {
         $isGroup = (($save_data['kind'] ?? "") === "group");
 
+        /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
+
         if (!isset($save_data["name"]) || strlen($save_data["name"]) == 0) {
+            /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
             if (!$isGroup) {
                 $save_data["showas"] = $this->determineShowAs($save_data);
             }
+            /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
             $save_data["name"] = $this->composeDisplayname($save_data);
         }
 
@@ -509,6 +517,7 @@ class DataConversion
             $vcard->N = $nAttr;
         }
 
+        /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
         $this->setOrgProperty($save_data, $vcard);
         $this->setSingleValueProperties($save_data, $vcard);
         $this->setMultiValueProperties($save_data, $vcard);
@@ -570,6 +579,8 @@ class DataConversion
         if (isset($save_data['organization']) && strlen($save_data['organization']) > 0) {
             $orgParts[] = $save_data['organization'];
         }
+
+        /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
 
         if (isset($save_data['department']) && strlen($save_data['department']) > 0) {
             // the first element of ORG corresponds to organization, if that field is not filled but organization is
@@ -1227,8 +1238,14 @@ class DataConversion
     {
         $showAs = $save_data['showas'] ?? "";
 
-        if (strcasecmp($showAs, 'COMPANY') == 0 && !empty($save_data['organization'])) {
-            return $save_data['organization'];
+        /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
+        if (strcasecmp($showAs, 'COMPANY') == 0) {
+            $org = $save_data['organization'] ?? '';
+            /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
+
+            if (strlen($org) > 0) {
+                return $org;
+            }
         }
 
         // try from name

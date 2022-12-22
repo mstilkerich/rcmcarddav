@@ -52,7 +52,8 @@ use MStilkerich\RCMCardDAV\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
  *   require_always_email: Int1,
  *   last_updated: numeric-string,
  *   refresh_time: numeric-string,
- *   sync_token: string
+ *   sync_token: string,
+ *   ...
  * }
  *
  * @psalm-type GroupSaveData = array{
@@ -414,7 +415,7 @@ class Addressbook extends rcube_addressbook
      * @param mixed  $id    Record identifier(s)
      * @param bool $assoc True to return record as associative array, otherwise a result set is returned
      *
-     * @return rcube_result_set|SaveData Result object with all record fields
+     * @return ($assoc is true ? SaveData : rcube_result_set) Result object with all record fields
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_record($id, $assoc = false)
@@ -441,13 +442,7 @@ class Addressbook extends rcube_addressbook
         } catch (Exception $e) {
             $logger->error("Could not get contact $id: " . $e->getMessage());
             $this->set_error(rcube_addressbook::ERROR_SEARCH, "Could not get contact $id");
-            if ($assoc) {
-                /** @var SaveData $ret Psalm does not consider the empty array a subtype */
-                $ret = [];
-                return $ret;
-            } else {
-                return new rcube_result_set();
-            }
+            return $assoc ? [] : new rcube_result_set();
         }
     }
 
@@ -484,11 +479,12 @@ class Addressbook extends rcube_addressbook
         $infra = Config::inst();
         $logger = $infra->logger();
 
-        /** @var SaveData $save_data */
+        /** @psalm-var SaveData $save_data */
         try {
             $logger->info("insert(" . ($save_data["name"] ?? "no name") . ", $check)");
             $db = $infra->db();
 
+            /** @psalm-var SaveData $save_data XXX temporary vimeo/psalm#8980 workaround */
             $vcard = $this->dataConverter->fromRoundcube($save_data);
 
             $davAbook = $this->getCardDavObj();
@@ -499,17 +495,17 @@ class Addressbook extends rcube_addressbook
             /**
              * We preferably check the UID. But as some CardDAV services (i.e. Google) change the UID in the VCard to a
              * server-side one, we fall back to searching by URL if the UID search returned no results.
-             * @var ?array{id: string} $contact
+             * @psalm-var list<array{id: string}> $contact
              */
-            [ $contact ] = $db->get(['cuid' => (string) $vcard->UID, "abook_id" => $this->id], ['id']);
-            if (!isset($contact)) {
+            $contact = $db->get(['cuid' => (string) $vcard->UID, "abook_id" => $this->id], ['id']);
+            if (empty($contact)) {
                 /** @var array{id: string} $contact */
                 $contact = $db->lookup(['uri' => $uri, "abook_id" => $this->id], ['id']);
+            } else {
+                $contact = $contact[0];
             }
 
-            if (isset($contact["id"])) {
-                return $contact["id"];
-            }
+            return $contact["id"];
         } catch (Exception $e) {
             $this->set_error(rcube_addressbook::ERROR_SAVING, $e->getMessage());
         }
@@ -535,6 +531,7 @@ class Addressbook extends rcube_addressbook
         /** @var SaveData $save_cols */
         try {
             $logger->info("update(" . ($save_cols["name"] ?? "no name") . ", ID=$id)");
+            /** @psalm-var SaveData $save_cols XXX temporary vimeo/psalm#8980 workaround */
             $db = $infra->db();
 
             /**
@@ -769,8 +766,8 @@ class Addressbook extends rcube_addressbook
             usort(
                 $groups,
                 /**
-                 * @param array{name: string} $g1
-                 * @param array{name: string} $g2
+                 * @param array{name: string, ...} $g1
+                 * @param array{name: string, ...} $g2
                  */
                 function (array $g1, array $g2): int {
                     return strcasecmp($g1["name"], $g2["name"]);
@@ -1122,7 +1119,7 @@ class Addressbook extends rcube_addressbook
 
             /**
              * get current DB data
-             * @var array{name: string, uri: ?string} $group
+             * @var array{name: string, uri: ?string, etag: ?string, vcard: ?string} $group
              */
             $group = $db->lookup(
                 ["id" => $group_id, "abook_id" => $this->id],
@@ -1539,8 +1536,8 @@ class Addressbook extends rcube_addressbook
 
         if (isset($conditions)) {
             $db = Config::inst()->db();
-            [$result] = $db->get($conditions, [], 'contacts', [ 'count' => true ]);
-            $numCards = intval($result['*']);
+            $result = $db->get($conditions, [], 'contacts', [ 'count' => true ]);
+            $numCards = intval($result[0]['*']);
         }
 
         return $numCards;
@@ -1563,7 +1560,7 @@ class Addressbook extends rcube_addressbook
      * i.e. the function returns a value greater than 0.
      *
      * @param list<string> $contact_cuids The VCard UIDs of the contacts to remove from the group.
-     * @param array{etag: string, uri: string, vcard: string} $group Save data for the group.
+     * @param array{etag: string, uri: string, vcard: string, ...} $group Save data for the group.
      *
      * @return int The number of members actually removed from the group.
      */
