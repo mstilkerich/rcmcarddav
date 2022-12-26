@@ -321,6 +321,11 @@ class DataConversion
      */
     public function toRoundcube(VCard $vcard, AddressbookCollection $davAbook): array
     {
+        // in case our input is not a v3 vcard, first convert it to one
+        if ($vcard->getDocumentType() != VObject\Document::VCARD30) {
+            $vcard = $vcard->convert(VObject\Document::VCARD30);
+        }
+
         $save_data = [
             // DEFAULTS
             'kind'   => 'individual',
@@ -488,9 +493,16 @@ class DataConversion
             $save_data["name"] = $this->composeDisplayname($save_data);
         }
 
-        if (!isset($vcard)) {
+        if (isset($vcard)) {
+            $vcardVersion = $vcard->getDocumentType();
+            if ($vcardVersion != VObject\Document::VCARD30) {
+                $vcard4 = $vcard;
+                $vcard = $vcard->convert(VObject\Document::VCARD30);
+            }
+        } else {
             // create fresh minimal vcard
             $vcard = new VObject\Component\VCard(['VERSION' => '3.0']);
+            $vcardVersion = VObject\Document::VCARD30;
         }
 
         // set product
@@ -514,6 +526,21 @@ class DataConversion
         $this->setOrgProperty($save_data, $vcard);
         $this->setSingleValueProperties($save_data, $vcard);
         $this->setMultiValueProperties($save_data, $vcard);
+
+        // if the original vcard was version 4, convert it back to that version
+        if ($vcardVersion == VObject\Document::VCARD40) {
+            // XXX Temporary workarounds for sabre-io/vobject#602 BEGIN
+            // 1) If the photo was unchanged, preserve the original vcard's property to not lose the mimetype
+            $vcard = $vcard->convert(VObject\Document::VCARD40);
+            if (isset($vcard4->PHOTO) && !isset($save_data['photo'])) {
+                $vcard->PHOTO = $vcard4->PHOTO;
+            }
+
+            // 2) Drop X-ADDRESSBOOKSERVER-KIND property; for KIND=group, it has been converted, for KIND=individual it
+            //    it has been retained, but since it is the default we can simply drop it.
+            unset($vcard->{'X-ADDRESSBOOKSERVER-KIND'});
+            // XXX Temporary workarounds for sabre-io/vobject#602 END
+        }
 
         return $vcard;
     }
@@ -599,6 +626,20 @@ class DataConversion
         if (isset($vcard->PHOTO)) {
             $vcard->PHOTO['ENCODING'] = 'b';
             $vcard->PHOTO['VALUE'] = 'binary';
+
+            if (function_exists('getimagesizefromstring')) {
+                $typemap = [
+                    IMAGETYPE_JPEG => 'JPEG',
+                    IMAGETYPE_GIF  => 'GIF',
+                    IMAGETYPE_PNG  => 'PNG',
+                ];
+                $imginfo = getimagesizefromstring($photoData);
+                if ($imginfo !== false && isset($imginfo[2]) && is_int($imginfo[2])) {
+                    if (key_exists($imginfo[2], $typemap)) {
+                        $vcard->PHOTO['TYPE'] = $typemap[$imginfo[2]];
+                    }
+                }
+            }
         }
     }
 
