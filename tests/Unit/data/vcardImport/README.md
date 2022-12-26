@@ -54,6 +54,7 @@ There are a few specifics to be tested during the import:
 - IM-KAddressbook: A VCard containing instant messaging attributes produced by KAddressbook
 - IM-Nextcloud: A VCard containing instant messaging attributes produced by nextcloud
 - IM-Owncloud: A VCard containing instant messaging attributes produced by owncloud
+- VCard4-DataUriPhoto: A v4 VCard containing a PHOTO in data URI format. 
 - ZeroStrings: Tests "0" strings in various places of the VCard, which are considered "empty" by php's empty function.
   This must not cause these properties to be discarded during the import like properties with no value.
 
