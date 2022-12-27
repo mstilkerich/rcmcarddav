@@ -27,7 +27,7 @@
         "psr/log": "^1.0 || ^2.0 || ^3.0"
     },
     "require-dev": {
-        "vimeo/psalm": ">= 3.11",
+        "vimeo/psalm": "^4",
         "phpcompatibility/php-compatibility": "*",
         "phpunit/phpunit": "~9",
         "phpunit/phpcov": "*",

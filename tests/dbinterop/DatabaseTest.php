@@ -593,7 +593,7 @@ final class DatabaseTest extends TestCase
      * Tests that an error message is logged when using an unsupported DBMS.
      *
      * We only support MySQL, Postgres and SQLite3. For most operations, this does not matter, but some require
-     * DBMS-specific SQL. These operations are expected log log an error message, which is verified by this test.
+     * DBMS-specific SQL. These operations are expected to log an error message, which is verified by this test.
      *
      * @param callable(Database):void $errFunc
      * @dataProvider connectToDbUnsuppDbProvider
