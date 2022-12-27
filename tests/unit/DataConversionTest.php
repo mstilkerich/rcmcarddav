@@ -515,6 +515,22 @@ final class DataConversionTest extends TestCase
     }
 
     /**
+     * Tests that DelayedPhotoLoader logs a warning if it encounters an unsupported PHOTO URI scheme
+     */
+    public function testPhotoloaderHandlesUnknownUriScheme(): void
+    {
+        $logger = TestInfrastructure::logger();
+
+        $vcard = TestInfrastructure::readVCard("tests/Unit/data/vcardImport/UriPhoto.vcf");
+        $this->assertNotNull($vcard->PHOTO);
+        $vcard->PHOTO->setValue('ftp://localhost/raven.jpg');
+        $proxy = new DelayedPhotoLoader($vcard, $this->abook);
+
+        $this->assertEquals("", $proxy);
+        $logger->expectMessage("warning", "Unsupported URI scheme ftp for PHOTO property");
+    }
+
+    /**
      * Tests that the function properly reports single-value attributes.
      */
     public function testSinglevalueAttributesReportedAsSuch(): void
