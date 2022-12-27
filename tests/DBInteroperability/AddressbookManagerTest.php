@@ -479,6 +479,25 @@ final class AddressbookManagerTest extends TestCase
         }
     }
 
+    /**
+     * Tests that the template addressbook for an account is properly returned by getTemplateAddressbookForAccount()
+     */
+    public function testTemplateAddressbookForAccountIsProvidedCorrectly(): void
+    {
+        $abMgr = new AddressbookManager();
+
+        // Account 0 has a template addressbook
+        $accountId = self::$testData->getRowId('carddav_accounts', 0);
+        $tmplAbook = $abMgr->getTemplateAddressbookForAccount($accountId);
+        $this->assertIsArray($tmplAbook);
+        $this->assertSame('CATMPL', $tmplAbook['name']);
+
+        // Account 1 has no template addressbook
+        $accountId = self::$testData->getRowId('carddav_accounts', 1);
+        $tmplAbook = $abMgr->getTemplateAddressbookForAccount($accountId);
+        $this->assertNull($tmplAbook);
+    }
+
     /** @return array<string, array{array<string, null|string|int|TestDataKeyRef>, ?string}> */
     public function accountInsertDataProvider(): array
     {
