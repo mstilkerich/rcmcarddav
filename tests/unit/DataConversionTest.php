@@ -506,7 +506,7 @@ final class DataConversionTest extends TestCase
         $logger = TestInfrastructure::logger();
         unset($_SESSION['user_id']);
 
-        $vcard = TestInfrastructure::readVCard("tests/Unit/data/vcardImport/UriPhoto.vcf");
+        $vcard = TestInfrastructure::readVCard("tests/unit/data/vcardImport/UriPhoto.vcf");
         $this->assertNotNull($vcard->PHOTO);
         $proxy = new DelayedPhotoLoader($vcard, $this->abook);
 
@@ -521,7 +521,7 @@ final class DataConversionTest extends TestCase
     {
         $logger = TestInfrastructure::logger();
 
-        $vcard = TestInfrastructure::readVCard("tests/Unit/data/vcardImport/UriPhoto.vcf");
+        $vcard = TestInfrastructure::readVCard("tests/unit/data/vcardImport/UriPhoto.vcf");
         $this->assertNotNull($vcard->PHOTO);
         $vcard->PHOTO->setValue('ftp://localhost/raven.jpg');
         $proxy = new DelayedPhotoLoader($vcard, $this->abook);
