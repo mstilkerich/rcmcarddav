@@ -1,7 +1,6 @@
 # Changelog for RCMCardDAV
 
 ## Version 4.4.6 (to 4.4.5)
-- Fix: Assertion failure in DelayedPhotoLoader (Fixes: #404)
 - Fixes for better handling of incoming vCard4 (Fixes: #411)
   - Handle data-URI-style inline PHOTO as used in vCard4
   - Use VCard conversion to handle v4 properties such as KIND=group for which extensions are used in v3 vCards
