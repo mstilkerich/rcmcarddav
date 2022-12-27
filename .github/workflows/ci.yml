@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Checkout rcmcarddav
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up CI environment
         uses: ./.github/actions/setup
         with:
@@ -40,7 +40,7 @@ jobs:
 
     steps:
       - name: Checkout rcmcarddav
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up CI environment
         uses: ./.github/actions/setup
         with:
@@ -48,12 +48,11 @@ jobs:
       - name: Run unit tests
         run: make unittests
       - name: Upload unit test coverage reports to codecov.io
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
         with:
-          file: testreports/unit/clover.xml
+          files: testreports/unit/clover.xml
           flags: unittests
           name: RCMCardDAV unit test coverage
-          fail_ci_if_error: false
 
   dbinterop-sqlite3:
     runs-on: ubuntu-20.04
@@ -63,7 +62,7 @@ jobs:
 
     steps:
       - name: Checkout rcmcarddav
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up CI environment
         uses: ./.github/actions/setup
         with:
@@ -71,12 +70,11 @@ jobs:
       - name: Database interoperability tests for SQLite3
         run: make tests-sqlite3
       - name: Upload DB interoperability test coverage reports to codecov.io
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
         with:
-          file: testreports/dbinterop-sqlite3/clover.xml
+          files: testreports/dbinterop-sqlite3/clover.xml
           flags: dbinterop-sqlite3
           name: RCMCardDAV SQLite3 database interoperability test coverage
-          fail_ci_if_error: false
 
   dbinterop-mysql:
     strategy:
@@ -116,7 +114,7 @@ jobs:
 
     steps:
       - name: Checkout rcmcarddav
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up CI environment
         uses: ./.github/actions/setup
         with:
@@ -127,12 +125,11 @@ jobs:
       - name: Database interoperability tests for MySQL
         run: make tests-mysql
       - name: Upload DB interoperability test coverage reports to codecov.io
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
         with:
-          file: testreports/dbinterop-mysql/clover.xml
+          files: testreports/dbinterop-mysql/clover.xml
           flags: dbinterop-mysql
           name: RCMCardDAV MySQL database interoperability test coverage
-          fail_ci_if_error: false
 
   dbinterop-postgres:
     strategy:
@@ -164,7 +161,7 @@ jobs:
 
     steps:
       - name: Checkout rcmcarddav
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up CI environment
         uses: ./.github/actions/setup
         with:
@@ -172,9 +169,8 @@ jobs:
       - name: Database interoperability tests for Postgres
         run: make tests-postgres
       - name: Upload DB interoperability test coverage reports to codecov.io
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
         with:
-          file: testreports/dbinterop-postgres/clover.xml
+          files: testreports/dbinterop-postgres/clover.xml
           flags: dbinterop-postgres
           name: RCMCardDAV PostgreSQL database interoperability test coverage
-          fail_ci_if_error: false
