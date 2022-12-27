@@ -49,11 +49,11 @@ final class DataConversionTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        $_SESSION['user_id'] = 105;
     }
 
     public function setUp(): void
     {
+        $_SESSION['user_id'] = 105;
         $abook = $this->createStub(AddressbookCollection::class);
         $abook->method('downloadResource')->will($this->returnCallback([Utils::class, 'downloadResource']));
         $this->abook = $abook;
@@ -401,6 +401,11 @@ final class DataConversionTest extends TestCase
         $this->assertTrue(isset($saveData['photo']));
         if ($getExp) {
             Utils::comparePhoto($cachedPhotoData, (string) $saveData["photo"]);
+
+            // If we fetch it a second time, we should hit the internal cache of the photo loader and no processing
+            // occurs again
+            $cache->expects($this->never())->method("get");
+            Utils::comparePhoto($cachedPhotoData, (string) $saveData["photo"]);
         } else {
             $this->assertTrue(isset($saveDataExpected["photo"]));
             $this->assertIsString($saveDataExpected["photo"]);
@@ -491,6 +496,22 @@ final class DataConversionTest extends TestCase
 
         $proxy = new DelayedPhotoLoader($vcard, $this->abook);
         $this->assertEquals("", $proxy);
+    }
+
+    /**
+     * Tests that DelayedPhotoLoader logs an error in case rcube cache usage is attempted without user logged on.
+     */
+    public function testPhotoloaderHandlesUnauthenticatedUsageError(): void
+    {
+        $logger = TestInfrastructure::logger();
+        unset($_SESSION['user_id']);
+
+        $vcard = TestInfrastructure::readVCard("tests/Unit/data/vcardImport/UriPhoto.vcf");
+        $this->assertNotNull($vcard->PHOTO);
+        $proxy = new DelayedPhotoLoader($vcard, $this->abook);
+
+        $this->assertEquals("", $proxy);
+        $logger->expectMessage("error", "determineCacheKey: user must be logged on to use photo cache");
     }
 
     /**

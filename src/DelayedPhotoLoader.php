@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\CardDavAddressbook4Roundcube;
 
+use Exception;
 use Psr\Log\LoggerInterface;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
@@ -90,7 +91,7 @@ class DelayedPhotoLoader
         try {
             $this->photoData = $this->computePhotoFromProperty();
             return $this->photoData;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return "";
         }
     }
@@ -109,7 +110,8 @@ class DelayedPhotoLoader
      *
      * Processing and cache retrieval/update are performed as necessary.
      *
-     * @return string The processed photo data. An empty string in case of error or no photo available.
+     * @throws Exception if the an error occurs
+     * @return string The processed photo data. Empty string if not photo included in vcard.
      */
     private function computePhotoFromProperty(): string
     {
@@ -159,7 +161,11 @@ class DelayedPhotoLoader
             $this->storeToRoundcubeCache($photoData, $photoProp);
         }
 
-        return $photoData ?? "";
+        if (isset($photoData)) {
+            return $photoData;
+        }
+
+        throw new Exception('PHOTO value could not be computed');
     }
 
     private function downloadPhoto(string $uri): ?string
@@ -167,7 +173,7 @@ class DelayedPhotoLoader
         try {
             $response = $this->davAbook->downloadResource($uri);
             return $response['body'];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $logger = Config::inst()->logger();
             $logger->warning("downloadPhoto: Attempt to download photo from $uri failed: " . $e->getMessage());
         }
@@ -242,7 +248,11 @@ class DelayedPhotoLoader
         $uid = (string) $this->vcard->UID;
 
         if (!isset($_SESSION['user_id'])) {
-            throw new \Exception("determineCacheKey: user must be logged on to use photo cache");
+            $infra = Config::inst();
+            $logger = $infra->logger();
+            $msg = "determineCacheKey: user must be logged on to use photo cache";
+            $logger->error($msg);
+            throw new Exception($msg);
         }
 
         $userid = (string) $_SESSION['user_id'];
@@ -295,19 +305,15 @@ class DelayedPhotoLoader
         $dw = min($w, self::MAX_PHOTO_SIZE);
         $dh = min($h, self::MAX_PHOTO_SIZE);
 
-        if (
-            ($obStarted = ob_start())
+        $croppedPhoto = null;
+
+        ($obStarted = ob_start())
             && ($src = imagecreatefromstring($photoData))
             && ($dst = imagecreatetruecolor($dw, $dh))
             && ($imgHeight = imagesy($src))
             && imagecopyresampled($dst, $src, 0, 0, $x, $imgHeight - $y - $h, $dw, $dh, $w, $h)
             && imagepng($dst)
-            && ($croppedPhoto = ob_get_contents())
-        ) {
-            // nothing to do
-        } else {
-            $croppedPhoto = null;
-        }
+            && ($croppedPhoto = ob_get_contents());
 
         if ($obStarted) {
             ob_end_clean();
