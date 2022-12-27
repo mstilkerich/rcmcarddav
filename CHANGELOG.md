@@ -7,6 +7,7 @@
 - Fixes for better handling of incoming vCard4 (Fixes: #411)
   - Handle data-URI-style inline PHOTO as used in vCard4
   - Use VCard conversion to handle v4 properties such as KIND=group for which extensions are used in v3 vCards
+- Fix: Do not attempt to download photos from URIs with unsupported URI scheme (supported are http and https) (#411)
 
 ## Version 5.0.0-beta1 (to 4.4.4)
 

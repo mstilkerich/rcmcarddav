@@ -125,11 +125,21 @@ class DelayedPhotoLoader
         $cropProp = $photoProp['X-ABCROP-RECTANGLE'];
 
         // check if photo needs to be downloaded
+        $photoUri = null;
         $kind = $photoProp['VALUE'];
         if (($kind instanceof VObject\Parameter) && strcasecmp('uri', (string) $kind) == 0) {
-            $photoUri = (string) $photoProp;
-        } else {
-            $photoUri = null;
+            if (preg_match('#^([[:alpha:]][[:alnum:]]*)://#', (string) $photoProp, $matches)) {
+                $scheme = strtolower($matches[1]);
+                if ($scheme === 'http' || $scheme === 'https') {
+                    $photoUri = (string) $photoProp;
+                } else {
+                    $infra = Config::inst();
+                    $logger = $infra->logger();
+                    $msg = "Unsupported URI scheme $scheme for PHOTO property";
+                    $logger->warning($msg);
+                    throw new \Exception($msg);
+                }
+            }
         }
 
         // true if the photo must be processed (downloaded/cropped) and the result should be cached
