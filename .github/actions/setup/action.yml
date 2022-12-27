@@ -20,7 +20,7 @@ runs:
           extensions: gd, xdebug, curl
           coverage: xdebug
       - name: Checkout roundcubemail
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: roundcubemail
           repository: mstilkerich/roundcubemail
