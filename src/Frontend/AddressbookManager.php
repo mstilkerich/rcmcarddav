@@ -120,6 +120,11 @@ class AddressbookManager
     public const ABF_ACTIVE = [ 0x21, 0x01 ];
 
     /**
+     * @var AbookFilter Filter yields all active writeable addressbooks, templates excluded.
+     */
+    public const ABF_ACTIVE_RW = [ 0x29, 0x01 ];
+
+    /**
      * @var AbookFilter Filter yields all discovered addressbooks, templates excluded.
      */
     public const ABF_DISCOVERED = [ 0x24, 0x04 ];

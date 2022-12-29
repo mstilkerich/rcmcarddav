@@ -661,7 +661,9 @@ class AdminSettings
 
             $accountId = $presetIdsByPresetname[$presetName];
 
-            foreach ($abMgr->getAddressbookConfigsForAccount($accountId) as $abookCfg) {
+            // Read-only, inactive and template addressbooks are not considered for candidates
+            $abCandidates = $abMgr->getAddressbookConfigsForAccount($accountId, AddressbookManager::ABF_ACTIVE_RW);
+            foreach ($abCandidates as $abookCfg) {
                 // check all addressbooks for that preset
                 // All specified matchers must match
                 // If no matcher is set, any addressbook of the preset is considered a match
@@ -674,14 +676,7 @@ class AdminSettings
                     }
                 }
 
-                // addressbook matches, make sure it is active and writeable
-                if (!$abookCfg['active']) {
-                    $logger->error("Cannot use de-activated addressbook from $presetName for $type");
-                } elseif ($abookCfg['readonly']) {
-                    $logger->error("Cannot use read-only addressbook from $presetName for $type");
-                } else {
-                    $matches[] = $abookCfg['id'];
-                }
+                $matches[] = $abookCfg['id'];
             }
 
             // we need exactly one match, in any other case we leave the roundcube setting as is
