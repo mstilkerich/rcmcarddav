@@ -1,0 +1,67 @@
+{
+	"accounts": [
+		{
+			"id": 42,
+			"accountname": "Test Account",
+			"username": "",
+			"password": "",
+			"discovery_url": "https://carddav.example.com/",
+			"user_id": "105",
+			"last_discovered": 12345,
+			"rediscover_time": 86400,
+			"presetname": "AdmPreset"
+		}
+	],
+	"addressbooks": [
+		{
+			"id": 42,
+			"name": "Addressbook number one",
+			"url": "https://carddav.example.com/books/johndoe/book42/",
+			"flags": 7,
+			"last_updated": 12345,
+			"refresh_time": 3600,
+			"sync_token": "sync@3600",
+			"account_id": 42
+		},
+		{
+			"id": 43,
+			"name": "Additional contacts",
+			"url": "https://carddav.example.com/books/johndoe/book43/",
+			"flags": 7,
+			"last_updated": 12345,
+			"refresh_time": 3600,
+			"sync_token": "sync@3600",
+			"account_id": 42
+		},
+		{
+			"id": 44,
+			"name": "Additional contacts - Inactive",
+			"url": "https://carddav.example.com/books/johndoe/book44/",
+			"flags": 6,
+			"last_updated": 12345,
+			"refresh_time": 3600,
+			"sync_token": "sync@3600",
+			"account_id": 42
+		},
+		{
+			"id": 51,
+			"name": "Public readonly contacts",
+			"url": "https://carddav.example.com/shared/Public/",
+			"flags": 11,
+			"last_updated": 12345,
+			"refresh_time": 3600,
+			"sync_token": "sync@3600",
+			"account_id": 42
+		},
+		{
+			"id": 61,
+			"name": "%N",
+			"url": "",
+			"flags": 35,
+			"last_updated": 0,
+			"refresh_time": 3600,
+			"sync_token": "",
+			"account_id": 42
+		}
+	]
+}
