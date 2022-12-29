@@ -114,6 +114,73 @@ final class AdminSettingsWithDataTest extends TestCase
             $i = 1;
         }
     }
+
+    /**
+     * Test for AdminSettings::getAddressbookTemplate()
+     *
+     * Situations to test:
+     * - DB template addressbook has different value for a fixed setting than the preset - preset value is taken
+     *    - account 42, refresh_time
+     * - DB template addressbook has different value for a non-fixed setting than the preset - DB value is taken
+     *    - account 42, name
+     * - Template addressbook for a non-preset account is queried and DB entry exists - DB entry is provided
+     *    - account 43
+     * - Template addressbook for a non-preset account is queried and no DB entry exists - empty array returned
+     *    - account 44
+     * - Template addressbook for a preset account is queried and no DB entry exists - values from preset provided
+     *    - account 45
+     */
+    public function testTemplateAddressbookProvidedCorrectly(): void
+    {
+        $this->db = new JsonDatabase(['tests/Unit/data/adminSettingsWithDataTest/templateAbookDb.json']);
+        TestInfrastructure::init($this->db, 'tests/Unit/data/adminSettingsWithDataTest/templateAbook.php');
+
+        $infra = TestInfrastructure::$infra;
+        $admPrefs = $infra->admPrefs();
+        $abMgr = new AddressbookManager();
+
+        //  Test fixed vs. non-fixed values and user overrides
+        $tmpl = $admPrefs->getAddressbookTemplate($abMgr, '42');
+
+        $this->assertSame('1800', $tmpl['refresh_time'] ?? '');
+        $this->assertSame('New abook (%N)', $tmpl['name'] ?? '');
+        $this->assertSame('0', $tmpl['active'] ?? '');
+        $this->assertSame('1', $tmpl['use_categories'] ?? '');
+        $this->assertSame('0', $tmpl['discovered'] ?? '');
+        $this->assertSame('1', $tmpl['readonly'] ?? '');
+        $this->assertSame('1', $tmpl['require_always_email'] ?? '');
+
+
+        // Test user-defined account with template addressbook in DB
+        $tmpl = $admPrefs->getAddressbookTemplate($abMgr, '43');
+
+        $this->assertSame('60', $tmpl['refresh_time'] ?? '');
+        $this->assertSame('%D', $tmpl['name'] ?? '');
+        $this->assertSame('0', $tmpl['active'] ?? '');
+        $this->assertSame('1', $tmpl['use_categories'] ?? '');
+        $this->assertSame('0', $tmpl['discovered'] ?? '');
+        $this->assertSame('0', $tmpl['readonly'] ?? '');
+        $this->assertSame('0', $tmpl['require_always_email'] ?? '');
+
+        // Test user-defined account with NO template addressbook in DB
+        $tmpl = $admPrefs->getAddressbookTemplate($abMgr, '44');
+        $this->assertCount(0, $tmpl);
+
+        // Test preset account with NO template addressbook in DB
+        $tmpl = $admPrefs->getAddressbookTemplate($abMgr, '45');
+
+        $this->assertSame('600', $tmpl['refresh_time'] ?? '');
+        $this->assertSame('%N - %D', $tmpl['name'] ?? '');
+
+        $this->assertSame('1', $tmpl['active'] ?? '');
+        $this->assertSame('0', $tmpl['use_categories'] ?? '');
+        // discovered is not part of preset
+        $this->assertArrayNotHasKey('discovered', $tmpl);
+        $this->assertSame('0', $tmpl['readonly'] ?? '');
+        $this->assertSame('0', $tmpl['require_always_email'] ?? '');
+        // template is not part of preset
+        $this->assertArrayNotHasKey('template', $tmpl);
+    }
 }
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120

@@ -1,0 +1,70 @@
+{
+	"accounts": [
+		{
+			"id": 42,
+			"accountname": "Test Account",
+			"username": "",
+			"password": "",
+			"discovery_url": "https://carddav.example.com/",
+			"user_id": "105",
+			"last_discovered": 12345,
+			"rediscover_time": 86400,
+			"presetname": "AdmPreset"
+		},
+		{
+			"id": 43,
+			"accountname": "User-defined account with template abook in DB",
+			"username": "",
+			"password": "",
+			"discovery_url": "https://carddav2.example.com/",
+			"user_id": "105",
+			"last_discovered": 12345,
+			"rediscover_time": 86400,
+			"presetname": null
+		},
+		{
+			"id": 44,
+			"accountname": "User-defined account with NO template abook in DB",
+			"username": "",
+			"password": "",
+			"discovery_url": "https://carddav3.example.com/",
+			"user_id": "105",
+			"last_discovered": 12345,
+			"rediscover_time": 86400,
+			"presetname": null
+		},
+		{
+			"id": 45,
+			"accountname": "Preset account with NO template abook in DB",
+			"username": "",
+			"password": "",
+			"discovery_url": "https://card.example.com/",
+			"user_id": "105",
+			"last_discovered": 12345,
+			"rediscover_time": 86400,
+			"presetname": "AdmPreset2"
+		}
+	],
+	"addressbooks": [
+		{
+			"id": 61,
+			"name": "New abook (%N)",
+			"url": "",
+			"flags": 51,
+			"last_updated": 0,
+			"refresh_time": 7200,
+			"sync_token": "",
+			"account_id": 42
+		},
+		{
+			"id": 71,
+			"name": "%D",
+			"url": "",
+			"flags": 34,
+			"last_updated": 0,
+			"refresh_time": 60,
+			"sync_token": "",
+			"account_id": 43
+		}
+	]
+}
