@@ -10,6 +10,17 @@
 			"last_discovered": 12345,
 			"rediscover_time": 86400,
 			"presetname": "UpdatedPreset"
+		},
+		{
+			"id": 44,
+			"accountname": "New Preset Account",
+			"username": "%u",
+			"password": "foo",
+			"discovery_url": "https://newcard.example.com/",
+			"user_id": "105",
+			"last_discovered": 0,
+			"rediscover_time": 36000,
+			"presetname": "NewPreset"
 		}
 	],
 	"addressbooks": [
@@ -62,6 +73,17 @@
 			"refresh_time": 1800,
 			"sync_token": "",
 			"account_id": 43
+		},
+
+		{
+			"id": 61,
+			"name": "PublicAddrs",
+			"url": "https://newcard.example.com/global/PublicAddrs",
+			"flags": 3,
+			"last_updated": 0,
+			"refresh_time": 18000,
+			"sync_token": "",
+			"account_id": 44
 		}
 	]
 }

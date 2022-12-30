@@ -3,6 +3,8 @@
 $prefs['_GLOBAL']['loglevel'] = \Psr\Log\LogLevel::DEBUG;
 $prefs['_GLOBAL']['loglevel_http'] = \Psr\Log\LogLevel::INFO;
 
+$prefs['_GLOBAL']['pwstore_scheme'] = 'plain';
+
 $prefs['UpdatedPreset'] = [
     'accountname'         => 'Updated Account',
     'discovery_url'       => 'https://carddav.example.com/',
@@ -34,6 +36,25 @@ $prefs['UpdatedPreset'] = [
         ],
         [
             'url'          =>  'https://carddav.example.com/global/InvalidXBook/',
+        ],
+    ],
+];
+
+$prefs['NewPreset'] = [
+    'accountname'         => 'New Preset Account',
+    'discovery_url'       => 'https://newcard.example.com/',
+
+    'username'            => '%u',
+    'password'            => 'foo',
+    'rediscover_time'     => '10:00',
+
+    'refresh_time'        => '5:00',
+    'name'                => '%N (%D)',
+
+    'extra_addressbooks' => [
+        [
+            'url'          =>  'https://newcard.example.com/global/PublicAddrs',
+            'name'         => '%c',
         ],
     ],
 ];

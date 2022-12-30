@@ -265,6 +265,13 @@ final class AdminSettingsWithDataTest extends TestCase
             'https://carddav.example.com/global/RemovedBook' => new Exception('RemovedBook not on server anymore'),
             $invalidXBookUrl => new Exception('InvalidXBook'),
             "https://carddav.example.com/books/johndoe/book55/" => $this->createStub(WebDavResource::class),
+
+            'https://newcard.example.com/global/PublicAddrs' => $this->makeAbookCollStub(
+                'New public addrs',
+                'https://newcard.example.com/global/PublicAddrs',
+                'New Public directory'
+            ),
+
         ];
         $admPrefs = $infra->admPrefs();
         $abMgr = new AddressbookManager();
