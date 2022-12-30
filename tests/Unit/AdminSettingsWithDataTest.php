@@ -26,6 +26,8 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\RCMCardDAV\Unit;
 
+use Exception;
+use MStilkerich\CardDavClient\{AddressbookCollection,WebDavResource};
 use MStilkerich\RCMCardDAV\Frontend\AddressbookManager;
 use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
@@ -180,6 +182,119 @@ final class AdminSettingsWithDataTest extends TestCase
         $this->assertSame('0', $tmpl['require_always_email'] ?? '');
         // template is not part of preset
         $this->assertArrayNotHasKey('template', $tmpl);
+    }
+
+    /**
+     * @return array<string, list{string, list{?string,?string}}>
+     */
+    public function initPresetDataProvider(): array
+    {
+        $base = 'tests/Unit/data/adminSettingsWithDataTest';
+
+        return [
+            'Two matchers, one match' => [ "$base/matchBoth.php", ['43', '43'] ],
+            'No matches (invalid preset, AND condition eval)' => [
+                "$base/noMatch.php",
+                [
+                    'Setting for collected_recipients must include a valid preset attribute',
+                    'Cannot set special addressbook collected_senders, there are 0 candidates (need: 1)'
+                ]
+            ],
+            'Multiple matches' => [
+                "$base/matchMultiple.php",
+                [
+                    'Cannot set special addressbook collected_recipients, there are 2 candidates (need: 1)',
+                    'Cannot set special addressbook collected_senders, there are 2 candidates (need: 1)'
+                ]
+            ],
+            'Preset not yet in DB' => [ "$base/presetNotInDbYet.php", [null, null] ],
+        ];
+    }
+
+    /**
+     * Tests that presets are initialized and updated properly by AdminSettings::initPresets().
+     *
+     * The following is tested:
+     * - A new preset is added
+     *   - Account is added to the DB with the proper settings
+     *   - Extra addressbooks of the account are added to the DB, but no sync is attempted
+     * - A preset account existing in the DB is removed - RemovedPreset
+     *   - The account and all its addressbooks are purged from the database.
+     * - A preset account existing in the DB is updated - UpdatedPreset
+     *   - A new extra addressbook is added [NewXBook]
+     *   - An extra addressbook existing in the DB is removed [RemovedBook]
+     *   - Fixed settings for existing addressbooks are updated [username, refresh_time, require_always_email]
+     *     - For a fixed name w/ server-side vars, the updated value is fetched from the server [Discovered Addressbook]
+     *     - For an extra addressbook, its specific settings are taken if available [UpdatedXBook, require_always_email]
+     *     - For an extra addressbook, main settings are taken if no specific  available [UpdatedXBook, refresh_time]
+     *   - An extra addressbook with invalid URL exists in the admin config, error is logged and remainder of the
+     *     preset is properly processed [InvalidXBook]
+     *   - A discovered addressbook does not exist on server anymore and server-side query is required to update name;
+     *     it is not updated in the DB except for the name, and the rest of the preset is properly processed [book55]
+     *   - Non-fixed settings with values different from the preset are retained [rediscover_time, use_categories]
+     *
+     * Note that the discovery of addressbooks belonging to a preset is out of scope of the AdminSettings::initPresets()
+     * function and therefore this test.
+     */
+    public function testPresetsAreInitializedProperly(): void
+    {
+        $db = new JsonDatabase(['tests/Unit/data/adminSettingsWithDataTest/initPresetsDb.json']);
+        $this->db = $db;
+        $dbAfter  = new JsonDatabase(['tests/Unit/data/adminSettingsWithDataTest/initPresetsDbAfter.json']);
+        $logger = TestInfrastructure::logger();
+        TestInfrastructure::init($this->db, 'tests/Unit/data/adminSettingsWithDataTest/initPresets.php');
+
+        $infra = TestInfrastructure::$infra;
+        $invalidXBookUrl = 'https://carddav.example.com/global/InvalidXBook/';
+        $infra->webDavResources = [
+            'https://carddav.example.com/books/johndoe/book42/' => $this->makeAbookCollStub(
+                'Book 42',
+                'https://carddav.example.com/books/johndoe/book42/',
+                "Hitchhiker's Guide"
+            ),
+            'https://carddav.example.com/global/UpdatedXBook/' => $this->makeAbookCollStub(
+                'Updated XAbook',
+                'https://carddav.example.com/global/UpdatedXBook/',
+                'Public directory'
+            ),
+            'https://carddav.example.com/global/NewXBook/' => $this->makeAbookCollStub(
+                'Added XAbook',
+                'https://carddav.example.com/global/NewXBook/',
+                'Newly added extra addressbook'
+            ),
+            'https://carddav.example.com/global/RemovedBook' => new Exception('RemovedBook not on server anymore'),
+            $invalidXBookUrl => new Exception('InvalidXBook'),
+            "https://carddav.example.com/books/johndoe/book55/" => $this->createStub(WebDavResource::class),
+        ];
+        $admPrefs = $infra->admPrefs();
+        $abMgr = new AddressbookManager();
+
+        $admPrefs->initPresets($abMgr, $infra);
+
+        $dbAfter->compareTables('accounts', $db);
+        $dbAfter->compareTables('addressbooks', $db);
+
+        $logger->expectMessage(
+            "error",
+            "Failed to add extra addressbook $invalidXBookUrl for preset UpdatedPreset: InvalidXBook"
+        );
+        $logger->expectMessage("error", "Cannot update name of addressbook 55: no addressbook collection at given URL");
+    }
+
+    /**
+     * Creates an AddressbookCollection stub that implements getUri() and getName().
+     */
+    private function makeAbookCollStub(?string $name, string $url, ?string $desc): AddressbookCollection
+    {
+        $davobj = $this->createStub(AddressbookCollection::class);
+        $urlComp = explode('/', rtrim($url, '/'));
+        $baseName = $urlComp[count($urlComp) - 1];
+        $davobj->method('getName')->will($this->returnValue($name ?? $baseName));
+        $davobj->method('getBasename')->will($this->returnValue($baseName));
+        $davobj->method('getDisplayname')->will($this->returnValue($name));
+        $davobj->method('getDescription')->will($this->returnValue($desc));
+        $davobj->method('getUri')->will($this->returnValue($url));
+        return $davobj;
     }
 }
 

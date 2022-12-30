@@ -1,0 +1,67 @@
+{
+	"accounts": [
+		{
+			"id": 43,
+			"accountname": "Updated Account",
+			"username": "foodoo",
+			"password": "bar",
+			"discovery_url": "https://carddav.example.com/",
+			"user_id": "105",
+			"last_discovered": 12345,
+			"rediscover_time": 86400,
+			"presetname": "UpdatedPreset"
+		}
+	],
+	"addressbooks": [
+		{
+			"id": 51,
+			"name": "Book 42 (Hitchhiker's Guide)",
+			"url": "https://carddav.example.com/books/johndoe/book42/",
+			"flags": 23,
+			"last_updated": 12345,
+			"refresh_time": 1800,
+			"sync_token": "sync@3600",
+			"account_id": 43
+		},
+		{
+			"id": 53,
+			"name": "%N (%D)",
+			"url": "",
+			"flags": 51,
+			"last_updated": 0,
+			"refresh_time": 1800,
+			"sync_token": "",
+			"account_id": 43
+		},
+		{
+			"id": 54,
+			"name": "Public readonly contacts",
+			"url": "https://carddav.example.com/global/UpdatedXBook/",
+			"flags": 11,
+			"last_updated": 12345,
+			"refresh_time": 1800,
+			"sync_token": "sync@3600",
+			"account_id": 43
+		},
+		{
+			"id": 55,
+			"name": "Discovered addressbook not existent on server anymore",
+			"url": "https://carddav.example.com/books/johndoe/book55/",
+			"flags": 23,
+			"last_updated": 12345,
+			"refresh_time": 1800,
+			"sync_token": "sync@3600",
+			"account_id": 43
+		},
+		{
+			"id": 56,
+			"name": "Newly added extra addressbook",
+			"url": "https://carddav.example.com/global/NewXBook/",
+			"flags": 8,
+			"last_updated": 0,
+			"refresh_time": 1800,
+			"sync_token": "",
+			"account_id": 43
+		}
+	]
+}

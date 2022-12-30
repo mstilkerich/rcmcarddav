@@ -46,7 +46,7 @@ class Config extends \MStilkerich\RCMCardDAV\Config
      *    the resource URI to the object to be returned for it. If the set object is an instance of Exception, this
      *    exception will be thrown by makeWebDavResource() instead.
      */
-    public $webDavResource;
+    public $webDavResources;
 
     public function __construct(AbstractDatabase $db, TestLogger $logger, AdminSettings $admPrefs)
     {
@@ -87,12 +87,12 @@ class Config extends \MStilkerich\RCMCardDAV\Config
 
     public function makeWebDavResource(string $uri, Account $account): WebDavResource
     {
-        if (isset($this->webDavResource[$uri])) {
-            if ($this->webDavResource[$uri] instanceof Exception) {
-                throw $this->webDavResource[$uri];
+        if (isset($this->webDavResources[$uri])) {
+            if ($this->webDavResources[$uri] instanceof Exception) {
+                throw $this->webDavResources[$uri];
             }
 
-            $res = $this->webDavResource[$uri];
+            $res = $this->webDavResources[$uri];
         } else {
             $res = parent::makeWebDavResource($uri, $account);
         }
