@@ -339,7 +339,7 @@ class AdminSettings
                         }
 
                         // Update the fixed account/addressbook settings with the current admin values
-                        $this->updatePresetSettings($presetName, $accountId, $abMgr);
+                        $this->updatePresetSettings($presetName, $accountId, $abMgr, $infra);
                     } else {
                         // Add new account first (addressbooks follow below)
                         $accountCfg = $preset;
@@ -382,14 +382,18 @@ class AdminSettings
      *
      * @param AddressbookManager $abMgr The addressbook manager.
      */
-    private function updatePresetSettings(string $presetName, string $accountId, AddressbookManager $abMgr): void
-    {
+    private function updatePresetSettings(
+        string $presetName,
+        string $accountId,
+        AddressbookManager $abMgr,
+        Config $infra
+    ): void {
         $accountCfg = $abMgr->getAccountConfig($accountId);
         $this->updatePresetAccount($accountCfg, $presetName, $abMgr);
 
         $abookCfgs = $abMgr->getAddressbookConfigsForAccount($accountId, AddressbookManager::ABF_ALL);
         foreach ($abookCfgs as $abookCfg) {
-            $this->updatePresetAddressbook($accountCfg, $abookCfg, $presetName, $abMgr);
+            $this->updatePresetAddressbook($accountCfg, $abookCfg, $presetName, $abMgr, $infra);
         }
     }
 
@@ -432,7 +436,8 @@ class AdminSettings
         array $accountCfg,
         array $abookCfg,
         string $presetName,
-        AddressbookManager $abMgr
+        AddressbookManager $abMgr,
+        Config $infra
     ): void {
         // extra addressbooks (discovered == 0) can have individual preset settings
         $preset = $this->getPreset($presetName, $abookCfg['url']);
@@ -442,18 +447,34 @@ class AdminSettings
         $pa = [];
         foreach ($preset['fixed'] as $k) {
             if (isset($preset[$k]) && isset($abookCfg[$k])) {
-                // no expansion of name template string for the template addressbook
-                if (empty($abookCfg['template']) && $k === 'name') {
-                    $abook = $abMgr->getAddressbook($abookCfg['id']);
-                    $preset['name'] = $abMgr->replacePlaceholdersAbookName(
-                        $preset['name'],
-                        $accountCfg,
-                        $abook->getCardDavObj()
-                    );
-                }
+                try {
+                    // no expansion of name template string for the template addressbook
+                    if (empty($abookCfg['template']) && $k === 'name') {
+                        $account = Config::makeAccount(
+                            '',
+                            Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
+                            Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
+                            null
+                        );
+                        $abook = $infra->makeWebDavResource($abookCfg['url'], $account);
+                        if ($abook instanceof AddressbookCollection) {
+                            $preset['name'] = $abMgr->replacePlaceholdersAbookName(
+                                $preset['name'],
+                                $accountCfg,
+                                $abook
+                            );
+                        } else {
+                            throw new Exception("no addressbook collection at given URL");
+                        }
+                    }
 
-                if ($abookCfg[$k] != $preset[$k]) {
-                    $pa[$k] = $preset[$k];
+                    if ($abookCfg[$k] != $preset[$k]) {
+                        $pa[$k] = $preset[$k];
+                    }
+                } catch (Exception $e) {
+                    // skip updating the name but update the remaining attributes, plus log an error
+                    $logger = $infra->logger();
+                    $logger->error("Cannot update name of addressbook {$abookCfg['id']}: {$e->getMessage()}");
                 }
             }
         }
