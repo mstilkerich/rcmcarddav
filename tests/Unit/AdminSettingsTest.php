@@ -131,6 +131,17 @@ final class AdminSettingsTest extends TestCase
         }
     }
 
+    public function testGetPresetThrowsExceptionForNonexistingPreset(): void
+    {
+        $cfgFileBase = 'tests/Unit/data/adminSettingsTest/fullconfig';
+        $loggerMock = $this->createMock(RoundcubeLogger::class);
+        $admPrefs = new AdminSettings("$cfgFileBase.inc.php", $loggerMock, $loggerMock);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Query for undefined preset Invalid Preset');
+        $admPrefs->getPreset('Invalid Preset');
+    }
+
     /**
      * @return array<string, array{
      *     callable(array):array,
