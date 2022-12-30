@@ -330,6 +330,14 @@ class AdminSettings
                             'url'
                         );
 
+                        // Delete extra addressbooks that do not exist anymore in preset
+                        $delXAbooks = array_diff_key($existingExtraAbooksByUrl, $preset['extra_addressbooks'] ?? []);
+                        if (!empty($delXAbooks)) {
+                            $logger->info("Deleting deprecated extra addressbooks in $presetName for user $userId");
+                            $abMgr->deleteAddressbooks(array_values($delXAbooks));
+                            $existingExtraAbooksByUrl = array_diff_key($existingExtraAbooksByUrl, $delXAbooks);
+                        }
+
                         // Update the fixed account/addressbook settings with the current admin values
                         $this->updatePresetSettings($presetName, $accountId, $abMgr);
                     } else {
@@ -341,19 +349,12 @@ class AdminSettings
 
                     $accountCfg = $abMgr->getAccountConfig($accountId);
 
-                    // Create / delete the extra addressbooks for this preset
+                    // Create the extra addressbooks for this preset
                     foreach (array_keys($preset['extra_addressbooks'] ?? []) as $xabookUrl) {
-                        if (isset($existingExtraAbooksByUrl[$xabookUrl])) {
-                            unset($existingExtraAbooksByUrl[$xabookUrl]);
-                        } else {
+                        if (!isset($existingExtraAbooksByUrl[$xabookUrl])) {
                             // create new
                             $this->insertExtraAddressbook($abMgr, $infra, $accountCfg, $xabookUrl, $presetName);
                         }
-                    }
-                    // Delete extra addressbooks removed by the admin from the preset
-                    if (!empty($existingExtraAbooksByUrl)) {
-                        $logger->info("Deleting deprecated extra addressbooks in $presetName for user $userId");
-                        $abMgr->deleteAddressbooks(array_values($existingExtraAbooksByUrl));
                     }
                 } catch (Exception $e) {
                     $logger->error("Error adding/updating preset $presetName for user $userId {$e->getMessage()}");
