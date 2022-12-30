@@ -45,15 +45,6 @@ class Config
     /** @var ?Config The single instance of this class - can be exchanged by tests */
     public static $inst;
 
-    /** @var ?Discovery Instance of the discovery service to be returned - normally null, but can be set by tests */
-    public $discovery;
-
-    /** @var ?WebDavResource|Exception
-     *    WebDavResource to be returned by makeWebDavResource() - normally null, but can be set by tests.
-     *    If set to an instance of Exception, this exception will be thrown by makeWebDavResource() instead.
-     */
-    public $webDavResource;
-
     /** @var ?RcmInterface Adapter to roundcube */
     protected $rc;
 
@@ -150,22 +141,12 @@ class Config
 
     public function makeDiscoveryService(): Discovery
     {
-        return $this->discovery ?? new Discovery();
+        return new Discovery();
     }
 
     public function makeWebDavResource(string $uri, Account $account): WebDavResource
     {
-        if (isset($this->webDavResource)) {
-            if ($this->webDavResource instanceof Exception) {
-                throw $this->webDavResource;
-            }
-
-            $res = $this->webDavResource;
-        } else {
-            $res = WebDavResource::createInstance($uri, $account);
-        }
-
-        return $res;
+        return WebDavResource::createInstance($uri, $account);
     }
 
     /**

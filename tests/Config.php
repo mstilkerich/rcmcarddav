@@ -26,15 +26,28 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\RCMCardDAV;
 
+use Exception;
 use PHPUnit\Framework\TestCase;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
+use MStilkerich\CardDavClient\{Account,WebDavResource};
+use MStilkerich\CardDavClient\Services\Discovery;
 use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
 use MStilkerich\RCMCardDAV\Frontend\AdminSettings;
 use rcube_cache;
 
 class Config extends \MStilkerich\RCMCardDAV\Config
 {
+    /** @var ?Discovery Instance of the discovery service to be returned - normally null, but can be set by tests */
+    public $discovery;
+
+    /** @var null|array<string, WebDavResource|Exception>
+     *    WebDavResource to be returned by makeWebDavResource() - normally null, but can be set by tests. The array maps
+     *    the resource URI to the object to be returned for it. If the set object is an instance of Exception, this
+     *    exception will be thrown by makeWebDavResource() instead.
+     */
+    public $webDavResource;
+
     public function __construct(AbstractDatabase $db, TestLogger $logger, AdminSettings $admPrefs)
     {
         $this->logger = $logger;
@@ -65,6 +78,26 @@ class Config extends \MStilkerich\RCMCardDAV\Config
         TestCase::assertInstanceOf(RcmAdapterStub::class, $this->rc);
         // always return the stub
         return $this->rc;
+    }
+
+    public function makeDiscoveryService(): Discovery
+    {
+        return $this->discovery ?? parent::makeDiscoveryService();
+    }
+
+    public function makeWebDavResource(string $uri, Account $account): WebDavResource
+    {
+        if (isset($this->webDavResource[$uri])) {
+            if ($this->webDavResource[$uri] instanceof Exception) {
+                throw $this->webDavResource[$uri];
+            }
+
+            $res = $this->webDavResource[$uri];
+        } else {
+            $res = parent::makeWebDavResource($uri, $account);
+        }
+
+        return $res;
     }
 }
 
