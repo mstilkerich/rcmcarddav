@@ -225,7 +225,8 @@ class UI
 
     /**
      * Adds a carddav section in settings.
-     * @psalm-param array{actions: array} $args
+     * @param array{actions: array, attrib: array<string,string>} $args
+     * @return array{actions: array, attrib: array<string,string>}
      */
     public function addSettingsAction(array $args): array
     {
