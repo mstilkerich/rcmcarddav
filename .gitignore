@@ -17,3 +17,4 @@ composer.lock
 /tags
 /.eslintrc.json
 /.idea
+.*.drawio.bkp
