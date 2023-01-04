@@ -72,8 +72,8 @@
 			"name": "Basic contacts",
 			"url": "https://test.example.com/books/johndoe/book42/",
 			"flags": 7,
-			"last_updated": 12345,
-			"refresh_time": 3600,
+			"last_updated": 1672825164,
+			"refresh_time": 360,
 			"sync_token": "sync@3600",
 			"account_id": 42
 		},
@@ -101,11 +101,21 @@
 			"id": 51,
 			"name": "Public readonly contacts",
 			"url": "https://carddav.example.com/shared/Public/",
-			"flags": 11,
-			"last_updated": 12345,
+			"flags": 9,
+			"last_updated": 0,
 			"refresh_time": 3600,
 			"sync_token": "sync@3600",
 			"account_id": 44
+		},
+		{
+			"id": 61,
+			"name": "Hidden preset addressbook",
+			"url": "https://admonly.example.com/books/johndoe/book61/",
+			"flags": 7,
+			"last_updated": 0,
+			"refresh_time": 900,
+			"sync_token": "sync@3600",
+			"account_id": 45
 		},
 		{
 			"id": 101,

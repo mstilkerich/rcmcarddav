@@ -223,7 +223,7 @@ final class UITest extends TestCase
                     [ 'use_categories',  '1',                         'radio',    false ],
                 ]
             ],
-            "Visible Preset account" => [
+            "Visible Preset account without template addressbook" => [
                 '44',
                 null,
                 [
@@ -250,9 +250,11 @@ final class UITest extends TestCase
      * - For account ID=new, the form is shown with default values
      * - Fixed fields of a preset account are disabled
      * - Values from a template addressbook are shown if one exists
-     *   - For a preset, fixed fields are overridden by the preset's values if different from the template addressbook
+     *   - The template addressbook has precedence over the settings in the preset. For fixed settings, the template
+     *     addressbook may be out of sync with the preset settings if the admin changed the value while the user was
+     *     logged on. There is currently no handling for this and the outdated values will continued to be used.
      * - Default values for addressbook settings are shown if no template addressbook exists
-     *   - For a preset, fixed fields are overridden by the preset's values if different from the default
+     *   - For a preset, values included in the preset override the default values
      *
      * - Error cases:
      *   - Invalid account ID in GET parameters (error is logged, empty string is returned)
@@ -283,49 +285,189 @@ final class UITest extends TestCase
 
             $dom = new DOMDocument();
             $this->assertTrue($dom->loadHTML($html));
-            $xpath = new DOMXPath($dom);
 
             // Check form fields exist and contain the expected values
-            foreach ($checkInputs as $checkInput) {
-                [ $iName, $iVal, $iType, $iDisabled ] = $checkInput;
-
-                if ($iType === 'plain') {
-                    $iNode = $this->getDomNode($xpath, "//tr[td/label[@for='$iName']]/td/span");
-                    $this->assertSame($iVal, $iNode->textContent);
-                } elseif ($iType === 'radio') {
-                    $radioItems = $xpath->query("//input[@name='$iName']");
-                    $this->assertInstanceOf(DOMNodeList::class, $radioItems);
-                    $this->assertGreaterThan(1, count($radioItems));
-                    $valueItemFound = false;
-                    foreach ($radioItems as $radioItem) {
-                        $this->assertInstanceOf(DOMNode::class, $radioItem);
-                        $this->checkAttribute($radioItem, 'type', 'radio');
-
-                        $this->assertInstanceOf(DOMNamedNodeMap::class, $radioItem->attributes);
-                        $attrNode = $radioItem->attributes->getNamedItem('value');
-                        $this->assertInstanceOf(DOMNode::class, $attrNode);
-                        $this->assertIsString($attrNode->nodeValue);
-                        if ($attrNode->nodeValue === $iVal) {
-                            $valueItemFound = true;
-                            $this->checkAttribute($radioItem, 'checked', 'checked');
-                        } else {
-                            $this->checkAttribute($radioItem, 'checked', null);
-                        }
-                        $this->checkAttribute($radioItem, 'disabled', $iDisabled ? 'disabled' : null);
-                    }
-                    $this->assertTrue($valueItemFound, "No radio button with the expected value exists for $iName");
-                } else {
-                    $iNode = $this->getDomNode($xpath, "//input[@name='$iName']");
-                    $this->checkAttribute($iNode, 'value', $iVal);
-                    $this->checkAttribute($iNode, 'type', $iType);
-                    $this->checkAttribute($iNode, 'disabled', $iDisabled ? 'disabled' : null);
-                }
-            }
+            $this->checkInput($dom, $checkInputs);
         } else {
             $this->assertEmpty($html);
 
             if (strlen($errMsg) > 0) {
                 $logger->expectMessage('error', $errMsg);
+            }
+        }
+    }
+
+    /**
+     * GET: abook ID to set as GET parameter (null to not set one)
+     * ERR: expected error message. Null if no error is expected, empty string if error case without error message
+     *
+     *                             GET      ERR     Check-inputs
+     * @return array<string, list{?string, ?string, list<list{string,?string,string,bool}>}>
+     */
+    public function abookIdProvider(): array
+    {
+        return [
+            //                        GET   ERR CHK-INP
+            'Missing abook ID' => [ null, '', [] ],
+            'Invalid abook ID' => [ '123', 'No carddav addressbook with ID 123', [] ],
+            "Other user's addressbook ID" => [ '101', 'No carddav addressbook with ID 101', [] ],
+            "Hidden Preset Addressbook" => [ '61', 'Account ID 45 refers to a hidden account', [] ],
+            "User-defined addressbook" => [
+                '42',
+                null,
+                [
+                    //  name             val                          type        disabled?
+                    [ 'abookid',         '42',                        'hidden',   false ],
+                    [ 'name',            'Basic contacts',            'text',     false ],
+                    [ 'url',             'https://test.example.com/books/johndoe/book42/', 'plain', false ],
+                    [ 'refresh_time',    '00:06:00',                  'text',     false ],
+                    [ 'last_updated',    date("Y-m-d H:i:s", 1672825164), 'plain', false ],
+                    [ 'use_categories',  '1',                         'radio',    false ],
+                    [ 'srvname',         'Book 42 SrvName',           'plain',    false ],
+                    [ 'srvdesc',         "Hitchhiker's Guide",        'plain',    false ],
+                ]
+            ],
+            "Preset extra addressbook with custom fixed fields" => [
+                '51',
+                null,
+                [
+                    //  name             val                          type        disabled?
+                    [ 'abookid',         '51',                        'hidden',   false ],
+                    [ 'name',            'Public readonly contacts',  'text',     true ],
+                    [ 'url',             'https://carddav.example.com/shared/Public/', 'plain', false ],
+                    [ 'refresh_time',    '01:00:00',                  'text',     false ],
+                    [ 'last_updated',    'DateTime_never_lbl',        'plain',    false ],
+                    [ 'use_categories',  '0',                         'radio',    false ],
+                    [ 'srvname',         null,                        'plain',    false ],
+                    [ 'srvdesc',         null,                        'plain',    false ],
+                ]
+            ],
+        ];
+    }
+
+    /**
+     * Tests that the addressbook details form is properly displayed.
+     *
+     * - Fixed fields of an addressbook belonging to a preset account are disabled
+     *   - For an extra addressbook with specific fixed fields, these are properly considered
+     * - For a preset, the addressbook DB settings may become out of sync with fixed settings in the config, if the
+     *   config was changed by the admin while the user was still logged on. There is currently no special handling for
+     *   this case and the DB values will be displayed.
+     * - The server-side fields are displayed only when available. If querying from the server fails, they are not
+     *   displayed at all.
+     *
+     * - Error cases:
+     *   - Invalid addressbook ID in GET parameters (error is logged, empty string is returned)
+     *   - Addressbook ID of different user in GET parameters (error is logged, empty string is returned)
+     *   - Addressbook ID of addressbook belonging to a hidden preset in GET parameters (error is logged, empty string
+     *     returned)
+     *
+     * @param list<list{string,?string,string,bool}> $checkInputs
+     * @dataProvider abookIdProvider
+     */
+    public function testAddressbookDetailsFormIsProperlyCreated(
+        ?string $getID,
+        ?string $errMsg,
+        array $checkInputs
+    ): void {
+        $this->db = new JsonDatabase(['tests/Unit/data/uiTest/db.json']);
+        TestInfrastructure::init($this->db, 'tests/Unit/data/uiTest/config.inc.php');
+        $logger = TestInfrastructure::logger();
+        $infra = TestInfrastructure::$infra;
+        $rcStub = $infra->rcTestAdapter();
+        if (is_string($getID)) {
+            $rcStub->getInputs['abookid'] = $getID;
+        }
+
+        $infra->webDavResources = [
+            'https://test.example.com/books/johndoe/book42/' => $this->makeAbookCollStub(
+                'Book 42 SrvName',
+                'https://test.example.com/books/johndoe/book42/',
+                "Hitchhiker's Guide"
+            ),
+            'https://test.example.com/books/johndoe/book43/' => $this->makeAbookCollStub(
+                'Book 43 SrvName',
+                'https://test.example.com/books/johndoe/book43/',
+                null
+            ),
+            'https://carddav.example.com/books/johndoe/book44/' => $this->makeAbookCollStub(
+                null,
+                'https://carddav.example.com/books/johndoe/book44/',
+                null
+            ),
+            "https://carddav.example.com/shared/Public/" => $this->createStub(WebDavResource::class),
+            "https://admonly.example.com/books/johndoe/book61/" => new \Exception('hidden preset was queried'),
+        ];
+
+        $abMgr = new AddressbookManager();
+        $ui = new UI($abMgr);
+
+        $html = $ui->tmplAddressbookDetails(['id' => 'addressbookdetails']);
+
+        if (is_null($errMsg)) {
+            $this->assertIsString($getID);
+            $this->assertNotEmpty($html);
+
+            $dom = new DOMDocument();
+            $this->assertTrue($dom->loadHTML($html));
+
+            // Check form fields exist and contain the expected values
+            $this->checkInput($dom, $checkInputs);
+        } else {
+            $this->assertEmpty($html);
+
+            if (strlen($errMsg) > 0) {
+                $logger->expectMessage('error', $errMsg);
+            }
+        }
+    }
+
+    /**
+     * @param list<list{string,?string,string,bool}> $checkInputs
+     */
+    private function checkInput(DOMDocument $dom, array $checkInputs): void
+    {
+        $xpath = new DOMXPath($dom);
+
+        foreach ($checkInputs as $checkInput) {
+            [ $iName, $iVal, $iType, $iDisabled ] = $checkInput;
+
+            if ($iType === 'plain') {
+                if (is_null($iVal)) { // null means the field should be omitted from the form
+                    $span = $xpath->query("//tr[td/label[@for='$iName']]/td/span");
+                    $this->assertInstanceOf(DOMNodeList::class, $span);
+                    $this->assertCount(0, $span, "There is a form entry for empty plain attr $iName");
+                } else {
+                    $iNode = $this->getDomNode($xpath, "//tr[td/label[@for='$iName']]/td/span");
+                    $this->assertSame($iVal, $iNode->textContent);
+                }
+            } elseif ($iType === 'radio') {
+                $radioItems = $xpath->query("//input[@name='$iName']");
+                $this->assertInstanceOf(DOMNodeList::class, $radioItems);
+                $this->assertGreaterThan(1, count($radioItems));
+                $valueItemFound = false;
+                foreach ($radioItems as $radioItem) {
+                    $this->assertInstanceOf(DOMNode::class, $radioItem);
+                    $this->checkAttribute($radioItem, 'type', 'radio');
+
+                    $this->assertInstanceOf(DOMNamedNodeMap::class, $radioItem->attributes);
+                    $attrNode = $radioItem->attributes->getNamedItem('value');
+                    $this->assertInstanceOf(DOMNode::class, $attrNode);
+                    $this->assertIsString($attrNode->nodeValue);
+                    if ($attrNode->nodeValue === $iVal) {
+                        $valueItemFound = true;
+                        $this->checkAttribute($radioItem, 'checked', 'checked');
+                    } else {
+                        $this->checkAttribute($radioItem, 'checked', null);
+                    }
+                    $this->checkAttribute($radioItem, 'disabled', $iDisabled ? 'disabled' : null);
+                }
+                $this->assertTrue($valueItemFound, "No radio button with the expected value exists for $iName");
+            } else {
+                $iNode = $this->getDomNode($xpath, "//input[@name='$iName']");
+                $this->checkAttribute($iNode, 'value', $iVal);
+                $this->checkAttribute($iNode, 'type', $iType);
+                $this->checkAttribute($iNode, 'disabled', $iDisabled ? 'disabled' : null);
             }
         }
     }
@@ -348,7 +490,7 @@ final class UITest extends TestCase
 
         $this->assertInstanceOf(DOMNamedNodeMap::class, $node->attributes);
         $attrNode = $node->attributes->getNamedItem($attr);
-        $this->assertInstanceOf(DOMNode::class, $attrNode);
+        $this->assertInstanceOf(DOMNode::class, $attrNode, "expected attribute $attr not present");
 
         if ($matchType === 'equals') {
             $this->assertSame($val, $attrNode->nodeValue);
@@ -388,6 +530,22 @@ final class UITest extends TestCase
             $item = $item->item(0);
             $this->assertInstanceOf(DOMNode::class, $item);
             return $item;
+    }
+
+    /**
+     * Creates an AddressbookCollection stub that implements getUri() and getName().
+     */
+    private function makeAbookCollStub(?string $name, string $url, ?string $desc): AddressbookCollection
+    {
+        $davobj = $this->createStub(AddressbookCollection::class);
+        $urlComp = explode('/', rtrim($url, '/'));
+        $baseName = $urlComp[count($urlComp) - 1];
+        $davobj->method('getName')->will($this->returnValue($name ?? $baseName));
+        $davobj->method('getBasename')->will($this->returnValue($baseName));
+        $davobj->method('getDisplayname')->will($this->returnValue($name));
+        $davobj->method('getDescription')->will($this->returnValue($desc));
+        $davobj->method('getUri')->will($this->returnValue($url));
+        return $davobj;
     }
 }
 
