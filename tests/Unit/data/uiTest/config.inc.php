@@ -9,7 +9,7 @@ $prefs['AdmPreset'] = [
     'accountname'         => 'Preset Contacts',
     'discovery_url'       => 'https://carddav.example.com/',
 
-    'fixed'               => [ 'username', 'refresh_time', 'name' ],
+    'fixed'               => [ 'username', 'password', 'refresh_time', 'name' ],
 
     'username'            => 'foodoo',
     'password'            => 'bar',

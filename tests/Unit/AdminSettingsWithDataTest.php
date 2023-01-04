@@ -169,17 +169,28 @@ final class AdminSettingsWithDataTest extends TestCase
         $this->assertCount(0, $tmpl);
 
         // Test preset account with NO template addressbook in DB
+        // The addressbook template must not contain any account fields, only addressbook attributes
         $tmpl = $admPrefs->getAddressbookTemplate($abMgr, '45');
 
-        $this->assertSame('600', $tmpl['refresh_time'] ?? '');
-        $this->assertSame('%N - %D', $tmpl['name'] ?? '');
+        $this->assertArrayNotHasKey('accountname', $tmpl);
+        $this->assertArrayNotHasKey('username', $tmpl);
+        $this->assertArrayNotHasKey('password', $tmpl);
+        $this->assertArrayNotHasKey('discovery_url', $tmpl);
+        $this->assertArrayNotHasKey('rediscover_time', $tmpl);
+        $this->assertArrayNotHasKey('hide', $tmpl);
+        $this->assertArrayNotHasKey('fixed', $tmpl);
+        $this->assertArrayNotHasKey('extra_addressbooks', $tmpl);
 
+        $this->assertSame('%N - %D', $tmpl['name'] ?? '');
         $this->assertSame('1', $tmpl['active'] ?? '');
+        // readonly is not part of preset
+        $this->assertArrayNotHasKey('readonly', $tmpl);
+        $this->assertSame('600', $tmpl['refresh_time'] ?? '');
         $this->assertSame('0', $tmpl['use_categories'] ?? '');
         // discovered is not part of preset
         $this->assertArrayNotHasKey('discovered', $tmpl);
-        $this->assertSame('0', $tmpl['readonly'] ?? '');
-        $this->assertSame('0', $tmpl['require_always_email'] ?? '');
+        // require_always_email is not part of preset
+        $this->assertArrayNotHasKey('require_always_email', $tmpl);
         // template is not part of preset
         $this->assertArrayNotHasKey('template', $tmpl);
     }

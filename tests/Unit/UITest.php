@@ -164,15 +164,168 @@ final class UITest extends TestCase
                 $this->checkAccAbName($xpath, $abookItem, $abName);
 
                 // Check active toggle
-                $actToggle = $xpath->query("a/input[@type='checkbox']", $abookItem);
-                $this->assertInstanceOf(DOMNodeList::class, $actToggle);
-                $this->assertCount(1, $actToggle);
-                $actToggle = $actToggle->item(0);
-                $this->assertInstanceOf(DOMNode::class, $actToggle);
+                $actToggle = $this->getDomNode($xpath, "a/input[@type='checkbox']", $abookItem);
                 $this->checkAttribute($actToggle, 'value', "$abId");
                 $this->checkAttribute($actToggle, 'name', "_active[]");
                 $this->checkAttribute($actToggle, 'checked', $abAct ? 'checked' : null);
                 $this->checkAttribute($actToggle, 'disabled', $abActFixed ? 'disabled' : null);
+            }
+        }
+    }
+
+    /**
+     * GET: account ID to set as GET parameter (null to not set one)
+     * ERR: expected error message. Null if no error is expected, empty string if error case without error message
+     *
+     *                             GET      ERR     Check-inputs
+     * @return array<string, list{?string, ?string, list<list{string,?string,string,bool}>}>
+     */
+    public function accountIdProvider(): array
+    {
+        return [
+            //                        GET   ERR CHK-INP
+            'Missing account ID' => [ null, '', [] ],
+            'Invalid account ID' => [ '123', 'No carddav account with ID 123', [] ],
+            "Other user's account ID" => [ '101', 'No carddav account with ID 101', [] ],
+            "Hidden Preset Account" => [ '45', 'Account ID 45 refers to a hidden account', [] ],
+            "User-defined account with template addressbook" => [
+                '42',
+                null,
+                [
+                    //  name             val                          type        disabled?
+                    [ 'accountid',       '42',                        'hidden',   false ],
+                    [ 'accountname',     'Test Account',              'text',    false ],
+                    [ 'discovery_url',   'https://test.example.com/', 'text',     false ],
+                    [ 'username',        'johndoe',                   'text',     false ],
+                    [ 'password',        null,                        'password', false ],
+                    [ 'rediscover_time', '02:00:00',                  'text',     false ],
+                    [ 'last_discovered', date("Y-m-d H:i:s", 1672825163), 'plain', false ],
+                    [ 'name',            '%N, %D',                    'text',     false ],
+                    [ 'active',          '1',                         'checkbox', false ],
+                    [ 'refresh_time',    '00:10:00',                  'text',     false ],
+                    [ 'use_categories',  '0',                         'radio',    false ],
+                ]
+            ],
+            "New account" => [
+                'new',
+                null,
+                [
+                    //  name             val                          type        disabled?
+                    [ 'accountid',       'new',                       'hidden',   false ],
+                    [ 'accountname',     '',                          'text',    false ],
+                    [ 'discovery_url',   '',                          'text',     false ],
+                    [ 'username',        '',                          'text',     false ],
+                    [ 'password',        null,                        'password', false ],
+                    [ 'rediscover_time', '24:00:00',                  'text',     false ],
+                    [ 'name',            '%N',                        'text',     false ],
+                    [ 'active',          '1',                         'checkbox', false ],
+                    [ 'refresh_time',    '01:00:00',                  'text',     false ],
+                    [ 'use_categories',  '1',                         'radio',    false ],
+                ]
+            ],
+            "Visible Preset account" => [
+                '44',
+                null,
+                [
+                    //  name             val                          type        disabled?
+                    [ 'accountid',       '44',                        'hidden',   false ],
+                    [ 'accountname',     'Preset Contacts',           'text',     false ],
+                    [ 'discovery_url',   'https://carddav.example.com/', 'text',  false ],
+                    [ 'username',        'foodoo',                    'text',     true ],
+                    [ 'password',        null,                        'password', true ],
+                    [ 'rediscover_time', '24:00:00',                  'text',     false ],
+                    [ 'last_discovered', 'DateTime_never_lbl',        'plain',    false ],
+                    [ 'name',            '%N (%D)',                   'text',     true ],
+                    [ 'active',          '1',                         'checkbox', false ],
+                    [ 'refresh_time',    '00:30:00',                  'text',     true ],
+                    [ 'use_categories',  '0',                         'radio',    false ],
+                ]
+            ],
+        ];
+    }
+
+    /**
+     * Tests that the account details form is properly displayed.
+     *
+     * - For account ID=new, the form is shown with default values
+     * - Fixed fields of a preset account are disabled
+     * - Values from a template addressbook are shown if one exists
+     *   - For a preset, fixed fields are overridden by the preset's values if different from the template addressbook
+     * - Default values for addressbook settings are shown if no template addressbook exists
+     *   - For a preset, fixed fields are overridden by the preset's values if different from the default
+     *
+     * - Error cases:
+     *   - Invalid account ID in GET parameters (error is logged, empty string is returned)
+     *   - Account ID of different user in GET parameters (error is logged, empty string is returned)
+     *
+     * @param list<list{string,?string,string,bool}> $checkInputs
+     * @dataProvider accountIdProvider
+     */
+    public function testAccountDetailsFormIsProperlyCreated(?string $getID, ?string $errMsg, array $checkInputs): void
+    {
+        $this->db = new JsonDatabase(['tests/Unit/data/uiTest/db.json']);
+        TestInfrastructure::init($this->db, 'tests/Unit/data/uiTest/config.inc.php');
+        $logger = TestInfrastructure::logger();
+        $infra = TestInfrastructure::$infra;
+        $rcStub = $infra->rcTestAdapter();
+        if (is_string($getID)) {
+            $rcStub->getInputs['accountid'] = $getID;
+        }
+
+        $abMgr = new AddressbookManager();
+        $ui = new UI($abMgr);
+
+        $html = $ui->tmplAccountDetails(['id' => 'accountdetails']);
+
+        if (is_null($errMsg)) {
+            $this->assertIsString($getID);
+            $this->assertNotEmpty($html);
+
+            $dom = new DOMDocument();
+            $this->assertTrue($dom->loadHTML($html));
+            $xpath = new DOMXPath($dom);
+
+            // Check form fields exist and contain the expected values
+            foreach ($checkInputs as $checkInput) {
+                [ $iName, $iVal, $iType, $iDisabled ] = $checkInput;
+
+                if ($iType === 'plain') {
+                    $iNode = $this->getDomNode($xpath, "//tr[td/label[@for='$iName']]/td/span");
+                    $this->assertSame($iVal, $iNode->textContent);
+                } elseif ($iType === 'radio') {
+                    $radioItems = $xpath->query("//input[@name='$iName']");
+                    $this->assertInstanceOf(DOMNodeList::class, $radioItems);
+                    $this->assertGreaterThan(1, count($radioItems));
+                    $valueItemFound = false;
+                    foreach ($radioItems as $radioItem) {
+                        $this->assertInstanceOf(DOMNode::class, $radioItem);
+                        $this->checkAttribute($radioItem, 'type', 'radio');
+
+                        $this->assertInstanceOf(DOMNamedNodeMap::class, $radioItem->attributes);
+                        $attrNode = $radioItem->attributes->getNamedItem('value');
+                        $this->assertInstanceOf(DOMNode::class, $attrNode);
+                        $this->assertIsString($attrNode->nodeValue);
+                        if ($attrNode->nodeValue === $iVal) {
+                            $valueItemFound = true;
+                            $this->checkAttribute($radioItem, 'checked', 'checked');
+                        } else {
+                            $this->checkAttribute($radioItem, 'checked', null);
+                        }
+                        $this->checkAttribute($radioItem, 'disabled', $iDisabled ? 'disabled' : null);
+                    }
+                    $this->assertTrue($valueItemFound, "No radio button with the expected value exists for $iName");
+                } else {
+                    $iNode = $this->getDomNode($xpath, "//input[@name='$iName']");
+                    $this->checkAttribute($iNode, 'value', $iVal);
+                    $this->checkAttribute($iNode, 'type', $iType);
+                    $this->checkAttribute($iNode, 'disabled', $iDisabled ? 'disabled' : null);
+                }
+            }
+        } else {
+            $this->assertEmpty($html);
+
+            if (strlen($errMsg) > 0) {
+                $logger->expectMessage('error', $errMsg);
             }
         }
     }
@@ -187,7 +340,8 @@ final class UITest extends TestCase
             // Check that the node does not have the given attribute; this is met if the node has no attributes at all,
             // or if the given attribute is not one of the existing attributes
             $this->assertFalse(
-                is_a($node->attributes, DOMNamedNodeMap::class) && !is_null($node->attributes->getNamedItem($attr))
+                is_a($node->attributes, DOMNamedNodeMap::class) && !is_null($node->attributes->getNamedItem($attr)),
+                "Attribute $attr not expected to exist, but does exist"
             );
             return;
         }
@@ -217,12 +371,23 @@ final class UITest extends TestCase
     private function checkAccAbName(DOMXPath $xpath, DOMNode $li, string $name): void
     {
         // Check name, which is stored in a span element
-        $span = $xpath->query("a/span", $li);
-        $this->assertInstanceOf(DOMNodeList::class, $span);
-        $this->assertCount(1, $span);
-        $span = $span->item(0);
-        $this->assertInstanceOf(DOMNode::class, $span);
+        $span = $this->getDomNode($xpath, "a/span", $li);
         $this->assertSame($name, $span->textContent);
+    }
+
+    /**
+     * Checks the existence of exactly one DOMNode with the given XPath query and returns that node.
+     *
+     * @return DOMNode The DOMNode; if it does not exist, an assertion in this function will fail and not return.
+     */
+    private function getDomNode(DOMXPath $xpath, string $xpathquery, ?DOMNode $context = null): DOMNode
+    {
+            $item = $xpath->query($xpathquery, $context);
+            $this->assertInstanceOf(DOMNodeList::class, $item);
+            $this->assertCount(1, $item, "Not exactly one node returned for $xpathquery");
+            $item = $item->item(0);
+            $this->assertInstanceOf(DOMNode::class, $item);
+            return $item;
     }
 }
 

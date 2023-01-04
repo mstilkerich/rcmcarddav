@@ -32,6 +32,9 @@ use MStilkerich\RCMCardDAV\Frontend\RcmInterface;
 class RcmAdapterStub implements RcmInterface
 {
     /** @var array<string,string> Simulated POST data */
+    public $getInputs = [];
+
+    /** @var array<string,string> Simulated POST data */
     public $postInputs = [];
 
     /** @var array<string, callable> Records installed hook functions */
@@ -44,7 +47,17 @@ class RcmAdapterStub implements RcmInterface
 
     public function inputValue(string $id, bool $allowHtml, int $source = \rcube_utils::INPUT_POST): ?string
     {
-        return $this->postInputs[$id] ?? null;
+        if ($source === \rcube_utils::INPUT_POST) {
+            return $this->postInputs[$id] ?? null;
+        } elseif ($source === \rcube_utils::INPUT_GET) {
+            return $this->getInputs[$id] ?? null;
+        } elseif ($source === \rcube_utils::INPUT_GP) {
+            return $this->postInputs[$id] ?? $this->getInputs[$id] ?? null;
+        } else {
+            TestCase::assertFalse(true, "unsupported input source for inputValue() test stub");
+        }
+
+        return null;
     }
 
     public function showMessage(string $msg, string $msgType = 'notice', $override = true, $timeout = 0): void
