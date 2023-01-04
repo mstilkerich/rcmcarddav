@@ -296,6 +296,9 @@ class carddav extends rcube_plugin implements RcmInterface
         $output->send($templ, $exit);
     }
 
+    /**
+     * @param array<string,string> $attrib
+     */
     public function requestForm(array $attrib, string $content): string
     {
         $rcube = rcube::get_instance();

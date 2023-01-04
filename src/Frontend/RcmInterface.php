@@ -143,7 +143,7 @@ interface RcmInterface
     /**
      * Build a form tag with a unique request token
      *
-     * @param array  $attrib  Named tag parameters including 'action' and 'task' values which are put into hidden fields
+     * @param array<string,string> $attrib Named tag parameters including 'action' and 'task' put into hidden fields
      * @param string $content Form content
      *
      * @return string HTML code for the form

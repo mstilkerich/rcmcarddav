@@ -94,9 +94,17 @@ class RcmAdapterStub implements RcmInterface
     {
     }
 
+    /**
+     * @param array<string,string> $attrib
+     */
     public function requestForm(array $attrib, string $content): string
     {
-        return '';
+        $attrs = '';
+        foreach ($attrib as $k => $v) {
+            $attrs .= " $k='$v'";
+        }
+
+        return "<form $attrs>$content</form>";
     }
 
     public function setEnv(string $name, $value, bool $addToJs = true): void
