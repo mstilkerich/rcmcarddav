@@ -704,7 +704,7 @@ class UI
      * @param array<string, ?string> $vals Values for the form fields
      * @param list<string> $fixedAttributes A list of non-changeable settings by choice of the admin
      */
-    private function makeSettingsForm(string $objType, array $vals, array $fixedAttributes, array $attrib): string
+    private function makeSettingsForm(string $objType, array $vals, array $fixedAttributes): string
     {
         $infra = Config::inst();
         $rc = $infra->rc();
@@ -732,7 +732,7 @@ class UI
             $out .= html::tag(
                 'fieldset',
                 [],
-                html::tag('legend', [], $rc->locText($fieldSet['label'])) . $table->show($attrib)
+                html::tag('legend', [], $rc->locText($fieldSet['label'])) . $table->show(['class' => 'propform'])
             );
         }
 
@@ -908,7 +908,7 @@ class UI
                 $abookIdField = new html_hiddenfield(['name' => "abookid", 'value' => $abookId]);
                 $out .= $abookIdField->show();
 
-                $out .= $this->makeSettingsForm('addressbook', $abookCfg, $fixedAttributes, $attrib);
+                $out .= $this->makeSettingsForm('addressbook', $abookCfg, $fixedAttributes);
                 $out = $rc->requestForm($attrib, $out);
             }
         } catch (Exception $e) {
@@ -935,7 +935,7 @@ class UI
                 $out .= $accountIdField->show();
 
                 if ($accountId == "new") {
-                    $out .= $this->makeSettingsForm('newaccount', [], [], $attrib);
+                    $out .= $this->makeSettingsForm('newaccount', [], []);
                 } else {
                     $abMgr = $this->abMgr;
                     $admPrefs = $infra->admPrefs();
@@ -945,8 +945,7 @@ class UI
                     $out .= $this->makeSettingsForm(
                         'account',
                         array_merge($account, $abook),
-                        $fixedAttributes,
-                        $attrib
+                        $fixedAttributes
                     );
                 }
 
