@@ -417,7 +417,7 @@ class UI
             try {
                 $abMgr = $this->abMgr;
                 $abookCfg = $abMgr->getAddressbookConfig($abookId);
-                $account = $abMgr->getAccountConfig($abookCfg["account_id"]);
+                $account = $this->getVisibleAccountConfig($abookCfg["account_id"]);
                 $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookCfg['url']);
 
                 if (in_array('active', $fixedAttributes)) {
@@ -448,6 +448,7 @@ class UI
         // GET - Account selected in list; this is set to "new" if the user pressed the add account button
         $accountId = $rc->inputValue("accountid", false, rcube_utils::INPUT_GET);
 
+        // Checking the presence of an account ID (but not its validity) is a precondition of tmplAccountDetails
         if (isset($accountId)) {
             $rc->setPagetitle($rc->locText('accountproperties'));
             $rc->addTemplateObjHandler('accountdetails', [$this, 'tmplAccountDetails']);
@@ -503,7 +504,7 @@ class UI
                     'url'
                 );
 
-                $accountCfg = $abMgr->getAccountConfig($accountId);
+                $accountCfg = $this->getVisibleAccountConfig($accountId);
                 $abookTmpl = $admPrefs->getAddressbookTemplate($abMgr, $accountId);
                 $abMgr->discoverAddressbooks($accountCfg, $abookTmpl);
                 $abookIds = array_column(
@@ -618,7 +619,7 @@ class UI
             $accountId = $abMgr->discoverAddressbooks($accFormVals, $abookFormVals);
             $this->setTemplateAddressbook($accountId, $abookFormVals);
 
-            $account = $abMgr->getAccountConfig($accountId);
+            $account = $this->getVisibleAccountConfig($accountId);
             $newLi = $this->makeAccountListItem($account);
             $rc->clientCommand('carddav_InsertListElem', [[$accountId, $newLi]], ['acc', $accountId]);
             $rc->showMessage($rc->locText("AccAdd_msg_ok"), 'confirmation');
@@ -638,7 +639,7 @@ class UI
         if (isset($accountId)) {
             try {
                 $abMgr = $this->abMgr;
-                $account = $abMgr->getAccountConfig($accountId);
+                $account = $this->getVisibleAccountConfig($accountId);
                 $fixedAttributes = $this->getFixedSettings($account['presetname']);
                 $accFormVals = $this->getSettingsFromPOST('account', $fixedAttributes);
                 $abookFormVals = $this->getSettingsFromPOST('addressbook', $fixedAttributes);
@@ -647,7 +648,7 @@ class UI
                 $this->setTemplateAddressbook($accountId, $abookFormVals);
 
                 // update account data and echo formatted field data to client
-                $account = $abMgr->getAccountConfig($accountId);
+                $account = $this->getVisibleAccountConfig($accountId);
                 $abookTmpl = $abMgr->getTemplateAddressbookForAccount($accountId);
                 $formData = $this->makeSettingsFormData('account', array_merge($abookTmpl ?? [], $account));
                 $formData["_acc$accountId"] = [ 'parent', $account["accountname"] ];
@@ -677,7 +678,7 @@ class UI
             try {
                 $abMgr = $this->abMgr;
                 $abookCfg = $abMgr->getAddressbookConfig($abookId);
-                $account = $abMgr->getAccountConfig($abookCfg["account_id"]);
+                $account = $this->getVisibleAccountConfig($abookCfg["account_id"]);
                 $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookCfg['url']);
                 $newset = $this->getSettingsFromPOST('addressbook', $fixedAttributes);
                 $abMgr->updateAddressbook($abookId, $newset);
@@ -899,9 +900,8 @@ class UI
         try {
             $abookId = $rc->inputValue("abookid", false, rcube_utils::INPUT_GET);
             if (isset($abookId)) {
-                $abMgr = $this->abMgr;
                 $abookCfg = $this->getEnhancedAbookConfig($abookId);
-                $account = $abMgr->getAccountConfig($abookCfg["account_id"]);
+                $account = $this->getVisibleAccountConfig($abookCfg["account_id"]);
                 $fixedAttributes = $this->getFixedSettings($account['presetname'], $abookCfg['url']);
 
                 // HIDDEN FIELDS
@@ -939,7 +939,7 @@ class UI
                 } else {
                     $abMgr = $this->abMgr;
                     $admPrefs = $infra->admPrefs();
-                    $account = $abMgr->getAccountConfig($accountId);
+                    $account = $this->getVisibleAccountConfig($accountId);
                     $abook = $admPrefs->getAddressbookTemplate($abMgr, $accountId);
                     $fixedAttributes = $this->getFixedSettings($account['presetname']);
                     $out .= $this->makeSettingsForm(
@@ -1069,7 +1069,7 @@ class UI
         $abMgr = $this->abMgr;
         $abook = $abMgr->getTemplateAddressbookForAccount($accountId);
         if ($abook === null) {
-            $accountCfg = $abMgr->getAccountConfig($accountId);
+            $accountCfg = $this->getVisibleAccountConfig($accountId);
 
             if (isset($accountCfg['presetname'])) {
                 $infra = Config::inst();
@@ -1099,6 +1099,30 @@ class UI
         } else {
             $abMgr->updateAddressbook($abook['id'], $abookCfg);
         }
+    }
+
+    /**
+     * Returns the account configuration of the given account, but checks it is visible in the UI.
+     *
+     * If an account config is requested for a hidden preset account (hide=true configured by the admin), this function
+     * throws an exception.
+     *
+     * @return AccountCfg
+     */
+    private function getVisibleAccountConfig(string $accountId): array
+    {
+        $abMgr = $this->abMgr;
+        $account = $abMgr->getAccountConfig($accountId);
+        if (isset($account['presetname'])) {
+            $infra = Config::inst();
+            $admPrefs = $infra->admPrefs();
+            $preset = $admPrefs->getPreset($account['presetname']);
+            if ($preset['hide']) {
+                throw new Exception("Account ID $accountId refers to a hidden account");
+            }
+        }
+
+        return $account;
     }
 }
 
