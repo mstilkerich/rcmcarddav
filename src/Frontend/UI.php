@@ -894,9 +894,15 @@ class UI
         throw new Exception("Unknown UI element type $uiType for $fieldKey");
     }
 
-    // INFO: name, url, group type, refresh time, time of last refresh, discovered vs. manually added,
-    //       cache state (# contacts, groups, etc.), list of custom subtypes (add / delete)
-    // ACTIONS: Refresh, Delete (for manually-added addressbooks), Clear local cache
+    /**
+     * Generates the addressbook details form.
+     *
+     * INFO: name, url, group type, refresh time, time of last refresh, discovered vs. manually added,
+     *       cache state (# contacts, groups, etc.), list of custom subtypes (add / delete)
+     * ACTIONS: Refresh, Delete (for manually-added addressbooks), Clear local cache
+     *
+     * @param array<string,string> $attrib
+     */
     public function tmplAddressbookDetails(array $attrib): string
     {
         $infra = Config::inst();
@@ -925,8 +931,19 @@ class UI
         return $out;
     }
 
-    // INFO: name, url, group type, rediscover time, time of last rediscovery
-    // ACTIONS: Rediscover, Delete, Add manual addressbook
+    /**
+     * This function generates the HTML code for the account details form.
+     *
+     * Precondition: accountid GET parameter is set (validity is checked by this function, however)
+     *
+     * Error handling: In case an invalid account ID is provided, an empty string is returned. An error is logged
+     * additionally except when no account ID is provided, which is a precondition for this function.
+     *
+     * INFO: name, url, group type, rediscover time, time of last rediscovery
+     * ACTIONS: Rediscover, Delete, Add manual addressbook
+     *
+     * @param array<string,string> $attrib
+     */
     public function tmplAccountDetails(array $attrib): string
     {
         $infra = Config::inst();
@@ -960,6 +977,7 @@ class UI
             }
         } catch (Exception $e) {
             $logger->error($e->getMessage());
+            return '';
         }
 
         return $out;
