@@ -36,6 +36,7 @@ use html_hiddenfield;
 use html_radiobutton;
 use html_table;
 use html_inputfield;
+use MStilkerich\CardDavClient\AddressbookCollection;
 use MStilkerich\RCMCardDAV\Config;
 
 /**
@@ -747,12 +748,30 @@ class UI
      */
     private function getEnhancedAbookConfig(string $abookId): array
     {
+        $infra = Config::inst();
         $abMgr = $this->abMgr;
-        $abook = $this->abMgr->getAddressbook($abookId);
-        $davAbook = $abook->getCardDavObj();
+
+        // First check that this addressbook should be accessed via the UI, i.e. does not belong to a hidden preset
         $abookCfg = $abMgr->getAddressbookConfig($abookId);
-        $abookCfg['srvname'] = $davAbook->getDisplayName() ?? '';
-        $abookCfg['srvdesc'] = $davAbook->getDescription() ?? '';
+        // throws exception if UI should not use this account
+        $accountCfg = $this->getVisibleAccountConfig($abookCfg['account_id']);
+
+        $account = Config::makeAccount(
+            '',
+            Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
+            Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
+            null
+        );
+
+        $davAbook = $infra->makeWebDavResource($abookCfg['url'], $account);
+        if ($davAbook instanceof AddressbookCollection) {
+            $abookCfg['srvname'] = $davAbook->getDisplayName() ?? '';
+            $abookCfg['srvdesc'] = $davAbook->getDescription() ?? '';
+        } else {
+            $abookCfg['srvname'] = '';
+            $abookCfg['srvdesc'] = '';
+        }
+
         return $abookCfg;
     }
 
