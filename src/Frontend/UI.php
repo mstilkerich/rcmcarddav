@@ -649,7 +649,7 @@ class UI
                 // update account data and echo formatted field data to client
                 $account = $abMgr->getAccountConfig($accountId);
                 $abookTmpl = $abMgr->getTemplateAddressbookForAccount($accountId);
-                $formData = $this->makeSettingsFormData('account', array_merge($account, $abookTmpl ?? []));
+                $formData = $this->makeSettingsFormData('account', array_merge($abookTmpl ?? [], $account));
                 $formData["_acc$accountId"] = [ 'parent', $account["accountname"] ];
 
                 $rc->clientCommand('carddav_UpdateForm', $formData);

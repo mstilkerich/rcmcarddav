@@ -88,6 +88,13 @@ class AdminSettings
      */
     private const ALWAYS_FIXED = ['readonly', 'require_always_email'];
 
+    /**
+     * @var list<string> ABOOK_ATTRS
+     *     List of attributes that are applicable to an addressbook. Used to filter out those attributes from the preset
+     *     that are relevant for the template addressbook settings.
+     */
+    private const ABOOK_ATTRS = ['name', 'active', 'refresh_time', 'use_categories'];
+
     /** @var Preset Default values for the preset attributes */
     private const PRESET_DEFAULTS = [
         'accountname'        => '',
@@ -738,7 +745,7 @@ class AdminSettings
         if ($presetName !== null) {
             $preset = $this->getPreset($presetName);
             if ($abookTmpl === null) {
-                $abookTmpl = $preset;
+                $abookTmpl = array_intersect_key($preset, array_flip(self::ABOOK_ATTRS));
             } else {
                 // take the fixed attributes from the preset
                 foreach (array_keys($abookTmpl) as $attr) {
