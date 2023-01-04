@@ -853,13 +853,20 @@ class UI
                 return html::span(['id' => "rcmcrd_plain_$fieldKey"], $fieldValueFormatted);
 
             case 'timestr':
-                $uiType = 'text'; // choose the proper HTML UI type
             case 'text':
+                $input = new html_inputfield([
+                    'name' => $fieldKey,
+                    'type' => 'text',
+                    'value' => $fieldValueFormatted,
+                    'size' => 60,
+                    'disabled' => $fixed,
+                ]);
+                return $input->show();
+
             case 'password':
                 $input = new html_inputfield([
                     'name' => $fieldKey,
-                    'type' => $uiType,
-                    'value' => $fieldValueFormatted,
+                    'type' => 'password',
                     'size' => 60,
                     'disabled' => $fixed,
                 ]);
