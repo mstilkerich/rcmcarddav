@@ -801,7 +801,7 @@ class UI
      */
     private function formatFieldValue(array $fieldSpec, string $fieldValue): string
     {
-        [, $fieldKey, $uiType ] = $fieldSpec;
+        $uiType = $fieldSpec[2];
 
         $infra = Config::inst();
         $rc = $infra->rc();
@@ -832,8 +832,6 @@ class UI
             case 'password':
                 return '';
         }
-
-        throw new Exception("Unknown UI element type $uiType for $fieldKey");
     }
 
     /**
@@ -890,8 +888,6 @@ class UI
                 $checkbox = new html_checkbox(['name' => $fieldKey, 'value' => '1', 'disabled' => $fixed]);
                 return $checkbox->show(empty($fieldValue) ? '' : '1');
         }
-
-        throw new Exception("Unknown UI element type $uiType for $fieldKey");
     }
 
     /**
