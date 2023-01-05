@@ -71,6 +71,25 @@ use MStilkerich\RCMCardDAV\Config;
 class UI
 {
     /**
+     * @var list<FieldSpec> TMPL_ABOOK_FIELDS Form fields for the template addressbook settings
+     */
+    private const TMPL_ABOOK_FIELDS = [
+        [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
+        [ 'AbProps_active_lbl', 'active', 'checkbox', '1' ],
+        [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
+        [
+            'AbProps_newgroupstype_lbl',
+            'use_categories',
+            'radio',
+            '1',
+            [
+                [ '0', 'AbProps_grouptype_vcard_lbl' ],
+                [ '1', 'AbProps_grouptype_categories_lbl' ],
+            ]
+        ],
+    ];
+
+    /**
      * Specifications of the UI settings forms. These are used for creating the HTML form as well as extracting the
      * submitted form fields from a POST request.
      *
@@ -95,21 +114,7 @@ class UI
             ],
             [
                 'label' => 'AccAbProps_abookinitsettings_seclbl',
-                'fields' => [
-                    [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
-                    [ 'AbProps_active_lbl', 'active', 'checkbox', '1' ],
-                    [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
-                    [
-                        'AbProps_newgroupstype_lbl',
-                        'use_categories',
-                        'radio',
-                        '1',
-                        [
-                            [ '0', 'AbProps_grouptype_vcard_lbl' ],
-                            [ '1', 'AbProps_grouptype_categories_lbl' ],
-                        ]
-                    ],
-                ]
+                'fields' => self::TMPL_ABOOK_FIELDS,
             ],
         ],
         'account' => [
@@ -132,21 +137,7 @@ class UI
             ],
             [
                 'label' => 'AccAbProps_abookinitsettings_seclbl',
-                'fields' => [
-                    [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
-                    [ 'AbProps_active_lbl', 'active', 'checkbox', '1' ],
-                    [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
-                    [
-                        'AbProps_newgroupstype_lbl',
-                        'use_categories',
-                        'radio',
-                        '1',
-                        [
-                            [ '0', 'AbProps_grouptype_vcard_lbl' ],
-                            [ '1', 'AbProps_grouptype_categories_lbl' ],
-                        ]
-                    ],
-                ]
+                'fields' => self::TMPL_ABOOK_FIELDS,
             ],
         ],
         'addressbook' => [
@@ -642,11 +633,11 @@ class UI
                 $abMgr = $this->abMgr;
                 $account = $this->getVisibleAccountConfig($accountId);
                 $fixedAttributes = $this->getFixedSettings($account['presetname']);
+                // this includes also the abook settings for the template addressbook
                 $accFormVals = $this->getSettingsFromPOST('account', $fixedAttributes);
-                $abookFormVals = $this->getSettingsFromPOST('addressbook', $fixedAttributes);
                 $abMgr->updateAccount($accountId, $accFormVals);
                 // update template addressbook
-                $this->setTemplateAddressbook($accountId, $abookFormVals);
+                $this->setTemplateAddressbook($accountId, $accFormVals);
 
                 // update account data and echo formatted field data to client
                 $account = $this->getVisibleAccountConfig($accountId);
