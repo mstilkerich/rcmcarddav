@@ -32,6 +32,7 @@ use DOMXPath;
 use DOMNodeList;
 use DOMNode;
 use DOMNamedNodeMap;
+use Psr\Log\LogLevel;
 use MStilkerich\CardDavClient\{AddressbookCollection,WebDavResource};
 use MStilkerich\RCMCardDAV\Frontend\{AddressbookManager,UI};
 use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
@@ -39,6 +40,7 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Tests parts of the AdminSettings class using test data in JsonDatabase.
+ * @psalm-type LogLevel = LogLevel::*
  */
 final class UITest extends TestCase
 {
@@ -546,6 +548,102 @@ final class UITest extends TestCase
         $davobj->method('getDescription')->will($this->returnValue($desc));
         $davobj->method('getUri')->will($this->returnValue($url));
         return $davobj;
+    }
+
+    /**
+     * @return array<string, list{array<string,string>,?list{LogLevel,string},?string}>
+     */
+    public function accountSaveFormDataProvider(): array
+    {
+        $basicData = [
+            'accountname' => 'Updated account name',
+            'discovery_url' => 'http://updated.discovery.url/',
+            'username' => 'upduser',
+            'password' => '', // normally the password will not be set and must be ignored in this case
+            'rediscover_time' => '5:6:7',
+            // template addressbook settings
+            'name' => 'Updated name %N - %D', // placeholders must not be replaced when saving
+            // active would be omitted when set to off
+            'refresh_time' => '0:42',
+            'use_categories' => '1',
+        ];
+
+        $epfx = 'Error saving account preferences:';
+        return [
+            'Missing account ID' => [ [], ['warning', 'no account ID found in parameters'], null ],
+            'Invalid account ID' => [
+                ['accountid' => '123'] + $basicData,
+                ['error', "$epfx No carddav account with ID 123"],
+                null,
+            ],
+            "Other user's account ID" => [
+                ['accountid' => '101'] + $basicData,
+                ['error', "$epfx No carddav account with ID 101"],
+                null,
+            ],
+            'Hidden Preset Account'   => [
+                ['accountid' => '45'] + $basicData,
+                ['error', "$epfx Account ID 45 refers to a hidden account"],
+                null,
+            ],
+            "User-defined account with template addressbook (password not changed)" => [
+                ['accountid' => '42'] + $basicData,
+                null,
+                'tests/Unit/data/uiTest/dbExp-AccSave-udefAcc.json'
+            ],
+        ];
+    }
+
+    /**
+     * Tests that an existing account is properly saved when the form is submitted (plugin.carddav.AccSave).
+     *
+     * - Sent values are properly saved
+     *   - Both on / off value of checkboxes (toggles) are correctly evaluated (off = value not sent)
+     *   - Radio button values are properly evaluated
+     *   - Improperly formatted values (e.g. time strings) cause an error and the account is not saved
+     * - For a preset account, fixed fields are not overwritten even if part of the form
+     * - The template addressbook is created / updated
+     *
+     * - Error cases:
+     *   - No account ID in POST parameters (error is logged, no action performed)
+     *   - Invalid account ID in POST parameters (error is logged, error message sent to client, no action performed)
+     *   - Account ID of different user in POST parameters (error is logged, error message sent to client, no action
+     *     performed)
+     *   - Account ID of addressbook belonging to a hidden preset in POST parameters (error is logged, error message
+     *     sent to client, no action performed)
+     *   - Mandatory fields missing in POST data
+     *
+     * @dataProvider accountSaveFormDataProvider
+     * @param array<string,string> $postData
+     * @param ?list{LogLevel,string} $errMsgExp
+     */
+    public function testAccountIsProperlySaved(
+        array $postData,
+        ?array $errMsgExp,
+        ?string $expDbFile
+    ): void {
+        $this->db = new JsonDatabase(['tests/Unit/data/uiTest/db.json']);
+        TestInfrastructure::init($this->db, 'tests/Unit/data/uiTest/config.inc.php');
+        $logger = TestInfrastructure::logger();
+        $infra = TestInfrastructure::$infra;
+        $rcStub = $infra->rcTestAdapter();
+        $rcStub->postInputs = $postData;
+
+        $abMgr = new AddressbookManager();
+        $ui = new UI($abMgr);
+        $ui->actionAccSave();
+
+        if (is_null($errMsgExp)) {
+            $this->assertIsString($expDbFile, 'for non-error cases, we need an expected database file to compare with');
+        } else {
+            // data must not be modified
+            $expDbFile = 'tests/Unit/data/uiTest/db.json';
+            $logger->expectMessage($errMsgExp[0], $errMsgExp[1]);
+        }
+
+        $dbAfter = new JsonDatabase([$expDbFile]);
+        $dbAfter->compareTables('accounts', $this->db);
+        $dbAfter->compareTables('addressbooks', $this->db);
     }
 }
 
