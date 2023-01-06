@@ -1036,13 +1036,7 @@ class UI
                         continue 2;
 
                     case 'timestr':
-                        try {
-                            $fieldValue = Utils::parseTimeParameter($fieldValue);
-                        } catch (Exception $e) {
-                            // ignore format error, keep old value
-                            $logger->warning("Format error in timestring parameter $fieldKey: $fieldValue (ignored)");
-                            continue 2;
-                        }
+                        $fieldValue = Utils::parseTimeParameter($fieldValue);
                         break;
 
                     case 'radio':
