@@ -591,6 +591,11 @@ final class UITest extends TestCase
                 null,
                 'tests/Unit/data/uiTest/dbExp-AccSave-udefAcc.json'
             ],
+            "Preset account with fixed fields submitted, template abook created" => [
+                ['accountid' => '44', 'password' => 'foo', 'active' => '1'] + $basicData,
+                null,
+                'tests/Unit/data/uiTest/dbExp-AccSave-presetAccFixedFields.json'
+            ],
         ];
     }
 
@@ -611,7 +616,6 @@ final class UITest extends TestCase
      *     performed)
      *   - Account ID of addressbook belonging to a hidden preset in POST parameters (error is logged, error message
      *     sent to client, no action performed)
-     *   - Mandatory fields missing in POST data
      *
      * @dataProvider accountSaveFormDataProvider
      * @param array<string,string> $postData
