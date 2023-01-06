@@ -606,10 +606,10 @@ class UI
         try {
             $abMgr = $this->abMgr;
 
+            // this includes also the abook settings for the template addressbook
             $accFormVals = $this->getSettingsFromPOST('account', []);
-            $abookFormVals = $this->getSettingsFromPOST('addressbook', []);
-            $accountId = $abMgr->discoverAddressbooks($accFormVals, $abookFormVals);
-            $this->setTemplateAddressbook($accountId, $abookFormVals);
+            $accountId = $abMgr->discoverAddressbooks($accFormVals, $accFormVals);
+            $this->setTemplateAddressbook($accountId, $accFormVals);
 
             $account = $this->getVisibleAccountConfig($accountId);
             $newLi = $this->makeAccountListItem($account);
