@@ -44,7 +44,10 @@ class RcmAdapterStub implements RcmInterface
     public $hooks = [];
 
     /** @var list<list{RcMsgType,string}> */
-    public $shownMessages = [];
+    private $shownMessages = [];
+
+    /** @var list<string> */
+    public $sentTemplates = [];
 
     public function locText(string $msgId, array $vars = []): string
     {
@@ -112,6 +115,7 @@ class RcmAdapterStub implements RcmInterface
 
     public function sendTemplate(string $templ, $exit = true): void
     {
+        $this->sentTemplates[] = $templ;
     }
 
     /**

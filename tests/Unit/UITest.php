@@ -92,9 +92,14 @@ final class UITest extends TestCase
     {
         $this->db = new JsonDatabase(['tests/Unit/data/uiTest/db.json']);
         TestInfrastructure::init($this->db, 'tests/Unit/data/uiTest/config.inc.php');
+        $infra = TestInfrastructure::$infra;
+        $rcStub = $infra->rcTestAdapter();
 
         $abMgr = new AddressbookManager();
         $ui = new UI($abMgr);
+
+        $ui->renderAddressbookList();
+        $this->assertContains('carddav.addressbooks', $rcStub->sentTemplates);
 
         $html = $ui->tmplAddressbooksList(['id' => 'addressbooks-table']);
         $this->assertNotEmpty($html);
