@@ -32,16 +32,16 @@ use DOMXPath;
 use DOMNodeList;
 use DOMNode;
 use DOMNamedNodeMap;
-use Psr\Log\LogLevel;
 use MStilkerich\CardDavClient\{Account,AddressbookCollection,WebDavResource};
 use MStilkerich\CardDavClient\Services\Discovery;
 use MStilkerich\RCMCardDAV\Frontend\{AddressbookManager,UI};
+use MStilkerich\RCMCardDAV\RoundcubeLogger;
 use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Tests parts of the AdminSettings class using test data in JsonDatabase.
- * @psalm-type LogLevel = LogLevel::*
+ * @psalm-import-type PsrLogLevel from RoundcubeLogger
  */
 final class UITest extends TestCase
 {
@@ -576,7 +576,7 @@ final class UITest extends TestCase
     }
 
     /**
-     * @return array<string, list{array<string,string>,?list{LogLevel,string},?string}>
+     * @return array<string, list{array<string,string>,?list{PsrLogLevel,string},?string}>
      */
     public function accountSaveFormDataProvider(): array
     {
@@ -656,7 +656,7 @@ final class UITest extends TestCase
      *
      * @dataProvider accountSaveFormDataProvider
      * @param array<string,string> $postData
-     * @param ?list{LogLevel,string} $errMsgExp
+     * @param ?list{PsrLogLevel,string} $errMsgExp
      */
     public function testAccountIsProperlySaved(
         array $postData,
@@ -691,7 +691,7 @@ final class UITest extends TestCase
         $dbAfter->compareTables('addressbooks', $this->db);
     }
     /**
-     * @return array<string, list{array<string,string>,?list{LogLevel,string},?string}>
+     * @return array<string, list{array<string,string>,?list{PsrLogLevel,string},?string}>
      */
     public function abookSaveFormDataProvider(): array
     {
@@ -762,7 +762,7 @@ final class UITest extends TestCase
      *
      * @dataProvider abookSaveFormDataProvider
      * @param array<string,string> $postData
-     * @param ?list{LogLevel,string} $errMsgExp
+     * @param ?list{PsrLogLevel,string} $errMsgExp
      */
     public function testAddressbookIsProperlySaved(
         array $postData,
@@ -800,7 +800,7 @@ final class UITest extends TestCase
     }
 
     /**
-     * @return array<string, list{array<string,string>,?list{LogLevel,string},?string,int}>
+     * @return array<string, list{array<string,string>,?list{PsrLogLevel,string},?string,int}>
      */
     public function accountAddFormDataProvider(): array
     {
@@ -857,7 +857,7 @@ final class UITest extends TestCase
      *
      * @dataProvider accountAddFormDataProvider
      * @param array<string,string> $postData
-     * @param ?list{LogLevel,string} $errMsgExp
+     * @param ?list{PsrLogLevel,string} $errMsgExp
      */
     public function testNewAccountIsProperlyCreated(
         array $postData,
@@ -927,7 +927,7 @@ final class UITest extends TestCase
     }
 
     /**
-     * @return array<string, list{array<string,string>,?list{LogLevel,string},?string,?array}>
+     * @return array<string, list{array<string,string>,?list{PsrLogLevel,string},?string,?array}>
      */
     public function abookToggleFormDataProvider(): array
     {
@@ -1021,7 +1021,7 @@ final class UITest extends TestCase
      *
      * @dataProvider abookToggleFormDataProvider
      * @param array<string,string> $postData
-     * @param ?list{LogLevel,string} $errMsgExp
+     * @param ?list{PsrLogLevel,string} $errMsgExp
      */
     public function testAddressbookToggleActiveWorksProperly(
         array $postData,
@@ -1062,6 +1062,80 @@ final class UITest extends TestCase
             $this->assertSame('carddav_AbResetActive', $rcStub->sentCommands[0][0]);
             $this->assertSame($expClientCommandArgs, $rcStub->sentCommands[0][1]);
         }
+        $dbAfter = new JsonDatabase([$expDbFile]);
+        $dbAfter->compareTables('accounts', $this->db);
+        $dbAfter->compareTables('addressbooks', $this->db);
+    }
+
+    /**
+     * @return array<string, list{?string,?list{PsrLogLevel,string},?string}>
+     */
+    public function accountDeleteFormDataProvider(): array
+    {
+        $epfx = 'Error removing account:';
+        return [
+            'Missing account ID' => [ null, ['warning', 'no account ID found in parameters'], null ],
+            'Invalid account ID' => [ '123', ['error', "$epfx No carddav account with ID 123"], null ],
+            "Other user's account ID" => [ '101', ['error', "$epfx No carddav account with ID 101"], null ],
+            'Hidden Preset Account' => [ '45', ['error', "$epfx Account ID 45 refers to a hidden account"], null ],
+            'Preset Account' => [ '44', ['error', "$epfx Only the administrator can remove preset accounts"], null ],
+            "User-defined account" => [ '42', null, 'tests/Unit/data/uiTest/dbExp-AccRm-udefAcc.json' ],
+        ];
+    }
+
+    /**
+     * Tests that an existing account is properly deleted when requested from UI.
+     *
+     * - User-defined account incl. all addressbooks is removed
+     *
+     * - Error cases:
+     *   - No account ID in parameters (error is logged, no action performed)
+     *   - Invalid account ID in parameters (error is logged, error message sent to client, no action performed)
+     *   - Account ID of different user in parameters (error is logged, error message sent to client, no action
+     *     performed)
+     *   - Account ID of addressbook belonging to a preset in parameters (error is logged, error message sent to
+     *     client, no action performed)
+     *
+     * @dataProvider accountDeleteFormDataProvider
+     * @param ?list{PsrLogLevel,string} $errMsgExp
+     */
+    public function testAccountIsProperlyRemoved(
+        ?string $accountId,
+        ?array $errMsgExp,
+        ?string $expDbFile
+    ): void {
+        $this->db = new JsonDatabase(['tests/Unit/data/uiTest/db.json']);
+        TestInfrastructure::init($this->db, 'tests/Unit/data/uiTest/config.inc.php');
+        $logger = TestInfrastructure::logger();
+        $infra = TestInfrastructure::$infra;
+        $rcStub = $infra->rcTestAdapter();
+
+        if (is_string($accountId)) {
+            $rcStub->postInputs['accountid'] = $accountId;
+        }
+
+        $abMgr = new AddressbookManager();
+        $ui = new UI($abMgr);
+        $ui->actionAccRm();
+
+        if (is_null($errMsgExp)) {
+            $this->assertIsString($expDbFile, 'for non-error cases, we need an expected database file to compare with');
+            $this->assertTrue($rcStub->checkShownMessages('confirmation', 'AccRm_msg_ok'));
+
+            $this->assertCount(1, $rcStub->sentCommands);
+            $this->assertSame('carddav_RemoveListElem', $rcStub->sentCommands[0][0]);
+            $this->assertSame([$accountId], $rcStub->sentCommands[0][1]);
+        } else {
+            $this->assertCount(0, $rcStub->sentCommands);
+
+            // data must not be modified
+            $expDbFile = 'tests/Unit/data/uiTest/db.json';
+            $logger->expectMessage($errMsgExp[0], $errMsgExp[1]);
+            if ($errMsgExp[0] === 'error') {
+                $this->assertTrue($rcStub->checkShownMessages('error', "AccRm_msg_fail"));
+            }
+        }
+
         $dbAfter = new JsonDatabase([$expDbFile]);
         $dbAfter->compareTables('accounts', $this->db);
         $dbAfter->compareTables('addressbooks', $this->db);
