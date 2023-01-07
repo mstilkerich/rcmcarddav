@@ -467,11 +467,16 @@ class UI
         if (isset($accountId)) {
             try {
                 $abMgr = $this->abMgr;
-                $abMgr->deleteAccount($accountId);
-                $rc->showMessage($rc->locText("AccRm_msg_ok"), 'confirmation');
-                $rc->clientCommand('carddav_RemoveListElem', $accountId);
+                $accountCfg = $this->getVisibleAccountConfig($accountId);
+                if (isset($accountCfg['presetname'])) {
+                    throw new Exception('Only the administrator can remove preset accounts');
+                } else {
+                    $abMgr->deleteAccount($accountId);
+                    $rc->showMessage($rc->locText("AccRm_msg_ok"), 'confirmation');
+                    $rc->clientCommand('carddav_RemoveListElem', $accountId);
+                }
             } catch (Exception $e) {
-                $logger->error("Error saving account preferences: " . $e->getMessage());
+                $logger->error("Error removing account: " . $e->getMessage());
                 $rc->showMessage($rc->locText("AccRm_msg_fail", ['errormsg' => $e->getMessage()]), 'error');
             }
         } else {
