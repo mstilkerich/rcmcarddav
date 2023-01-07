@@ -33,6 +33,8 @@ use rcube_utils;
  *
  * This allows us to decouple the dependencies from roundcube to a large extent (except for where be subclass roundcube
  * classes) and therefore improves testability.
+ *
+ * @psalm-type RcMsgType = 'notice'|'confirmation'|'error'|'warning'
  */
 interface RcmInterface
 {
@@ -58,7 +60,7 @@ interface RcmInterface
     /**
      * Shows a message to the roundcube user.
      * @param string $msg The message.
-     * @param 'notice'|'confirmation'|'error'|'warning' $msgType
+     * @param RcMsgType $msgType
      * @param bool $override Override last set message
      * @param int $timeout Message displaying time in seconds
      */

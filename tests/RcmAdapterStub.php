@@ -29,6 +29,9 @@ namespace MStilkerich\Tests\RCMCardDAV;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\RCMCardDAV\Frontend\RcmInterface;
 
+/**
+ * @psalm-import-type RcMsgType from RcmInterface
+ */
 class RcmAdapterStub implements RcmInterface
 {
     /** @var array<string,string> Simulated POST data */
@@ -39,6 +42,9 @@ class RcmAdapterStub implements RcmInterface
 
     /** @var array<string, callable> Records installed hook functions */
     public $hooks = [];
+
+    /** @var list<list{RcMsgType,string}> */
+    public $shownMessages = [];
 
     public function locText(string $msgId, array $vars = []): string
     {
@@ -62,6 +68,7 @@ class RcmAdapterStub implements RcmInterface
 
     public function showMessage(string $msg, string $msgType = 'notice', $override = true, $timeout = 0): void
     {
+        $this->shownMessages[] = [ $msgType, $msg ];
     }
 
     public function clientCommand(string $method, ...$arguments): void
@@ -122,6 +129,21 @@ class RcmAdapterStub implements RcmInterface
 
     public function setEnv(string $name, $value, bool $addToJs = true): void
     {
+    }
+
+    /**
+     * Checks if a message containing the given string with the given message type was sent to the client.
+     * @param RcMsgType $msgType
+     */
+    public function checkShownMessages(string $msgType, string $msg): bool
+    {
+        foreach ($this->shownMessages as [$mT,$m]) {
+            if ($msgType === $mT && strpos($m, $msg) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
