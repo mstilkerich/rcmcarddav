@@ -421,7 +421,11 @@ class UI
             } catch (Exception $e) {
                 $logger->error("Failure to toggle addressbook activation: " . $e->getMessage());
                 $rc->showMessage($rc->locText("AbToggleActive_msg_fail$suffix"), 'error');
-                $rc->clientCommand('carddav_AbResetActive', $abookId, !$active);
+
+                // only send reset command if the target addressbook was one supposed to be shown in the UI
+                if (isset($abookCfg) && isset($account)) {
+                    $rc->clientCommand('carddav_AbResetActive', $abookId, $abookCfg['active'] === '1');
+                }
             }
         } else {
             $logger->warning(__METHOD__ . " invoked without required HTTP POST inputs");
