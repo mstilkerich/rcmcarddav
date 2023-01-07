@@ -381,25 +381,7 @@ final class UITest extends TestCase
             $rcStub->getInputs['abookid'] = $getID;
         }
 
-        $infra->webDavResources = [
-            'https://test.example.com/books/johndoe/book42/' => $this->makeAbookCollStub(
-                'Book 42 SrvName',
-                'https://test.example.com/books/johndoe/book42/',
-                "Hitchhiker's Guide"
-            ),
-            'https://test.example.com/books/johndoe/book43/' => $this->makeAbookCollStub(
-                'Book 43 SrvName',
-                'https://test.example.com/books/johndoe/book43/',
-                null
-            ),
-            'https://carddav.example.com/books/johndoe/book44/' => $this->makeAbookCollStub(
-                null,
-                'https://carddav.example.com/books/johndoe/book44/',
-                null
-            ),
-            "https://carddav.example.com/shared/Public/" => $this->createStub(WebDavResource::class),
-            "https://admonly.example.com/books/johndoe/book61/" => new \Exception('hidden preset was queried'),
-        ];
+        $this->setAddressbookStubs();
 
         $abMgr = new AddressbookManager();
         $ui = new UI($abMgr);
@@ -534,6 +516,29 @@ final class UITest extends TestCase
             return $item;
     }
 
+    private function setAddressbookStubs(): void
+    {
+        TestInfrastructure::$infra->webDavResources = [
+            'https://test.example.com/books/johndoe/book42/' => $this->makeAbookCollStub(
+                'Book 42 SrvName',
+                'https://test.example.com/books/johndoe/book42/',
+                "Hitchhiker's Guide"
+            ),
+            'https://test.example.com/books/johndoe/book43/' => $this->makeAbookCollStub(
+                'Book 43 SrvName',
+                'https://test.example.com/books/johndoe/book43/',
+                null
+            ),
+            'https://carddav.example.com/books/johndoe/book44/' => $this->makeAbookCollStub(
+                null,
+                'https://carddav.example.com/books/johndoe/book44/',
+                null
+            ),
+            "https://carddav.example.com/shared/Public/" => $this->createStub(WebDavResource::class),
+            "https://admonly.example.com/books/johndoe/book61/" => new \Exception('hidden preset was queried'),
+        ];
+    }
+
     /**
      * Creates an AddressbookCollection stub that implements getUri() and getName().
      */
@@ -651,10 +656,122 @@ final class UITest extends TestCase
 
         if (is_null($errMsgExp)) {
             $this->assertIsString($expDbFile, 'for non-error cases, we need an expected database file to compare with');
+            $this->assertTrue($rcStub->checkShownMessages('confirmation', 'AccAbSave_msg_ok'));
         } else {
             // data must not be modified
             $expDbFile = 'tests/Unit/data/uiTest/db.json';
             $logger->expectMessage($errMsgExp[0], $errMsgExp[1]);
+            if ($errMsgExp[0] === 'error') {
+                $this->assertTrue($rcStub->checkShownMessages('error', "AccAbSave_msg_fail"));
+            }
+        }
+
+        $dbAfter = new JsonDatabase([$expDbFile]);
+        $dbAfter->compareTables('accounts', $this->db);
+        $dbAfter->compareTables('addressbooks', $this->db);
+    }
+    /**
+     * @return array<string, list{array<string,string>,?list{LogLevel,string},?string}>
+     */
+    public function abookSaveFormDataProvider(): array
+    {
+        $basicData = [
+            'name' => 'Updated name %N - %D', // placeholders are not replaced when saving addressbook
+            'refresh_time' => '0:42',
+            'use_categories' => '0',
+        ];
+
+        $epfx = 'Error saving addressbook preferences:';
+        return [
+            'Missing addressbook ID' => [ [], ['warning', 'no addressbook ID found in parameters'], null ],
+            'Invalid addressbook ID' => [
+                ['abookid' => '123'] + $basicData,
+                ['error', "$epfx No carddav addressbook with ID 123"],
+                null,
+            ],
+            "Other user's addressbook ID" => [
+                ['abookid' => '101'] + $basicData,
+                ['error', "$epfx No carddav addressbook with ID 101"],
+                null,
+            ],
+            'Hidden Preset Addressbook'   => [
+                ['abookid' => '61'] + $basicData,
+                ['error', "$epfx Account ID 45 refers to a hidden account"],
+                null,
+            ],
+            'Invalid radio button value'   => [
+                ['abookid' => '42', 'use_categories' => '2'] + $basicData,
+                ['error', "$epfx Invalid value 2 POSTed for use_categories"],
+                null,
+            ],
+            "Addressbook of user-defined account" => [
+                // discovered, url and active must be ignored in the input
+                ['abookid' => '42', 'url' => 'http://new.url/x', 'active' => '0', 'discovered' => '0'] + $basicData,
+                null,
+                'tests/Unit/data/uiTest/dbExp-AbSave-udefAcc.json'
+            ],
+            "Preset addressbook with fixed fields submitted" => [
+                // name is fixed and must not be changed; refresh_time is not fixed for the extra addressbook
+                ['abookid' => '51'] + $basicData,
+                null,
+                'tests/Unit/data/uiTest/dbExp-AbSave-presetAccFixedFields.json'
+            ],
+            "Preset addressbook with only non-fixed fields submitted (normal case)" => [
+                ['abookid' => '51', 'refresh_time' => '0:15', 'use_categories' => '1' ],
+                null,
+                'tests/Unit/data/uiTest/dbExp-AbSave-presetAcc.json'
+            ],
+        ];
+    }
+
+    /**
+     * Tests that an addressbook is properly saved when the form is submitted (plugin.carddav.AbSave).
+     *
+     * - Sent values are properly saved
+     *   - Radio button values are properly evaluated, incl. invalid values
+     *   - Improperly formatted values (e.g. time strings) cause an error and the account is not saved
+     * - For a preset account, fixed fields are not overwritten even if part of the form
+     *
+     * - Error cases:
+     *   - No addressbook ID in POST parameters (error is logged, no action performed)
+     *   - Invalid addressbook ID in POST parameters (error logged, error message sent to client, no action performed)
+     *   - Addressbook ID of different user in POST parameters (error is logged, error message sent to client, no action
+     *     performed)
+     *   - Addressbook ID belonging to a hidden preset in POST parameters (error is logged, error message sent to
+     *     client, no action performed)
+     *
+     * @dataProvider abookSaveFormDataProvider
+     * @param array<string,string> $postData
+     * @param ?list{LogLevel,string} $errMsgExp
+     */
+    public function testAddressbookIsProperlySaved(
+        array $postData,
+        ?array $errMsgExp,
+        ?string $expDbFile
+    ): void {
+        $this->db = new JsonDatabase(['tests/Unit/data/uiTest/db.json']);
+        TestInfrastructure::init($this->db, 'tests/Unit/data/uiTest/config.inc.php');
+        $logger = TestInfrastructure::logger();
+        $infra = TestInfrastructure::$infra;
+        $rcStub = $infra->rcTestAdapter();
+        $rcStub->postInputs = $postData;
+
+        $this->setAddressbookStubs();
+
+        $abMgr = new AddressbookManager();
+        $ui = new UI($abMgr);
+        $ui->actionAbSave();
+
+        if (is_null($errMsgExp)) {
+            $this->assertIsString($expDbFile, 'for non-error cases, we need an expected database file to compare with');
+            $this->assertTrue($rcStub->checkShownMessages('confirmation', 'AccAbSave_msg_ok'));
+        } else {
+            // data must not be modified
+            $expDbFile = 'tests/Unit/data/uiTest/db.json';
+            $logger->expectMessage($errMsgExp[0], $errMsgExp[1]);
+            if ($errMsgExp[0] === 'error') {
+                $this->assertTrue($rcStub->checkShownMessages('error', "AccAbSave_msg_fail"));
+            }
         }
 
         $dbAfter = new JsonDatabase([$expDbFile]);
