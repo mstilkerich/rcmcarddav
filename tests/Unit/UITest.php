@@ -925,6 +925,147 @@ final class UITest extends TestCase
         $dbAfter->compareTables('accounts', $this->db);
         $dbAfter->compareTables('addressbooks', $this->db);
     }
+
+    /**
+     * @return array<string, list{array<string,string>,?list{LogLevel,string},?string,?array}>
+     */
+    public function abookToggleFormDataProvider(): array
+    {
+        $epfx = 'Failure to toggle addressbook activation:';
+        return [
+            'Missing addressbook ID' => [
+                ['active' => '1'],
+                ['warning', 'invoked without required HTTP POST inputs'],
+                null, // expDbFile
+                null, // expClientCommandArgs
+            ],
+            'Missing active setting ID' => [
+                ['abookid' => '42'],
+                ['warning', 'invoked without required HTTP POST inputs'],
+                null, // expDbFile
+                null, // expClientCommandArgs
+            ],
+            'Invalid addressbook ID' => [
+                ['abookid' => '123', 'active' => '1'],
+                ['error', "$epfx No carddav addressbook with ID 123"],
+                null, // expDbFile
+                null, // expClientCommandArgs - no command expected because ID is invalid
+            ],
+            "Other user's addressbook ID" => [
+                ['abookid' => '101', 'active' => '0'],
+                ['error', "$epfx No carddav addressbook with ID 101"],
+                null, // expDbFile
+                null, // expClientCommandArgs - no command expected because this addressbook should not appear in UI
+            ],
+            'Addressbook of hidden preset account' => [
+                ['abookid' => '61', 'active' => '0'],
+                ['error', "$epfx Account ID 45 refers to a hidden account"],
+                null, // expDbFile
+                null, // expClientCommandArgs - no command expected because this addressbook should not appear in UI
+            ],
+            'Active addressbook where active attribute is fixed (try to deactivate)' => [
+                ['abookid' => '51', 'active' => '0'],
+                ['error', "$epfx active is a fixed setting for addressbook 51"],
+                null, // expDbFile
+                ['51', true], // expClientCommandArgs - UI toggle changed to wrong state and must be reset
+            ],
+            'Active addressbook where active attribute is fixed (try to activate)' => [
+                ['abookid' => '51', 'active' => '1'],
+                ['error', "$epfx active is a fixed setting for addressbook 51"],
+                null, // expDbFile
+                ['51', true], // expClientCommandArgs - UI toggle changed to wrong state and must be reset
+            ],
+            'Deactivate active addressbook' => [
+                ['abookid' => '42', 'active' => '0'],
+                null,
+                'tests/Unit/data/uiTest/dbExp-AbToggleActive-DeactActive.json',
+                null, // expClientCommandArgs
+            ],
+            'Deactivate inactive addressbook' => [
+                ['abookid' => '44', 'active' => '0'],
+                null,
+                'tests/Unit/data/uiTest/db.json',
+                null, // expClientCommandArgs
+            ],
+            'Activate inactive addressbook' => [
+                ['abookid' => '44', 'active' => '1'],
+                null,
+                'tests/Unit/data/uiTest/dbExp-AbToggleActive-ActInactive.json',
+                null, // expClientCommandArgs
+            ],
+            'Activate active addressbook' => [
+                ['abookid' => '42', 'active' => '1'],
+                null,
+                'tests/Unit/data/uiTest/db.json',
+                null, // expClientCommandArgs
+            ],
+        ];
+    }
+
+    /**
+     * Tests that the AbToggleActive action invoked works properly.
+     *
+     * - Addressbook is activated (on both active and inactive addressbook)
+     * - Addressbook is deactivated (on both active and inactive addressbook)
+     *
+     * Error cases:
+     *   - No addressbook ID in parameters (warning is logged)
+     *   - No active value in parameters (warning is logged)
+     *
+     *   - Invalid addressbook ID in parameters (error is logged, error shown to client)
+     *   - Addressbook ID of different user in parameters (error is logged, error shown to client)
+     *   - Addressbook ID belonging to a hidden preset in parameters (error is logged, error shown to client)
+     *
+     *   - Addressbook ID of an addressbook where the active attribute is fixed is sent (error is logged, error shown to
+     *     client, toggle is reset on client)
+     *
+     * @dataProvider abookToggleFormDataProvider
+     * @param array<string,string> $postData
+     * @param ?list{LogLevel,string} $errMsgExp
+     */
+    public function testAddressbookToggleActiveWorksProperly(
+        array $postData,
+        ?array $errMsgExp,
+        ?string $expDbFile,
+        ?array $expClientCommandArgs
+    ): void {
+        $this->db = new JsonDatabase(['tests/Unit/data/uiTest/db.json']);
+        TestInfrastructure::init($this->db, 'tests/Unit/data/uiTest/config.inc.php');
+        $logger = TestInfrastructure::logger();
+        $infra = TestInfrastructure::$infra;
+        $rcStub = $infra->rcTestAdapter();
+        $rcStub->postInputs = $postData;
+
+        $abMgr = new AddressbookManager();
+        $ui = new UI($abMgr);
+        $ui->actionAbToggleActive();
+
+        $suffix = ($postData['active'] ?? '') === '0' ? '_de' : '';
+
+        if (is_null($errMsgExp)) {
+            $this->assertIsString($expDbFile, 'for non-error cases, we need an expected database file to compare with');
+            $this->assertTrue($rcStub->checkShownMessages('confirmation', "AbToggleActive_msg_ok$suffix"));
+        } else {
+            // data must not be modified
+            $expDbFile = 'tests/Unit/data/uiTest/db.json';
+            $logger->expectMessage($errMsgExp[0], $errMsgExp[1]);
+            if ($errMsgExp[0] === 'error') {
+                $this->assertArrayHasKey('abookid', $postData);
+                $this->assertTrue($rcStub->checkShownMessages('error', "AbToggleActive_msg_fail$suffix"));
+            }
+        }
+
+        if (is_null($expClientCommandArgs)) {
+            $this->assertCount(0, $rcStub->sentCommands);
+        } else {
+            $this->assertCount(1, $rcStub->sentCommands);
+            $this->assertSame('carddav_AbResetActive', $rcStub->sentCommands[0][0]);
+            $this->assertSame($expClientCommandArgs, $rcStub->sentCommands[0][1]);
+        }
+        $dbAfter = new JsonDatabase([$expDbFile]);
+        $dbAfter->compareTables('accounts', $this->db);
+        $dbAfter->compareTables('addressbooks', $this->db);
+    }
 }
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120

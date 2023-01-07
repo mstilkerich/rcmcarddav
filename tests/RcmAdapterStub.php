@@ -49,6 +49,9 @@ class RcmAdapterStub implements RcmInterface
     /** @var list<string> */
     public $sentTemplates = [];
 
+    /** @var list<list{string,array}> */
+    public $sentCommands = [];
+
     public function locText(string $msgId, array $vars = []): string
     {
         return $msgId;
@@ -76,6 +79,7 @@ class RcmAdapterStub implements RcmInterface
 
     public function clientCommand(string $method, ...$arguments): void
     {
+        $this->sentCommands[] = [ $method, $arguments ];
     }
 
     public function addHook(string $hook, callable $callback): void
