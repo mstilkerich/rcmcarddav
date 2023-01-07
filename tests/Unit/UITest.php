@@ -33,7 +33,8 @@ use DOMNodeList;
 use DOMNode;
 use DOMNamedNodeMap;
 use Psr\Log\LogLevel;
-use MStilkerich\CardDavClient\{AddressbookCollection,WebDavResource};
+use MStilkerich\CardDavClient\{Account,AddressbookCollection,WebDavResource};
+use MStilkerich\CardDavClient\Services\Discovery;
 use MStilkerich\RCMCardDAV\Frontend\{AddressbookManager,UI};
 use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
@@ -772,6 +773,133 @@ final class UITest extends TestCase
             if ($errMsgExp[0] === 'error') {
                 $this->assertTrue($rcStub->checkShownMessages('error', "AccAbSave_msg_fail"));
             }
+        }
+
+        $dbAfter = new JsonDatabase([$expDbFile]);
+        $dbAfter->compareTables('accounts', $this->db);
+        $dbAfter->compareTables('addressbooks', $this->db);
+    }
+
+    /**
+     * @return array<string, list{array<string,string>,?list{LogLevel,string},?string,int}>
+     */
+    public function accountAddFormDataProvider(): array
+    {
+        $basicData = [
+            'accountname' => 'New account',
+            'discovery_url' => 'http://cdav.example.com/',
+            'username' => 'user',
+            'password' => 'pw',
+            'rediscover_time' => '5:6:7',
+            // template addressbook settings
+            'name' => 'Name template %N - %D', // placeholders must not be replaced when saving
+            // active would be omitted when set to off
+            'refresh_time' => '0:30',
+            'use_categories' => '1',
+        ];
+
+        $epfx = 'Error creating CardDAV account:';
+        return [
+            'Missing Discovery URL'   => [
+                ['accountname' => 'New account'],
+                ['error', "$epfx Cannot discover addressbooks for an account lacking a discovery URI"],
+                null,
+                0
+            ],
+            "Two addressbooks discovered (added inactive, with categories)" => [
+                $basicData,
+                null,
+                'tests/Unit/data/uiTest/dbExp-AccAdd-2books.json',
+                2
+            ],
+            "One addressbook discovered (added active, no categories)" => [
+                [ 'active' => '1', 'use_categories' => '0' ] + $basicData,
+                null,
+                'tests/Unit/data/uiTest/dbExp-AccAdd-1book.json',
+                1
+            ],
+            "No addressbook discovered" => [
+                $basicData,
+                null,
+                'tests/Unit/data/uiTest/dbExp-AccAdd-0books.json',
+                0
+            ],
+        ];
+    }
+
+    /**
+     * Tests that a new account is properly created when the corresponding form is submitted.
+     *
+     * - Addressbooks returned by discovery are properly added incl. template addressbook
+     * - Discovery returns no addressbooks, account without addressbooks is added (only template addressbook)
+     *
+     * Error cases:
+     *  - Discovery URL not provided
+     *
+     * @dataProvider accountAddFormDataProvider
+     * @param array<string,string> $postData
+     * @param ?list{LogLevel,string} $errMsgExp
+     */
+    public function testNewAccountIsProperlyCreated(
+        array $postData,
+        ?array $errMsgExp,
+        ?string $expDbFile,
+        int $numAbooks
+    ): void {
+        $this->db = new JsonDatabase(['tests/Unit/data/uiTest/db.json']);
+        TestInfrastructure::init($this->db, 'tests/Unit/data/uiTest/config.inc.php');
+        $logger = TestInfrastructure::logger();
+        $infra = TestInfrastructure::$infra;
+        $rcStub = $infra->rcTestAdapter();
+        $rcStub->postInputs = $postData;
+
+        $this->setAddressbookStubs();
+
+        if (is_null($errMsgExp)) {
+            $discoveryUrl = $postData['discovery_url'] ?? '';
+            // create some test addressbooks to be discovered
+            $abookObjs = [];
+            for ($i = 0; $i < $numAbooks; ++$i) {
+                $abookUrl = $discoveryUrl . $postData['username'] . "/addressbooks/book$i";
+                $abookStub = $this->makeAbookCollStub("Book $i", $abookUrl, "Desc $i");
+                $abookObjs[] = $abookStub;
+                TestInfrastructure::$infra->webDavResources[$abookUrl] = $abookStub;
+            }
+
+            // create a Discovery mock that "discovers" our test addressbooks
+            $account = new Account($discoveryUrl, $postData['username'], $postData['password']);
+            $discovery = $this->createMock(Discovery::class);
+            $discovery->expects($this->once())
+                      ->method("discoverAddressbooks")
+                      ->with($this->equalTo($account))
+                      ->will($this->returnValue($abookObjs));
+            TestInfrastructure::$infra->discovery = $discovery;
+        }
+
+        $abMgr = new AddressbookManager();
+        $ui = new UI($abMgr);
+        $ui->actionAccAdd();
+
+        if (is_null($errMsgExp)) {
+            $this->assertIsString($expDbFile, 'for non-error cases, we need an expected database file to compare with');
+            $this->assertTrue($rcStub->checkShownMessages('confirmation', 'AccAdd_msg_ok'));
+        } else {
+            // data must not be modified
+            $expDbFile = 'tests/Unit/data/uiTest/db.json';
+            $logger->expectMessage($errMsgExp[0], $errMsgExp[1]);
+            if ($errMsgExp[0] === 'error') {
+                $this->assertTrue($rcStub->checkShownMessages('error', "AccAbSave_msg_fail"));
+            }
+        }
+
+        if (is_null($errMsgExp)) {
+            // Before comparing, we need to fix the last_discovered timestamp as it depends on the current time
+            $accRow = $this->db->lookup(['accountname' => 'New account'], [], 'accounts');
+            $this->assertArrayHasKey('id', $accRow);
+            $this->assertIsString($accRow['id']);
+            $this->assertArrayHasKey('last_discovered', $accRow);
+            $this->assertLessThan(2, time() - intval($accRow['last_discovered'])); // two seconds grace period
+            $this->db->update($accRow['id'], [ 'last_discovered' ], [ '0' ], 'accounts');
         }
 
         $dbAfter = new JsonDatabase([$expDbFile]);

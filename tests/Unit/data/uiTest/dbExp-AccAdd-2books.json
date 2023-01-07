@@ -1,0 +1,172 @@
+{
+	"accounts": [
+		{
+			"id": 42,
+			"accountname": "Test Account",
+			"username": "johndoe",
+			"password": "The password",
+			"discovery_url": "https://test.example.com/",
+			"user_id": "105",
+			"last_discovered": 1672825163,
+			"rediscover_time": 7200,
+			"presetname": null
+		},
+		{
+			"id": 43,
+			"accountname": "iCloud",
+			"username": "",
+			"password": "",
+			"discovery_url": "https://ic.example.com/",
+			"user_id": "105",
+			"last_discovered": 12345,
+			"rediscover_time": 86400,
+			"presetname": null
+		},
+		{
+			"id": 44,
+			"accountname": "Preset Contacts",
+			"username": "foodoo",
+			"password": "bar",
+			"discovery_url": "https://carddav.example.com/",
+			"user_id": "105",
+			"last_discovered": 0,
+			"rediscover_time": 86400,
+			"presetname": "AdmPreset"
+		},
+		{
+			"id": 45,
+			"accountname": "Hidden Preset",
+			"username": "foodoo",
+			"password": "bar",
+			"discovery_url": "https://admonly.example.com/",
+			"user_id": "105",
+			"last_discovered": 100,
+			"rediscover_time": 86400,
+			"presetname": "HiddenPreset"
+		},
+		{
+			"id": 46,
+			"accountname": "New account",
+			"username": "user",
+			"password": "pw",
+			"discovery_url": "http://cdav.example.com/",
+			"user_id": "105",
+			"last_discovered": 0,
+			"rediscover_time": 18367,
+			"presetname": null
+		},
+		{
+			"id": 101,
+			"accountname": "Account of another user",
+			"username": "",
+			"password": "",
+			"discovery_url": "https://test.example.com/",
+			"user_id": "106",
+			"last_discovered": 12345,
+			"rediscover_time": 86400,
+			"presetname": null
+		}
+	],
+	"addressbooks": [
+		{
+			"id": 41,
+			"name": "%N, %D",
+			"url": "",
+			"flags": 33,
+			"last_updated": 0,
+			"refresh_time": 600,
+			"sync_token": "",
+			"account_id": 42
+		},
+		{
+			"id": 42,
+			"name": "Basic contacts",
+			"url": "https://test.example.com/books/johndoe/book42/",
+			"flags": 7,
+			"last_updated": 1672825164,
+			"refresh_time": 360,
+			"sync_token": "sync@3600",
+			"account_id": 42
+		},
+		{
+			"id": 43,
+			"name": "additional contacts",
+			"url": "https://test.example.com/books/johndoe/book43/",
+			"flags": 7,
+			"last_updated": 12345,
+			"refresh_time": 3600,
+			"sync_token": "sync@3600",
+			"account_id": 42
+		},
+		{
+			"id": 44,
+			"name": "Additional contacts - Inactive",
+			"url": "https://carddav.example.com/books/johndoe/book44/",
+			"flags": 6,
+			"last_updated": 12345,
+			"refresh_time": 3600,
+			"sync_token": "sync@3600",
+			"account_id": 42
+		},
+		{
+			"id": 51,
+			"name": "Public readonly contacts",
+			"url": "https://carddav.example.com/shared/Public/",
+			"flags": 9,
+			"last_updated": 0,
+			"refresh_time": 3600,
+			"sync_token": "sync@3600",
+			"account_id": 44
+		},
+		{
+			"id": 61,
+			"name": "Hidden preset addressbook",
+			"url": "https://admonly.example.com/books/johndoe/book61/",
+			"flags": 7,
+			"last_updated": 0,
+			"refresh_time": 900,
+			"sync_token": "sync@3600",
+			"account_id": 45
+		},
+		{
+			"id": 101,
+			"name": "Addressbook of another user",
+			"url": "https://test.example.com/books/otheruser/otherbook/",
+			"flags": 7,
+			"last_updated": 12345,
+			"refresh_time": 3600,
+			"sync_token": "sync@3600",
+			"account_id": 101
+		},
+		{
+			"id": 110,
+			"name": "Name template %N - %D",
+			"url": "",
+			"flags": 34,
+			"last_updated": 0,
+			"refresh_time": 1800,
+			"sync_token": "",
+			"account_id": 46
+		},
+		{
+			"id": 111,
+			"name": "Name template Book 0 - Desc 0",
+			"url": "http://cdav.example.com/user/addressbooks/book0",
+			"flags": 6,
+			"last_updated": 0,
+			"refresh_time": 1800,
+			"sync_token": "",
+			"account_id": 46
+		},
+		{
+			"id": 112,
+			"name": "Name template Book 1 - Desc 1",
+			"url": "http://cdav.example.com/user/addressbooks/book1",
+			"flags": 6,
+			"last_updated": 0,
+			"refresh_time": 1800,
+			"sync_token": "",
+			"account_id": 46
+		}
+	]
+}
