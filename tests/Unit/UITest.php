@@ -559,6 +559,27 @@ final class UITest extends TestCase
         ];
     }
 
+    private function setDiscoveryStub(int $numAbooks, string $baseUrl, string $username, string $password): void
+    {
+        // create some test addressbooks to be discovered
+        $abookObjs = [];
+        for ($i = 0; $i < $numAbooks; ++$i) {
+            $abookUrl = $baseUrl . $username . "/addressbooks/book$i";
+            $abookStub = $this->makeAbookCollStub("Book $i", $abookUrl, "Desc $i");
+            $abookObjs[] = $abookStub;
+            TestInfrastructure::$infra->webDavResources[$abookUrl] = $abookStub;
+        }
+
+        // create a Discovery mock that "discovers" our test addressbooks
+        $account = new Account($baseUrl, $username, $password);
+        $discovery = $this->createMock(Discovery::class);
+        $discovery->expects($this->once())
+                  ->method("discoverAddressbooks")
+                  ->with($this->equalTo($account))
+                  ->will($this->returnValue($abookObjs));
+        TestInfrastructure::$infra->discovery = $discovery;
+    }
+
     /**
      * Creates an AddressbookCollection stub that implements getUri() and getName().
      */
@@ -875,24 +896,12 @@ final class UITest extends TestCase
         $this->setAddressbookStubs();
 
         if (is_null($errMsgExp)) {
-            $discoveryUrl = $postData['discovery_url'] ?? '';
-            // create some test addressbooks to be discovered
-            $abookObjs = [];
-            for ($i = 0; $i < $numAbooks; ++$i) {
-                $abookUrl = $discoveryUrl . $postData['username'] . "/addressbooks/book$i";
-                $abookStub = $this->makeAbookCollStub("Book $i", $abookUrl, "Desc $i");
-                $abookObjs[] = $abookStub;
-                TestInfrastructure::$infra->webDavResources[$abookUrl] = $abookStub;
-            }
-
-            // create a Discovery mock that "discovers" our test addressbooks
-            $account = new Account($discoveryUrl, $postData['username'], $postData['password']);
-            $discovery = $this->createMock(Discovery::class);
-            $discovery->expects($this->once())
-                      ->method("discoverAddressbooks")
-                      ->with($this->equalTo($account))
-                      ->will($this->returnValue($abookObjs));
-            TestInfrastructure::$infra->discovery = $discovery;
+            $this->setDiscoveryStub(
+                $numAbooks,
+                $postData['discovery_url'] ?? '',
+                $postData['username'],
+                $postData['password']
+            );
         }
 
         $abMgr = new AddressbookManager();
@@ -1134,6 +1143,97 @@ final class UITest extends TestCase
             if ($errMsgExp[0] === 'error') {
                 $this->assertTrue($rcStub->checkShownMessages('error', "AccRm_msg_fail"));
             }
+        }
+
+        $dbAfter = new JsonDatabase([$expDbFile]);
+        $dbAfter->compareTables('accounts', $this->db);
+        $dbAfter->compareTables('addressbooks', $this->db);
+    }
+
+    /**
+     * @return array<string, list{?string,?list{PsrLogLevel,string},?string}>
+     */
+    public function accountRediscoverFormDataProvider(): array
+    {
+        $epfx = 'Error in account rediscovery:';
+        return [
+            'Missing account ID' => [ null, ['warning', 'no account ID found in parameters'], null ],
+            'Invalid account ID' => [ '123', ['error', "$epfx No carddav account with ID 123"], null ],
+            "Other user's account ID" => [ '101', ['error', "$epfx No carddav account with ID 101"], null ],
+            'Hidden Preset Account' => [ '45', ['error', "$epfx Account ID 45 refers to a hidden account"], null ],
+            "User-defined account" => [ '42', null, 'tests/Unit/data/uiTest/dbExp-AccRedisc-udefAcc.json' ],
+        ];
+    }
+
+    /**
+     * Tests that an existing account is properly rediscovered when requested from UI
+     *
+     * - Account with discovery_url is rediscovered
+     *
+     * - Error cases:
+     *   - No account ID in parameters (error is logged, no action performed)
+     *   - Invalid account ID in parameters (error is logged, error message sent to client, no action performed)
+     *   - Account ID of different user in parameters (error is logged, error message sent to client, no action
+     *     performed)
+     *   - Account ID of addressbook belonging to a hidden preset in parameters (error is logged, error message sent to
+     *     client, no action performed)
+     *   - Rediscovery for account without rediscovery URL is requested
+     *
+     * @dataProvider accountRediscoverFormDataProvider
+     * @param ?list{PsrLogLevel,string} $errMsgExp
+     */
+    public function testAccountIsProperlyRediscovered(
+        ?string $accountId,
+        ?array $errMsgExp,
+        ?string $expDbFile
+    ): void {
+        $this->db = new JsonDatabase(['tests/Unit/data/uiTest/db.json']);
+        TestInfrastructure::init($this->db, 'tests/Unit/data/uiTest/config.inc.php');
+        $logger = TestInfrastructure::logger();
+        $infra = TestInfrastructure::$infra;
+        $rcStub = $infra->rcTestAdapter();
+
+        if (is_string($accountId)) {
+            $rcStub->postInputs['accountid'] = $accountId;
+        }
+
+        if (is_string($expDbFile)) {
+            $this->setDiscoveryStub(2, 'https://test.example.com/', 'johndoe', 'The password');
+        }
+
+        $abMgr = new AddressbookManager();
+        $ui = new UI($abMgr);
+        $ui->actionAccRedisc();
+
+        if (is_null($errMsgExp)) {
+            $this->assertIsString($expDbFile, 'for non-error cases, we need an expected database file to compare with');
+            $this->assertTrue($rcStub->checkShownMessages('confirmation', 'AccRedisc_msg_ok'));
+
+            $this->assertCount(2, $rcStub->sentCommands);
+            $this->assertSame('carddav_RemoveListElem', $rcStub->sentCommands[0][0]);
+            $this->assertEqualsCanonicalizing([$accountId, ['42','43','44']], $rcStub->sentCommands[0][1]);
+            $this->assertSame('carddav_InsertListElem', $rcStub->sentCommands[1][0]);
+            // XXX InsertListElem args not checked because of complexity
+        } else {
+            $this->assertCount(0, $rcStub->sentCommands);
+
+            // data must not be modified
+            $expDbFile = 'tests/Unit/data/uiTest/db.json';
+            $logger->expectMessage($errMsgExp[0], $errMsgExp[1]);
+            if ($errMsgExp[0] === 'error') {
+                $this->assertTrue($rcStub->checkShownMessages('error', "AccRedisc_msg_fail"));
+            }
+        }
+
+        if (is_null($errMsgExp)) {
+            $this->assertIsString($accountId);
+            // Before comparing, we need to fix the last_discovered timestamp as it depends on the current time
+            $accRow = $this->db->lookup($accountId, [], 'accounts');
+            $this->assertArrayHasKey('id', $accRow);
+            $this->assertIsString($accRow['id']);
+            $this->assertArrayHasKey('last_discovered', $accRow);
+            $this->assertLessThan(2, time() - intval($accRow['last_discovered'])); // two seconds grace period
+            $this->db->update($accRow['id'], [ 'last_discovered' ], [ '5555' ], 'accounts');
         }
 
         $dbAfter = new JsonDatabase([$expDbFile]);
