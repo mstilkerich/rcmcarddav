@@ -1003,7 +1003,6 @@ class UI
     private function getSettingsFromPOST(string $objType, array $fixedAttributes): array
     {
         $infra = Config::inst();
-        $logger = $infra->logger();
         $rc = $infra->rc();
 
         $formSpec = self::FORMSPECS[$objType];
@@ -1042,9 +1041,7 @@ class UI
                     case 'radio':
                         $allowedValues = array_column($fieldSpec[4] ?? [], 0);
                         if (!in_array($fieldValue, $allowedValues)) {
-                            // ignore not allowed value
-                            $logger->warning("Not allowed value $fieldValue POSTed for $fieldKey (ignored)");
-                            continue 2;
+                            throw new Exception("Invalid value $fieldValue POSTed for $fieldKey");
                         }
                         break;
 

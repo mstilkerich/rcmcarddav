@@ -586,13 +586,25 @@ final class UITest extends TestCase
                 ['error', "$epfx Account ID 45 refers to a hidden account"],
                 null,
             ],
+            'Invalid radio button value'   => [
+                ['accountid' => '42', 'use_categories' => '2'] + $basicData,
+                ['error', "$epfx Invalid value 2 POSTed for use_categories"],
+                null,
+            ],
             "User-defined account with template addressbook (password not changed)" => [
-                ['accountid' => '42'] + $basicData,
+                // last_discovered must be ignored in the input
+                ['accountid' => '42', 'last_discovered' => '123'] + $basicData,
                 null,
                 'tests/Unit/data/uiTest/dbExp-AccSave-udefAcc.json'
             ],
+            "User-defined account (password changed), template addressbook created" => [
+                ['accountid' => '43', 'password' => 'new pass', 'use_categories' => '0'] + $basicData,
+                null,
+                'tests/Unit/data/uiTest/dbExp-AccSave-udefAcc-pwChange.json'
+            ],
             "Preset account with fixed fields submitted, template abook created" => [
-                ['accountid' => '44', 'password' => 'foo', 'active' => '1'] + $basicData,
+                // template must be ignored in the input
+                ['accountid' => '44', 'password' => 'foo', 'active' => '1', 'template' => '0'] + $basicData,
                 null,
                 'tests/Unit/data/uiTest/dbExp-AccSave-presetAccFixedFields.json'
             ],
