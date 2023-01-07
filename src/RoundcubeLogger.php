@@ -30,10 +30,13 @@ use Psr\Log\{AbstractLogger,LogLevel,InvalidArgumentException};
 use Exception;
 use rcube;
 
+/**
+ * @psalm-type PsrLogLevel = LogLevel::*
+ */
 class RoundcubeLogger extends AbstractLogger
 {
     /**
-     * @var int[] Assigns each log level a numerical severity value.
+     * @var array<PsrLogLevel, int> Assigns each log level a numerical severity value.
      */
     private const LOGLEVELS = [
         LogLevel::DEBUG     => 1,
@@ -47,7 +50,7 @@ class RoundcubeLogger extends AbstractLogger
     ];
 
     /**
-     * @var string[] Assigns each short name to each log level.
+     * @var array<PsrLogLevel, string> Assigns each short name to each log level.
      */
     private const LOGLEVELS_SHORT = [
         LogLevel::DEBUG     => "DBG",
@@ -63,12 +66,15 @@ class RoundcubeLogger extends AbstractLogger
     /** @var string $logfile Name of the roundcube logfile that this logger logs to */
     private $logfile;
 
-    /** @var int $loglevel The minimum log level for that messages are reported */
+    /** @var int<1,8> $loglevel The minimum log level for that messages are reported */
     private $loglevel = self::LOGLEVELS[LogLevel::ERROR];
 
     /** @var bool $redact If true, attempt to redact confidential information from HTTP logs */
     private $redact;
 
+    /**
+     * @param PsrLogLevel $loglevel
+     */
     public function __construct(string $logfile, string $loglevel = LogLevel::ERROR, bool $redact = true)
     {
         $this->logfile = $logfile;
