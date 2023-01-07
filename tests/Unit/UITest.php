@@ -285,6 +285,13 @@ final class UITest extends TestCase
         $abMgr = new AddressbookManager();
         $ui = new UI($abMgr);
 
+        $ui->actionAccDetails();
+        if (is_null($getID)) {
+            $logger->expectMessage('warning', 'no account ID found in parameters');
+        } else {
+            $this->assertContains('carddav.accountDetails', $rcStub->sentTemplates);
+        }
+
         $html = $ui->tmplAccountDetails(['id' => 'accountdetails']);
 
         if (is_null($errMsg)) {
@@ -391,6 +398,13 @@ final class UITest extends TestCase
 
         $abMgr = new AddressbookManager();
         $ui = new UI($abMgr);
+
+        $ui->actionAbDetails();
+        if (is_null($getID)) {
+            $logger->expectMessage('warning', 'no addressbook ID found in parameters');
+        } else {
+            $this->assertContains('carddav.addressbookDetails', $rcStub->sentTemplates);
+        }
 
         $html = $ui->tmplAddressbookDetails(['id' => 'addressbookdetails']);
 
