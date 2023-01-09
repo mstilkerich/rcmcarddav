@@ -31,7 +31,7 @@ use PHPUnit\Framework\TestCase;
 use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use MStilkerich\CardDavClient\{Account,WebDavResource};
-use MStilkerich\CardDavClient\Services\Discovery;
+use MStilkerich\CardDavClient\Services\{Discovery,Sync};
 use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
 use MStilkerich\RCMCardDAV\Frontend\AdminSettings;
 use rcube_cache;
@@ -40,6 +40,9 @@ class Config extends \MStilkerich\RCMCardDAV\Config
 {
     /** @var ?Discovery Instance of the discovery service to be returned - normally null, but can be set by tests */
     public $discovery;
+
+    /** @var ?Sync Instance of the sync service to be returned - normally null, but can be set by tests */
+    public $sync;
 
     /** @var null|array<string, WebDavResource|Exception>
      *    WebDavResource to be returned by makeWebDavResource() - normally null, but can be set by tests. The array maps
@@ -83,6 +86,11 @@ class Config extends \MStilkerich\RCMCardDAV\Config
     public function makeDiscoveryService(): Discovery
     {
         return $this->discovery ?? parent::makeDiscoveryService();
+    }
+
+    public function makeSyncService(): Sync
+    {
+        return $this->sync ?? parent::makeSyncService();
     }
 
     public function makeWebDavResource(string $uri, Account $account): WebDavResource

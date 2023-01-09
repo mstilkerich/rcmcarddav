@@ -29,7 +29,7 @@ namespace MStilkerich\RCMCardDAV;
 use Exception;
 use Psr\Log\{LoggerInterface,LogLevel};
 use MStilkerich\CardDavClient\{Account,WebDavResource};
-use MStilkerich\CardDavClient\Services\Discovery;
+use MStilkerich\CardDavClient\Services\{Discovery,Sync};
 use MStilkerich\RCMCardDAV\Db\{Database, AbstractDatabase};
 use MStilkerich\RCMCardDAV\Frontend\{RcmInterface, AdminSettings};
 use rcube;
@@ -142,6 +142,11 @@ class Config
     public function makeDiscoveryService(): Discovery
     {
         return new Discovery();
+    }
+
+    public function makeSyncService(): Sync
+    {
+        return new Sync();
     }
 
     public function makeWebDavResource(string $uri, Account $account): WebDavResource

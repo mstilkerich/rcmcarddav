@@ -1243,9 +1243,9 @@ class Addressbook extends rcube_addressbook
         $start_refresh = time();
         $davAbook = $this->getCardDavObj();
         $synchandler = new SyncHandlerRoundcube($this, $this->dataConverter, $davAbook);
-        $syncmgr = new Sync();
+        $syncmgr = $infra->makeSyncService();
 
-        $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [ ], $this->config['sync_token']);
+        $sync_token = $syncmgr->synchronize($davAbook, $synchandler, [], $this->config['sync_token']);
         $this->config['sync_token'] = $sync_token;
         $this->config["last_updated"] = (string) time();
         $db->update(
@@ -1603,6 +1603,7 @@ class Addressbook extends rcube_addressbook
     public function getCardDavObj(): AddressbookCollection
     {
         if (!isset($this->davAbook)) {
+            $infra = Config::inst();
             $url = $this->config["url"];
 
             // only the username and password are stored to DB before replacing placeholders
@@ -1610,7 +1611,12 @@ class Addressbook extends rcube_addressbook
             $password = $this->config["password"];
 
             $account = Config::makeAccount($url, $username, $password, $url);
-            $this->davAbook = new AddressbookCollection($url, $account);
+            $davAbook = $infra->makeWebDavResource($url, $account);
+            if ($davAbook instanceof AddressbookCollection) {
+                $this->davAbook = $davAbook;
+            } else {
+                throw new Exception("No CardDAV addressbook found at $url");
+            }
         }
 
         return $this->davAbook;
