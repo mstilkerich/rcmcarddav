@@ -562,6 +562,11 @@ class UI
             $msgParams = [ 'name' => 'Unknown' ];
             try {
                 $abMgr = $this->abMgr;
+
+                // Check that this addressbook is visible in the UI
+                $abookCfg = $abMgr->getAddressbookConfig($abookId);
+                $this->getVisibleAccountConfig($abookCfg['account_id']);
+
                 $abook = $abMgr->getAddressbook($abookId);
                 $msgParams['name'] = $abook->get_name();
                 if ($syncType == 'AbSync') {
@@ -578,7 +583,7 @@ class UI
             } catch (Exception $e) {
                 $msgParams['errormsg'] = $e->getMessage();
                 $logger->error("Failed to sync ($syncType) addressbook: " . $msgParams['errormsg']);
-                $rc->showMessage($rc->locText("${syncType}_msg_fail", $msgParams), 'warning', false);
+                $rc->showMessage($rc->locText("${syncType}_msg_fail", $msgParams), 'error', false);
             }
         } else {
             $logger->warning(__METHOD__ . " missing or unexpected values for HTTP POST parameters");
