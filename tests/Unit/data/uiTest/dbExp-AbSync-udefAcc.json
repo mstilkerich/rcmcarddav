@@ -72,9 +72,9 @@
 			"name": "Basic contacts",
 			"url": "https://test.example.com/books/johndoe/book42/",
 			"flags": 7,
-			"last_updated": 1672825164,
+			"last_updated": 4242,
 			"refresh_time": 360,
-			"sync_token": "sync@3600",
+			"sync_token": "sync@resynctime",
 			"account_id": 42
 		},
 		{

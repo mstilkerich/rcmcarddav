@@ -33,7 +33,8 @@ use DOMNodeList;
 use DOMNode;
 use DOMNamedNodeMap;
 use MStilkerich\CardDavClient\{Account,AddressbookCollection,WebDavResource};
-use MStilkerich\CardDavClient\Services\Discovery;
+use MStilkerich\CardDavClient\Services\{Discovery,Sync};
+use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
 use MStilkerich\RCMCardDAV\Frontend\{AddressbookManager,UI};
 use MStilkerich\RCMCardDAV\RoundcubeLogger;
 use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
@@ -42,6 +43,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Tests parts of the AdminSettings class using test data in JsonDatabase.
  * @psalm-import-type PsrLogLevel from RoundcubeLogger
+ * @psalm-import-type DbConditions from AbstractDatabase
  */
 final class UITest extends TestCase
 {
@@ -921,13 +923,7 @@ final class UITest extends TestCase
         }
 
         if (is_null($errMsgExp)) {
-            // Before comparing, we need to fix the last_discovered timestamp as it depends on the current time
-            $accRow = $this->db->lookup(['accountname' => 'New account'], [], 'accounts');
-            $this->assertArrayHasKey('id', $accRow);
-            $this->assertIsString($accRow['id']);
-            $this->assertArrayHasKey('last_discovered', $accRow);
-            $this->assertLessThan(2, time() - intval($accRow['last_discovered'])); // two seconds grace period
-            $this->db->update($accRow['id'], [ 'last_discovered' ], [ '0' ], 'accounts');
+            $this->fixTimestampCol(['accountname' => 'New account'], 'accounts', 'last_discovered', '0');
         }
 
         $dbAfter = new JsonDatabase([$expDbFile]);
@@ -1213,7 +1209,10 @@ final class UITest extends TestCase
             $this->assertSame('carddav_RemoveListElem', $rcStub->sentCommands[0][0]);
             $this->assertEqualsCanonicalizing([$accountId, ['42','43','44']], $rcStub->sentCommands[0][1]);
             $this->assertSame('carddav_InsertListElem', $rcStub->sentCommands[1][0]);
-            // XXX InsertListElem args not checked because of complexity
+            $this->assertCount(1, $rcStub->sentCommands[1][1]);
+            $this->assertIsArray($rcStub->sentCommands[1][1][0]);
+            $this->assertCount(2, $rcStub->sentCommands[1][1][0]); // two inserted expected
+            // InsertListElem args not checked in detail because of complexity
         } else {
             $this->assertCount(0, $rcStub->sentCommands);
 
@@ -1227,18 +1226,170 @@ final class UITest extends TestCase
 
         if (is_null($errMsgExp)) {
             $this->assertIsString($accountId);
-            // Before comparing, we need to fix the last_discovered timestamp as it depends on the current time
-            $accRow = $this->db->lookup($accountId, [], 'accounts');
-            $this->assertArrayHasKey('id', $accRow);
-            $this->assertIsString($accRow['id']);
-            $this->assertArrayHasKey('last_discovered', $accRow);
-            $this->assertLessThan(2, time() - intval($accRow['last_discovered'])); // two seconds grace period
-            $this->db->update($accRow['id'], [ 'last_discovered' ], [ '5555' ], 'accounts');
+            $this->fixTimestampCol($accountId, 'accounts', 'last_discovered', '5555');
         }
 
         $dbAfter = new JsonDatabase([$expDbFile]);
         $dbAfter->compareTables('accounts', $this->db);
         $dbAfter->compareTables('addressbooks', $this->db);
+    }
+
+    /**
+     * @return array<string, list{array<string,string>,?list{PsrLogLevel,string},?string}>
+     */
+    public function abookResyncFormDataProvider(): array
+    {
+        $epfxS = 'Failed to sync (AbSync) addressbook:';
+        $epfxC = 'Failed to sync (AbClrCache) addressbook:';
+        return [
+            'Missing addressbook ID' => [
+                ['synctype' => 'AbSync'],
+                ['warning', 'missing or unexpected values for HTTP POST parameters'],
+                null
+            ],
+            'Missing sync type' => [
+                ['abookid' => '42'],
+                ['warning', 'missing or unexpected values for HTTP POST parameters'],
+                null
+            ],
+            'Invalid sync type' => [
+                ['abookid' => '42', 'synctype' => 'foo'],
+                ['warning', 'missing or unexpected values for HTTP POST parameters'],
+                null
+            ],
+
+            'Invalid addressbook ID' => [
+                ['abookid' => '123', 'synctype' => 'AbSync'],
+                ['error', "$epfxS No carddav addressbook with ID 123"],
+                null
+            ],
+            "Other user's addressbook ID" => [
+                ['abookid' => '101', 'synctype' => 'AbClrCache'],
+                ['error', "$epfxC No carddav addressbook with ID 101"],
+                null
+            ],
+            'Hidden Preset Account' => [
+                ['abookid' => '61', 'synctype' => 'AbSync'],
+                ['error', "$epfxS Account ID 45 refers to a hidden account"],
+                null
+            ],
+
+            "User-defined addressbook resync" => [
+                ['abookid' => '42', 'synctype' => 'AbSync'],
+                null,
+                'tests/Unit/data/uiTest/dbExp-AbSync-udefAcc.json'
+            ],
+
+            "User-defined addressbook clear cache" => [
+                ['abookid' => '42', 'synctype' => 'AbClrCache'],
+                null,
+                'tests/Unit/data/uiTest/dbExp-AbClrCache-udefAcc.json'
+            ],
+        ];
+    }
+
+    /**
+     * Tests that an addressbook is properly resynced / cache cleared when requested from UI
+     *
+     * - Valid addressbook resynced
+     * - Cache clear on valid addressbook
+     *
+     * - Error cases:
+     *   - No abook ID in parameters (warning is logged, no action performed)
+     *   - No sync type in parameters (warning is logged, no action performed)
+     *   - Invalid sync type (warning is logged, no action performed)
+     *   - Invalid abook ID in parameters (error is logged, error message sent to client, no action performed)
+     *   - Abook ID of different user in parameters (error is logged, error message sent to client, no action
+     *     performed)
+     *   - ID of addressbook belonging to a hidden preset in parameters (error is logged, error message sent to
+     *     client, no action performed)
+     *
+     * @dataProvider AbookResyncFormDataProvider
+     * @param array<string,string> $postData
+     * @param ?list{PsrLogLevel,string} $errMsgExp
+     */
+    public function testAddressbookIsProperlyResynced(
+        array $postData,
+        ?array $errMsgExp,
+        ?string $expDbFile
+    ): void {
+        $this->db = new JsonDatabase(['tests/Unit/data/uiTest/db.json']);
+        TestInfrastructure::init($this->db, 'tests/Unit/data/uiTest/config.inc.php');
+        $logger = TestInfrastructure::logger();
+        $infra = TestInfrastructure::$infra;
+        $rcStub = $infra->rcTestAdapter();
+
+        $rcStub->postInputs = $postData;
+        $syncType = $postData['synctype'] ?? '';
+
+        $this->setAddressbookStubs();
+
+        $sync = $this->createMock(Sync::class);
+        $infra->sync = $sync;
+
+        if (is_null($errMsgExp) && $syncType === 'AbSync') {
+            $this->assertSame('42', $postData['abookid'], 'Currently test is hardcoded for abook 42');
+            $this->assertIsArray($infra->webDavResources);
+            $this->assertArrayHasKey('https://test.example.com/books/johndoe/book42/', $infra->webDavResources);
+            $abookObj = $infra->webDavResources['https://test.example.com/books/johndoe/book42/'];
+            $sync->expects($this->once())
+                 ->method('synchronize')
+                 ->with($this->equalTo($abookObj), $this->anything(), $this->anything(), $this->equalTo('sync@3600'))
+                 ->will($this->returnValue('sync@resynctime'));
+        } else {
+            $sync->expects($this->never())->method('synchronize');
+        }
+
+        $abMgr = new AddressbookManager();
+        $ui = new UI($abMgr);
+        $ui->actionAbSync();
+
+        if (is_null($errMsgExp)) {
+            $this->assertIsString($expDbFile, 'for non-error cases, we need an expected database file to compare with');
+            $this->assertTrue($rcStub->checkShownMessages('notice', "${syncType}_msg_ok"));
+
+            $this->assertCount(1, $rcStub->sentCommands);
+            $this->assertSame('carddav_UpdateForm', $rcStub->sentCommands[0][0]);
+            $this->assertCount(1, $rcStub->sentCommands[0][1]);
+            $this->assertIsArray($rcStub->sentCommands[0][1][0]);
+            $this->assertArrayHasKey('last_updated', $rcStub->sentCommands[0][1][0]);
+        } else {
+            $this->assertCount(0, $rcStub->sentCommands);
+
+            // data must not be modified
+            $expDbFile = 'tests/Unit/data/uiTest/db.json';
+            $logger->expectMessage($errMsgExp[0], $errMsgExp[1]);
+            if ($errMsgExp[0] === 'error') {
+                $this->assertTrue($rcStub->checkShownMessages('error', "${syncType}_msg_fail"));
+            }
+        }
+
+        if (is_null($errMsgExp) && (($postData['synctype'] ?? '') === 'AbSync')) {
+            $this->assertArrayHasKey('abookid', $postData);
+            // Before comparing, we need to fix the last_updated timestamp as it depends on the current time
+            $this->fixTimestampCol($postData['abookid'], 'addressbooks', 'last_updated', '4242');
+        }
+
+        $dbAfter = new JsonDatabase([$expDbFile]);
+        $dbAfter->compareTables('accounts', $this->db);
+        $dbAfter->compareTables('addressbooks', $this->db);
+        $dbAfter->compareTables('contacts', $this->db);
+        $dbAfter->compareTables('groups', $this->db);
+        $dbAfter->compareTables('group_user', $this->db);
+        $dbAfter->compareTables('xsubtypes', $this->db);
+    }
+
+    /**
+     * @param DbConditions $conditions Selects the row to lookup.
+     */
+    private function fixTimestampCol($conditions, string $tbl, string $col, string $val): void
+    {
+        $row = $this->db->lookup($conditions, [], $tbl);
+        $this->assertArrayHasKey('id', $row);
+        $this->assertIsString($row['id']);
+        $this->assertArrayHasKey($col, $row);
+        $this->assertLessThan(2, time() - intval($row[$col])); // two seconds grace period
+        $this->db->update($row['id'], [ $col ], [ $val ], $tbl);
     }
 }
 
