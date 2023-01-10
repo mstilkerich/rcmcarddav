@@ -138,7 +138,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres-version: ['9', '10', '11', '12', '13', '14']
+        postgres-version: ['9', '10', '11', '12', '13', '14', '15']
 
     runs-on: ubuntu-20.04
 
