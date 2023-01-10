@@ -14,14 +14,17 @@ final class DatabaseAccounts
         "sqlite3" => [
             "sqlite:///" . __DIR__ . "/../../testreports/test.db?mode=0640",
             "sqlite:///" . __DIR__ . "/../../testreports/migtest.db?mode=0640",
+            "sqlite:///" . __DIR__ . "/../../testreports/inittest.db?mode=0640",
         ],
         "postgres" => [
             "pgsql://postgres:postgres@127.0.0.1/rcmcarddavtest",
             "pgsql://postgres:postgres@127.0.0.1/rcmcarddavmigtest",
+            "pgsql://postgres:postgres@127.0.0.1/rcmcarddavinittest",
         ],
         "mysql" => [
             "mysql://root:root@127.0.0.1/rcmcarddavtest",
             "mysql://root:root@127.0.0.1/rcmcarddavmigtest",
+            "mysql://root:root@127.0.0.1/rcmcarddavinittest",
         ],
     ];
 }

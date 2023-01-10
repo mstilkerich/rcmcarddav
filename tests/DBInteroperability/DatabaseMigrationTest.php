@@ -61,13 +61,9 @@ final class DatabaseMigrationTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        $dbsettings = TestInfrastructureDB::dbSettings();
+        self::resetRcubeDb();
 
-        [, $migdb_dsnw] = $dbsettings;
-        self::$db = TestInfrastructureDB::initDatabase($migdb_dsnw);
         $dbh = TestInfrastructureDB::getDbHandle();
-
-        TestInfrastructure::init(self::$db);
 
         self::$testData = new TestData($dbh);
         self::$testData->setCacheKeyPrefix('DatabaseMigrationTest');
@@ -80,6 +76,22 @@ final class DatabaseMigrationTest extends TestCase
     public function tearDown(): void
     {
         TestInfrastructure::logger()->reset();
+
+        // We need to create a new rcube_db instance after each test (technically, each test that creates or drops
+        // tables) so that the rcube_db::list_tables() cache is cleared. This is particularly important after the first
+        // migration which creates the carddav tables.
+        // Note: we must not create a new TestData object or the indexes cannot be resolved.
+        self::resetRcubeDb();
+        $dbh = TestInfrastructureDB::getDbHandle();
+        self::$testData->setDbHandle($dbh);
+    }
+
+    private static function resetRcubeDb(): void
+    {
+        $dbsettings = TestInfrastructureDB::dbSettings();
+        [, $migdb_dsnw] = $dbsettings;
+        self::$db = TestInfrastructureDB::initDatabase($migdb_dsnw);
+        TestInfrastructure::init(self::$db);
     }
 
     /**
@@ -290,11 +302,15 @@ final class DatabaseMigrationTest extends TestCase
             $this->insertRows($mig, self::MIGTEST_DATASETS[$mig]['insertRows']);
         }
 
-        // Perform the migrations - may trigger the error message about missing table again
-        $db->checkMigrations("", $migScriptDir);
-        if (count($migs) <= 1) {
-            TestInfrastructure::logger()->expectMessage('error', 'carddav_migrations');
+        // at migration 5 (random choice), we test some error cases
+        // afterwards we perform the migration
+        if (count($migs) === 5) {
+            $this->checkMissingScriptError($migScriptDir, $migs);
+            $this->checkInvalidScriptError($migScriptDir, $migs);
         }
+
+        // Perform the migrations
+        $db->checkMigrations("", $migScriptDir);
 
         $migsDone = $this->getDoneMigrations();
         $this->assertSame($migs, $migsDone);
@@ -345,6 +361,11 @@ final class DatabaseMigrationTest extends TestCase
         foreach ($migs as $mig) {
             TestInfrastructure::copyDir(self::SCRIPTDIR . "/$mig", "$migScriptDir/$mig");
         }
+
+        // to trick checkMigrations() into executing the 0000 migration for this test, which it would normally not do,
+        // we copy it as the INIT migration. Therefore, when executing the first step of the migrations test, it will
+        // actually execute the 0000-dbinit migration, but take it from the INIT-currentschema directory
+        TestInfrastructure::copyDir(self::SCRIPTDIR . "/0000-dbinit", "$migScriptDir/INIT-currentschema");
     }
 
     /**
@@ -468,6 +489,61 @@ final class DatabaseMigrationTest extends TestCase
         }
 
         return $dbId;
+    }
+
+    /**
+     * This function tests the error case that no script is available inside a migration directory. Afterwards it
+     * restores the script directory to valid state.
+     *
+     * @param non-empty-list<string> $migs
+     */
+    private function checkMissingScriptError(string $migScriptDir, array $migs): void
+    {
+        // delete the script of the upcoming migration (last in the passed array)
+        $mig = $migs[count($migs) - 1];
+        $scriptFiles = glob("$migScriptDir/$mig/*.*");
+        foreach ($scriptFiles as $scriptFile) {
+            $this->assertTrue(unlink($scriptFile), "Failed to unlink $scriptFile");
+        }
+
+        // Attempt the migration, should fail
+        self::$db->checkMigrations("", $migScriptDir);
+
+        // The migration must not be in the migrations table, and an error must be logged
+        TestInfrastructure::logger()->expectMessage('error', 'Failed to read migration script');
+        $migsDone = $this->getDoneMigrations();
+        $this->assertSame(array_slice($migs, 0, -1), $migsDone);
+
+        // restore valid state
+        $this->prepareMigScriptDir($migScriptDir, $migs);
+    }
+
+    /**
+     * This function tests the error case that a script contains invalid SQL. Afterwards it restores the script
+     * directory to valid state.
+     *
+     * @param non-empty-list<string> $migs
+     */
+    private function checkInvalidScriptError(string $migScriptDir, array $migs): void
+    {
+        // delete the script of the upcoming migration (last in the passed array)
+        $mig = $migs[count($migs) - 1];
+        $scriptFiles = glob("$migScriptDir/$mig/*.sql");
+        $this->assertNotEmpty($scriptFiles);
+        foreach ($scriptFiles as $scriptFile) {
+            $this->assertIsInt(file_put_contents($scriptFile, 'SELECT * from InvalidTable;'));
+        }
+
+        // Attempt the migration, should fail
+        self::$db->checkMigrations("", $migScriptDir);
+
+        // The migration must not be in the migrations table, and an error must be logged
+        TestInfrastructure::logger()->expectMessage('error', 'Migration query');
+        $migsDone = $this->getDoneMigrations();
+        $this->assertSame(array_slice($migs, 0, -1), $migsDone);
+
+        // restore valid state
+        $this->prepareMigScriptDir($migScriptDir, $migs);
     }
 }
 

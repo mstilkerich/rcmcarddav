@@ -193,53 +193,60 @@ class Database extends AbstractDatabase
             }
         }
 
-        // (2) Determine which migration scripts have already been executed. This must handle the initial case that
-        //     the plugin's database tables to not exist yet, in which case they will be initialized.
-        try {
-            $dbh->set_option('ignore_key_errors', true);
+        // (2) Check if the carddav_migrations table is available. If not, no RCMCardDAV tables are present yet and
+        // instead of performing migration we will initialize the RCMCardDAV with the current schema
+        if (in_array($dbh->table_name('carddav_migrations'), $dbh->list_tables())) {
+            // (2.a.2) Determine which migration scripts have already been executed.
             /** @var list<array{filename: string}> $migrations */
             $migrationsDone = $this->get([], ['filename'], 'migrations');
             $migrationsDone = array_column($migrationsDone, 'filename');
-        } catch (DatabaseException $e) {
-            $migrationsDone = [];
-        }
-        $dbh->set_option('ignore_key_errors', null);
 
-        // (3) Execute the migration scripts that have not been executed before
-        foreach ($migrationsAvailable as $migration) {
-            // skip migrations that have already been done
-            if (in_array($migration, $migrationsDone)) {
-                continue;
-            }
-
-            $logger->notice("In migration: $migration");
-
-            $phpMigrationScript = "$scriptDir/$migration/migrate.php";
-            $sqlMigrationScript = "$scriptDir/$migration/$db_backend.sql";
-
-            if (file_exists($phpMigrationScript)) {
-                $migrationClass = "\MStilkerich\RCMCardDAV\DBMigrations\Migration"
-                    . substr($migration, 0, 4); // the 4-digit number
-
-                /**
-                 * @psalm-suppress InvalidStringClass
-                 * @var DBMigrationInterface $migrationObj
-                 */
-                $migrationObj = new $migrationClass();
-                if ($migrationObj->migrate($dbh, $logger) === false) {
-                    return; // error already logged
+            // (2.a.3) Execute the migration scripts that have not been executed before
+            foreach ($migrationsAvailable as $migration) {
+                // skip migrations that have already been done
+                if (in_array($migration, $migrationsDone)) {
+                    continue;
                 }
-            } elseif (file_exists($sqlMigrationScript)) {
-                if ($this->performSqlMigration($sqlMigrationScript, $dbPrefix) === false) {
-                    return; // error already logged
-                }
-            } else {
-                $logger->warning("No migration script found for: $migration");
-                // do not continue with other scripts that may depend on this one
-                return;
-            }
 
-            $this->insert('migrations', ['filename'], [ [$migration] ]);
+                $logger->notice("In migration: $migration");
+
+                $phpMigrationScript = "$scriptDir/$migration/migrate.php";
+                $sqlMigrationScript = "$scriptDir/$migration/$db_backend.sql";
+
+                if (file_exists($phpMigrationScript)) {
+                    $migrationClass = '\MStilkerich\RCMCardDAV\DBMigrations\Migration'
+                        . substr($migration, 0, 4); // the 4-digit number
+
+                    /**
+                     * @psalm-suppress InvalidStringClass
+                     * @var DBMigrationInterface $migrationObj
+                     */
+                    $migrationObj = new $migrationClass();
+                    if ($migrationObj->migrate($dbh, $logger) === false) {
+                        return; // error already logged
+                    }
+                } else {
+                    if ($this->performSqlMigration($sqlMigrationScript, $dbPrefix) === false) {
+                        return; // error already logged
+                    }
+                }
+
+                $this->insert('migrations', ['filename'], [ [$migration] ]);
+            }
+        } else {
+            // (2.b) Initial creation of RCMCardDAV tables
+            $logger->notice("Performing initial creation of RCMCardDAV tables");
+
+            $sqlMigrationScript = "$scriptDir/INIT-currentschema/$db_backend.sql";
+            if ($this->performSqlMigration($sqlMigrationScript, $dbPrefix) === true) {
+                $allMigRows = array_map(
+                    function (string $mig): array {
+                        return [$mig];
+                    },
+                    $migrationsAvailable
+                );
+                $this->insert('migrations', ['filename'], $allMigRows);
+            }
         }
     }
 
@@ -253,9 +260,8 @@ class Database extends AbstractDatabase
     {
         $dbh = $this->dbHandle;
         $logger = $this->logger;
-        $queries_raw = file_get_contents($migrationScript);
 
-        if ($queries_raw === false) {
+        if (file_exists($migrationScript) !== true || ($queries_raw = file_get_contents($migrationScript)) === false) {
             $logger->error("Failed to read migration script: $migrationScript - aborting");
             return false;
         }

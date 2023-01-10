@@ -11,6 +11,8 @@
 - When an invalid value is submitted in one of the settings forms, RCMCardDAV will now abort with an error. Previous
   versions of RCMCardDAV would ignore the value when possible an instead keep the existing value or use a default value.
 - Backend will refuse Frontend request to remove user account created from preset
+- On initial installation of RCMCardDAV, the database schema is created from a single script with the current schema
+  version. Previous versions incrementally executed all migration scripts since the very beginning (Fixes #395)
 
 ## Version 5.0.0-beta1 (to 4.4.4)
 

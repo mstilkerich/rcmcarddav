@@ -5,6 +5,7 @@ ROUNDCUBEDIR=roundcubemail
 # For each DBTYPE listed here, the following macros need to be defined:
 # - TESTDB_$(DBTYPE): Name of the test database
 # - MIGTESTDB_$(DBTYPE): Name of the database for the schema migrations test
+# - INITTESTDB_$(DBTYPE): Name of the database for the schema initialization test
 # - EXECDBSCRIPT_$(DBTYPE): Command to execute an SQL script
 # - CREATEDB_$(DBTYPE): Command to create a database
 # - DUMPTBL_$(DBTYPE): Command to dump the schema of the rcmcarddav tables
@@ -12,12 +13,15 @@ DBTYPES=postgres sqlite3 mysql
 
 TESTDB_sqlite3=testreports/test.db
 MIGTESTDB_sqlite3=testreports/migtest.db
+INITTESTDB_sqlite3=testreports/inittest.db
 
 TESTDB_mysql=rcmcarddavtest
 MIGTESTDB_mysql=rcmcarddavmigtest
+INITTESTDB_mysql=rcmcarddavinittest
 
 TESTDB_postgres=rcmcarddavtest
 MIGTESTDB_postgres=rcmcarddavmigtest
+INITTESTDB_postgres=rcmcarddavinittest
 
 # A list of the DB tables of the rcmcarddav plugin
 CD_TABLES=$(foreach tbl,accounts addressbooks contacts groups group_user xsubtypes migrations,carddav_$(tbl))
@@ -105,6 +109,9 @@ $(call EXECDBSCRIPT_postgres,$(TESTDB_postgres),$(ROUNDCUBEDIR)/SQL/postgres.ini
 $(PG_DROPDB) --if-exists $(MIGTESTDB_postgres)
 $(PG_CREATEDB) -E UNICODE $(MIGTESTDB_postgres)
 $(call EXECDBSCRIPT_postgres,$(MIGTESTDB_postgres),$(ROUNDCUBEDIR)/SQL/postgres.initial.sql)
+$(PG_DROPDB) --if-exists $(INITTESTDB_postgres)
+$(PG_CREATEDB) -E UNICODE $(INITTESTDB_postgres)
+$(call EXECDBSCRIPT_postgres,$(INITTESTDB_postgres),$(ROUNDCUBEDIR)/SQL/postgres.initial.sql)
 endef
 define CREATEDB_mysql
 $(MYSQL) --show-warnings -e 'DROP DATABASE IF EXISTS $(TESTDB_mysql);'
@@ -113,13 +120,16 @@ $(call EXECDBSCRIPT_mysql,$(TESTDB_mysql),$(ROUNDCUBEDIR)/SQL/mysql.initial.sql)
 $(MYSQL) --show-warnings -e 'DROP DATABASE IF EXISTS $(MIGTESTDB_mysql);'
 $(MYSQL) --show-warnings -e 'CREATE DATABASE $(MIGTESTDB_mysql) /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;'
 $(call EXECDBSCRIPT_mysql,$(MIGTESTDB_mysql),$(ROUNDCUBEDIR)/SQL/mysql.initial.sql)
+$(MYSQL) --show-warnings -e 'DROP DATABASE IF EXISTS $(INITTESTDB_mysql);'
+$(MYSQL) --show-warnings -e 'CREATE DATABASE $(INITTESTDB_mysql) /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;'
+$(call EXECDBSCRIPT_mysql,$(INITTESTDB_mysql),$(ROUNDCUBEDIR)/SQL/mysql.initial.sql)
 endef
 define CREATEDB_sqlite3
-mkdir -p $(dir $(TESTDB_sqlite3))
-mkdir -p $(dir $(MIGTESTDB_sqlite3))
-rm -f $(TESTDB_sqlite3) $(MIGTESTDB_sqlite3)
+mkdir -p $(dir $(TESTDB_sqlite3)) $(dir $(MIGTESTDB_sqlite3)) $(dir $(INITTESTDB_sqlite3))
+rm -f $(TESTDB_sqlite3) $(MIGTESTDB_sqlite3) $(INITTESTDB_sqlite3)
 $(call EXECDBSCRIPT_sqlite3,$(TESTDB_sqlite3),$(ROUNDCUBEDIR)/SQL/sqlite.initial.sql)
 $(call EXECDBSCRIPT_sqlite3,$(MIGTESTDB_sqlite3),$(ROUNDCUBEDIR)/SQL/sqlite.initial.sql)
+$(call EXECDBSCRIPT_sqlite3,$(INITTESTDB_sqlite3),$(ROUNDCUBEDIR)/SQL/sqlite.initial.sql)
 endef
 
 define DUMPTBL_postgres
@@ -153,6 +163,9 @@ tests-$(1): tests/DBInteroperability/phpunit-$(1).xml tests/DBInteroperability/D
 	@echo Performing schema comparison of initial schema to schema resulting from migrations
 	$$(call DUMPTBL_$(1),$(MIGTESTDB_$(1)),testreports/$(1)-mig.sql)
 	diff testreports/$(1)-mig.sql testreports/$(1)-init.sql
+	@echo Performing schema comparison of initial schema to schema resulting from initialization
+	$$(call DUMPTBL_$(1),$(INITTESTDB_$(1)),testreports/$(1)-inittest.sql)
+	diff testreports/$(1)-inittest.sql testreports/$(1)-init.sql
 endef
 
 $(foreach dbtype,$(DBTYPES),$(eval $(call EXEC_DBTESTS,$(dbtype))))

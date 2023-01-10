@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\RCMCardDAV\DBInteroperability;
 
+use Exception;
 use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
@@ -596,6 +597,37 @@ final class DatabaseTest extends TestCase
         }
 
         TestInfrastructure::logger()->expectMessage('error', $expErrMsg);
+    }
+
+    /**
+     * Test that insert() without throws an Exception.
+     */
+    public function testExceptionOnInsertWithoutData(): void
+    {
+        $expErrMsg = 'Database::insert on contacts called without rows to insert';
+
+        try {
+            $ret = self::$db->insert('contacts', self::COMPARE_COLS, []);
+            $this->assertFalse(true, "Exception expected to be thrown - $ret");
+        } catch (Exception $e) {
+            $this->assertStringContainsString($expErrMsg, $e->getMessage());
+        }
+    }
+
+    /**
+     * Test that insert() with a row not matching the amount of insert columns throws an Exception.
+     */
+    public function testExceptionOnInsertWithInvalidRow(): void
+    {
+        $numCols = count(self::COMPARE_COLS);
+        $expErrMsg = "Database::insert on contacts: row given that does not match $numCols columns";
+
+        try {
+            $ret = self::$db->insert('contacts', self::COMPARE_COLS, [['foo']]);
+            $this->assertFalse(true, "Exception expected to be thrown - $ret");
+        } catch (Exception $e) {
+            $this->assertStringContainsString($expErrMsg, $e->getMessage());
+        }
     }
 
     /**
