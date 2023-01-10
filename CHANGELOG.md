@@ -2,6 +2,7 @@
 
 ## Changes since 5.0.0-beta1
 
+- Minimum supported PHP version for 5.0 is PHP 7.4 (Fixes #414)
 - Fix: Internal server error with PHP8 when searching address fields of contacts (Fixes: #410)
 - Fix: Assertion failure in DelayedPhotoLoader (Fixes: #404)
 - Fixes for better handling of incoming vCard4 (Fixes: #411)

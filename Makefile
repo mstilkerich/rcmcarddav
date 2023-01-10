@@ -69,7 +69,7 @@ stylecheck:
 	vendor/bin/phpcs --colors --standard=PSR12 *.php src/ dbmigrations/ tests/ scripts/
 
 phpcompatcheck:
-	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.1 *.php src/ dbmigrations/ tests/ scripts/
+	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.4 *.php src/ dbmigrations/ tests/ scripts/
 
 psalmanalysis: tests/DBInteroperability/DatabaseAccounts.php
 	vendor/bin/psalm --threads=8 --report=testreports/psalm.txt --report-show-info=true --no-diff $(PSALM_XOPTIONS)

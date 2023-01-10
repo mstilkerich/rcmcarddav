@@ -5,7 +5,7 @@
 
 ## Requirements
 
-RCMCardDAV 5.x requires at least PHP 7.1. Dependencies are managed by composer, if you are interested in a list, see the
+RCMCardDAV 5.x requires at least PHP 7.4. Dependencies are managed by composer, if you are interested in a list, see the
 [composer.json](composer.json) file.
 
 The supported versions of roundcube and supported databases can be found in

@@ -1,8 +1,8 @@
 {
     "config": {
         "platform": {
-            "php": "7.1.0"
+            "php": "7.4.0"
         },
-		"prepend-autoloader": false
+        "prepend-autoloader": false
     }
 }
