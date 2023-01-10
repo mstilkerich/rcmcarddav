@@ -26,7 +26,7 @@
         "sabre/vobject": "^3.3.5 || ^4.0.0",
         "roundcube/plugin-installer": "^0.3.0",
         "psr/log": "^1.0 || ^2.0 || ^3.0",
-        "mstilkerich/carddavclient": "dev-master"
+        "mstilkerich/carddavclient": "^1.3.0"
     },
     "require-dev": {
         "phpcompatibility/php-compatibility": "dev-develop",
