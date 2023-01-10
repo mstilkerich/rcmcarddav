@@ -29,7 +29,7 @@
         "mstilkerich/carddavclient": "dev-master"
     },
     "require-dev": {
-        "phpcompatibility/php-compatibility": "*",
+        "phpcompatibility/php-compatibility": "dev-develop",
         "phpunit/phpunit": "~9",
         "phpunit/phpcov": "*",
         "dealerdirect/phpcodesniffer-composer-installer": ">= 0.7.0",

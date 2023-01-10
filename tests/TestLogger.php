@@ -141,7 +141,7 @@ class TestLogger extends AbstractLogger
 
         foreach ($this->logBuffer as &$recMsg) {
             [ $level, $msg ] = $recMsg;
-            if (($level == $expLevel) && str_contains($msg, $expMsg) && $recMsg[2] == "UNCHECKED") {
+            if (($level == $expLevel) && strpos($msg, $expMsg) !== false && $recMsg[2] == "UNCHECKED") {
                 $recMsg[2] = 'CHECKED';
                 $found = true;
                 break;

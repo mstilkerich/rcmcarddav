@@ -724,7 +724,7 @@ final class DataConversionTest extends TestCase
      */
     private function assertPhotoDownloadWarning(TestLogger $logger, string $vcffile): void
     {
-        if (str_contains($vcffile, 'InvalidUriPhoto')) {
+        if (strpos($vcffile, 'InvalidUriPhoto') !== false) {
             $logger->expectMessage(
                 'warning',
                 'downloadPhoto: Attempt to download photo from http://localhost/doesNotExist.jpg failed'

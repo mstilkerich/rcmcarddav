@@ -119,7 +119,10 @@ class Utils
         TestCase::assertTrue(function_exists('gd_info'), "php-gd required");
 
         // shortcut that also covers URI - if identical strings, save the comparison
-        if (empty($pExpStr) || empty($pRcStr) || str_contains($pExpStr, "http") || str_contains($pExpStr, "data:")) {
+        if (
+            empty($pExpStr) || empty($pRcStr) ||
+            strpos($pExpStr, "http") !== false || strpos($pExpStr, "data:") !== false
+        ) {
             TestCase::assertSame($pExpStr, $pRcStr, "PHOTO comparison on URI value failed");
             return;
         }
