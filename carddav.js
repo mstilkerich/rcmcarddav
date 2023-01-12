@@ -237,7 +237,7 @@ rcube_webmail.prototype.carddav_AccAdd = function () {
   const win = this.get_frame_window(this.env.contentframe)
   if (win) {
     this.env.frame_lock = this.set_busy(true, 'loading')
-    win.location.href = this.env.comm_path + '&_framed=1&_action=plugin.carddav.AccDetails&accountid=new'
+    win.location.href = this.env.comm_path + '&_framed=1&_action=plugin.carddav.AccDetails&accountid=new&_nav=hide'
   }
 }
 
