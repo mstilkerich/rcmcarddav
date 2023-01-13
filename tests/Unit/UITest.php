@@ -188,10 +188,12 @@ final class UITest extends TestCase
      * ERR: expected error message. Null if no error is expected, empty string if error case without error message
      *
      *                             GET      ERR     Check-inputs
-     * @return array<string, list{?string, ?string, list<list{string,?string,string,bool}>}>
+     * @return array<string, list{?string, ?string, list<list{string,?string,string,string, ?string}>}>
      */
     public function accountIdProvider(): array
     {
+        $lblTime = 'AccAbProps_timestr_placeholder_lbl';
+        $lblDUrl = 'AccProps_discoveryurl_placeholder_lbl';
         return [
             //                        GET   ERR CHK-INP
             'Missing account ID' => [ null, '', [] ],
@@ -202,53 +204,53 @@ final class UITest extends TestCase
                 '42',
                 null,
                 [
-                    //  name             val                          type        disabled?
-                    [ 'accountid',       '42',                        'hidden',   false ],
-                    [ 'accountname',     'Test Account',              'text',    false ],
-                    [ 'discovery_url',   'https://test.example.com/', 'text',     false ],
-                    [ 'username',        'johndoe',                   'text',     false ],
-                    [ 'password',        null,                        'password', false ],
-                    [ 'rediscover_time', '02:00:00',                  'text',     false ],
-                    [ 'last_discovered', date("Y-m-d H:i:s", 1672825163), 'plain', false ],
-                    [ 'name',            '%N, %D',                    'text',     false ],
-                    [ 'active',          '1',                         'checkbox', false ],
-                    [ 'refresh_time',    '00:10:00',                  'text',     false ],
-                    [ 'use_categories',  '0',                         'radio',    false ],
+                    //  name             val                          type      flags (RDP)  placeholder
+                    [ 'accountid',       '42',                        'hidden',    '',       null ],
+                    [ 'accountname',     'Test Account',              'text',      'R',      null ],
+                    [ 'discovery_url',   'https://test.example.com/', 'text',      'P',      $lblDUrl ],
+                    [ 'username',        'johndoe',                   'text',      '',       null ],
+                    [ 'password',        null,                        'password',  '',       null ],
+                    [ 'rediscover_time', '02:00:00',                  'text',      'RP',     $lblTime ],
+                    [ 'last_discovered', date("Y-m-d H:i:s", 1672825163), 'plain', '',       null ],
+                    [ 'name',            '%N, %D',                    'text',      'R',      null ],
+                    [ 'active',          '1',                         'checkbox',  '',       null ],
+                    [ 'refresh_time',    '00:10:00',                  'text',      'RP',     $lblTime ],
+                    [ 'use_categories',  '0',                         'radio',     '',       null ],
                 ]
             ],
             "New account" => [
                 'new',
                 null,
                 [
-                    //  name             val                          type        disabled?
-                    [ 'accountid',       'new',                       'hidden',   false ],
-                    [ 'accountname',     '',                          'text',    false ],
-                    [ 'discovery_url',   '',                          'text',     false ],
-                    [ 'username',        '',                          'text',     false ],
-                    [ 'password',        null,                        'password', false ],
-                    [ 'rediscover_time', '24:00:00',                  'text',     false ],
-                    [ 'name',            '%N',                        'text',     false ],
-                    [ 'active',          '1',                         'checkbox', false ],
-                    [ 'refresh_time',    '01:00:00',                  'text',     false ],
-                    [ 'use_categories',  '1',                         'radio',    false ],
+                    //  name             val                          type        flags (RDP)  placeholder
+                    [ 'accountid',       'new',                       'hidden',   '',          null ],
+                    [ 'accountname',     '',                          'text',     'R',         null ],
+                    [ 'discovery_url',   '',                          'text',     'RP',        $lblDUrl ],
+                    [ 'username',        '',                          'text',     '',          null ],
+                    [ 'password',        null,                        'password', '',          null ],
+                    [ 'rediscover_time', '24:00:00',                  'text',     'RP',        $lblTime ],
+                    [ 'name',            '%N',                        'text',     'R',         null ],
+                    [ 'active',          '1',                         'checkbox', '',          null ],
+                    [ 'refresh_time',    '01:00:00',                  'text',     'RP',        $lblTime ],
+                    [ 'use_categories',  '1',                         'radio',    '',          null ],
                 ]
             ],
             "Visible Preset account without template addressbook" => [
                 '44',
                 null,
                 [
-                    //  name             val                          type        disabled?
-                    [ 'accountid',       '44',                        'hidden',   false ],
-                    [ 'accountname',     'Preset Contacts',           'text',     false ],
-                    [ 'discovery_url',   'https://carddav.example.com/', 'text',  false ],
-                    [ 'username',        'foodoo',                    'text',     true ],
-                    [ 'password',        null,                        'password', true ],
-                    [ 'rediscover_time', '24:00:00',                  'text',     false ],
-                    [ 'last_discovered', 'DateTime_never_lbl',        'plain',    false ],
-                    [ 'name',            '%N (%D)',                   'text',     true ],
-                    [ 'active',          '1',                         'checkbox', false ],
-                    [ 'refresh_time',    '00:30:00',                  'text',     true ],
-                    [ 'use_categories',  '0',                         'radio',    false ],
+                    //  name             val                          type        flags (RDP)  placeholder
+                    [ 'accountid',       '44',                        'hidden',   '',          null ],
+                    [ 'accountname',     'Preset Contacts',           'text',     'R',         null ],
+                    [ 'discovery_url',   'https://carddav.example.com/', 'text',  'P',         $lblDUrl ],
+                    [ 'username',        'foodoo',                    'text',     'D',         null ],
+                    [ 'password',        null,                        'password', 'D',         null ],
+                    [ 'rediscover_time', '24:00:00',                  'text',     'RP',        $lblTime ],
+                    [ 'last_discovered', 'DateTime_never_lbl',        'plain',    '',          null ],
+                    [ 'name',            '%N (%D)',                   'text',     'D',         null ],
+                    [ 'active',          '1',                         'checkbox', '',          null ],
+                    [ 'refresh_time',    '00:30:00',                  'text',     'D',         $lblTime ],
+                    [ 'use_categories',  '0',                         'radio',    '',          null ],
                 ]
             ],
         ];
@@ -270,7 +272,7 @@ final class UITest extends TestCase
      *   - Invalid account ID in GET parameters (error is logged, empty string is returned)
      *   - Account ID of different user in GET parameters (error is logged, empty string is returned)
      *
-     * @param list<list{string,?string,string,bool}> $checkInputs
+     * @param list<list{string,?string,string,string,?string}> $checkInputs
      * @dataProvider accountIdProvider
      */
     public function testAccountDetailsFormIsProperlyCreated(?string $getID, ?string $errMsg, array $checkInputs): void
@@ -319,10 +321,11 @@ final class UITest extends TestCase
      * ERR: expected error message. Null if no error is expected, empty string if error case without error message
      *
      *                             GET      ERR     Check-inputs
-     * @return array<string, list{?string, ?string, list<list{string,?string,string,bool}>}>
+     * @return array<string, list{?string, ?string, list<list{string,?string,string,string,?string}>}>
      */
     public function abookIdProvider(): array
     {
+        $lblTime = 'AccAbProps_timestr_placeholder_lbl';
         return [
             //                        GET   ERR CHK-INP
             'Missing abook ID' => [ null, '', [] ],
@@ -333,30 +336,30 @@ final class UITest extends TestCase
                 '42',
                 null,
                 [
-                    //  name             val                          type        disabled?
-                    [ 'abookid',         '42',                        'hidden',   false ],
-                    [ 'name',            'Basic contacts',            'text',     false ],
-                    [ 'url',             'https://test.example.com/books/johndoe/book42/', 'plain', false ],
-                    [ 'refresh_time',    '00:06:00',                  'text',     false ],
-                    [ 'last_updated',    date("Y-m-d H:i:s", 1672825164), 'plain', false ],
-                    [ 'use_categories',  '1',                         'radio',    false ],
-                    [ 'srvname',         'Book 42 SrvName',           'plain',    false ],
-                    [ 'srvdesc',         "Hitchhiker's Guide",        'plain',    false ],
+                    //  name             val                          type         flags  placeholder
+                    [ 'abookid',         '42',                        'hidden',    '',    null ],
+                    [ 'name',            'Basic contacts',            'text',      'R',   null ],
+                    [ 'url',             'https://test.example.com/books/johndoe/book42/', 'plain', '', null ],
+                    [ 'refresh_time',    '00:06:00',                  'text',      'RP',  $lblTime ],
+                    [ 'last_updated',    date("Y-m-d H:i:s", 1672825164), 'plain', '',    null ],
+                    [ 'use_categories',  '1',                         'radio',     '',    null ],
+                    [ 'srvname',         'Book 42 SrvName',           'plain',     '',    null ],
+                    [ 'srvdesc',         "Hitchhiker's Guide",        'plain',     '',    null ],
                 ]
             ],
             "Preset extra addressbook with custom fixed fields" => [
                 '51',
                 null,
                 [
-                    //  name             val                          type        disabled?
-                    [ 'abookid',         '51',                        'hidden',   false ],
-                    [ 'name',            'Public readonly contacts',  'text',     true ],
-                    [ 'url',             'https://carddav.example.com/shared/Public/', 'plain', false ],
-                    [ 'refresh_time',    '01:00:00',                  'text',     false ],
-                    [ 'last_updated',    'DateTime_never_lbl',        'plain',    false ],
-                    [ 'use_categories',  '0',                         'radio',    false ],
-                    [ 'srvname',         null,                        'plain',    false ],
-                    [ 'srvdesc',         null,                        'plain',    false ],
+                    //  name             val                          type         flags  placeholder
+                    [ 'abookid',         '51',                        'hidden',    '',    null ],
+                    [ 'name',            'Public readonly contacts',  'text',      'D',   null ],
+                    [ 'url',             'https://carddav.example.com/shared/Public/', 'plain', '', null ],
+                    [ 'refresh_time',    '01:00:00',                  'text',      'RP',  $lblTime ],
+                    [ 'last_updated',    'DateTime_never_lbl',        'plain',     '',    null ],
+                    [ 'use_categories',  '0',                         'radio',     '',    null ],
+                    [ 'srvname',         null,                        'plain',     '',    null ],
+                    [ 'srvdesc',         null,                        'plain',     '',    null ],
                 ]
             ],
         ];
@@ -379,7 +382,7 @@ final class UITest extends TestCase
      *   - Addressbook ID of addressbook belonging to a hidden preset in GET parameters (error is logged, empty string
      *     returned)
      *
-     * @param list<list{string,?string,string,bool}> $checkInputs
+     * @param list<list{string,?string,string,string,?string}> $checkInputs
      * @dataProvider abookIdProvider
      */
     public function testAddressbookDetailsFormIsProperlyCreated(
@@ -429,14 +432,17 @@ final class UITest extends TestCase
     }
 
     /**
-     * @param list<list{string,?string,string,bool}> $checkInputs
+     * @param list<list{string,?string,string,string,?string}> $checkInputs
      */
     private function checkInput(DOMDocument $dom, array $checkInputs): void
     {
         $xpath = new DOMXPath($dom);
 
         foreach ($checkInputs as $checkInput) {
-            [ $iName, $iVal, $iType, $iDisabled ] = $checkInput;
+            [ $iName, $iVal, $iType, $iFlags, $iPlaceholder ] = $checkInput;
+            $iDisabled = (strpos($iFlags, 'D') !== false);
+            $iRequired = (strpos($iFlags, 'R') !== false);
+            $iPattern  = (strpos($iFlags, 'P') !== false);
 
             if ($iType === 'plain') {
                 if (is_null($iVal)) { // null means the field should be omitted from the form
@@ -467,6 +473,7 @@ final class UITest extends TestCase
                         $this->checkAttribute($radioItem, 'checked', null);
                     }
                     $this->checkAttribute($radioItem, 'disabled', $iDisabled ? 'disabled' : null);
+                    $this->checkAttribute($radioItem, 'required', $iRequired ? 'required' : null);
                 }
                 $this->assertTrue($valueItemFound, "No radio button with the expected value exists for $iName");
             } else {
@@ -474,12 +481,15 @@ final class UITest extends TestCase
                 $this->checkAttribute($iNode, 'value', $iVal);
                 $this->checkAttribute($iNode, 'type', $iType);
                 $this->checkAttribute($iNode, 'disabled', $iDisabled ? 'disabled' : null);
+                $this->checkAttribute($iNode, 'required', $iRequired ? 'required' : null);
+                $this->checkAttribute($iNode, 'pattern', $iPattern ? '' : null, 'exists');
+                $this->checkAttribute($iNode, 'placeholder', $iPlaceholder);
             }
         }
     }
 
     /**
-     * @psalm-param 'equals'|'contains'|'containsnot' $matchType
+     * @psalm-param 'equals'|'contains'|'containsnot'|'exists' $matchType
      * @param ?string $val Expected value of the attribute. If null, the node must not have the given attribute.
      */
     private function checkAttribute(DOMNode $node, string $attr, ?string $val, string $matchType = 'equals'): void
@@ -500,7 +510,7 @@ final class UITest extends TestCase
 
         if ($matchType === 'equals') {
             $this->assertSame($val, $attrNode->nodeValue);
-        } else {
+        } elseif (strpos($matchType, 'contains') === 0) {
             // contains match
             $vals = explode(' ', $attrNode->nodeValue ?? '');
             if ($matchType === 'contains') {

@@ -61,27 +61,45 @@ use MStilkerich\RCMCardDAV\Config;
  *   [1]: key of the field
  *   [2]: UI type of the field
  *   [3]: (optional) default value of the field
- *   [4]: (optional) for UI type radio, a list of key-label pairs for the options of the selection
+ *   [4]: (optional) html input element attributes to additionally set (e.g., required, pattern)
+ *   [5]: (optional) for UI type radio, a list of key-label pairs for the options of the selection
  *
  * @psalm-type UiFieldType = 'text'|'plain'|'datetime'|'timestr'|'radio'|'password'|'checkbox'
- * @psalm-type FieldSpec = array{0: string, 1: string, 2: UiFieldType, 3?: string, 4?: list<array{string,string}>}
+ * @psalm-type FieldSpec = array{
+ *   0: string,
+ *   1: string,
+ *   2: UiFieldType,
+ *   3?: string,
+ *   4?: array<string,string>,
+ *   5?: list<array{string,string}>
+ * }
  * @psalm-type FieldSetSpec = array{label: string, fields: list<FieldSpec>}
  * @psalm-type FormSpec = list<FieldSetSpec>
  */
 class UI
 {
     /**
+     * HTML input attributes for a timestr attribute.
+     */
+    private const TIMESTR_IATTRS = [
+        'placeholder' => 'AccAbProps_timestr_placeholder_lbl',
+        'pattern' => '^\d+(:\d{1,2}){0,2}$',
+        'required' => '1',
+    ];
+
+    /**
      * @var list<FieldSpec> TMPL_ABOOK_FIELDS Form fields for the template addressbook settings
      */
     private const TMPL_ABOOK_FIELDS = [
-        [ 'AbProps_abname_lbl', 'name', 'text', '%N' ],
+        [ 'AbProps_abname_lbl', 'name', 'text', '%N', ['required' => '1'] ],
         [ 'AbProps_active_lbl', 'active', 'checkbox', '1' ],
-        [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600' ],
+        [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600', self::TIMESTR_IATTRS ],
         [
             'AbProps_newgroupstype_lbl',
             'use_categories',
             'radio',
             '1',
+            [],
             [
                 [ '0', 'AbProps_grouptype_vcard_lbl' ],
                 [ '1', 'AbProps_grouptype_categories_lbl' ],
@@ -100,8 +118,18 @@ class UI
             [
                 'label' => 'AccProps_newaccount_lbl',
                 'fields' => [
-                    [ 'AccProps_accountname_lbl', 'accountname', 'text' ],
-                    [ 'AccProps_discoveryurl_lbl', 'discovery_url', 'text' ],
+                    [ 'AccProps_accountname_lbl', 'accountname', 'text', '', ['required' => '1'] ],
+                    [
+                        'AccProps_discoveryurl_lbl',
+                        'discovery_url',
+                        'text',
+                        '',
+                        [
+                            'required' => '1',
+                            'pattern' => '^.*.\....*$',
+                            'placeholder' => 'AccProps_discoveryurl_placeholder_lbl'
+                        ]
+                    ],
                     [ 'AccProps_username_lbl', 'username', 'text' ],
                     [ 'AccProps_password_lbl', 'password', 'password' ],
                 ]
@@ -109,7 +137,7 @@ class UI
             [
                 'label' => 'AccAbProps_miscsettings_seclbl',
                 'fields' => [
-                    [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr', '86400' ],
+                    [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr', '86400', self::TIMESTR_IATTRS ],
                 ]
             ],
             [
@@ -122,8 +150,18 @@ class UI
                 'label' => 'AccAbProps_basicinfo_seclbl',
                 'fields' => [
                     [ 'AccProps_frompreset_lbl', 'presetname', 'plain' ],
-                    [ 'AccProps_accountname_lbl', 'accountname', 'text' ],
-                    [ 'AccProps_discoveryurl_lbl', 'discovery_url', 'text' ],
+                    [ 'AccProps_accountname_lbl', 'accountname', 'text', '', ['required' => '1'] ],
+                    [
+                        'AccProps_discoveryurl_lbl',
+                        'discovery_url',
+                        'text',
+                        '',
+                        [
+                            // not required in the Account edit form because presets do not need discovery_url
+                            'pattern' => '^.*.\....*$',
+                            'placeholder' => 'AccProps_discoveryurl_placeholder_lbl'
+                        ]
+                    ],
                     [ 'AccProps_username_lbl', 'username', 'text' ],
                     [ 'AccProps_password_lbl', 'password', 'password' ],
                 ]
@@ -131,7 +169,7 @@ class UI
             [
                 'label' => 'AccProps_discoveryinfo_seclbl',
                 'fields' => [
-                    [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr' ],
+                    [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr', '86400', self::TIMESTR_IATTRS ],
                     [ 'AccProps_lastdiscovered_time_lbl', 'last_discovered', 'datetime' ],
                 ]
             ],
@@ -144,7 +182,7 @@ class UI
             [
                 'label' => 'AccAbProps_basicinfo_seclbl',
                 'fields' => [
-                    [ 'AbProps_abname_lbl', 'name', 'text' ],
+                    [ 'AbProps_abname_lbl', 'name', 'text', '', ['required' => '1'] ],
                     [ 'AbProps_url_lbl', 'url', 'plain' ],
                     [ 'AbProps_srvname_lbl', 'srvname', 'plain' ],
                     [ 'AbProps_srvdesc_lbl', 'srvdesc', 'plain' ],
@@ -153,7 +191,7 @@ class UI
             [
                 'label' => 'AbProps_syncinfo_seclbl',
                 'fields' => [
-                    [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr' ],
+                    [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600', self::TIMESTR_IATTRS ],
                     [ 'AbProps_lastupdate_time_lbl', 'last_updated', 'datetime' ],
                 ]
             ],
@@ -165,6 +203,7 @@ class UI
                         'use_categories',
                         'radio',
                         '1',
+                        [],
                         [
                             [ '0', 'AbProps_grouptype_vcard_lbl' ],
                             [ '1', 'AbProps_grouptype_categories_lbl' ],
@@ -868,6 +907,19 @@ class UI
         $infra = Config::inst();
         $rc = $infra->rc();
 
+        $xAttrs = $fieldSpec[4] ?? [];
+
+        // placeholders need localization
+        if (isset($xAttrs['placeholder'])) {
+            $xAttrs['placeholder'] = $rc->locText($xAttrs['placeholder']);
+        }
+
+        // for fixed fields, required and pattern make no sense, so remove them
+        if ($fixed) {
+            unset($xAttrs['required']);
+            unset($xAttrs['pattern']);
+        }
+
         $fieldValueFormatted = $this->formatFieldValue($fieldSpec, $fieldValue);
         switch ($uiType) {
             case 'datetime':
@@ -876,29 +928,29 @@ class UI
 
             case 'timestr':
             case 'text':
-                $input = new html_inputfield([
+                $input = new html_inputfield(array_merge([
                     'name' => $fieldKey,
                     'type' => 'text',
                     'value' => $fieldValueFormatted,
                     'size' => 60,
                     'disabled' => $fixed,
-                ]);
+                ], $xAttrs));
                 return $input->show();
 
             case 'password':
-                $input = new html_inputfield([
+                $input = new html_inputfield(array_merge([
                     'name' => $fieldKey,
                     'type' => 'password',
                     'size' => 60,
                     'disabled' => $fixed,
-                ]);
+                ], $xAttrs));
                 return $input->show();
 
             case 'radio':
                 $ul = '';
-                $radioBtn = new html_radiobutton(['name' => $fieldKey, 'disabled' => $fixed]);
+                $radioBtn = new html_radiobutton(array_merge(['name' => $fieldKey, 'disabled' => $fixed], $xAttrs));
 
-                foreach (($fieldSpec[4] ?? []) as $selectionSpec) {
+                foreach (($fieldSpec[5] ?? []) as $selectionSpec) {
                     [ $selValue, $selLabel ] = $selectionSpec;
                     $ul .= html::tag(
                         'li',
@@ -909,7 +961,9 @@ class UI
                 return html::tag('ul', ['class' => 'proplist'], $ul);
 
             case 'checkbox':
-                $checkbox = new html_checkbox(['name' => $fieldKey, 'value' => '1', 'disabled' => $fixed]);
+                $checkbox = new html_checkbox(
+                    array_merge(['name' => $fieldKey, 'value' => '1', 'disabled' => $fixed], $xAttrs)
+                );
                 return $checkbox->show(empty($fieldValue) ? '' : '1');
         }
     }
@@ -1053,7 +1107,7 @@ class UI
                         break;
 
                     case 'radio':
-                        $allowedValues = array_column($fieldSpec[4] ?? [], 0);
+                        $allowedValues = array_column($fieldSpec[5] ?? [], 0);
                         if (!in_array($fieldValue, $allowedValues)) {
                             throw new Exception("Invalid value $fieldValue POSTed for $fieldKey");
                         }

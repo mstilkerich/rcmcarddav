@@ -47,11 +47,13 @@ $labels = Array(
 	'AccAbSave_msg_ok' => 'Settings saved successfully',
 	'AccAbSave_msg_fail' => 'Failed to save settings ($errormsg)',
 	'DateTime_never_lbl' => 'never',
+	'AccAbProps_timestr_placeholder_lbl' => 'Hours[:Minutes[:Seconds]]',
 
 	'AccAbProps_basicinfo_seclbl' => 'Basic information',
 	'AccProps_frompreset_lbl' => 'Administrator preset',
 	'AccProps_accountname_lbl' => 'Name of the account',
 	'AccProps_discoveryurl_lbl' => 'Discovery URL',
+	'AccProps_discoveryurl_placeholder_lbl' => 'Domain often sufficient',
 	'AccProps_username_lbl' => 'Username',
 	'AccProps_password_lbl' => 'Password',
 
