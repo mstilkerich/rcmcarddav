@@ -30,16 +30,16 @@
     },
     "require-dev": {
         "phpcompatibility/php-compatibility": "dev-develop",
+        "dealerdirect/phpcodesniffer-composer-installer": ">= 0.7.0",
         "phpunit/phpunit": "~9",
         "phpunit/phpcov": "*",
-        "dealerdirect/phpcodesniffer-composer-installer": ">= 0.7.0",
-        "aodto/phasher": "dev-master",
         "vimeo/psalm": "^5.4",
-        "psalm/plugin-phpunit": "*"
+        "psalm/plugin-phpunit": "*",
+        "aodto/phasher": "dev-master"
     },
     "extra": {
         "roundcube": {
-            "min-version": "1.2.0"
+            "min-version": "1.4.0"
         }
     },
     "autoload": {

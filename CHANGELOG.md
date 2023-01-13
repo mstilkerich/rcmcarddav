@@ -1,6 +1,6 @@
 # Changelog for RCMCardDAV
 
-## Changes since 5.0.0-beta1
+## Version 5.0.0 (to 5.0.0-beta1)
 
 - Minimum supported PHP version for 5.0 is PHP 7.4 (Fixes #414)
 - Fix: Internal server error with PHP8 when searching address fields of contacts (Fixes: #410)
@@ -14,6 +14,7 @@
 - Backend will refuse Frontend request to remove user account created from preset
 - On initial installation of RCMCardDAV, the database schema is created from a single script with the current schema
   version. Previous versions incrementally executed all migration scripts since the very beginning (Fixes #395)
+- In the settings forms, some simple browser form validation has been added (Fixes #400)
 
 ## Version 5.0.0-beta1 (to 4.4.4)
 

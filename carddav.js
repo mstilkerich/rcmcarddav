@@ -120,6 +120,10 @@ rcube_webmail.prototype.carddav_AbResetActive = function (abook, active) {
 
 // invoked when the Save button in the account or addressbook detail view is pressed
 rcube_webmail.prototype.carddav_AccAbSave = function (formname, action) {
+  if (!document.forms[formname].reportValidity()) {
+    return
+  }
+
   const lock = this.display_message('', 'loading')
   const formDataTuples = $('form[name="' + formname + '"]').serializeArray()
   const formData = {}
