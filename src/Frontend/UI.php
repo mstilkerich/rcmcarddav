@@ -126,7 +126,6 @@ class UI
                         '',
                         [
                             'required' => '1',
-                            'pattern' => '^.*.\....*$',
                             'placeholder' => 'AccProps_discoveryurl_placeholder_lbl'
                         ]
                     ],
@@ -158,7 +157,6 @@ class UI
                         '',
                         [
                             // not required in the Account edit form because presets do not need discovery_url
-                            'pattern' => '^.*.\....*$',
                             'placeholder' => 'AccProps_discoveryurl_placeholder_lbl'
                         ]
                     ],

@@ -207,7 +207,7 @@ final class UITest extends TestCase
                     //  name             val                          type      flags (RDP)  placeholder
                     [ 'accountid',       '42',                        'hidden',    '',       null ],
                     [ 'accountname',     'Test Account',              'text',      'R',      null ],
-                    [ 'discovery_url',   'https://test.example.com/', 'text',      'P',      $lblDUrl ],
+                    [ 'discovery_url',   'https://test.example.com/', 'text',      '',       $lblDUrl ],
                     [ 'username',        'johndoe',                   'text',      '',       null ],
                     [ 'password',        null,                        'password',  '',       null ],
                     [ 'rediscover_time', '02:00:00',                  'text',      'RP',     $lblTime ],
@@ -225,7 +225,7 @@ final class UITest extends TestCase
                     //  name             val                          type        flags (RDP)  placeholder
                     [ 'accountid',       'new',                       'hidden',   '',          null ],
                     [ 'accountname',     '',                          'text',     'R',         null ],
-                    [ 'discovery_url',   '',                          'text',     'RP',        $lblDUrl ],
+                    [ 'discovery_url',   '',                          'text',     'R',         $lblDUrl ],
                     [ 'username',        '',                          'text',     '',          null ],
                     [ 'password',        null,                        'password', '',          null ],
                     [ 'rediscover_time', '24:00:00',                  'text',     'RP',        $lblTime ],
@@ -242,7 +242,7 @@ final class UITest extends TestCase
                     //  name             val                          type        flags (RDP)  placeholder
                     [ 'accountid',       '44',                        'hidden',   '',          null ],
                     [ 'accountname',     'Preset Contacts',           'text',     'R',         null ],
-                    [ 'discovery_url',   'https://carddav.example.com/', 'text',  'P',         $lblDUrl ],
+                    [ 'discovery_url',   'https://carddav.example.com/', 'text',  '',          $lblDUrl ],
                     [ 'username',        'foodoo',                    'text',     'D',         null ],
                     [ 'password',        null,                        'password', 'D',         null ],
                     [ 'rediscover_time', '24:00:00',                  'text',     'RP',        $lblTime ],
