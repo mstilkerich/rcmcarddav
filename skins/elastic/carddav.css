@@ -8,17 +8,14 @@
 
 .listing.iconized li.addressbook > a:before {
   content:"\f2b9";
-  font-weight:400
 }
 
 .listing.iconized > li.account.preset > a:before {
   content:"\f502";
-  font-weight:400
 }
 
 .listing.iconized > li.account:not(.preset) > a:before {
   content:"\f007";
-  font-weight:400
 }
 
 .menu a.carddav_AccAdd:before {
