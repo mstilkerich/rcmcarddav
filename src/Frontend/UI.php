@@ -615,12 +615,12 @@ class UI
                 // update the form data so the last_updated time is current
                 $abookCfg = $this->getEnhancedAbookConfig($abookId);
                 $formData = $this->makeSettingsFormData('addressbook', $abookCfg);
-                $rc->showMessage($rc->locText("${syncType}_msg_ok", $msgParams), 'notice', false);
+                $rc->showMessage($rc->locText("{$syncType}_msg_ok", $msgParams), 'notice', false);
                 $rc->clientCommand('carddav_UpdateForm', $formData);
             } catch (Exception $e) {
                 $msgParams['errormsg'] = $e->getMessage();
                 $logger->error("Failed to sync ($syncType) addressbook: " . $msgParams['errormsg']);
-                $rc->showMessage($rc->locText("${syncType}_msg_fail", $msgParams), 'error', false);
+                $rc->showMessage($rc->locText("{$syncType}_msg_fail", $msgParams), 'error', false);
             }
         } else {
             $logger->warning(__METHOD__ . " missing or unexpected values for HTTP POST parameters");

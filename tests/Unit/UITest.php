@@ -1356,7 +1356,7 @@ final class UITest extends TestCase
 
         if (is_null($errMsgExp)) {
             $this->assertIsString($expDbFile, 'for non-error cases, we need an expected database file to compare with');
-            $this->assertTrue($rcStub->checkShownMessages('notice', "${syncType}_msg_ok"));
+            $this->assertTrue($rcStub->checkShownMessages('notice', "{$syncType}_msg_ok"));
 
             $this->assertCount(1, $rcStub->sentCommands);
             $this->assertSame('carddav_UpdateForm', $rcStub->sentCommands[0][0]);
@@ -1370,7 +1370,7 @@ final class UITest extends TestCase
             $expDbFile = 'tests/Unit/data/uiTest/db.json';
             $logger->expectMessage($errMsgExp[0], $errMsgExp[1]);
             if ($errMsgExp[0] === 'error') {
-                $this->assertTrue($rcStub->checkShownMessages('error', "${syncType}_msg_fail"));
+                $this->assertTrue($rcStub->checkShownMessages('error', "{$syncType}_msg_fail"));
             }
         }
 

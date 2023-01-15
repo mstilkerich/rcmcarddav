@@ -3,6 +3,7 @@
 ## Version 5.0.1 (to 5.0.0)
 
 - Fix: Tarball release failed to add its autoloader in time (Fixes: #415)
+- Fix: Removed string interpolation variants deprecated with PHP 8.2
 
 ## Version 5.0.0 (to 5.0.0-beta1)
 

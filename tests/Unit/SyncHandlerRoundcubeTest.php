@@ -174,7 +174,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
             $base = basename($vcfFile, ".vcf");
             $synch->addressObjectChanged(
                 "/book42/$base.vcf",
-                "etag@${base}_1",
+                "etag@{$base}_1",
                 TestInfrastructure::readVCard($vcfFile)
             );
         }
@@ -234,7 +234,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
             $base = basename($vcfFile, ".vcf");
             $synch->addressObjectChanged(
                 "/book42/$base.vcf",
-                "etag@${base}_2",
+                "etag@{$base}_2",
                 TestInfrastructure::readVCard($vcfFile)
             );
         }
