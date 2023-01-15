@@ -20,7 +20,6 @@
     ],
     "require": {
         "php": ">=7.4.0",
-        "ext-random": "*",
         "ext-gd": "*",
         "ext-json": "*",
         "ext-pdo": "*",
