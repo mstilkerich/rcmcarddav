@@ -28,6 +28,13 @@ use MStilkerich\RCMCardDAV\{Config, DataConversion};
 use MStilkerich\RCMCardDAV\Frontend\{AddressbookManager,RcmInterface,UI};
 use Sabre\VObject\Component\VCard;
 
+// This supports a self-contained tarball installation of the plugin, at the risk of having conflicts with other
+// versions of the library installed in the global roundcube vendor directory (-> use not recommended)
+// phpcs:disable PSR1.Files.SideEffects -- need to load outside carddav class as it implements RcmInterface
+if (file_exists(dirname(__FILE__) . "/vendor/autoload.php")) {
+    include_once dirname(__FILE__) . "/vendor/autoload.php";
+}
+
 /**
  * @psalm-import-type SaveDataFromDC from DataConversion
  */
@@ -89,12 +96,6 @@ class carddav extends rcube_plugin implements RcmInterface
      */
     public function __construct($api)
     {
-        // This supports a self-contained tarball installation of the plugin, at the risk of having conflicts with other
-        // versions of the library installed in the global roundcube vendor directory (-> use not recommended)
-        if (file_exists(dirname(__FILE__) . "/vendor/autoload.php")) {
-            include_once dirname(__FILE__) . "/vendor/autoload.php";
-        }
-
         parent::__construct($api);
 
         // we do not use the roundcube mechanism to save preferences but store preferences to custom DB tables
