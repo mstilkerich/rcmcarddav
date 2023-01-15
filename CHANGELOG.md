@@ -1,5 +1,9 @@
 # Changelog for RCMCardDAV
 
+## Version 5.0.1 (to 5.0.0)
+
+- Fix: Tarball release failed to add its autoloader in time (Fixes: #415)
+
 ## Version 5.0.0 (to 5.0.0-beta1)
 
 - Minimum supported PHP version for 5.0 is PHP 7.4 (Fixes #414)
