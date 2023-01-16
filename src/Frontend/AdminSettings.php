@@ -195,6 +195,11 @@ class AdminSettings
         if (file_exists($configfile)) {
             include($configfile);
             /** @psalm-var mixed $prefs Will be set in the configfile. */
+
+            if (!is_array($prefs)) {
+                $logger->error("Error in config.inc.php: \$prefs must be an array");
+                return;
+            }
         }
 
         $gprefs = [];

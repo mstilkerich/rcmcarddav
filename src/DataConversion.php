@@ -499,6 +499,7 @@ class DataConversion
             $save_data["name"] = $this->composeDisplayname($save_data);
         }
 
+        $vcard4 = null;
         if (isset($vcard)) {
             $vcardVersion = $vcard->getDocumentType();
             if ($vcardVersion != VObject\Document::VCARD30) {
@@ -539,8 +540,11 @@ class DataConversion
             // XXX Temporary workarounds for sabre-io/vobject#602 BEGIN
             // 1) If the photo was unchanged, preserve the original vcard's property to not lose the mimetype
             $vcard = $vcard->convert(VObject\Document::VCARD40);
-            if (isset($vcard4->PHOTO) && !isset($save_data['photo'])) {
-                $vcard->PHOTO = $vcard4->PHOTO;
+            if (isset($vcard4) && !isset($save_data['photo'])) {
+                $photo4 = $vcard4->PHOTO;
+                if (isset($photo4)) {
+                    $vcard->PHOTO = $photo4;
+                }
             }
 
             // 2) Drop X-ADDRESSBOOKSERVER-KIND property; for KIND=group, it has been converted, for KIND=individual it

@@ -144,7 +144,7 @@ final class AdminSettingsTest extends TestCase
 
     /**
      * @return array<string, array{
-     *     callable(array):array,
+     *     callable(array):array|callable(array):string,
      *     callable(array):array,
      *     callable(AdminSettings, RoundcubeLogger, RoundcubeLogger):void,
      *     string
@@ -153,6 +153,26 @@ final class AdminSettingsTest extends TestCase
     public function errorsInAdminConfigProvider(): array
     {
         $ret = [
+            'Non-array prefs' => [
+                function (array $_prefs): string {
+                    return 'not an array';
+                },
+                function (array $_expPrefs): array {
+                    return [
+                        'pwStoreScheme' => 'encrypted',
+                        'forbidCustomAddressbooks' => false,
+                        'hidePreferences' => false,
+                        'presets' => [],
+                    ];
+                },
+                function (AdminSettings $_admPrefs, RoundcubeLogger $rcLogger, RoundcubeLogger $_rcLoggerHttp): void {
+                    TestCase::assertSame(
+                        5,
+                        TestInfrastructure::getPrivateProperty($rcLogger, 'loglevel')
+                    );
+                },
+                'prefs must be an array'
+            ],
             'Invalid loglevel value' => [
                 function (array $prefs): array {
                     TestCase::assertIsArray($prefs['_GLOBAL']);
@@ -430,7 +450,7 @@ final class AdminSettingsTest extends TestCase
      *
      * As basis, we use a valid configuration and inject one error at a time.
      *
-     * @param callable(array):array $modifyPrefsFunc
+     * @param callable(array):array|callable(array):string $modifyPrefsFunc
      * @param callable(array):array $modifyExpResultFunc
      * @param callable(AdminSettings, RoundcubeLogger, RoundcubeLogger):void $validateFunc
      *

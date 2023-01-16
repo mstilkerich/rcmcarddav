@@ -74,6 +74,7 @@ final class UITest extends TestCase
         $this->assertSame(['foo' => 'bar'], $settingsEntry['attrib'] ?? []);
         $this->assertCount(2, $settingsEntry['actions']);
         $this->assertSame(['action' => 'test'], $settingsEntry['actions'][0]);
+        $this->assertIsArray($settingsEntry['actions'][1]);
         $this->assertSame('plugin.carddav', $settingsEntry['actions'][1]['action'] ?? '');
         $this->assertSame('cd_preferences', $settingsEntry['actions'][1]['class'] ?? '');
         $this->assertSame('CardDAV_rclbl', $settingsEntry['actions'][1]['label'] ?? '');
