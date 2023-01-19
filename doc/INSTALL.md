@@ -53,7 +53,7 @@ To update RCMCardDAV using composer, simply run `php composer.phar update --no-d
 __Note__: Because of a [bug in roundcube/plugin-installer#38](https://github.com/roundcube/plugin-installer/issues/38),
 the composer call might fail with a message claiming that `autoload_real.php` cannot open some file in the `vendor`
 directory. To work around this bug, run the following commands __after__ the failed composer command:
-- `php composer.phar dump-autload`
+- `php composer.phar dump-autoload`
 - `php composer.phar update --no-dev -o roundcube/carddav`
 - This time, the update command should succeed without an error (note that the first failed composer command is needed).
 See details [here](https://github.com/mstilkerich/rcmcarddav/issues/388).
