@@ -108,7 +108,7 @@ class Utils
      * Converts a password to storage format according to the password storage scheme setting.
      *
      * @param string $clear The password in clear text.
-     * @return string The password in storage format (e.g. encrypted with user password as key)
+     * @return string The password in storage format (e.g., encrypted with user password as key)
      */
     public static function encryptPassword(string $clear): string
     {
@@ -131,7 +131,7 @@ class Utils
                 $crypted = $rcube->encrypt($clear, 'carddav_des_key');
 
                 // there seems to be no way to unset a preference
-                $rcube->config->set('carddav_des_key', '');
+                $rcube->config->set('carddav_des_key', null);
 
                 if ($crypted === false) {
                     throw new Exception("Password encryption with user password failed");
@@ -157,56 +157,72 @@ class Utils
             return '{DES_KEY}' . $crypted;
         }
 
-        // default: base64-coded password
+        // otherwise, it's BASE64
         return '{BASE64}' . base64_encode($clear);
     }
 
+    /**
+     * Decrypts a password in the database according to the scheme used to encrypt or encode the password.
+     *
+     * In case of error, an error is logged and an empty string is returned.
+     */
     public static function decryptPassword(string $crypt): string
     {
         $logger = Config::inst()->logger();
+        $rcube = rcube::get_instance();
+        $key = null;
+        $clear = '';
 
-        if (strpos($crypt, '{ENCRYPTED}') === 0) {
-            try {
+        try {
+            if (strpos($crypt, '{ENCRYPTED}') === 0) {
                 $crypt = substr($crypt, strlen('{ENCRYPTED}'));
-                $rcube = rcube::get_instance();
-
                 $imap_password = self::getDesKey();
-                $rcube->config->set('carddav_des_key', $imap_password);
-                $clear = $rcube->decrypt($crypt, 'carddav_des_key');
-                // there seems to be no way to unset a preference
-                $rcube->config->set('carddav_des_key', '');
+
+                $key = 'carddav_des_key';
+                $rcube->config->set($key, $imap_password);
+            } elseif (strpos($crypt, '{DES_KEY}') === 0) {
+                $crypt = substr($crypt, strlen('{DES_KEY}'));
+                $key = 'des_key';
+            } elseif (strpos($crypt, '{BASE64}') === 0) {
+                $crypt = substr($crypt, strlen('{BASE64}'));
+                $clear = base64_decode($crypt, true);
+
                 if ($clear === false) {
-                    $clear = "";
+                    throw new Exception('not a valid base64 string');
                 }
-
-                return $clear;
-            } catch (Exception $e) {
-                $logger->warning("Cannot decrypt password: " . $e->getMessage());
-                return "";
-            }
-        }
-
-        if (strpos($crypt, '{DES_KEY}') === 0) {
-            $crypt = substr($crypt, strlen('{DES_KEY}'));
-            $rcube = rcube::get_instance();
-            $clear = $rcube->decrypt($crypt);
-            if ($clear === false) {
-                $clear = "";
+            } else {
+                // unknown scheme, assume cleartext
+                $clear = $crypt;
             }
 
-            return $clear;
+            if (isset($key)) {
+                $clear = $rcube->decrypt($crypt, $key);
+                if ($clear === false) {
+                    throw new Exception("decryption with $key failed");
+                }
+            }
+        } catch (Exception $e) {
+            $logger->warning("Cannot decrypt password: " . $e->getMessage());
+            $clear = '';
         }
 
-        if (strpos($crypt, '{BASE64}') === 0) {
-            $crypt = substr($crypt, strlen('{BASE64}'));
-            return base64_decode($crypt);
+        // not strictly needed, but lets not keep the cleartext IMAP password in rcube_config
+        if ($key === 'carddav_des_key') {
+            $rcube->config->set($key, null);
         }
 
-        // unknown scheme, assume cleartext
-        return $crypt;
+        return $clear;
     }
 
-    // password helpers
+    /**
+     * Returns the 24-byte decryption key derived from the user's password.
+     *
+     * The returned string is made exactly 24 bytes by repeating the IMAP password or, if it is longer, truncating it.
+     * This should not be required anymore, because openssl_encrypt() (and assumedly also openssl_decrypt()) pad the
+     * password themselves if needed, but this is kept for backwards compatibility with existing encrypted passwords.
+     *
+     * In case of error, this function throws an exception.
+     */
     private static function getDesKey(): string
     {
         $rcube = rcube::get_instance();
@@ -218,16 +234,14 @@ class Utils
             throw new Exception("No password available to use for encryption because user logged in via OAuth2");
         }
 
-        $imap_password = $rcube->decrypt((string) $_SESSION['password']);
+        $imapPw = $rcube->decrypt((string) $_SESSION['password']);
 
-        if ($imap_password === false || strlen($imap_password) == 0) {
+        if ($imapPw === false || strlen($imapPw) == 0) {
             throw new Exception("No password available to use for encryption");
         }
 
-        while (strlen($imap_password) < 24) {
-            $imap_password .= $imap_password;
-        }
-        return substr($imap_password, 0, 24);
+        $imapPw = str_pad($imapPw, 24, $imapPw);
+        return substr($imapPw, 0, 24);
     }
 }
 
