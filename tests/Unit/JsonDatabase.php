@@ -426,17 +426,18 @@ class JsonDatabase extends AbstractDatabase
                 $matches
             )
         ) {
+            /** key[fktable.fkcol] -> key
+             * @psalm-var 'key'|'int'|'string' $type
+             */
+            $type = preg_replace('/^key\[.*/', 'key', $matches[2]);
             $ret = [
                 'nullable' => (($matches[1] ?? "") === "?"),
-                'type' => $matches[2] ?? "",
+                'type' => $type,
                 'fktable' => $matches[4] ?? "",
                 'fkcolumn' => $matches[5] ?? "",
                 'hasdefault' => (($matches[6] ?? "") === "="),
-                'defaultval' => $matches[7] ?? ""
+                'defaultval' => $matches[7] ?? null
             ];
-
-            // key[fktable.fkcol] -> key
-            $ret['type'] = preg_replace('/^key\[.*/', 'key', $ret['type']);
 
             return $ret;
         } else {
