@@ -24,6 +24,10 @@ A (hopefully growing) documentation for various topics is found in the [doc](doc
 
 ## Upgrade Notes
 
+Generally (even for patch releases), when upgrading RCMCardDAV, log off from roundcube before performing the upgrade,
+and login again after the upgrade has been performed. During login, a potentially necessary database schema upgrade is
+performed, therefore the login step is important to finish the upgrade.
+
 ### Upgrading from 4.x
 
 - Database migration happens automatically. However, the assignment of addressbooks to accounts uses a heuristic (see
