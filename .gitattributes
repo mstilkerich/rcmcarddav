@@ -1,7 +1,8 @@
 .git*     export-ignore
 *.xml     export-ignore
 Makefile  export-ignore
-doc       export-ignore
+/doc/devdoc export-ignore
+/doc/img/*.drawio export-ignore
 /tests    export-ignore
 *.vcf     text eol=crlf
 *.vcf.new text eol=crlf
