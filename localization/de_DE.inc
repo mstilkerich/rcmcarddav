@@ -79,6 +79,7 @@ $labels = Array(
 	'AbProps_newgroupstype_lbl' => 'Typ für neu angelegte Kontaktgruppen',
 	'AbProps_grouptype_vcard_lbl' => 'Gesonderte KIND=group (RFC6350) VCards für neue Gruppen (beste Kompatibilität mit Apple-Anwendungen)',
 	'AbProps_grouptype_categories_lbl' => 'Gruppen in der CATEGORIES-Eigenschaft innerhalb der Kontakt-VCards speichern (beste Kompatibilität mit nicht-Apple Anwendungen)',
+	'AbProps_reqemail_lbl' => 'Kontakte ohne E-Mail ausblenden',
 
 	// Add new account page
 	'AccProps_newaccount_lbl' => 'Neues CardDAV-Konto hinzufügen',

@@ -1,5 +1,9 @@
 # Changelog for RCMCardDAV
 
+## Version 5.x.y (to 5.0.1)
+
+- Allow to hide contacts without email also for user-defined addressbooks (Fixes #429)
+
 ## Version 5.0.1 (to 5.0.0)
 
 - Fix: Tarball release failed to add its autoloader in time (Fixes: #415)

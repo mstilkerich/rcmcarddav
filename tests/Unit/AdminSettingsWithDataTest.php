@@ -189,8 +189,7 @@ final class AdminSettingsWithDataTest extends TestCase
         $this->assertSame('0', $tmpl['use_categories'] ?? '');
         // discovered is not part of preset
         $this->assertArrayNotHasKey('discovered', $tmpl);
-        // require_always_email is not part of preset
-        $this->assertArrayNotHasKey('require_always_email', $tmpl);
+        $this->assertSame('0', $tmpl['require_always_email'] ?? '');
         // template is not part of preset
         $this->assertArrayNotHasKey('template', $tmpl);
     }

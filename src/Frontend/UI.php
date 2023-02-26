@@ -105,6 +105,7 @@ class UI
                 [ '1', 'AbProps_grouptype_categories_lbl' ],
             ]
         ],
+        [ 'AbProps_reqemail_lbl', 'require_always_email', 'checkbox', '0' ],
     ];
 
     /**
@@ -207,6 +208,7 @@ class UI
                             [ '1', 'AbProps_grouptype_categories_lbl' ],
                         ]
                     ],
+                    [ 'AbProps_reqemail_lbl', 'require_always_email', 'checkbox', '0' ],
                 ]
             ],
         ]
