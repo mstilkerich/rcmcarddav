@@ -69,7 +69,7 @@ final class AddressbookManagerTest extends TestCase
     /** @var list<string> */
     private const ACCOUNT_COLS = [ "accountname", "username", "password", "discovery_url", "user_id", "presetname" ];
 
-    /** @var list<list<?string>> Initial test accounts */
+    /** @var list<TestDataRowWithKeyRef> Initial test accounts */
     private const ACCOUNT_ROWS = [
         [ "Custom Account", "u1", "p1", "https://contacts.example.com/", [ "users", 0, 'builtin' ], null ],
         [ "Preset Account", "%u", "%p", "https://contacts.example.com/", [ "users", 0, 'builtin' ], "admpreset" ],
@@ -95,7 +95,7 @@ final class AddressbookManagerTest extends TestCase
         "active", "use_categories", "discovered", "readonly", "require_always_email", "template" // app-level flags
     ];
 
-    /** @var list<list<?string>> Initial test addressbooks */
+    /** @var list<TestDataRowWithKeyRef> Initial test addressbooks */
     private const ABOOK_ROWS = [
         [ "CA1",    "https://contacts.example.com/a1",     '123', '100', 'a1@1',  ["carddav_accounts", 0], '7' ],
         [ "CA2",    "https://contacts.example.com/a2",     '123', '100', 'a2@3',  ["carddav_accounts", 0], '6' ],

@@ -251,7 +251,18 @@ abstract class AbstractDatabase
             }
         }
 
-        return $this->storeAddressObject('contacts', $abookid, $etag, $uri, $vcfstr, $save_data, $dbid, $xcol, $xval);
+        return $this->storeAddressObject(
+            'contacts',
+            $abookid,
+            $etag,
+            $uri,
+            $vcfstr,
+            $save_data['cuid'] ?? null,
+            $save_data['name'],
+            $dbid,
+            $xcol,
+            $xval
+        );
     }
 
     /**
@@ -278,7 +289,16 @@ abstract class AbstractDatabase
         ?string $uri = null,
         ?string $vcfstr = null
     ): string {
-        return $this->storeAddressObject('groups', $abookid, $etag, $uri, $vcfstr, $save_data, $dbid);
+        return $this->storeAddressObject(
+            'groups',
+            $abookid,
+            $etag,
+            $uri,
+            $vcfstr,
+            $save_data['cuid'] ?? null,
+            $save_data['name'],
+            $dbid
+        );
     }
 
     /**
@@ -292,7 +312,8 @@ abstract class AbstractDatabase
      * @param ?string $etag The ETag value of the CardDAV-server address object that this object is created from.
      * @param ?string $uri  The URI of the CardDAV-server address object that this object is created from.
      * @param ?string $vcfstr The VCard string of the CardDAV-server address object that this object is created from.
-     * @param SaveDataFromDC $save_data The Roundcube representation of the address object.
+     * @param ?string $cuid The VCard UID if applicable, otherwise null.
+     * @param string $name The name of the address object.
      * @param ?string $dbid If an existing object is updated, this specifies its database id.
      * @param list<string> $xcol Database column names of attributes to insert.
      * @param DbInsRow $xval The values to insert into the column specified by $xcol at the corresponding index.
@@ -304,13 +325,14 @@ abstract class AbstractDatabase
         ?string $etag,
         ?string $uri,
         ?string $vcfstr,
-        array $save_data,
+        ?string $cuid,
+        string $name,
         ?string $dbid,
         array $xcol = [],
         array $xval = []
     ): string {
         $xcol[] = 'name';
-        $name = $save_data['name'];
+        $name = $name;
         $xval[] = $name;
 
         if (isset($etag)) {
@@ -333,9 +355,8 @@ abstract class AbstractDatabase
                 $xcol[] = 'uri';
                 $xval[] = $uri;
             }
-            if (isset($save_data['cuid'])) {
+            if (isset($cuid)) {
                 $xcol[] = 'cuid';
-                $cuid = $save_data["cuid"];
                 $xval[] = $cuid;
             }
 

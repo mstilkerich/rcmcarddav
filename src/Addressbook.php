@@ -38,6 +38,7 @@ use MStilkerich\RCMCardDAV\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
 
 /**
  * @psalm-import-type SaveData from DataConversion
+ * @psalm-import-type SaveDataFromDC from DataConversion
  * @psalm-import-type SaveDataAddressField from DataConversion
  *
  * @psalm-type Int1 = '0' | '1'
@@ -415,7 +416,9 @@ class Addressbook extends rcube_addressbook
      * @param mixed  $id    Record identifier(s)
      * @param bool $assoc True to return record as associative array, otherwise a result set is returned
      *
-     * @return ($assoc is true ? SaveData : rcube_result_set) Result object with all record fields
+     * If an error occurs and an associative array is requested as result time, an empty array is returned.
+     *
+     * @return ($assoc is true ? (array{}|SaveDataFromDC) : rcube_result_set) Result object with all record fields
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_record($id, $assoc = false)

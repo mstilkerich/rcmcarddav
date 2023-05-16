@@ -355,6 +355,10 @@ class AdminSettings
                     } else {
                         // Add new account first (addressbooks follow below)
                         $accountCfg = $preset;
+
+                        // unset non-string attributes to psalm type compatibility
+                        unset($accountCfg['extra_addressbooks'], $accountCfg['fixed']);
+
                         $accountCfg['presetname'] = $presetName;
                         $accountId = $abMgr->insertAccount($accountCfg);
                     }
@@ -523,6 +527,10 @@ class AdminSettings
             if ($abook instanceof AddressbookCollection) {
                 // Get values for the optional settings that the admin may have configured as part of the preset
                 $abookTmpl = $this->getPreset($presetName, $xabookUrl);
+
+                // unset non-string attributes to psalm type compatibility
+                unset($abookTmpl['extra_addressbooks'], $abookTmpl['fixed']);
+
                 $abookTmpl['account_id'] = $accountCfg['id'];
                 $abookTmpl['discovered'] = '0';
                 $abookTmpl['sync_token'] = '';
