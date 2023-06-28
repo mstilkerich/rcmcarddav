@@ -39,13 +39,13 @@ installation):
 - [Configure](#configuration) the plugin if needed.
 - Enable RCMCardDAV in Roundcube (possibly composer already did this for you, see above):
   Open the file `config/config.inc.php` and add `carddav` to the array `$config['plugins']`.
-- Login to Roundcube and setup your addressbook by navigation to the Settings page and click on CardDAV.
+- Login to Roundcube and setup your addressbook by navigation to the Settings page and click on CardDAV. The database tables are created during login, so it is important to logout first if already logged in.
 
 In case of errors, check the files `logs/*`.
 
 ### Update using composer
 
-To update RCMCardDAV using composer, simply run `php composer.phar update --no-dev -o roundcube/carddav`.
+To update RCMCardDAV using composer, simply run `php composer.phar update --no-dev -o roundcube/carddav`. Afterwards log into roundcube (log out first if already logged in) so that possible database schema changes needed for the update are performed.
 - Note that this will only upgrade RCMCardDAV within the version constraints listed in `composer.json`. You made this
   choice when you ran `composer require`. If you want to change the version constraint, simply run `composer require`
   again with the updated version constraint, e.g. the same command you would use for initial installation.
@@ -75,7 +75,7 @@ inside that tarball for the appropriate instructions.
 - [Configure](#configuration) the plugin if needed.
 - Enable RCMCardDAV in Roundcube
   Open the file `config/config.inc.php` and add `carddav` to the array `$config['plugins']`.
-- Login to Roundcube and setup your addressbook by navigation to the Settings page and click on CardDAV.
+- Login to Roundcube and setup your addressbook by navigation to the Settings page and click on CardDAV. The database tables are created during login, so it is important to logout first if already logged in.
 
 ## Installation with roundcube installed from Debian/Ubuntu repositories
 
