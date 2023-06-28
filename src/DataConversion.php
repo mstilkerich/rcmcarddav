@@ -647,7 +647,7 @@ class DataConversion
                     IMAGETYPE_PNG  => 'PNG',
                 ];
                 $imginfo = getimagesizefromstring($photoData);
-                if ($imginfo !== false && isset($imginfo[2]) && is_int($imginfo[2])) {
+                if ($imginfo !== false) {
                     if (key_exists($imginfo[2], $typemap)) {
                         $vcard->PHOTO['TYPE'] = $typemap[$imginfo[2]];
                     }
