@@ -46,7 +46,8 @@ use MStilkerich\RCMCardDAV\DataConversion;
  *     discovery_url: ?string,
  *     last_discovered: numeric-string,
  *     rediscover_time: numeric-string,
- *     presetname: ?string
+ *     presetname: ?string,
+ *     flags: numeric-string
  * }
  * @psalm-type FullAbookRow = array{
  *     id: string,
@@ -87,6 +88,13 @@ abstract class AbstractDatabase
                 'readonly'             => 3,
                 'require_always_email' => 4,
                 'template'             => 5, // pseudo-addressbook that stores initial settings for new addressbooks
+            ]
+        ],
+        'accounts' => [
+            'default' => 0, // the default value of the flags column as defined in the schema
+            'fields' => [   // application-level bool attributes and their bit positions
+                'preemptive_basic_auth' => 0,
+                'ssl_noverify'          => 1,
             ]
         ],
     ];

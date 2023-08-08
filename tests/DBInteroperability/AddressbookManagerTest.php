@@ -41,6 +41,7 @@ use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
  * @psalm-import-type DbGetResult from AbstractDatabase
  * @psalm-import-type TestDataKeyRef from TestData
  * @psalm-import-type TestDataRowWithKeyRef from TestData
+ * @psalm-import-type AccountCfg from AddressbookManager
  * @psalm-import-type AbookCfg from AddressbookManager
  * @psalm-import-type AbookFilter from AddressbookManager
  * @psalm-import-type Int1 from AddressbookManager
@@ -67,16 +68,33 @@ final class AddressbookManagerTest extends TestCase
     private static $userId;
 
     /** @var list<string> */
-    private const ACCOUNT_COLS = [ "accountname", "username", "password", "discovery_url", "user_id", "presetname" ];
+    private const ACCOUNT_COLS = [
+        "accountname", "username", "password", "discovery_url", "user_id", "presetname", "flags"
+    ];
+
+    /** @var list<string> account application-level fields stored in flags (starting with bit0 ascending) */
+    private const ACCOUNT_FLAGS = [ 'preemptive_basic_auth', 'ssl_noverify' ];
+
+    /** @var list<string> */
+    private const ACCOUNTCFG_FIELDS = [
+        "accountname", "username", "password", "discovery_url", "user_id", "presetname", "flags",
+        "preemptive_basic_auth", "ssl_noverify" // app-level flags
+    ];
 
     /** @var list<TestDataRowWithKeyRef> Initial test accounts */
     private const ACCOUNT_ROWS = [
-        [ "Custom Account", "u1", "p1", "https://contacts.example.com/", [ "users", 0, 'builtin' ], null ],
-        [ "Preset Account", "%u", "%p", "https://contacts.example.com/", [ "users", 0, 'builtin' ], "admpreset" ],
-        [ "Account w/o addressbooks", "u1", "p1", "https://contacts.example.com/", [ "users", 0, 'builtin' ], null ],
-        [ "Removed preset", "user", "pass", "https://rm.example.com/", [ "users", 0, 'builtin' ], "rmpreset" ],
-        [ "U2 Custom Account", "usr2", "pass", "http://ex.com/abooks", [ "users", 1, 'builtin' ], null ],
-        [ "U2 Preset Account", "%u", "%p", "https://contacts.example.com/", [ "users", 1, 'builtin' ], "admpreset" ],
+        [ "Custom Account", "u1", "p1", "https://contacts.example.com/", ["users", 0, 'builtin'], null, '0' ],
+        [ "Preset Account", "%u", "%p", "https://contacts.example.com/", ["users", 0, 'builtin'], "admpreset", '0' ],
+        [ "Account w/o addressbooks", "u1", "p1", "https://contacts.example.com/", ["users", 0, 'builtin'], null, '1' ],
+        [ "Removed preset", "user", "pass", "https://rm.example.com/", ["users", 0, 'builtin'], "rmpreset", '2' ],
+        [ "U2 Custom Account", "usr2", "pass", "http://ex.com/abooks", ["users", 1, 'builtin'], null, '0' ],
+        [ "U2 Preset Account", "%u", "%p", "https://contacts.example.com/", ["users", 1, 'builtin'], "admpreset", '0' ],
+    ];
+
+    /** @var array<string, Int1> Default settings for the account flags */
+    private const ACCOUNT_FLAG_DEFAULTS = [
+        'preemptive_basic_auth' => '0',
+        'ssl_noverify' => '0',
     ];
 
     /** @var list<string> */
@@ -244,7 +262,8 @@ final class AddressbookManagerTest extends TestCase
         return [
             'Custom account' => [ 0, true ],
             'Preset account' => [ 1, true ],
-            'Removed preset account' => [ 3, true ],
+            'Custom account (preemptive auth)' => [ 2, true ],
+            'Removed preset account (SSL no verify)' => [ 3, true ],
             'Account of different user' => [ 4, false ],
         ];
     }
@@ -270,7 +289,8 @@ final class AddressbookManagerTest extends TestCase
 
         $abMgr = new AddressbookManager();
         $cfg = $abMgr->getAccountConfig($accountId);
-        $this->compareRow($cfg, self::ACCOUNT_COLS, self::ACCOUNT_ROWS[$accountIdx]);
+        $expCfg = $this->transformFlagsTdRow(self::ACCOUNT_ROWS[$accountIdx], self::ACCOUNT_COLS, self::ACCOUNT_FLAGS);
+        $this->compareRow($cfg, self::ACCOUNTCFG_FIELDS, $expCfg);
     }
 
     /** @return array<string, array{int,bool}> */
@@ -309,37 +329,37 @@ final class AddressbookManagerTest extends TestCase
 
         $abMgr = new AddressbookManager();
         $cfg = $abMgr->getAddressbookConfig($abookId);
-        $expCfg = $this->transformAbookFlagsTdRow(self::ABOOK_ROWS[$abookIdx]);
+        $expCfg = $this->transformFlagsTdRow(self::ABOOK_ROWS[$abookIdx], self::ABOOK_COLS, self::ABOOK_FLAGS);
         $this->compareRow($cfg, self::ABOOKCFG_FIELDS, $expCfg);
     }
 
     /**
-     * Transforms the flags DB field in an addressbook DB row to the application-level fields.
+     * Adds to a test data row the individual application-level values of the individual flags in a flags column.
      *
      * @param TestDataRowWithKeyRef $testDataRow
+     * @param list<string> $dbCols Ordered list of database column names (matching $row)
+     * @param list<string> $flags Ordered list of application-level flag names (LSB flag comes first)
      * @return TestDataRowWithKeyRef
      */
-    private function transformAbookFlagsTdRow(array $testDataRow): array
+    private function transformFlagsTdRow(array $testDataRow, array $dbCols, array $flags): array
     {
-        $flagsIdx = array_search('flags', self::ABOOK_COLS);
+        $flagsIdx = array_search('flags', $dbCols);
         $this->assertIsInt($flagsIdx);
 
-        $flags = intval($testDataRow[$flagsIdx]);
+        $flagsVal = intval($testDataRow[$flagsIdx]);
 
-        // XXX this must match the order of the flags in the definition of ABOOKCFG_FIELDS
-        $testDataRow[] = ($flags &  1) ? '1' : '0'; // active
-        $testDataRow[] = ($flags &  2) ? '1' : '0'; // use_categories
-        $testDataRow[] = ($flags &  4) ? '1' : '0'; // discovered
-        $testDataRow[] = ($flags &  8) ? '1' : '0'; // readonly
-        $testDataRow[] = ($flags & 16) ? '1' : '0'; // require_always_email
-        $testDataRow[] = ($flags & 32) ? '1' : '0'; // template
+        $mask = 1;
+        foreach ($flags as $_flagName) {
+            $testDataRow[] = ($flagsVal & $mask) ? '1' : '0';
+            $mask <<= 1;
+        }
 
         return $testDataRow;
     }
 
     /**
      * Adds the application-level flags to the given associative array.
-     * @param list<string> $flagFields
+     * @param list<string> $flagFields List of flag names in their bit order, starting with LSB
      */
     private function addAppFlags(int $flagsVal, array $flagFields, array $row): array
     {
@@ -352,18 +372,20 @@ final class AddressbookManagerTest extends TestCase
     }
 
     /**
-     * Transforms the application-level addressbook flag fields to a flags value in an associative array.
+     * Transforms the application-level flag fields to a flags value in an associative array.
      *
      * @param DbGetResult $row
+     * @param list<string> $flagFields List of flag names in their bit order, starting with LSB
+     * @param array<string, Int1> $flagdefaults Default value for each of the flags
      * @return DbGetResult
      */
-    private function transformAbookFlagsAssoc(array $row): array
+    private function transformFlagsAssoc(array $row, array $flagFields, array $flagdefaults): array
     {
         $flags = 0;
         $mask  = 1;
 
-        foreach (self::ABOOK_FLAGS as $attr) {
-            if (($row[$attr] ?? self::ABOOK_FLAG_DEFAULTS[$attr])) {
+        foreach ($flagFields as $attr) {
+            if (($row[$attr] ?? $flagdefaults[$attr])) {
                 $flags |= $mask;
             }
 
@@ -401,7 +423,13 @@ final class AddressbookManagerTest extends TestCase
         // if that worked, check the properties of the addressbook
         $abookTd = array_combine(
             self::ABOOKCFG_FIELDS,
-            self::$testData->resolveFkRefsInRow($this->transformAbookFlagsTdRow(self::ABOOK_ROWS[$abookIdx]))
+            self::$testData->resolveFkRefsInRow(
+                $this->transformFlagsTdRow(
+                    self::ABOOK_ROWS[$abookIdx],
+                    self::ABOOK_COLS,
+                    self::ABOOK_FLAGS
+                )
+            )
         );
         $this->assertIsString($abookTd['account_id']);
         $this->assertSame($abookId, $abook->getId(), "Addressbook ID mismatch");
@@ -461,7 +489,7 @@ final class AddressbookManagerTest extends TestCase
                     $row[$accountIdRefIdx] = $accountId;
 
                     // replace flags with the app-level flags
-                    $row = $this->transformAbookFlagsTdRow($row);
+                    $row = $this->transformFlagsTdRow($row, self::ABOOK_COLS, self::ABOOK_FLAGS);
                     $row = array_combine(self::ABOOKCFG_FIELDS, $row);
 
                     // insert the id field
@@ -506,12 +534,27 @@ final class AddressbookManagerTest extends TestCase
                 [
                     'accountname' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
                     'discovery_url' => 'foo.com', 'rediscover_time' => 500, 'last_discovered' => '100',
-                    'presetname' => null
+                    'presetname' => null,
+                    'preemptive_basic_auth' => '0', 'ssl_noverify' => '0',
                 ],
                 null
             ],
             'Only mandatory properties specified' => [
                 [ 'accountname' => 'New Account', 'username' => 'newusr', 'password' => 'newpass' ],
+                null
+            ],
+            'preemptive_basic_auth flag' => [
+                [
+                    'accountname' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
+                    'preemptive_basic_auth' => '1', 'ssl_noverify' => '0'
+                ],
+                null
+            ],
+            'ssl_noverify flag' => [
+                [
+                    'accountname' => 'New Account', 'username' => 'newusr', 'password' => 'newpass',
+                    'preemptive_basic_auth' => '0', 'ssl_noverify' => '1'
+                ],
                 null
             ],
             'Include user_id of a different user' => [
@@ -566,6 +609,8 @@ final class AddressbookManagerTest extends TestCase
             'rediscover_time' => '86400',
             'last_discovered' => '0',
             'presetname' => null,
+            'preemptive_basic_auth' => '0',
+            'ssl_noverify' => '0',
         ];
         $notSettable = [
             // not settable by insert with initial values
@@ -605,17 +650,20 @@ final class AddressbookManagerTest extends TestCase
         );
 
         // check that the row in the database is as expected
-        $dbRow = self::$db->lookup($accountId, [], 'accounts');
-        $this->assertIsString($accSettings['password']);
         $expDbRow = $this->prepRowForDbRowComparison($accSettings, $defaults, $notSettable);
         $expDbRow['id'] = $accountId;
+        $expDbRow = $this->transformFlagsAssoc($expDbRow, self::ACCOUNT_FLAGS, self::ACCOUNT_FLAG_DEFAULTS);
+        $this->assertIsString($accSettings['password']);
         $expDbRow['password'] = '{BASE64}' . base64_encode($accSettings['password']);
+
+        $dbRow = self::$db->lookup($accountId, [], 'accounts');
         $this->assertEquals($expDbRow, $dbRow, "Row not stored as expected in database");
 
         // check that the account can also be retrieved using getAccountConfig
+        $expCfg = $this->addAppFlags(intval($expDbRow['flags']), self::ACCOUNT_FLAGS, $expDbRow);
         $accountCfg = $abMgr->getAccountConfig($accountId);
-        $expDbRow['password'] = $accSettings['password'];
-        $this->assertEquals($expDbRow, $accountCfg, "New account config not returned as expected");
+        $expCfg['password'] = $accSettings['password'];
+        $this->assertEquals($expCfg, $accountCfg, "New account config not returned as expected");
     }
 
     /**
@@ -640,19 +688,19 @@ final class AddressbookManagerTest extends TestCase
         $account0Base = array_merge($account0Base, [ 'rediscover_time' => '86400', 'last_discovered' => '0' ]);
 
         /** @psalm-var FullAccountRow $account0Base */
-
         return [
             'All updatable properties updated' => [
                 [ 'carddav_accounts', 0 ],
                 [
                     'accountname' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass',
-                    'discovery_url' => 'cdav.com', 'rediscover_time' => 5000, 'last_discovered' => 1000
+                    'discovery_url' => 'cdav.com', 'rediscover_time' => 5000, 'last_discovered' => 1000,
+                    'preemptive_basic_auth' => '1', 'ssl_noverify' => '1'
                 ],
                 [
                     'id' => '0', 'user_id' => '0', // these IDs are filled by the test
                     'accountname' => 'Updated Account', 'username' => 'updusr', 'password' => 'updpass',
                     'discovery_url' => 'cdav.com', 'rediscover_time' => '5000', 'last_discovered' => '1000',
-                    'presetname' => null
+                    'presetname' => null, 'flags' => '3'
                 ],
                 null
             ],
@@ -739,14 +787,16 @@ final class AddressbookManagerTest extends TestCase
         $accExpResult['id'] = $accountId;
         $accExpResult['user_id'] = self::$userId;
 
-        // check that the updated account can also be retrieved using getAccountConfig
-        $accountCfg = $abMgr->getAccountConfig($accountId);
-        $this->assertEquals($accExpResult, $accountCfg, "New account config not returned as expected");
-
         // check that the row in the database is as expected
+        $expDbRow = $accExpResult;
+        $expDbRow['password'] = '{BASE64}' . base64_encode($accExpResult['password']);
         $dbRow = self::$db->lookup($accountId, [], 'accounts');
-        $accExpResult['password'] = '{BASE64}' . base64_encode($accExpResult['password']);
-        $this->assertEquals($accExpResult, $dbRow, "Row not stored as expected in database");
+        $this->assertEquals($expDbRow, $dbRow, "Row not stored as expected in database");
+
+        // check that the updated account can also be retrieved using getAccountConfig
+        $expCfg = $this->addAppFlags(intval($accExpResult['flags']), self::ACCOUNT_FLAGS, $accExpResult);
+        $accountCfg = $abMgr->getAccountConfig($accountId);
+        $this->assertEquals($expCfg, $accountCfg, "New account config not returned as expected");
     }
 
     /** @return array<string, array{array<string, null|string|bool|int|TestDataKeyRef>, ?string}> */
@@ -882,7 +932,7 @@ final class AddressbookManagerTest extends TestCase
         // check that the row in the database is as expected
         $expDbRow = $this->prepRowForDbRowComparison($abookSettings, $defaults, $notSettable);
         $expDbRow['id'] = $abookId;
-        $expDbRow = $this->transformAbookFlagsAssoc($expDbRow); // adds the flags field
+        $expDbRow = $this->transformFlagsAssoc($expDbRow, self::ABOOK_FLAGS, self::ABOOK_FLAG_DEFAULTS);
 
         $dbRow = self::$db->lookup($abookId, [], 'addressbooks');
         $this->assertEquals($expDbRow, $dbRow, "Row not stored as expected in database");
@@ -1301,7 +1351,8 @@ final class AddressbookManagerTest extends TestCase
             $accountCfg = $db->lookup($accountId, [], 'accounts');
         } else {
             $accountCfg = [
-                'accountname' => 'New Acc', 'username' => 'usr', 'password' => 'p', 'discovery_url' => 'http://foo.bar'
+                'accountname' => 'New Acc', 'username' => 'usr', 'password' => 'p', 'discovery_url' => 'http://foo.bar',
+                'flags' => '1', 'preemptive_basic_auth' => '1', 'ssl_noverify' => '0'
             ];
         }
 
@@ -1327,6 +1378,9 @@ final class AddressbookManagerTest extends TestCase
             // check that the new account was inserted
             /** @var FullAccountRow */
             $accountCfg = $db->lookup($accountIdRet, [], 'accounts');
+            /** @var AccountCfg */
+            $accountCfg = $this->addAppFlags(intval($accountCfg['flags']), self::ACCOUNT_FLAGS, $accountCfg);
+
             // in the DB the password is encoded, but from getAccountConfig we get the decoded password - "decode" it.
             $accountCfg['password'] = 'p';
 

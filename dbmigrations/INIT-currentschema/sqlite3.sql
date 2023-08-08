@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS TABLE_PREFIXcarddav_accounts (
 
 	presetname      TEXT,                       -- presetname
 
+	flags        integer NOT NULL DEFAULT 0,
+
 	UNIQUE(user_id,presetname),
 
 	-- not enforced by sqlite < 3.6.19

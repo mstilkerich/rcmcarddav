@@ -17,6 +17,8 @@ CREATE TABLE TABLE_PREFIXcarddav_accounts (
 
 	presetname VARCHAR(255), -- presetname
 
+	flags SMALLINT NOT NULL DEFAULT 0,
+
 	UNIQUE(user_id,presetname)
 );
 -- Note: no separate index on user_id, the UNIQUE index can be used
