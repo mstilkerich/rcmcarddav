@@ -10,7 +10,7 @@
 			"last_discovered": 12345,
 			"rediscover_time": 86400,
 			"presetname": "UpdatedPreset",
-			"flags": 0
+			"flags": 1
 		},
 		{
 			"id": 44,
@@ -22,7 +22,7 @@
 			"last_discovered": 0,
 			"rediscover_time": 36000,
 			"presetname": "NewPreset",
-			"flags": 0
+			"flags": 3
 		}
 	],
 	"addressbooks": [

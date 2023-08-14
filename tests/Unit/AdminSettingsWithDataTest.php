@@ -233,6 +233,7 @@ final class AdminSettingsWithDataTest extends TestCase
      * - A preset account existing in the DB is updated - UpdatedPreset
      *   - A new extra addressbook is added [NewXBook]
      *   - An extra addressbook existing in the DB is removed [RemovedBook]
+     *   - Fixed settings for the account are updated [preemptive_basic_auth, ssl_noverify]
      *   - Fixed settings for existing addressbooks are updated [username, refresh_time, require_always_email]
      *     - For a fixed name w/ server-side vars, the updated value is fetched from the server [Discovered Addressbook]
      *     - For an extra addressbook, its specific settings are taken if available [UpdatedXBook, require_always_email]

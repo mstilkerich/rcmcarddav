@@ -139,6 +139,10 @@ $prefs['<Presetname>'] = [
     'rediscover_time' => '<Rediscover Time in Hours, Format HH[:MM[:SS]]>',
     ////// hide the account/addressbooks of this preset from CardDAV settings
     'hide' => <true or false>,
+    ////// send basic authentication data to the server even before requested by the server
+    'preemptive_basic_auth' => <true or false>,
+    ////// disable verification of SSL certificate presented by CardDAV server
+    'ssl_noverify' => <true or false>,
 
     // Auto-discovered addressbook attributes
     //// optional attributes
@@ -202,6 +206,13 @@ addressbooks from the database and creation of new ones.
                       Format: `HH[:MM[:SS]]`
                       Default: 24:00:00 (1 day)
  - `hide`: Whether this preset should be hidden from the CardDAV listing on the preferences page.
+ - `preemptive_basic_auth`: If true, RCMCardDAV will send basic authentication Authorization HTTP header even before
+                            challenged by the server to do so. This is normally not needed. One use case is servers that
+                            allow anonymous access to some addressbooks and will not challenge for authentication.
+                            Default: `false`
+ - `ssl_noverify`: If true, the SSL certificate presented by the CardDAV server is not validated to be signed by one of
+                   the trusted certification authorities. Using this option is insecure if you cannot trust the network.
+                   Default: `false`
 
 ### Optional parameters on the addressbooks
  - `name`:   Gives a template string for the name assigned to new addressbooks. For the available placeholders in this
@@ -253,7 +264,7 @@ $prefs['Personal'] = [
     'readonly'     =>  false,
     'refresh_time' => '02:00:00',
 
-    'fixed'        =>  ['discovery_url', 'username', 'password'],
+    'fixed'        =>  ['discovery_url', 'username', 'password', 'ssl_noverify', 'preemptive_basic_auth'],
     'hide'         =>  false,
 ];
 
@@ -264,7 +275,7 @@ $prefs['Work'] = [
     'password'     =>  'C0rpPasswo2d',
     'discovery_url' =>  'corp.example.com',
 
-    'fixed'        =>  ['accountname', 'username', 'password'],
+    'fixed'        =>  ['accountname', 'username', 'password', 'ssl_noverify', 'preemptive_basic_auth'],
     'hide'         =>  true,
 
     'extra_addressbooks' =>  [

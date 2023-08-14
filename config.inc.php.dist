@@ -69,6 +69,10 @@ $prefs['<Presetname>'] = [
     'rediscover_time' => '<Rediscover Time in Hours, Format HH[:MM[:SS]]>',
     ////// hide the account/addressbooks of this preset from CardDAV settings
     'hide' => <true or false>,
+    ////// send basic authentication data to the server even before requested by the server
+    'preemptive_basic_auth' => <true or false>,
+    ////// disable verification of SSL certificate presented by CardDAV server
+    'ssl_noverify' => <true or false>,
 
     // Auto-discovered addressbook attributes, and for extra addressbooks if not overridden there
     //// optional attributes

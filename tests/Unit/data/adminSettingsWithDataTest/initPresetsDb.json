@@ -22,7 +22,7 @@
 			"last_discovered": 12345,
 			"rediscover_time": 86400,
 			"presetname": "UpdatedPreset",
-			"flags": 0
+			"flags": 2
 		}
 	],
 	"addressbooks": [
