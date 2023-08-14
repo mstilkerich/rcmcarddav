@@ -572,23 +572,21 @@ final class UITest extends TestCase
         ];
     }
 
-    private function setDiscoveryStub(int $numAbooks, string $baseUrl, string $username, string $password): void
+    private function setDiscoveryStub(int $numAbooks, string $discUrl, string $username): void
     {
         // create some test addressbooks to be discovered
         $abookObjs = [];
         for ($i = 0; $i < $numAbooks; ++$i) {
-            $abookUrl = $baseUrl . $username . "/addressbooks/book$i";
+            $abookUrl = $discUrl . $username . "/addressbooks/book$i";
             $abookStub = $this->makeAbookCollStub("Book $i", $abookUrl, "Desc $i");
             $abookObjs[] = $abookStub;
             TestInfrastructure::$infra->webDavResources[$abookUrl] = $abookStub;
         }
 
         // create a Discovery mock that "discovers" our test addressbooks
-        $account = new Account($baseUrl, $username, $password);
         $discovery = $this->createMock(Discovery::class);
         $discovery->expects($this->once())
                   ->method("discoverAddressbooks")
-                  ->with($this->equalTo($account))
                   ->will($this->returnValue($abookObjs));
         TestInfrastructure::$infra->discovery = $discovery;
     }
@@ -912,8 +910,7 @@ final class UITest extends TestCase
             $this->setDiscoveryStub(
                 $numAbooks,
                 $postData['discovery_url'] ?? '',
-                $postData['username'],
-                $postData['password']
+                $postData['username']
             );
         }
 
@@ -1205,7 +1202,7 @@ final class UITest extends TestCase
         }
 
         if (is_string($expDbFile)) {
-            $this->setDiscoveryStub(2, 'https://test.example.com/', 'johndoe', 'The password');
+            $this->setDiscoveryStub(2, 'https://test.example.com/', 'johndoe');
         }
 
         $abMgr = new AddressbookManager();

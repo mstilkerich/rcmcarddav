@@ -466,12 +466,7 @@ class AdminSettings
                 try {
                     // no expansion of name template string for the template addressbook
                     if (empty($abookCfg['template']) && $k === 'name') {
-                        $account = Config::makeAccount(
-                            '',
-                            Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
-                            Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
-                            null
-                        );
+                        $account = Config::makeAccount($accountCfg);
                         $abook = $infra->makeWebDavResource($abookCfg['url'], $account);
                         if ($abook instanceof AddressbookCollection) {
                             $preset['name'] = $abMgr->replacePlaceholdersAbookName(
@@ -517,12 +512,7 @@ class AdminSettings
         string $presetName
     ): void {
         try {
-            $account = Config::makeAccount(
-                '',
-                Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
-                Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
-                null
-            );
+            $account = Config::makeAccount($accountCfg);
             $abook = $infra->makeWebDavResource($xabookUrl, $account);
             if ($abook instanceof AddressbookCollection) {
                 // Get values for the optional settings that the admin may have configured as part of the preset

@@ -800,12 +800,7 @@ class UI
         // throws exception if UI should not use this account
         $accountCfg = $this->getVisibleAccountConfig($abookCfg['account_id']);
 
-        $account = Config::makeAccount(
-            '',
-            Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
-            Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
-            null
-        );
+        $account = Config::makeAccount($accountCfg);
 
         $davAbook = $infra->makeWebDavResource($abookCfg['url'], $account);
         if ($davAbook instanceof AddressbookCollection) {

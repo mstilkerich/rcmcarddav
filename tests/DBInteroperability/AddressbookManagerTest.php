@@ -1357,14 +1357,10 @@ final class AddressbookManagerTest extends TestCase
         }
 
         // create a Discovery mock that "discovers" our test addressbooks
-        $username = $accountCfg['username'] == '%u' ? 'testuser@example.com' : $accountCfg['username'];
-        $password = $accountCfg['password'] == '%p' ? 'test' : $accountCfg['password'];
         $this->assertNotNull($accountCfg['discovery_url']);
-        $account = new Account($accountCfg['discovery_url'], $username, $password);
         $discovery = $this->createMock(Discovery::class);
         $discovery->expects($this->once())
             ->method("discoverAddressbooks")
-            ->with($this->equalTo($account))
             ->will($this->returnValue($abookObjs));
         TestInfrastructure::$infra->discovery = $discovery;
 

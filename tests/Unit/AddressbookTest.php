@@ -32,16 +32,18 @@ use MStilkerich\RCMCardDAV\{Addressbook,DataConversion,DelayedPhotoLoader};
 use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
 use MStilkerich\RCMCardDAV\Db\Database;
 use MStilkerich\RCMCardDAV\Db\DbAndCondition;
+use MStilkerich\RCMCardDAV\Frontend\AddressbookManager;
 use MStilkerich\CardDavClient\AddressbookCollection;
 use rcube_addressbook;
 
 /**
  * @psalm-import-type FullAccountRow from AbstractDatabase
  * @psalm-import-type FullAbookRow from AbstractDatabase
- * @psalm-import-type AddressbookOptions from Addressbook
  * @psalm-import-type SaveData from DataConversion
  *
- * @psalm-type Int1 = '0'|'1'
+ * @psalm-import-type Int1 from AddressbookManager
+ * @psalm-import-type AccountCfg from AddressbookManager
+ * @psalm-import-type AbookCfg from AddressbookManager
  *
  * @psalm-type CfgOverride = array{
  *   refresh_time?: numeric-string,
@@ -57,7 +59,8 @@ final class AddressbookTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        $_SESSION['user_id'] = 105;
+        $_SESSION['user_id'] = 1000;
+        $_SESSION['username'] = 'user@example.com';
     }
 
     public function setUp(): void
@@ -75,6 +78,36 @@ final class AddressbookTest extends TestCase
     }
 
     /**
+     * Adds the addressbook flags to an addressbook DB row to create an addressbook config.
+     * @param FullAbookRow $abookRow
+     * @return AbookCfg
+     */
+    private function addABookFlags(array $abookRow): array
+    {
+        foreach (AbstractDatabase::FLAGS_COLS['addressbooks']['fields'] as $attr => $bitPos) {
+            $flags = intval($abookRow['flags']);
+            $abookRow[$attr] = ($flags & (1 << $bitPos)) ? '1' : '0';
+        }
+
+        return $abookRow;
+    }
+
+    /**
+     * Adds the account flags to an account DB row to create an account config.
+     * @param FullAccountRow $accountRow
+     * @return AccountCfg
+     */
+    private function addAccountFlags(array $accountRow): array
+    {
+        foreach (AbstractDatabase::FLAGS_COLS['accounts']['fields'] as $attr => $bitPos) {
+            $flags = intval($accountRow['flags']);
+            $accountRow[$attr] = ($flags & (1 << $bitPos)) ? '1' : '0';
+        }
+
+        return $accountRow;
+    }
+
+    /**
      * @param CfgOverride $cfgOverride
      */
     private function createAbook(array $cfgOverride = []): Addressbook
@@ -83,19 +116,17 @@ final class AddressbookTest extends TestCase
         $db->importData('tests/Unit/data/syncHandlerTest/initial/db.json');
 
         /** @var FullAbookRow */
-        $abookcfg = $db->lookup("42", [], 'addressbooks');
-        foreach (AbstractDatabase::FLAGS_COLS['addressbooks']['fields'] as $attr => $bitPos) {
-            $flags = intval($abookcfg['flags']);
-            $abookcfg[$attr] = ($flags & (1 << $bitPos)) ? '1' : '0';
-        }
-
+        $abookCfg = $db->lookup("42", [], 'addressbooks');
+        $abookCfg = $this->addABookFlags($abookCfg);
+        // Override config settings
+        $abookCfg = array_merge($abookCfg, $cfgOverride);
 
         /** @var FullAccountRow */
-        $accountcfg = $db->lookup($abookcfg['id'], [], 'accounts');
-        /** @psalm-var AddressbookOptions */
-        $abookcfg = $cfgOverride + $abookcfg + $accountcfg;
+        $accountCfg = $db->lookup($abookCfg['account_id'], [], 'accounts');
+        $accountCfg = $this->addAccountFlags($accountCfg);
 
-        $abook = new Addressbook("42", $abookcfg);
+        $account = TestInfrastructure::$infra->makeAccount($accountCfg);
+        $abook = new Addressbook("42", $account, $abookCfg);
         $davobj = $this->createStub(AddressbookCollection::class);
         $davobj->method('downloadResource')->will($this->returnCallback([Utils::class, 'downloadResource']));
         TestInfrastructure::setPrivateProperty($abook, 'davAbook', $davobj);
@@ -131,12 +162,16 @@ final class AddressbookTest extends TestCase
         $this->assertSame("42", $abook->getId());
 
         /** @var FullAbookRow */
-        $abookcfg = $db->lookup("42", [], 'addressbooks');
+        $abookCfg = $db->lookup("42", [], 'addressbooks');
+        $abookCfg = $this->addABookFlags($abookCfg);
+        $abookCfg['readonly'] = '1';
+
         /** @var FullAccountRow */
-        $accountcfg = $db->lookup($abookcfg['id'], [], 'accounts');
-        /** @psalm-var AddressbookOptions */
-        $abookOptions = ['readonly' => '1'] + $abookcfg + $accountcfg;
-        $roAbook = new Addressbook("42", $abookOptions);
+        $accountCfg = $db->lookup($abookCfg['account_id'], [], 'accounts');
+        $accountCfg = $this->addAccountFlags($accountCfg);
+        $account = TestInfrastructure::$infra->makeAccount($accountCfg);
+
+        $roAbook = new Addressbook("42", $account, $abookCfg);
         $this->assertSame(true, $roAbook->readonly);
     }
 

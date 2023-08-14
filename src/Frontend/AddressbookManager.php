@@ -93,7 +93,9 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  *     discovery_url?: ?string,
  *     rediscover_time?: numeric-string,
  *     last_discovered?: numeric-string,
- *     presetname?: ?string
+ *     presetname?: ?string,
+ *     preemptive_basic_auth?: Int1,
+ *     ssl_noverify?: Int1
  * } & array<string, ?string>
  *
  * @psalm-type AbookSettings = array{
@@ -485,14 +487,11 @@ class AddressbookManager
     public function getAddressbook(string $abookId): Addressbook
     {
         $config = $this->getAddressbookConfig($abookId);
-        $account = $this->getAccountConfig($config["account_id"]);
+        $accountCfg = $this->getAccountConfig($config["account_id"]);
 
-        // username and password may be stored as placeholders in the database
-        // the URL is always stored without placeholders and needs not be replaced
-        $config['username'] = Utils::replacePlaceholdersUsername($account["username"]);
-        $config['password'] = Utils::replacePlaceholdersPassword($account["password"]);
+        $account = Config::makeAccount($accountCfg);
 
-        return new Addressbook($abookId, $config);
+        return new Addressbook($abookId, $account, $config);
     }
 
 
@@ -644,12 +643,7 @@ class AddressbookManager
             throw new Exception('Cannot discover addressbooks for an account lacking a discovery URI');
         }
 
-        $account = Config::makeAccount(
-            Utils::replacePlaceholdersUrl($accountCfg['discovery_url']),
-            Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
-            Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
-            null
-        );
+        $account = Config::makeAccount($accountCfg);
 
         /** @psalm-var AccountSettings $accountCfg XXX temporary workaround for vimeo/psalm#8980 */
 
