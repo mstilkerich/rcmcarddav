@@ -9,7 +9,8 @@
 			"user_id": "105",
 			"last_discovered": 12345,
 			"rediscover_time": 86400,
-			"presetname": "AdmPreset"
+			"presetname": "AdmPreset",
+			"flags": 0
 		},
 		{
 			"id": 43,
@@ -20,7 +21,8 @@
 			"user_id": "105",
 			"last_discovered": 12345,
 			"rediscover_time": 86400,
-			"presetname": null
+			"presetname": null,
+			"flags": 0
 		},
 		{
 			"id": 44,
@@ -31,7 +33,8 @@
 			"user_id": "105",
 			"last_discovered": 12345,
 			"rediscover_time": 86400,
-			"presetname": null
+			"presetname": null,
+			"flags": 0
 		},
 		{
 			"id": 45,
@@ -42,7 +45,8 @@
 			"user_id": "105",
 			"last_discovered": 12345,
 			"rediscover_time": 86400,
-			"presetname": "AdmPreset2"
+			"presetname": "AdmPreset2",
+			"flags": 0
 		}
 	],
 	"addressbooks": [

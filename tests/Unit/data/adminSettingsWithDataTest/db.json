@@ -9,7 +9,8 @@
 			"user_id": "105",
 			"last_discovered": 12345,
 			"rediscover_time": 86400,
-			"presetname": "AdmPreset"
+			"presetname": "AdmPreset",
+			"flags": 0
 		}
 	],
 	"addressbooks": [
