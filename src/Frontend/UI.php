@@ -73,7 +73,7 @@ use MStilkerich\RCMCardDAV\Config;
  *   4?: array<string,string>,
  *   5?: list<array{string,string}>
  * }
- * @psalm-type FieldSetSpec = array{label: string, fields: list<FieldSpec>}
+ * @psalm-type FieldSetSpec = array{label: string, class: string, fields: list<FieldSpec>}
  * @psalm-type FormSpec = list<FieldSetSpec>
  */
 class UI
@@ -118,6 +118,7 @@ class UI
         'newaccount' => [
             [
                 'label' => 'AccProps_newaccount_lbl',
+                'class' => '',
                 'fields' => [
                     [ 'AccProps_accountname_lbl', 'accountname', 'text', '', ['required' => '1'] ],
                     [
@@ -136,6 +137,7 @@ class UI
             ],
             [
                 'label' => 'AccAbProps_miscsettings_seclbl',
+                'class' => 'advanced',
                 'fields' => [
                     [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr', '86400', self::TIMESTR_IATTRS ],
                     [ 'AccProps_preemptive_basic_auth_lbl', 'preemptive_basic_auth', 'checkbox', '0' ],
@@ -144,12 +146,14 @@ class UI
             ],
             [
                 'label' => 'AccAbProps_abookinitsettings_seclbl',
+                'class' => 'advanced',
                 'fields' => self::TMPL_ABOOK_FIELDS,
             ],
         ],
         'account' => [
             [
                 'label' => 'AccAbProps_basicinfo_seclbl',
+                'class' => '',
                 'fields' => [
                     [ 'AccProps_frompreset_lbl', 'presetname', 'plain' ],
                     [ 'AccProps_accountname_lbl', 'accountname', 'text', '', ['required' => '1'] ],
@@ -169,6 +173,7 @@ class UI
             ],
             [
                 'label' => 'AccProps_discoveryinfo_seclbl',
+                'class' => '',
                 'fields' => [
                     [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr', '86400', self::TIMESTR_IATTRS ],
                     [ 'AccProps_lastdiscovered_time_lbl', 'last_discovered', 'datetime' ],
@@ -176,10 +181,12 @@ class UI
             ],
             [
                 'label' => 'AccAbProps_abookinitsettings_seclbl',
+                'class' => 'advanced',
                 'fields' => self::TMPL_ABOOK_FIELDS,
             ],
             [
                 'label' => 'AdvancedOpt_seclbl',
+                'class' => 'advanced',
                 'fields' => [
                     [ 'AccProps_preemptive_basic_auth_lbl', 'preemptive_basic_auth', 'checkbox', '0' ],
                     [ 'AccProps_ssl_noverify_lbl', 'ssl_noverify', 'checkbox', '0' ],
@@ -189,6 +196,7 @@ class UI
         'addressbook' => [
             [
                 'label' => 'AccAbProps_basicinfo_seclbl',
+                'class' => '',
                 'fields' => [
                     [ 'AbProps_abname_lbl', 'name', 'text', '', ['required' => '1'] ],
                     [ 'AbProps_url_lbl', 'url', 'plain' ],
@@ -198,6 +206,7 @@ class UI
             ],
             [
                 'label' => 'AbProps_syncinfo_seclbl',
+                'class' => '',
                 'fields' => [
                     [ 'AbProps_refresh_time_lbl', 'refresh_time', 'timestr', '3600', self::TIMESTR_IATTRS ],
                     [ 'AbProps_lastupdate_time_lbl', 'last_updated', 'datetime' ],
@@ -205,6 +214,7 @@ class UI
             ],
             [
                 'label' => 'AccAbProps_miscsettings_seclbl',
+                'class' => 'advanced',
                 'fields' => [
                     [
                         'AbProps_newgroupstype_lbl',
@@ -785,7 +795,7 @@ class UI
 
             $out .= html::tag(
                 'fieldset',
-                [],
+                [ 'class' => $fieldSet['class'] ],
                 html::tag('legend', [], $rc->locText($fieldSet['label'])) . $table->show(['class' => 'propform'])
             );
         }
