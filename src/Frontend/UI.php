@@ -138,6 +138,8 @@ class UI
                 'label' => 'AccAbProps_miscsettings_seclbl',
                 'fields' => [
                     [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr', '86400', self::TIMESTR_IATTRS ],
+                    [ 'AccProps_preemptive_basic_auth_lbl', 'preemptive_basic_auth', 'checkbox', '0' ],
+                    [ 'AccProps_ssl_noverify_lbl', 'ssl_noverify', 'checkbox', '0' ],
                 ]
             ],
             [
@@ -175,6 +177,13 @@ class UI
             [
                 'label' => 'AccAbProps_abookinitsettings_seclbl',
                 'fields' => self::TMPL_ABOOK_FIELDS,
+            ],
+            [
+                'label' => 'AdvancedOpt_seclbl',
+                'fields' => [
+                    [ 'AccProps_preemptive_basic_auth_lbl', 'preemptive_basic_auth', 'checkbox', '0' ],
+                    [ 'AccProps_ssl_noverify_lbl', 'ssl_noverify', 'checkbox', '0' ],
+                ]
             ],
         ],
         'addressbook' => [
