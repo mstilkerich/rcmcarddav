@@ -67,6 +67,8 @@ final class UITest extends TestCase
 
     public function testUiSettingsActionGeneratesProperSectionInfo(): void
     {
+        $this->db = new JsonDatabase(['tests/Unit/data/uiTest/db.json']);
+        TestInfrastructure::init($this->db, 'tests/Unit/data/uiTest/config.inc.php');
         $abMgr = new AddressbookManager();
         $ui = new UI($abMgr);
         $settingsEntry = $ui->addSettingsAction(['attrib' => ['foo' => 'bar'], 'actions' => [['action' => 'test']]]);
@@ -213,10 +215,13 @@ final class UITest extends TestCase
                     [ 'password',        null,                        'password',  '',       null ],
                     [ 'rediscover_time', '02:00:00',                  'text',      'RP',     $lblTime ],
                     [ 'last_discovered', date("Y-m-d H:i:s", 1672825163), 'plain', '',       null ],
+                    [ 'preemptive_basic_auth', '1',                   'checkbox',  '',       null ],
+                    [ 'ssl_noverify',    '1',                         'checkbox',  '',       null ],
                     [ 'name',            '%N, %D',                    'text',      'R',      null ],
                     [ 'active',          '1',                         'checkbox',  '',       null ],
                     [ 'refresh_time',    '00:10:00',                  'text',      'RP',     $lblTime ],
                     [ 'use_categories',  '0',                         'radio',     '',       null ],
+                    [ 'require_always_email', '1',                    'checkbox',  '',       null ],
                 ]
             ],
             "New account" => [
@@ -230,10 +235,13 @@ final class UITest extends TestCase
                     [ 'username',        '',                          'text',     '',          null ],
                     [ 'password',        null,                        'password', '',          null ],
                     [ 'rediscover_time', '24:00:00',                  'text',     'RP',        $lblTime ],
+                    [ 'preemptive_basic_auth', '0',                   'checkbox', '',          null ],
+                    [ 'ssl_noverify',    '0',                         'checkbox', '',          null ],
                     [ 'name',            '%N',                        'text',     'R',         null ],
                     [ 'active',          '1',                         'checkbox', '',          null ],
                     [ 'refresh_time',    '01:00:00',                  'text',     'RP',        $lblTime ],
                     [ 'use_categories',  '1',                         'radio',    '',          null ],
+                    [ 'require_always_email', '0',                    'checkbox', '',          null ],
                 ]
             ],
             "Visible Preset account without template addressbook" => [
@@ -249,9 +257,12 @@ final class UITest extends TestCase
                     [ 'rediscover_time', '24:00:00',                  'text',     'RP',        $lblTime ],
                     [ 'last_discovered', 'DateTime_never_lbl',        'plain',    '',          null ],
                     [ 'name',            '%N (%D)',                   'text',     'D',         null ],
+                    [ 'preemptive_basic_auth', '0',                   'checkbox', '',          null ],
+                    [ 'ssl_noverify',    '0',                         'checkbox', 'D',         null ],
                     [ 'active',          '1',                         'checkbox', '',          null ],
                     [ 'refresh_time',    '00:30:00',                  'text',     'D',         $lblTime ],
                     [ 'use_categories',  '0',                         'radio',    '',          null ],
+                    [ 'require_always_email', '0',                    'checkbox', 'D',         null ],
                 ]
             ],
         ];
@@ -346,6 +357,7 @@ final class UITest extends TestCase
                     [ 'use_categories',  '1',                         'radio',     '',    null ],
                     [ 'srvname',         'Book 42 SrvName',           'plain',     '',    null ],
                     [ 'srvdesc',         "Hitchhiker's Guide",        'plain',     '',    null ],
+                    [ 'require_always_email', '0',                    'checkbox',  '',    null ],
                 ]
             ],
             "Preset extra addressbook with custom fixed fields" => [
@@ -361,6 +373,7 @@ final class UITest extends TestCase
                     [ 'use_categories',  '0',                         'radio',     '',    null ],
                     [ 'srvname',         null,                        'plain',     '',    null ],
                     [ 'srvdesc',         null,                        'plain',     '',    null ],
+                    [ 'require_always_email', '1',                    'checkbox',  '',    null ],
                 ]
             ],
         ];
@@ -477,6 +490,13 @@ final class UITest extends TestCase
                     $this->checkAttribute($radioItem, 'required', $iRequired ? 'required' : null);
                 }
                 $this->assertTrue($valueItemFound, "No radio button with the expected value exists for $iName");
+            } elseif ($iType === 'checkbox') {
+                $iNode = $this->getDomNode($xpath, "//input[@name='$iName']");
+                $this->checkAttribute($iNode, 'value', '1');
+                $this->checkAttribute($iNode, 'checked', $iVal ? 'checked' : null);
+                $this->checkAttribute($iNode, 'type', $iType);
+                $this->checkAttribute($iNode, 'disabled', $iDisabled ? 'disabled' : null);
+                $this->checkAttribute($iNode, 'required', $iRequired ? 'required' : null);
             } else {
                 $iNode = $this->getDomNode($xpath, "//input[@name='$iName']");
                 $this->checkAttribute($iNode, 'value', $iVal);
@@ -495,29 +515,38 @@ final class UITest extends TestCase
      */
     private function checkAttribute(DOMNode $node, string $attr, ?string $val, string $matchType = 'equals'): void
     {
+        // If available, get the name attribute to show better error messages
+        $iName = '<no name>';
+        if (
+            is_a($node->attributes, DOMNamedNodeMap::class) &&
+            !is_null($nameNode = $node->attributes->getNamedItem('name'))
+        ) {
+            $iName = $nameNode->nodeValue;
+        }
+
         if (is_null($val)) {
             // Check that the node does not have the given attribute; this is met if the node has no attributes at all,
             // or if the given attribute is not one of the existing attributes
             $this->assertFalse(
                 is_a($node->attributes, DOMNamedNodeMap::class) && !is_null($node->attributes->getNamedItem($attr)),
-                "Attribute $attr not expected to exist, but does exist"
+                "$iName: Attribute $attr not expected to exist, but does exist"
             );
             return;
         }
 
         $this->assertInstanceOf(DOMNamedNodeMap::class, $node->attributes);
         $attrNode = $node->attributes->getNamedItem($attr);
-        $this->assertInstanceOf(DOMNode::class, $attrNode, "expected attribute $attr not present");
+        $this->assertInstanceOf(DOMNode::class, $attrNode, "$iName: expected attribute $attr not present");
 
         if ($matchType === 'equals') {
-            $this->assertSame($val, $attrNode->nodeValue);
+            $this->assertSame($val, $attrNode->nodeValue, "$iName: expected value of $attr mismatches");
         } elseif (strpos($matchType, 'contains') === 0) {
             // contains match
             $vals = explode(' ', $attrNode->nodeValue ?? '');
             if ($matchType === 'contains') {
-                $this->assertContains($val, $vals);
+                $this->assertContains($val, $vals, "$iName: value of $attr does not contain search value");
             } else {
-                $this->assertNotContains($val, $vals);
+                $this->assertNotContains($val, $vals, "$iName: value of $attr contains search value");
             }
         }
     }
@@ -650,7 +679,7 @@ final class UITest extends TestCase
             ],
             "User-defined account with template addressbook (password not changed)" => [
                 // last_discovered must be ignored in the input
-                ['accountid' => '42', 'last_discovered' => '123'] + $basicData,
+                ['accountid' => '42', 'last_discovered' => '123', 'ssl_noverify' => '1'] + $basicData,
                 null,
                 'tests/Unit/data/uiTest/dbExp-AccSave-udefAcc.json'
             ],
@@ -722,6 +751,7 @@ final class UITest extends TestCase
         $dbAfter->compareTables('accounts', $this->db);
         $dbAfter->compareTables('addressbooks', $this->db);
     }
+
     /**
      * @return array<string, list{array<string,string>,?list{PsrLogLevel,string},?string}>
      */
@@ -758,7 +788,10 @@ final class UITest extends TestCase
             ],
             "Addressbook of user-defined account" => [
                 // discovered, url and active must be ignored in the input
-                ['abookid' => '42', 'url' => 'http://new.url/x', 'active' => '0', 'discovered' => '0'] + $basicData,
+                [
+                    'abookid' => '42', 'require_always_email' => '1',
+                    'url' => 'http://new.url/x', 'active' => '0', 'discovered' => '0'
+                ] + $basicData,
                 null,
                 'tests/Unit/data/uiTest/dbExp-AbSave-udefAcc.json'
             ],
@@ -858,7 +891,7 @@ final class UITest extends TestCase
                 0
             ],
             "Two addressbooks discovered (added inactive, with categories)" => [
-                $basicData,
+                [ 'require_always_email' => '1' ] + $basicData,
                 null,
                 'tests/Unit/data/uiTest/dbExp-AccAdd-2books.json',
                 2

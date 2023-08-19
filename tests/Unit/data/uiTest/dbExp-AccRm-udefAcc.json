@@ -54,7 +54,7 @@
 			"id": 51,
 			"name": "Public readonly contacts",
 			"url": "https://carddav.example.com/shared/Public/",
-			"flags": 9,
+			"flags": 25,
 			"last_updated": 0,
 			"refresh_time": 3600,
 			"sync_token": "sync@3600",

@@ -10,7 +10,7 @@
 			"last_discovered": 1672825163,
 			"rediscover_time": 7200,
 			"presetname": null,
-			"flags": 0
+			"flags": 3
 		},
 		{
 			"id": 43,
@@ -66,7 +66,7 @@
 			"id": 41,
 			"name": "%N, %D",
 			"url": "",
-			"flags": 33,
+			"flags": 49,
 			"last_updated": 0,
 			"refresh_time": 600,
 			"sync_token": "",
@@ -76,7 +76,7 @@
 			"id": 42,
 			"name": "Updated name %N - %D",
 			"url": "https://test.example.com/books/johndoe/book42/",
-			"flags": 5,
+			"flags": 21,
 			"last_updated": 1672825164,
 			"refresh_time": 2520,
 			"sync_token": "sync@3600",
@@ -106,7 +106,7 @@
 			"id": 51,
 			"name": "Public readonly contacts",
 			"url": "https://carddav.example.com/shared/Public/",
-			"flags": 9,
+			"flags": 25,
 			"last_updated": 0,
 			"refresh_time": 3600,
 			"sync_token": "sync@3600",
