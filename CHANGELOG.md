@@ -1,8 +1,9 @@
 # Changelog for RCMCardDAV
 
-## Version 5.x.y (to 5.0.1)
+## Version 5.1.0 (to 5.0.1)
 
 - Allow to hide contacts without email also for user-defined addressbooks (Fixes #429)
+- Re-introduced option `preemptive_basic_auth` to send HTTP basic Authorization header with every request (Fixes #407)
 
 ## Version 5.0.1 (to 5.0.0)
 
