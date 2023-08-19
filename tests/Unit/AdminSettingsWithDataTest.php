@@ -56,35 +56,38 @@ final class AdminSettingsWithDataTest extends TestCase
     }
 
     /**
-     * @return array<string, list{string, list{?string,?string}}>
+     * @return array<string, list{string, list{?string,?string, ?string}}>
      */
     public function specialAbookTestProvider(): array
     {
         $base = 'tests/Unit/data/adminSettingsWithDataTest';
 
         return [
-            'Two matchers, one match' => [ "$base/matchBoth.php", ['43', '43'] ],
+            'Two matchers, one match' => [ "$base/matchBoth.php", ['43', '43', '43'] ],
             'No matches (invalid preset, AND condition eval)' => [
                 "$base/noMatch.php",
                 [
                     'Setting for collected_recipients must include a valid preset attribute',
-                    'Cannot set special addressbook collected_senders, there are 0 candidates (need: 1)'
+                    'Cannot set special addressbook collected_senders, there are 0 candidates (need: 1)',
+                    'Cannot set special addressbook default_addressbook, there are 0 candidates (need: 1)'
                 ]
             ],
             'Multiple matches' => [
                 "$base/matchMultiple.php",
                 [
                     'Cannot set special addressbook collected_recipients, there are 2 candidates (need: 1)',
-                    'Cannot set special addressbook collected_senders, there are 2 candidates (need: 1)'
+                    'Cannot set special addressbook collected_senders, there are 2 candidates (need: 1)',
+                    'Cannot set special addressbook default_addressbook, there are 2 candidates (need: 1)'
                 ]
             ],
-            'Preset not yet in DB' => [ "$base/presetNotInDbYet.php", [null, null] ],
+            'Preset not yet in DB' => [ "$base/presetNotInDbYet.php", [null, null, null] ],
         ];
     }
 
     /**
      * @param string $admSettingsPath Path name of config.inc.php file
-     * @param list{?string,?string} $expIds Expected abook IDs for 0: collected_recipients, 1: collected_senders
+     * @param list{?string,?string,?string} $expIds Expected abook IDs for 0: collected_recipients,
+     *                                              1: collected_senders, 2: default_addressbook
      * @dataProvider specialAbookTestProvider
      */
     public function testSpecialAddressbooksReturnedCorrectly(string $admSettingsPath, array $expIds): void
@@ -100,7 +103,7 @@ final class AdminSettingsWithDataTest extends TestCase
         $specialAbooks = $admPrefs->getSpecialAddressbooks($abMgr, $infra);
 
         $i = 0;
-        foreach (['collected_recipients', 'collected_senders'] as $abookType) {
+        foreach (['collected_recipients', 'collected_senders', 'default_addressbook'] as $abookType) {
             if (isset($expIds[$i])) {
                 if (strpos($expIds[$i], ' ') === false) {
                     $this->assertArrayHasKey($abookType, $specialAbooks);
@@ -113,7 +116,7 @@ final class AdminSettingsWithDataTest extends TestCase
                 $this->assertArrayNotHasKey($abookType, $specialAbooks);
             }
 
-            $i = 1;
+            $i++;
         }
     }
 
@@ -192,33 +195,6 @@ final class AdminSettingsWithDataTest extends TestCase
         $this->assertSame('0', $tmpl['require_always_email'] ?? '');
         // template is not part of preset
         $this->assertArrayNotHasKey('template', $tmpl);
-    }
-
-    /**
-     * @return array<string, list{string, list{?string,?string}}>
-     */
-    public function initPresetDataProvider(): array
-    {
-        $base = 'tests/Unit/data/adminSettingsWithDataTest';
-
-        return [
-            'Two matchers, one match' => [ "$base/matchBoth.php", ['43', '43'] ],
-            'No matches (invalid preset, AND condition eval)' => [
-                "$base/noMatch.php",
-                [
-                    'Setting for collected_recipients must include a valid preset attribute',
-                    'Cannot set special addressbook collected_senders, there are 0 candidates (need: 1)'
-                ]
-            ],
-            'Multiple matches' => [
-                "$base/matchMultiple.php",
-                [
-                    'Cannot set special addressbook collected_recipients, there are 2 candidates (need: 1)',
-                    'Cannot set special addressbook collected_senders, there are 2 candidates (need: 1)'
-                ]
-            ],
-            'Preset not yet in DB' => [ "$base/presetNotInDbYet.php", [null, null] ],
-        ];
     }
 
     /**

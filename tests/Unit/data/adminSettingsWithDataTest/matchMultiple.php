@@ -12,6 +12,11 @@ $prefs['_GLOBAL']['collected_senders'] = [
     'matchurl' => '/%u/',
 ];
 
+$prefs['_GLOBAL']['default_addressbook'] = [
+    'preset'  => 'AdmPreset',
+    'matchname' => '/Add/',
+];
+
 $prefs['AdmPreset'] = [
     'accountname'         =>  'Admin Preset',
     'discovery_url'       =>  'https://carddav.example.com/',

@@ -304,15 +304,16 @@ Preconfigured addressbooks are processed when the user logs into roundcube.
 - If the user has addressbooks created from a preset that no longer exists (identified by the Presetname), the
   addressbooks are deleted from the database.
 
-### Using presets for the roundcube trusted senders/collected recipients addressbooks
+### Using presets for the roundcube trusted senders/collected recipients addressbooks and default addressbook
 
 Roundcube 1.5 and newer has two special internal addressbooks to automatically collect all addresses the user previously
 sent mail to (roundcube config option: `collected_recipients`) and to collect addresses of trusted senders (roundcube
 config option: `collected_senders`).
 
-It is possible for a user to manually select CardDAV addressbooks for these two special purpose addressbooks using
-the roundcube settings interface. When using preconfigured CardDAV addressbooks, the admin may want to also set these
-special addressbooks by configuration, which is possible using the following configuration options:
+It is possible for a user to manually select CardDAV addressbooks for these two special purpose addressbooks and the
+roundcube default addressbook using the roundcube settings interface. When using preconfigured CardDAV addressbooks, the
+admin may want to also set these special addressbooks or the default addressbook by configuration, which is possible
+using the following configuration options:
 
 ```php
 $prefs['_GLOBAL']['collected_recipients'] = [
@@ -323,6 +324,9 @@ $prefs['_GLOBAL']['collected_recipients'] = [
     'matchurl' => '#http://carddav.example.com/abooks/%u/CollectedRecipients#',
 ];
 $prefs['_GLOBAL']['collected_senders'] = [
+    // Configuration analog to collected recipients
+];
+$prefs['_GLOBAL']['default_addressbook'] = [
     // Configuration analog to collected recipients
 ];
 ```
@@ -355,7 +359,7 @@ Configuration of these addressbooks by the user can be disabled using the follow
 roundcube (not RCMCardDAV) configuration:
 
 ```php
-$config['dont_override'] = ['collected_recipients', 'collected_senders'];
+$config['dont_override'] = ['collected_recipients', 'collected_senders', 'default_addressbook'];
 ```
 
 When using the trusted senders addressbook, please also configure the roundcube options `show_images` and `mdn_requests`

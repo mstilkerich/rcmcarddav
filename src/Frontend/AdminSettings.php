@@ -44,7 +44,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  * @psalm-type ConfigurablePresetAttr = 'accountname'|'discovery_url'|'username'|'password'|'rediscover_time'|
  *                                      'active'|'refresh_time'|'use_categories'|'readonly'|'require_always_email'|
  *                                      'name'|'preemptive_basic_auth'|'ssl_noverify'
- * @psalm-type SpecialAbookType = 'collected_recipients'|'collected_senders'
+ * @psalm-type SpecialAbookType = 'collected_recipients'|'collected_senders'|'default_addressbook'
  * @psalm-type SpecialAbookMatch = array{preset: string, matchname?: string, matchurl?: string}
  *
  * @psalm-type PresetExtraAbook = array{
@@ -258,7 +258,7 @@ class AdminSettings
         }
 
         // Extract filter for special addressbooks
-        foreach ([ 'collected_recipients', 'collected_senders' ] as $setting) {
+        foreach ([ 'collected_recipients', 'collected_senders', 'default_addressbook' ] as $setting) {
             if (isset($gprefs[$setting]) && is_array($gprefs[$setting])) {
                 $matchSettings = $gprefs[$setting];
 

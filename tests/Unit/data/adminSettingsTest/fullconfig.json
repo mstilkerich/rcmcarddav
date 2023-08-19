@@ -12,6 +12,10 @@
 		"collected_senders": {
 			"preset": "OnlyShared",
 			"matchname": "/shared example\\.com addressbook/i"
+		},
+		"default_addressbook": {
+			"preset": "Preset1",
+			"matchurl": "#.*\\.example\\.com/example\\.com/user/user@example\\.com#"
 		}
 	},
 	"presets": {

@@ -29,8 +29,8 @@
 $prefs['_GLOBAL']['loglevel'] = \Psr\Log\LogLevel::WARNING;
 $prefs['_GLOBAL']['loglevel_http'] = \Psr\Log\LogLevel::ERROR;
 
-// Select addressbook from preset to use as Roundcube's collected recipients or collected/trusted senders addressbook,
-// corresponding to the roundcube options of the same name available since roundcube 1.5.
+// Select addressbook from preset to use as Roundcube's collected recipients, collected/trusted senders or default
+// addressbook, corresponding to the roundcube options of the same name available since roundcube 1.5.
 // Note that only writeable addressbooks can be used for this. If you do not want to use these options, simply do not
 // define them
 // If no/several addressbooks match, the roundcube setting will not be changed
@@ -43,6 +43,14 @@ $prefs['_GLOBAL']['loglevel_http'] = \Psr\Log\LogLevel::ERROR;
 //    'matchurl' => '#http://carddav.example.com/abooks/%u/CollectedRecipients#',
 //];
 //$prefs['_GLOBAL']['collected_senders'] = [
+//    // Key of the preset, i.e. whatever is used for <Presetname> in the template below
+//    'preset'  => '<Presetname>',
+//    // The placeholders that can be used in the url attribute can also be used inside these regular rexpressions
+//    // If both matchname and matchurl are given, both need to match for the addressbook to be used
+//    'matchname' => '/collected recipients/i',
+//    'matchurl' => '#http://carddav.example.com/abooks/%u/CollectedRecipients#',
+//];
+//$prefs['_GLOBAL']['default_addressbook'] = [
 //    // Key of the preset, i.e. whatever is used for <Presetname> in the template below
 //    'preset'  => '<Presetname>',
 //    // The placeholders that can be used in the url attribute can also be used inside these regular rexpressions

@@ -16,6 +16,10 @@ $prefs['_GLOBAL']['collected_senders'] = [
     'preset'  => 'OnlyShared',
     'matchname' => '/shared %d addressbook/i',
 ];
+$prefs['_GLOBAL']['default_addressbook'] = [
+    'preset'  => 'Preset1',
+    'matchurl' => '#.*\.example\.com/%d/%l/%u#',
+];
 
 $prefs['Preset1'] = [
     'accountname'         =>  'First Preset',

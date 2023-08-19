@@ -4,6 +4,7 @@
 
 - Allow to hide contacts without email also for user-defined addressbooks (Fixes #429)
 - Re-introduced option `preemptive_basic_auth` to send HTTP basic Authorization header with every request (Fixes #407)
+- Support setting roundcube's default addressbook to an addressbook from a preset (Fixes #440)
 
 ## Version 5.0.1 (to 5.0.0)
 
