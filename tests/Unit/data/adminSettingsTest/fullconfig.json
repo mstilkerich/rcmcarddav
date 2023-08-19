@@ -29,7 +29,7 @@
 			"readonly": "1",
 			"refresh_time": "7200",
 			"use_categories": "0",
-			"fixed": [ "accountname", "readonly", "require_always_email" ],
+			"fixed": [ "accountname", "readonly" ],
 			"require_always_email": "1",
 			"extra_addressbooks": {
 				"https://cdav.example.com/shared/book": {
@@ -39,7 +39,7 @@
 					"readonly": "0",
 					"refresh_time": "7380",
 					"use_categories": "1",
-					"fixed": [ "refresh_time", "readonly", "require_always_email" ],
+					"fixed": [ "refresh_time", "readonly" ],
 					"require_always_email": "0"
 				},
 				"https://cdav.example.com/shared/book2": {
@@ -49,7 +49,7 @@
 					"readonly": "1",
 					"refresh_time": "7200",
 					"use_categories": "0",
-					"fixed": [ "accountname", "readonly", "require_always_email" ],
+					"fixed": [ "accountname", "readonly" ],
 					"require_always_email": "1"
 				},
 				"https://cdav.example.com/example.com/user/user@example.com": {
@@ -59,7 +59,7 @@
 					"readonly": "0",
 					"refresh_time": "7200",
 					"use_categories": "0",
-					"fixed": [ "readonly", "require_always_email" ],
+					"fixed": [ "readonly" ],
 					"require_always_email": "1"
 				}
 			}
@@ -78,7 +78,7 @@
 			"readonly": "0",
 			"refresh_time": "3600",
 			"use_categories": "1",
-			"fixed": [ "readonly", "require_always_email" ],
+			"fixed": [ "readonly" ],
 			"require_always_email": "0",
 			"extra_addressbooks": {
 			}
@@ -97,7 +97,7 @@
 			"readonly": "0",
 			"refresh_time": "3600",
 			"use_categories": "1",
-			"fixed": [ "readonly", "require_always_email" ],
+			"fixed": [ "readonly" ],
 			"require_always_email": "0",
 			"extra_addressbooks": {
 				"https://cdavshared.example.com/shared/book": {
@@ -107,7 +107,7 @@
 					"readonly": "0",
 					"refresh_time": "3600",
 					"use_categories": "1",
-					"fixed": [ "readonly", "require_always_email" ],
+					"fixed": [ "readonly" ],
 					"require_always_email": "0"
 				}
 			}

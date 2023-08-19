@@ -88,7 +88,7 @@ class AdminSettings
      * @var list<string> ALWAYS_FIXED
      *     List of attributes that are always fixed. This makes sure the attribute is updated from the preset on login.
      */
-    private const ALWAYS_FIXED = ['readonly', 'require_always_email'];
+    private const ALWAYS_FIXED = ['readonly'];
 
     /**
      * @var list<string> ABOOK_ATTRS
