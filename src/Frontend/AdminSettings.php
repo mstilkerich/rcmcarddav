@@ -45,7 +45,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *                                      'active'|'refresh_time'|'use_categories'|'readonly'|'require_always_email'|
  *                                      'name'|'preemptive_basic_auth'|'ssl_noverify'
  * @psalm-type SpecialAbookType = 'collected_recipients'|'collected_senders'|'default_addressbook'
- * @psalm-type SpecialAbookMatch = array{preset: string, matchname?: string, matchurl?: string}
+ * @psalm-type SpecialAbookMatch = array{preset: string, matchname?: non-empty-string, matchurl?: non-empty-string}
  *
  * @psalm-type PresetExtraAbook = array{
  *     url: string,
@@ -272,9 +272,14 @@ class AdminSettings
                     foreach (['matchname', 'matchurl'] as $matchType) {
                         if (isset($matchSettings[$matchType]) && is_string($matchSettings[$matchType])) {
                             $matchexpr = $matchSettings[$matchType];
-                            $matchSettings2[$matchType] = Utils::replacePlaceholdersUrl($matchexpr, true);
+                            $matchexpr = Utils::replacePlaceholdersUrl($matchexpr, true);
+                            if (strlen($matchexpr) > 0) {
+                                /** @psalm-var non-empty-string $matchexpr */
+                                $matchSettings2[$matchType] = $matchexpr;
+                            }
                         }
                     }
+
                     $this->specialAbookMatchers[$setting] = $matchSettings2;
                 } else {
                     $logger->error("Setting for $setting must include a valid preset attribute");
@@ -709,6 +714,7 @@ class AdminSettings
                 foreach (['matchname', 'matchurl'] as $matchType) {
                     $matchexpr = $matchSettings[$matchType] ?? 0;
                     if (is_string($matchexpr)) {
+                        /** @psalm-var non-empty-string $matchexpr */
                         if (!preg_match($matchexpr, $abookCfg[substr($matchType, 5)])) {
                             continue 2;
                         }
