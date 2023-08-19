@@ -31,7 +31,7 @@ use Psr\Log\{LoggerInterface,LogLevel};
 use MStilkerich\CardDavClient\{Account,WebDavResource};
 use MStilkerich\CardDavClient\Services\{Discovery,Sync};
 use MStilkerich\RCMCardDAV\Db\{Database, AbstractDatabase};
-use MStilkerich\RCMCardDAV\Frontend\{RcmInterface, AdminSettings};
+use MStilkerich\RCMCardDAV\Frontend\{RcmInterface, AdminSettings, AddressbookManager, Utils};
 use rcube;
 use rcube_cache;
 
@@ -39,6 +39,8 @@ use rcube_cache;
  * This class is intended as a central point to inject dependencies to infrastructure classes.
  *
  * This allows replacing dependencies in unit tests with mock objects.
+ *
+ * @psalm-import-type AccountSettings from AddressbookManager
  */
 class Config
 {
@@ -158,9 +160,13 @@ class Config
      * Creates an Account object from the credentials in rcmcarddav.
      *
      * Particularly, this takes care of setting up the credentials information properly.
+     *
+     * @param AccountSettings $accountCfg
      */
-    public static function makeAccount(string $discUrl, string $username, string $password, ?string $baseUrl): Account
+    public static function makeAccount(array $accountCfg): Account
     {
+        $password = Utils::replacePlaceholdersPassword($accountCfg['password'] ?? '');
+
         if ($password == "%b") {
             if (
                 isset($_SESSION['oauth_token'])
@@ -168,15 +174,20 @@ class Config
                 && isset($_SESSION['oauth_token']['access_token'])
                 && is_string($_SESSION['oauth_token']['access_token'])
             ) {
-                $credentials = [ 'bearertoken' => $_SESSION['oauth_token']['access_token'] ];
+                $httpOptions = [ 'bearertoken' => $_SESSION['oauth_token']['access_token'] ];
             } else {
                 throw new Exception("OAUTH2 bearer authentication requested, but no token available in roundcube");
             }
         } else {
-            $credentials = [ 'username' => $username, 'password' => $password ];
+            $username = Utils::replacePlaceholdersUsername($accountCfg['username'] ?? '');
+            $httpOptions = [ 'username' => $username, 'password' => $password ];
         }
 
-        return new Account($discUrl, $credentials, "", $baseUrl);
+        $httpOptions['preemptive_basic_auth'] = (bool) ($accountCfg['preemptive_basic_auth'] ?? false);
+        $httpOptions['verify'] = !((bool) ($accountCfg['ssl_noverify'] ?? false));
+
+        $discUrl  = Utils::replacePlaceholdersUrl($accountCfg['discovery_url'] ?? '');
+        return new Account($discUrl, $httpOptions);
     }
 }
 

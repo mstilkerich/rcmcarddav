@@ -61,6 +61,10 @@ $labels = Array(
 	'AccProps_rediscover_time_lbl' => 'Wiederentdeckungs-Intervall (Stunden)',
 	'AccProps_lastdiscovered_time_lbl' => 'Zuletzt wiederentdeckt',
 
+	'AdvancedOpt_rclbl' => 'Erweiterte Einstellungen',
+	'AccProps_preemptive_basic_auth_lbl' => 'Sende HTTP Basic Authentifizierungsdaten mit jeder Anfrage an den Server',
+	'AccProps_ssl_noverify_lbl' => 'Verifikation von SSL-Zertifikate deaktivieren',
+
 	// Addressbook details page
 	'AbProps_rclbl' => 'Adressbuch-Eigenschaften',
 	// basicinfo

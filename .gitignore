@@ -1,4 +1,5 @@
 .phpunit.result.cache
+.phpunit.cache
 .DS_Store
 ./config.inc.php
 /.phpdoc

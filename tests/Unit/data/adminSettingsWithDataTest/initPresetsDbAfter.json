@@ -9,7 +9,8 @@
 			"user_id": "105",
 			"last_discovered": 12345,
 			"rediscover_time": 86400,
-			"presetname": "UpdatedPreset"
+			"presetname": "UpdatedPreset",
+			"flags": 1
 		},
 		{
 			"id": 44,
@@ -20,7 +21,8 @@
 			"user_id": "105",
 			"last_discovered": 0,
 			"rediscover_time": 36000,
-			"presetname": "NewPreset"
+			"presetname": "NewPreset",
+			"flags": 3
 		}
 	],
 	"addressbooks": [

@@ -25,6 +25,8 @@ $prefs['Preset1'] = [
     'discovery_url'          =>  'cdav.example.com/%u',
     'rediscover_time' => '01:02:34',
     'hide' => true,
+    'preemptive_basic_auth' => true,
+    'ssl_noverify' => true,
 
     // Auto-discovered addressbook attributes
     //// optional attributes

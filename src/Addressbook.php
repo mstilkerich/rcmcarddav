@@ -32,30 +32,17 @@ use Sabre\VObject;
 use Sabre\VObject\Component\VCard;
 use rcube_addressbook;
 use rcube_result_set;
-use MStilkerich\CardDavClient\AddressbookCollection;
+use MStilkerich\CardDavClient\{Account, AddressbookCollection};
 use MStilkerich\CardDavClient\Services\Sync;
 use MStilkerich\RCMCardDAV\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
+use MStilkerich\RCMCardDAV\Frontend\AddressbookManager;
 
 /**
  * @psalm-import-type SaveData from DataConversion
  * @psalm-import-type SaveDataFromDC from DataConversion
  * @psalm-import-type SaveDataAddressField from DataConversion
  *
- * @psalm-type Int1 = '0' | '1'
- *
- * @psalm-type AddressbookOptions = array{
- *   name: string,
- *   username: string,
- *   password: string,
- *   url: string,
- *   use_categories: Int1,
- *   readonly: Int1,
- *   require_always_email: Int1,
- *   last_updated: numeric-string,
- *   refresh_time: numeric-string,
- *   sync_token: string,
- *   ...
- * }
+ * @psalm-import-type AbookCfg from AddressbookManager
  *
  * @psalm-type GroupSaveData = array{
  *   ID: string,
@@ -83,7 +70,10 @@ class Addressbook extends rcube_addressbook
     /** @var ?rcube_result_set The result of the last get_record(), list_records() or search() operation */
     private $result = null;
 
-    /** @var AddressbookOptions Various options for the behavior of the addressbook */
+    /** @var Account Account for CardDAV access */
+    private $account;
+
+    /** @var AbookCfg Various options for the behavior of the addressbook */
     private $config;
 
     /** @var array $table_cols
@@ -96,10 +86,12 @@ class Addressbook extends rcube_addressbook
      * Constructs an addressbook object.
      *
      * @param string $dbid The database ID of the addressbook
-     * @param AddressbookOptions $config Options for the addressbook
+     * @param Account $account Account object for CardDAV access
+     * @param AbookCfg $config Options for the addressbook
      */
-    public function __construct(string $dbid, array $config)
+    public function __construct(string $dbid, Account $account, array $config)
     {
+        $this->account = $account;
         $this->config = $config;
         $this->primary_key = 'id';
         $this->groups   = true;
@@ -1609,12 +1601,7 @@ class Addressbook extends rcube_addressbook
             $infra = Config::inst();
             $url = $this->config["url"];
 
-            // only the username and password are stored to DB before replacing placeholders
-            $username = $this->config["username"];
-            $password = $this->config["password"];
-
-            $account = Config::makeAccount($url, $username, $password, $url);
-            $davAbook = $infra->makeWebDavResource($url, $account);
+            $davAbook = $infra->makeWebDavResource($url, $this->account);
             if ($davAbook instanceof AddressbookCollection) {
                 $this->davAbook = $davAbook;
             } else {

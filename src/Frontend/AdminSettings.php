@@ -43,7 +43,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
  * @psalm-type ConfigurablePresetAttr = 'accountname'|'discovery_url'|'username'|'password'|'rediscover_time'|
  *                                      'active'|'refresh_time'|'use_categories'|'readonly'|'require_always_email'|
- *                                      'name'
+ *                                      'name'|'preemptive_basic_auth'|'ssl_noverify'
  * @psalm-type SpecialAbookType = 'collected_recipients'|'collected_senders'
  * @psalm-type SpecialAbookMatch = array{preset: string, matchname?: string, matchurl?: string}
  *
@@ -65,6 +65,8 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *     discovery_url: ?string,
  *     rediscover_time: numeric-string,
  *     hide: Int1,
+ *     preemptive_basic_auth: Int1,
+ *     ssl_noverify: Int1,
  *     name: string,
  *     active: Int1,
  *     readonly: Int1,
@@ -86,7 +88,7 @@ class AdminSettings
      * @var list<string> ALWAYS_FIXED
      *     List of attributes that are always fixed. This makes sure the attribute is updated from the preset on login.
      */
-    private const ALWAYS_FIXED = ['readonly', 'require_always_email'];
+    private const ALWAYS_FIXED = ['readonly'];
 
     /**
      * @var list<string> ABOOK_ATTRS
@@ -104,6 +106,9 @@ class AdminSettings
         'rediscover_time'    => '86400',
 
         'hide'               => '0',
+        'preemptive_basic_auth' => '0',
+        'ssl_noverify'       => '0',
+
         'name'               => '%N',
         'active'             => '1',
         'readonly'           => '0',
@@ -153,6 +158,8 @@ class AdminSettings
         'discovery_url'      => [ 'url',      false ],
         'rediscover_time'    => [ 'timestr',  false ],
         'hide'               => [ 'bool',     false ],
+        'preemptive_basic_auth' => [ 'bool',  false ],
+        'ssl_noverify'       => [ 'bool',     false ],
         'extra_addressbooks' => [ 'skip',     false ],
     ] + self::PRESET_SETTINGS_COMMON;
 
@@ -466,12 +473,7 @@ class AdminSettings
                 try {
                     // no expansion of name template string for the template addressbook
                     if (empty($abookCfg['template']) && $k === 'name') {
-                        $account = Config::makeAccount(
-                            '',
-                            Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
-                            Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
-                            null
-                        );
+                        $account = Config::makeAccount($accountCfg);
                         $abook = $infra->makeWebDavResource($abookCfg['url'], $account);
                         if ($abook instanceof AddressbookCollection) {
                             $preset['name'] = $abMgr->replacePlaceholdersAbookName(
@@ -517,12 +519,7 @@ class AdminSettings
         string $presetName
     ): void {
         try {
-            $account = Config::makeAccount(
-                '',
-                Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
-                Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
-                null
-            );
+            $account = Config::makeAccount($accountCfg);
             $abook = $infra->makeWebDavResource($xabookUrl, $account);
             if ($abook instanceof AddressbookCollection) {
                 // Get values for the optional settings that the admin may have configured as part of the preset

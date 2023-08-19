@@ -9,7 +9,9 @@ $prefs['UpdatedPreset'] = [
     'accountname'         => 'Updated Account',
     'discovery_url'       => 'https://carddav.example.com/',
 
-    'fixed'               => [ 'username', 'refresh_time', 'require_always_email', 'name' ],
+    'fixed'               => [
+        'username', 'refresh_time', 'require_always_email', 'name', 'preemptive_basic_auth', 'ssl_noverify'
+    ],
 
     'username'            => 'foodoo',
     'password'            => 'bar',
@@ -19,6 +21,9 @@ $prefs['UpdatedPreset'] = [
     'require_always_email' => true,
     'name'                => '%N (%D)',
     'use_categories'      => false,
+
+    'preemptive_basic_auth' => true,
+    'ssl_noverify' => false,
 
     'extra_addressbooks' => [
         [
@@ -50,6 +55,9 @@ $prefs['NewPreset'] = [
 
     'refresh_time'        => '5:00',
     'name'                => '%N (%D)',
+
+    'preemptive_basic_auth' => true,
+    'ssl_noverify' => true,
 
     'extra_addressbooks' => [
         [

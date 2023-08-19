@@ -5,9 +5,12 @@
 </head>
 <body class="iframe">
 
+<!-- place in body to make sure it is loaded after jquery.js -->
+<script src="/this/carddav_ui.js"></script>
+
 <h1 class="boxtitle"><roundcube:label name="carddav.AccProps_rclbl" /></h1>
 
-<div class="boxcontent">
+<div class="boxcontent" id="preferences-details">
 <roundcube:object id="accountdetails" name="accountdetails" class="propform" />
 </div>
 

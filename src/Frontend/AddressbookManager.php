@@ -41,10 +41,23 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  * The data types AccountCfg / AbookCfg describe the configuration of an account / addressbook as stored in the
  * database, with mappings of bitfields to the individual attributes.
  *
- * For account, there are currently no bitfields, thus AccountCfg and FullAccountRow are the same.
- * @psalm-type AccountCfg = FullAccountRow
- *
  * @psalm-type Int1 = '0' | '1'
+ *
+ * @psalm-type AccountCfg = array{
+ *     id: string,
+ *     user_id: string,
+ *     accountname: string,
+ *     username: string,
+ *     password: string,
+ *     discovery_url: ?string,
+ *     last_discovered: numeric-string,
+ *     rediscover_time: numeric-string,
+ *     presetname: ?string,
+ *     flags: numeric-string,
+ *     preemptive_basic_auth: Int1,
+ *     ssl_noverify: Int1
+ * }
+*
  * @psalm-type AbookCfg = array{
  *     id: string,
  *     account_id: string,
@@ -80,7 +93,9 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  *     discovery_url?: ?string,
  *     rediscover_time?: numeric-string,
  *     last_discovered?: numeric-string,
- *     presetname?: ?string
+ *     presetname?: ?string,
+ *     preemptive_basic_auth?: Int1,
+ *     ssl_noverify?: Int1
  * } & array<string, ?string>
  *
  * @psalm-type AbookSettings = array{
@@ -154,6 +169,8 @@ class AddressbookManager
         'rediscover_time' => [ false, true ],
         'last_discovered' => [ false, true ],
         'presetname' => [ false, false ],
+        'preemptive_basic_auth' => [false, true],
+        'ssl_noverify' => [false, true],
     ];
 
     /**
@@ -208,7 +225,8 @@ class AddressbookManager
             $this->accountsDb = [];
             /** @var FullAccountRow $accrow */
             foreach ($db->get(['user_id' => (string) $_SESSION['user_id']], [], 'accounts') as $accrow) {
-                $this->accountsDb[$accrow["id"]] = $accrow;
+                $accountCfg = $this->accountRow2Cfg($accrow);
+                $this->accountsDb[$accrow["id"]] = $accountCfg;
             }
         }
 
@@ -260,7 +278,8 @@ class AddressbookManager
             $pa['password'] = Utils::encryptPassword($pa['password']);
         }
 
-        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ACCOUNT_SETTINGS, true);
+        [ 'default' => $flagsInit, 'fields' => $flagAttrs ] = AbstractDatabase::FLAGS_COLS['accounts'];
+        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ACCOUNT_SETTINGS, true, $flagAttrs, $flagsInit);
 
         $cols[] = 'user_id';
         $vals[] = (string) $_SESSION['user_id'];
@@ -285,7 +304,10 @@ class AddressbookManager
             $pa['password'] = Utils::encryptPassword($pa['password']);
         }
 
-        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ACCOUNT_SETTINGS, false);
+        $accountCfg = $this->getAccountConfig($accountId);
+        $flagAttrs = AbstractDatabase::FLAGS_COLS['accounts']['fields'];
+        $flagsInit = intval($accountCfg['flags']);
+        [ $cols, $vals ] = $this->prepareDbRow($pa, self::ACCOUNT_SETTINGS, false, $flagAttrs, $flagsInit);
 
         $userId = (string) $_SESSION['user_id'];
         if (!empty($cols) && !empty($userId)) {
@@ -346,6 +368,26 @@ class AddressbookManager
 
         /** @psalm-var AbookCfg $abookrow Psalm does not keep track of the type of individual array members above */
         return $abookrow;
+    }
+
+    /**
+     * Converts an account DB row to an account config.
+     *
+     * This means that fields that are stored differently in the DB than presented at application level are converted
+     * from DB format to application level. Currently, this conversion is only needed for bitfields.
+     *
+     * @param FullAccountRow $row
+     * @return AccountCfg
+     */
+    private function accountRow2Cfg(array $row): array
+    {
+        // set the application-level fields from the DB-level fields
+        foreach (AbstractDatabase::FLAGS_COLS['accounts']['fields'] as $cfgAttr => $bitPos) {
+            $row[$cfgAttr] = (($row['flags'] & (1 << $bitPos)) ? '1' : '0');
+        }
+
+        /** @psalm-var AccountCfg $row Psalm does not keep track of the type of individual array members above */
+        return $row;
     }
 
     /**
@@ -445,14 +487,11 @@ class AddressbookManager
     public function getAddressbook(string $abookId): Addressbook
     {
         $config = $this->getAddressbookConfig($abookId);
-        $account = $this->getAccountConfig($config["account_id"]);
+        $accountCfg = $this->getAccountConfig($config["account_id"]);
 
-        // username and password may be stored as placeholders in the database
-        // the URL is always stored without placeholders and needs not be replaced
-        $config['username'] = Utils::replacePlaceholdersUsername($account["username"]);
-        $config['password'] = Utils::replacePlaceholdersPassword($account["password"]);
+        $account = Config::makeAccount($accountCfg);
 
-        return new Addressbook($abookId, $config);
+        return new Addressbook($abookId, $account, $config);
     }
 
 
@@ -604,12 +643,7 @@ class AddressbookManager
             throw new Exception('Cannot discover addressbooks for an account lacking a discovery URI');
         }
 
-        $account = Config::makeAccount(
-            Utils::replacePlaceholdersUrl($accountCfg['discovery_url']),
-            Utils::replacePlaceholdersUsername($accountCfg['username'] ?? ''),
-            Utils::replacePlaceholdersPassword($accountCfg['password'] ?? ''),
-            null
-        );
+        $account = Config::makeAccount($accountCfg);
 
         /** @psalm-var AccountSettings $accountCfg XXX temporary workaround for vimeo/psalm#8980 */
 

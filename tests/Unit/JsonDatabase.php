@@ -131,12 +131,16 @@ class JsonDatabase extends AbstractDatabase
         foreach ($data as $table => $rows) {
             TestCase::assertIsString($table, "Indexes of import data must be table names");
             TestCase::assertIsArray($rows, "Table data must be array of rows");
+            TestCase::assertArrayHasKey($table, $this->schema);
 
             foreach (array_keys($rows) as $rowidx) {
                 TestCase::assertIsArray($rows[$rowidx], "Row data must be an array");
                 $row = $rows[$rowidx];
                 $cols = [];
                 $vals = [];
+                TestCase::assertEquals([], array_diff_key($this->schema[$table], $row), "Row lacks columns");
+                TestCase::assertEquals([], array_diff_key($row, $this->schema[$table]), "Row has non-schema columns");
+
                 foreach (array_keys($row) as $col) {
                     TestCase::assertIsString($col, "Column name must be string");
                     $cols[] = $col;

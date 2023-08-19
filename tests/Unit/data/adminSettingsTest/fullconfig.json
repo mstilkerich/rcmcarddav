@@ -22,12 +22,14 @@
 			"discovery_url": "cdav.example.com/user@example.com",
 			"rediscover_time": "3754",
 			"hide": "1",
+			"preemptive_basic_auth": "1",
+			"ssl_noverify": "1",
 			"name": "%a (%N)",
 			"active": "0",
 			"readonly": "1",
 			"refresh_time": "7200",
 			"use_categories": "0",
-			"fixed": [ "accountname", "readonly", "require_always_email" ],
+			"fixed": [ "accountname", "readonly" ],
 			"require_always_email": "1",
 			"extra_addressbooks": {
 				"https://cdav.example.com/shared/book": {
@@ -37,7 +39,7 @@
 					"readonly": "0",
 					"refresh_time": "7380",
 					"use_categories": "1",
-					"fixed": [ "refresh_time", "readonly", "require_always_email" ],
+					"fixed": [ "refresh_time", "readonly" ],
 					"require_always_email": "0"
 				},
 				"https://cdav.example.com/shared/book2": {
@@ -47,7 +49,7 @@
 					"readonly": "1",
 					"refresh_time": "7200",
 					"use_categories": "0",
-					"fixed": [ "accountname", "readonly", "require_always_email" ],
+					"fixed": [ "accountname", "readonly" ],
 					"require_always_email": "1"
 				},
 				"https://cdav.example.com/example.com/user/user@example.com": {
@@ -57,7 +59,7 @@
 					"readonly": "0",
 					"refresh_time": "7200",
 					"use_categories": "0",
-					"fixed": [ "readonly", "require_always_email" ],
+					"fixed": [ "readonly" ],
 					"require_always_email": "1"
 				}
 			}
@@ -69,12 +71,14 @@
 			"discovery_url": null,
 			"rediscover_time": "86400",
 			"hide": "0",
+			"preemptive_basic_auth": "0",
+			"ssl_noverify": "0",
 			"name": "%N",
 			"active": "1",
 			"readonly": "0",
 			"refresh_time": "3600",
 			"use_categories": "1",
-			"fixed": [ "readonly", "require_always_email" ],
+			"fixed": [ "readonly" ],
 			"require_always_email": "0",
 			"extra_addressbooks": {
 			}
@@ -86,12 +90,14 @@
 			"discovery_url": null,
 			"rediscover_time": "86400",
 			"hide": "0",
+			"preemptive_basic_auth": "0",
+			"ssl_noverify": "0",
 			"name": "%N",
 			"active": "1",
 			"readonly": "0",
 			"refresh_time": "3600",
 			"use_categories": "1",
-			"fixed": [ "readonly", "require_always_email" ],
+			"fixed": [ "readonly" ],
 			"require_always_email": "0",
 			"extra_addressbooks": {
 				"https://cdavshared.example.com/shared/book": {
@@ -101,7 +107,7 @@
 					"readonly": "0",
 					"refresh_time": "3600",
 					"use_categories": "1",
-					"fixed": [ "readonly", "require_always_email" ],
+					"fixed": [ "readonly" ],
 					"require_always_email": "0"
 				}
 			}
