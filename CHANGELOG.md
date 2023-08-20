@@ -3,8 +3,11 @@
 ## Version 5.1.0 (to 5.0.1)
 
 - Allow to hide contacts without email also for user-defined addressbooks (Fixes #429)
-- Re-introduced option `preemptive_basic_auth` to send HTTP basic Authorization header with every request (Fixes #407)
+- Re-introduced option `preemptive_basic_auth` to send HTTP basic Authorization header with every request. Also settable
+  via user-interface. (Fixes #407)
 - Support setting roundcube's default addressbook to an addressbook from a preset (Fixes #440)
+- New option `ssl_noverify` to disable verification of the CardDAV server`s SSL certificate in HTTPS connections. Also
+  settable via user-interface.
 
 ## Version 5.0.1 (to 5.0.0)
 
