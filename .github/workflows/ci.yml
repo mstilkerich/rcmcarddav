@@ -57,6 +57,7 @@ jobs:
         with:
           files: testreports/unit/clover.xml
           flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
           name: RCMCardDAV unit test coverage
 
   dbinterop-sqlite3:
@@ -77,6 +78,7 @@ jobs:
         with:
           files: testreports/dbinterop-sqlite3/clover.xml
           flags: dbinterop-sqlite3
+          token: ${{ secrets.CODECOV_TOKEN }}
           name: RCMCardDAV SQLite3 database interoperability test coverage
 
   dbinterop-mysql:
@@ -132,6 +134,7 @@ jobs:
         with:
           files: testreports/dbinterop-mysql/clover.xml
           flags: dbinterop-mysql
+          token: ${{ secrets.CODECOV_TOKEN }}
           name: RCMCardDAV MySQL database interoperability test coverage
 
   dbinterop-postgres:
@@ -174,4 +177,5 @@ jobs:
         with:
           files: testreports/dbinterop-postgres/clover.xml
           flags: dbinterop-postgres
+          token: ${{ secrets.CODECOV_TOKEN }}
           name: RCMCardDAV PostgreSQL database interoperability test coverage
