@@ -481,6 +481,7 @@ class AdminSettings
                         $account = Config::makeAccount($accountCfg);
                         $abook = $infra->makeWebDavResource($abookCfg['url'], $account);
                         if ($abook instanceof AddressbookCollection) {
+                            /** @psalm-var Preset $preset */
                             $preset['name'] = $abMgr->replacePlaceholdersAbookName(
                                 $preset['name'],
                                 $accountCfg,
@@ -491,6 +492,7 @@ class AdminSettings
                         }
                     }
 
+                    /** @psalm-var Preset $preset */
                     if ($abookCfg[$k] != $preset[$k]) {
                         $pa[$k] = $preset[$k];
                     }

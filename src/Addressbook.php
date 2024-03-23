@@ -1062,7 +1062,6 @@ class Addressbook extends rcube_addressbook
                     $ids, // unfiltered ids allowed in adjustContactCategories()
                     /** @param list<string> $groups */
                     function (array &$groups, string $contact_id) use ($logger, $groupname, &$added): bool {
-                        /** @var int $added */
                         if (self::stringsAddRemove($groups, [ $groupname ])) {
                             $logger->debug("Adding contact $contact_id to category $groupname");
                             ++$added;
@@ -1073,7 +1072,6 @@ class Addressbook extends rcube_addressbook
                         return false;
                     }
                 );
-                /** @var int $added Reference from the closure appears to confuse psalm */
             }
 
             $this->resync();
@@ -1140,7 +1138,6 @@ class Addressbook extends rcube_addressbook
                     $ids, // unfiltered ids allowed in adjustContactCategories()
                     /** @param list<string> $groups */
                     function (array &$groups, string $contact_id) use ($logger, $groupname, &$deleted): bool {
-                        /** @var int $deleted */
                         if (self::stringsAddRemove($groups, [], [$groupname])) {
                             $logger->debug("Removing contact $contact_id from category $groupname");
                             ++$deleted;
@@ -1151,7 +1148,6 @@ class Addressbook extends rcube_addressbook
                         return false;
                     }
                 );
-                /** @psalm-var int $deleted Reference from the closure appears to confuse psalm */
             }
 
             $this->resync();
