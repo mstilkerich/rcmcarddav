@@ -1,5 +1,10 @@
 # Changelog for RCMCardDAV
 
+## Version 5.x.x (to 5.1.0)
+
+- Fix migration 7: The migration replaced placeholders in the addressbook URLs with the data of the user during whose
+  login the migration was executed. This would result in broken URLs in such cases.
+
 ## Version 5.1.0 (to 5.0.1)
 
 - Allow to hide contacts without email also for user-defined addressbooks (Fixes #429)

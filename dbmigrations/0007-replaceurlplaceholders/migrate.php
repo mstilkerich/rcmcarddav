@@ -59,7 +59,7 @@ class Migration0007 implements DBMigrationInterface
         }
 
         while ($row = $dbh->fetch_assoc($sql_result)) {
-            $url = self::replacePlaceholdersUrl((string) $row["url"]);
+            $url = self::replacePlaceholdersUrl((string) $row["url"], (string) $row["username"]);
             if ($url != $row["url"]) {
                 if ($dbh->query("UPDATE $abook_table SET url=? WHERE id=?", $url, $row["id"]) === false) {
                     $logger->error(
@@ -80,14 +80,15 @@ class Migration0007 implements DBMigrationInterface
         return true;
     }
 
-    private static function replacePlaceholdersUrl(string $url): string
+    private static function replacePlaceholdersUrl(string $url, string $username): string
     {
-        $rcmail = rcmail::get_instance();
+        $comp = explode("@", $username, 2);
+
         return strtr($url, [
-            '%u' => (string) $_SESSION['username'],
-            '%l' => $rcmail->user->get_username('local'),
-            '%d' => $rcmail->user->get_username('domain'),
-            '%V' => strtr((string) $_SESSION['username'], "@.", "__")
+            '%u' => $username,
+            '%l' => $comp[0],
+            '%d' => $comp[1] ?? '',
+            '%V' => strtr($username, "@.", "__")
         ]);
     }
 }

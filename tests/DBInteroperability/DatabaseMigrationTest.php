@@ -115,6 +115,28 @@ final class DatabaseMigrationTest extends TestCase
             ],
         ],
 
+        '0007-replaceurlplaceholders' => [
+            'insertRows' => [
+                [
+                    'table' => 'carddav_addressbooks',
+                    'cols' => [
+                        'name', 'username', 'password', 'url', 'active',
+                        'user_id', 'presetname', 'use_categories',
+                    ],
+                    'rows' => [
+                        [
+                            'StructUrl0', '%u', '%p', 'https://%l.x.de/%u/%V/%d/personal', '1',
+                            [ 'users', 0, '0000-dbinit' ], null, '1'
+                        ],
+                        [
+                            'StructUrl0', '%u', '%p', 'https://%l.x.de/%u/%V/%d/personal', '1',
+                            [ 'users', 1, '0000-dbinit' ], null, '1'
+                        ],
+                    ],
+                ],
+            ],
+        ],
+
         '0017-accountentities' => [
             // these rows are inserted before the migration is executed
             // datasets need to match the DB schema before the migration
@@ -189,6 +211,16 @@ final class DatabaseMigrationTest extends TestCase
                             'Radicale', 'ruser', 'rpass', 'https://radicale.example.com/dav/',
                             [ 'users', 1, '0000-dbinit' ], '0', '86400', null
                         ],
+                        [
+                            'StructUrl0', '%u', '%p',
+                            'https://testuser.x.de/testuser@example.com/testuser_example_com/example.com/',
+                            [ 'users', 0, '0000-dbinit' ], '0', '86400', null
+                        ],
+                        [
+                            'StructUrl0', '%u', '%p',
+                            'https://another.x.de/another@user.com/another_user_com/user.com/',
+                            [ 'users', 1, '0000-dbinit' ], '0', '86400', null
+                        ],
                     ],
                 ],
                 [
@@ -198,6 +230,18 @@ final class DatabaseMigrationTest extends TestCase
                         'account_id', 'last_updated', 'refresh_time', 'sync_token', 'use_categories',
                     ],
                     'rows' => [
+                        [
+                            'StructUrl0',
+                            'https://testuser.x.de/testuser@example.com/testuser_example_com/example.com/personal',
+                            '1',
+                            [ 'carddav_accounts', 4, '<checkRows>' ], '0', '3600', '', '1'
+                        ],
+                        [
+                            'StructUrl0',
+                            'https://another.x.de/another@user.com/another_user_com/user.com/personal',
+                            '1',
+                            [ 'carddav_accounts', 5, '<checkRows>' ], '0', '3600', '', '1'
+                        ],
                         [
                             'Personal', 'https://nc.cloud.com/c/personal', '1',
                             [ 'carddav_accounts', 0, '<checkRows>' ], '1626690000', '1234', 'sync@123', '1'
@@ -243,6 +287,16 @@ final class DatabaseMigrationTest extends TestCase
                         [ 'Nextcloud',  'https://nc.cloud.com/c/', 'admPreset' ],
                         [ 'Nextcloud', 'https://nc.cloud.com/c/', null ],
                         [ 'Radicale', 'https://radicale.example.com/dav/', null ],
+                        [
+                            'StructUrl0',
+                            'https://testuser.x.de/testuser@example.com/testuser_example_com/example.com/',
+                            null
+                        ],
+                        [
+                            'StructUrl0',
+                            'https://another.x.de/another@user.com/another_user_com/user.com/',
+                            null
+                        ],
                     ],
                 ],
             ],
