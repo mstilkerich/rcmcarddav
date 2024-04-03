@@ -497,13 +497,13 @@ final class DatabaseTest extends TestCase
     public function testExceptionOnFailureToConnectToDb($errFunc): void
     {
         if ($GLOBALS["TEST_DBTYPE"] == "sqlite3") {
-            $dbh = \rcube_db::factory("sqlite:///" . __DIR__ . "/../../testreports/does/not/doesNotExist.db");
+            $dbh = \rcube_db::factory("sqlite:////does/not/doesNotExist.db");
             $expErrMsg = 'doesNotExist.db';
         } elseif ($GLOBALS["TEST_DBTYPE"] == "postgres") {
-            $dbh = \rcube_db::factory("pgsql://a@unix(" . __DIR__ . "/../../testreports/does/not/doesNotExist)/db");
+            $dbh = \rcube_db::factory("pgsql://a@unix(/does/not/doesNotExist)/db");
             $expErrMsg = 'doesNotExist';
         } elseif ($GLOBALS["TEST_DBTYPE"] == "mysql") {
-            $dbh = \rcube_db::factory("mysql://a@unix(" . __DIR__ . "/../../testreports/does/not/doesNotExist)/db");
+            $dbh = \rcube_db::factory("mysql://a@unix(/does/not/doesNotExist)/db");
             $expErrMsg = 'No such file or directory';
         } else {
             $this->fail("unsupported DB");

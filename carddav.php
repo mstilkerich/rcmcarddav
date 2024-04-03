@@ -206,7 +206,11 @@ class carddav extends rcube_plugin implements RcmInterface
     public function showMessage(string $msg, string $msgType = 'notice', bool $override = false, int $timeout = 0): void
     {
         $rcube = rcube::get_instance();
-        $rcube->output->show_message($msg, $msgType, null, $override, $timeout);
+        $output = $rcube->output;
+
+        if ($output instanceof rcmail_output) {
+            $output->show_message($msg, $msgType, null, $override, $timeout);
+        }
     }
 
     public function clientCommand(string $method, ...$arguments): void

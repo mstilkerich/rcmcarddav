@@ -84,7 +84,7 @@ class Config
         $this->admPrefs = new AdminSettings(__DIR__ . '/../config.inc.php', $this->logger, $this->httpLogger);
 
         $rcube = rcube::get_instance();
-        $this->db = new Database($this->logger, $rcube->db);
+        $this->db = new Database($this->logger, $rcube->get_dbh());
     }
 
     public function db(): AbstractDatabase

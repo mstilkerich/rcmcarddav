@@ -448,7 +448,7 @@ class Addressbook extends rcube_addressbook
      * @param ?string $sort_order Sort order
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
-    public function set_sort_order($sort_col, $sort_order = null): void
+    public function set_sort_order($sort_col = null, $sort_order = null): void
     {
         if (isset($sort_col) && key_exists($sort_col, $this->coltypes)) {
             $this->sort_col = $sort_col;
@@ -564,8 +564,8 @@ class Addressbook extends rcube_addressbook
     /**
      * Mark one or more contact records as deleted
      *
-     * @param array $ids   Record identifiers
-     * @param bool  $force Remove records irreversible (see self::undelete)
+     * @param array|string $ids   Record identifiers
+     * @param bool         $force Remove records irreversible (see self::undelete)
      *
      * @return int|false Number of removed records, False on failure
      */
@@ -574,6 +574,10 @@ class Addressbook extends rcube_addressbook
         $infra = Config::inst();
         $logger = $infra->logger();
         $db = $infra->db();
+
+        if (is_string($ids)) {
+            $ids = explode(self::SEPARATOR, $ids);
+        }
 
         /** @var list<string> $ids */
         $deleted = 0;
@@ -691,7 +695,7 @@ class Addressbook extends rcube_addressbook
      * This filter mechanism is applied in addition to other filter mechanisms, see the description of the count()
      * operation.
      *
-     * @param null|0|string $group_id Database identifier of the group. 0/"0"/null to reset the group filter.
+     * @param null|int|string $group_id Database identifier of the group. 0/"0"/null to reset the group filter.
      */
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function set_group($group_id): void
@@ -703,6 +707,7 @@ class Addressbook extends rcube_addressbook
             $logger->debug("set_group($group_id)");
 
             if ($group_id) {
+                $group_id = (string) $group_id;
                 $db = $infra->db();
                 // check for valid ID with the database - this throws an exception if the group cannot be found
                 $db->lookup(["id" => $group_id, "abook_id" => $this->id], ["id"], "groups");
@@ -994,9 +999,7 @@ class Addressbook extends rcube_addressbook
             $davAbook = $this->getCardDavObj();
 
             if (is_string($ids)) {
-                $ids_string = $ids;
-                /** @psalm-var list<string> $ids */
-                $ids = explode(self::SEPARATOR, $ids_string);
+                $ids = explode(self::SEPARATOR, $ids);
             }
 
             $db->startTransaction();
