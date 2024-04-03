@@ -121,16 +121,16 @@ final class DatabaseMigrationTest extends TestCase
                     'table' => 'carddav_addressbooks',
                     'cols' => [
                         'name', 'username', 'password', 'url', 'active',
-                        'user_id', 'presetname', 'use_categories',
+                        'user_id', 'presetname', 'use_categories', 'last_updated'
                     ],
                     'rows' => [
                         [
                             'StructUrl0', '%u', '%p', 'https://%l.x.de/%u/%V/%d/personal', '1',
-                            [ 'users', 0, '0000-dbinit' ], null, '1'
+                            [ 'users', 0, '0000-dbinit' ], null, '1', '2000-01-01 00:00:01'
                         ],
                         [
                             'StructUrl0', '%u', '%p', 'https://%l.x.de/%u/%V/%d/personal', '1',
-                            [ 'users', 1, '0000-dbinit' ], null, '1'
+                            [ 'users', 1, '0000-dbinit' ], null, '1', '2000-01-01 00:00:01'
                         ],
                     ],
                 ],
@@ -234,13 +234,13 @@ final class DatabaseMigrationTest extends TestCase
                             'StructUrl0',
                             'https://testuser.x.de/testuser@example.com/testuser_example_com/example.com/personal',
                             '1',
-                            [ 'carddav_accounts', 4, '<checkRows>' ], '0', '3600', '', '1'
+                            [ 'carddav_accounts', 4, '<checkRows>' ], '946684801', '3600', '', '1'
                         ],
                         [
                             'StructUrl0',
                             'https://another.x.de/another@user.com/another_user_com/user.com/personal',
                             '1',
-                            [ 'carddav_accounts', 5, '<checkRows>' ], '0', '3600', '', '1'
+                            [ 'carddav_accounts', 5, '<checkRows>' ], '946684801', '3600', '', '1'
                         ],
                         [
                             'Personal', 'https://nc.cloud.com/c/personal', '1',
