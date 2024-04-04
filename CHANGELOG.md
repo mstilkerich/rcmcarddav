@@ -4,6 +4,7 @@
 
 - Fix migration 7: The migration replaced placeholders in the addressbook URLs with the data of the user during whose
   login the migration was executed. This would result in broken URLs in such cases.
+- Adjust interfaces for roundcube 1.7 changes (Fixes: #467)
 
 ## Version 5.1.0 (to 5.0.1)
 
