@@ -474,13 +474,18 @@ class Addressbook extends rcube_addressbook
         $infra = Config::inst();
         $logger = $infra->logger();
 
-        /** @psalm-var SaveData $save_data */
         try {
-            $logger->info("insert(" . ($save_data["name"] ?? "no name") . ", $check)");
             $db = $infra->db();
 
+            /** @psalm-var SaveData $save_data */
+            $logger->info("insert(" . ($save_data["name"] ?? "no name") . ", $check)");
             /** @psalm-var SaveData $save_data XXX temporary vimeo/psalm#8980 workaround */
-            $vcard = $this->dataConverter->fromRoundcube($save_data);
+
+            if (isset($save_data['vcard'])) {
+                $vcard = $this->parseVCard($save_data['vcard']);
+            } else {
+                $vcard = $this->dataConverter->fromRoundcube($save_data);
+            }
 
             $davAbook = $this->getCardDavObj();
             [ 'uri' => $uri ] = $davAbook->createCard($vcard);

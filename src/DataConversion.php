@@ -55,7 +55,8 @@ use carddav;
  *     spouse?: string,
  *     maidenname?: string,
  *     organization?: string,
- *     department?: string
+ *     department?: string,
+ *     vcard?: string,
  * } & array<string, SaveDataMultiField|list<SaveDataAddressField>>
  *
  * @psalm-type SaveDataFromDC = array{
