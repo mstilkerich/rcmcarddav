@@ -336,7 +336,7 @@ class Addressbook extends rcube_addressbook
                 $this->page_size = $pageSizeBackup;
             }
 
-            /** @var ?SaveData $save_data */
+            /** @var SaveData $save_data */
             foreach ($result as $save_data) {
                 if ($this->checkPostSearchFilter($save_data, $required, $allMustMatch, $postSearchFilter, $mode)) {
                     /** @var array{ID: string} $save_data */
