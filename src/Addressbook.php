@@ -479,8 +479,18 @@ class Addressbook extends rcube_addressbook
             $logger->info("insert(" . ($save_data["name"] ?? "no name") . ", $check)");
             /** @psalm-var SaveData $save_data XXX temporary vimeo/psalm#8980 workaround */
 
-            if (isset($save_data['vcard'])) {
+
+            // If this save_data was produced by rcmcarddav, we can directly use the original vcard
+            // (e.g. move from one addressbook to another)
+            if (isset($save_data['_carddav_vcard'])) {
+                $vcard = $save_data['_carddav_vcard'];
+
+            // If roundcube has set a vcard property (e.g., import), directly import it to the CardDAV server, skipping
+            // Roundcube's save_data conversion (and our conversion back to save data).
+            } elseif (isset($save_data['vcard'])) {
                 $vcard = $this->parseVCard($save_data['vcard']);
+
+            // Otherwise (e.g., new contact created in Roundcube), convert the save_data to a vcard
             } else {
                 $vcard = $this->dataConverter->fromRoundcube($save_data);
             }
@@ -1774,16 +1784,15 @@ class Addressbook extends rcube_addressbook
             if ($col == '*') { // any contact attribute must match $val
                 foreach ($save_data as $k => $v) {
                     // Skip photo/vcard to avoid download - matching against photo is no meaningful use case
-                    if ($k !== "photo" && $k !== "vcard" && strpos($k, "_carddav_") !== 0) {
-                        $v = is_array($v) ? $v : (string) $v;
+                    if (!is_object($v)) {
                         if ($this->compare_search_value($k, $v, $val, $mode)) {
                             $psFilterMatched = true;
                             break;
                         }
                     }
                 }
-            } elseif (isset($save_data[$col])) {
-                $sdVal = is_array($save_data[$col]) ? $save_data[$col] : (string) $save_data[$col];
+            } elseif (isset($save_data[$col]) && !is_object($save_data[$col])) {
+                $sdVal = $save_data[$col];
                 $psFilterMatched = $this->compare_search_value($col, $sdVal, $val, $mode);
             }
 

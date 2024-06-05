@@ -57,6 +57,7 @@ use carddav;
  *     organization?: string,
  *     department?: string,
  *     vcard?: string,
+ *     _carddav_vcard?: VCard,
  * } & array<string, SaveDataMultiField|list<SaveDataAddressField>>
  *
  * @psalm-type SaveDataFromDC = array{
