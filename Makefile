@@ -71,7 +71,10 @@ stylecheck:
 	vendor/bin/phpcs --colors --standard=PSR12 *.php src/ dbmigrations/ tests/ scripts/
 
 phpcompatcheck:
-	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion 7.4 *.php src/ dbmigrations/ tests/ scripts/
+	@for phpvers in 7.4 8.0 8.1 8.2 8.3 8.4 8.5; do \
+	echo Checking PHP $$phpvers compatibility ; \
+	vendor/bin/phpcs --colors --standard=PHPCompatibility --runtime-set testVersion $$phpvers *.php src/ dbmigrations/ tests/ scripts/ ; \
+	done
 
 psalmanalysis: tests/DBInteroperability/DatabaseAccounts.php
 	vendor/bin/psalm --threads=8 --report=testreports/psalm.txt --report-show-info=true --no-diff $(PSALM_XOPTIONS)
