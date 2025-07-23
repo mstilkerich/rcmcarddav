@@ -12,9 +12,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rcube-version: ['release-1.4', 'release-1.5', 'release-1.6', 'master']
+        rcube-version: ['release-1.6', 'release-1.7', 'master']
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout rcmcarddav
@@ -36,9 +36,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['7.4', '8.0', '8.1', '8.2']
+        php-version: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     env:
       XDEBUG_MODE: coverage
@@ -61,7 +61,7 @@ jobs:
           name: RCMCardDAV unit test coverage
 
   dbinterop-sqlite3:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     env:
       XDEBUG_MODE: coverage
@@ -97,8 +97,11 @@ jobs:
           - 'mariadb:10.7'
           - 'mariadb:10.8'
           - 'mariadb:10.9'
+          - 'mariadb:10.10'
+          - 'mariadb:10.11'
+          - 'mariadb:11'
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     env:
       XDEBUG_MODE: coverage
@@ -141,9 +144,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres-version: ['9', '10', '11', '12', '13', '14', '15']
+        postgres-version: ['9', '10', '11', '12', '13', '14', '15', '16', '17']
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     env:
       XDEBUG_MODE: coverage
