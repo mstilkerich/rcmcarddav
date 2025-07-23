@@ -8,7 +8,6 @@ work, but have not been tested.
 The latest patchlevel of roundcube is supported for all branches of roundcube still supported by the roundcube project.
 
 These currently are:
-  - Version 1.4
   - Version 1.5
   - Version 1.6
 
