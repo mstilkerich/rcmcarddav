@@ -899,7 +899,7 @@ class DataConversion
 
         /** @var VObject\Property $p */
         foreach ($vcard->children() as $p) {
-            if (!empty($p->group)) {
+            if (($p->group !== null) && ($p->group != "")) {
                 $groups[strtoupper($p->group)] = true;
             }
         }
@@ -1033,7 +1033,10 @@ class DataConversion
 
         // 3. select a known standard label if available
         $selection = null;
-        if (isset($vprop["TYPE"]) && !empty($this->coltypes[$attrname]['subtypes'])) {
+        if (
+            isset($vprop["TYPE"]) &&
+            isset($this->coltypes[$attrname]['subtypes'])
+        ) {
             /** @var VObject\Parameter */
             foreach ($vprop["TYPE"] as $type) {
                 $type = strtolower((string) $type);
@@ -1082,7 +1085,10 @@ class DataConversion
      */
     private function getAttrLabelTEL(VCard $vcard, VObject\Property $prop): string
     {
-        assert(!empty($this->coltypes["phone"]["subtypes"]), "phone attribute requires a list of subtypes");
+        assert(
+            isset($this->coltypes["phone"]["subtypes"]),
+            "phone attribute requires a list of subtypes"
+        );
 
         // 1) check for a custom label using Apple's X-ABLabel extension
         $xAbLabel = $this->getAttrXAbLabel($vcard, $prop, 'phone');
@@ -1127,7 +1133,10 @@ class DataConversion
      */
     private function getAttrLabelIMPP(VCard $_vcard, VObject\Property $prop): string
     {
-        assert(!empty($this->coltypes["im"]["subtypes"]), "im attribute requires a list of subtypes");
+        assert(
+            isset($this->coltypes["im"]["subtypes"]),
+            "im attribute requires a list of subtypes"
+        );
         $subtypesLower = array_map(
             function (string $s): string {
                 return strtolower($s);
@@ -1250,14 +1259,18 @@ class DataConversion
         $showAs = $save_data['showas'] ?? "";
 
         if (empty($showAs)) { // new contact
-            if (empty($save_data['surname']) && empty($save_data['firstname']) && !empty($save_data['organization'])) {
+            if (
+                (!isset($save_data['surname']) || $save_data['surname'] == "") &&
+                (!isset($save_data['firstname']) || $save_data['firstname'] == "") &&
+                isset($save_data['organization']) && $save_data['organization'] != ""
+            ) {
                 $showAs = 'COMPANY';
             } else {
                 $showAs = 'INDIVIDUAL';
             }
         } else { // update of contact
             // organization not set but showas==COMPANY => show as INDIVIDUAL
-            if (empty($save_data['organization'])) {
+            if (!isset($save_data['organization']) || $save_data['organization'] == "") {
                 $showAs = 'INDIVIDUAL';
             }
         }
@@ -1298,7 +1311,7 @@ class DataConversion
         // try from name
         $dname = [];
         foreach (["firstname", "surname"] as $attr) {
-            if (!empty($save_data[$attr])) {
+            if (isset($save_data[$attr]) && ($save_data[$attr] != "")) {
                 /** @psalm-var string $save_data[$attr] */
                 $dname[] = $save_data[$attr];
             }

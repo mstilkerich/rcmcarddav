@@ -41,9 +41,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  * @psalm-import-type AbookSettings from AddressbookManager
  *
  * @psalm-type PasswordStoreScheme = 'plain' | 'base64' | 'des_key' | 'encrypted'
- * @psalm-type ConfigurablePresetAttr = 'accountname'|'discovery_url'|'username'|'password'|'rediscover_time'|
- *                                      'active'|'refresh_time'|'use_categories'|'readonly'|'require_always_email'|
- *                                      'name'|'preemptive_basic_auth'|'ssl_noverify'
+ * @psalm-type ConfigurablePresetAttr = 'accountname'|'discovery_url'|'username'|'password'|'rediscover_time'|'active'|'refresh_time'|'use_categories'|'readonly'|'require_always_email'|'name'|'preemptive_basic_auth'|'ssl_noverify'
  * @psalm-type SpecialAbookType = 'collected_recipients'|'collected_senders'|'default_addressbook'
  * @psalm-type SpecialAbookMatch = array{preset: string, matchname?: non-empty-string, matchurl?: non-empty-string}
  *
@@ -229,8 +227,8 @@ class AdminSettings
             }
         }
 
-        $this->forbidCustomAddressbooks = !empty($gprefs['fixed'] ?? false);
-        $this->hidePreferences = !empty($gprefs['hide_preferences'] ?? false);
+        $this->forbidCustomAddressbooks = (bool) ($gprefs['fixed'] ?? false);
+        $this->hidePreferences = (bool) ($gprefs['hide_preferences'] ?? false);
 
         foreach (['loglevel' => $logger, 'loglevel_http' => $httpLogger] as $setting => $cfgdLogger) {
             if (($cfgdLogger instanceof RoundcubeLogger) && isset($gprefs[$setting])) {

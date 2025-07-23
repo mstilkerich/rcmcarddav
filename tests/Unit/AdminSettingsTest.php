@@ -504,7 +504,7 @@ final class AdminSettingsTest extends TestCase
     public static function cleanupTempConfigs(): void
     {
         $tmpfs = glob("testreports/adminSettingsTest_*");
-        if (!empty($tmpfs)) {
+        if (is_array($tmpfs) && (count($tmpfs) > 0)) {
             foreach ($tmpfs as $tmpf) {
                 unlink($tmpf);
             }

@@ -791,7 +791,7 @@ class AddressbookManager
                     if (isset($flagAttrs[$col])) {
                         $setFlags = true;
                         $mask = 1 << $flagAttrs[$col];
-                        if ($settings[$col]) {
+                        if ((bool) $settings[$col]) {
                             $flagsInit |= $mask;
                         } else {
                             $flagsInit &= ~$mask;

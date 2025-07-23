@@ -382,11 +382,11 @@ class Database extends AbstractDatabase
         $sql_result = $this->internalGet($conditions, $cols, $table);
 
         $ret = $this->retrieveRow($sql_result);
-        if (!isset($ret)) {
+        if ($ret === null) {
             throw new Exception("Single-row query ({$sql_result->queryString}) without result/with error");
         }
 
-        if ($this->retrieveRow($sql_result)) {
+        if ($this->retrieveRow($sql_result) !== null) {
             throw new Exception("Single-row query ({$sql_result->queryString}) with multiple results");
         }
 

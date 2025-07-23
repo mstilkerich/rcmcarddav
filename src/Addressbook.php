@@ -719,7 +719,7 @@ class Addressbook extends rcube_addressbook
         try {
             $logger->debug("set_group($group_id)");
 
-            if ($group_id) {
+            if ((bool) $group_id) {
                 $group_id = (string) $group_id;
                 $db = $infra->db();
                 // check for valid ID with the database - this throws an exception if the group cannot be found
@@ -1703,7 +1703,7 @@ class Addressbook extends rcube_addressbook
         }
 
         // TODO Better if we could handle this without a separate SQL query here, but requires join or sub-query
-        if ($this->group_id) {
+        if ((bool) $this->group_id) {
             $contactsInGroup = $this->getContactIdsForGroup((string) $this->group_id);
 
             if (empty($contactsInGroup)) {

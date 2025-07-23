@@ -246,7 +246,7 @@ final class AddressbookTest extends TestCase
             $saveDataRc = $rset->records[$i];
             Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
 
-            if (isset($saveDataExp['photo']) && empty($saveDataExp['photo'])) {
+            if (isset($saveDataExp['photo']) && ($saveDataExp['photo'] == "")) {
                 $this->assertPhotoDownloadWarning();
             }
         }
@@ -275,7 +275,7 @@ final class AddressbookTest extends TestCase
         $this->assertSame($sortOrder ?? 'ASC', $abook->sort_order);
 
         $abook->set_group($gid);
-        if ($gid) {
+        if ((bool) $gid) {
             $this->assertSame($gid, $abook->group_id);
         } else {
             $this->assertNull($abook->group_id);
@@ -603,7 +603,7 @@ final class AddressbookTest extends TestCase
                     $saveDataRc = $rset->records[$i];
                     Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
 
-                    if (isset($saveDataExp['photo']) && empty($saveDataExp['photo'])) {
+                    if (isset($saveDataExp['photo']) && ($saveDataExp['photo'] == "")) {
                         $this->assertPhotoDownloadWarning();
                     }
                 }
@@ -709,7 +709,7 @@ final class AddressbookTest extends TestCase
             $saveDataExp = Utils::readSaveDataFromJson($fn);
             Utils::compareSaveData($saveDataExp, $saveDataRc, "Unexpected record data $id");
 
-            if (isset($saveDataExp['photo']) && empty($saveDataExp['photo'])) {
+            if (isset($saveDataExp['photo']) && ($saveDataExp['photo'] == "")) {
                 $this->assertPhotoDownloadWarning();
             }
         }

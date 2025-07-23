@@ -493,7 +493,7 @@ final class UITest extends TestCase
             } elseif ($iType === 'checkbox') {
                 $iNode = $this->getDomNode($xpath, "//input[@name='$iName']");
                 $this->checkAttribute($iNode, 'value', '1');
-                $this->checkAttribute($iNode, 'checked', $iVal ? 'checked' : null);
+                $this->checkAttribute($iNode, 'checked', ((bool) $iVal) ? 'checked' : null);
                 $this->checkAttribute($iNode, 'type', $iType);
                 $this->checkAttribute($iNode, 'disabled', $iDisabled ? 'disabled' : null);
                 $this->checkAttribute($iNode, 'required', $iRequired ? 'required' : null);

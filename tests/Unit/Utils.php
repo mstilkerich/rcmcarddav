@@ -160,7 +160,7 @@ class Utils
     public static function cleanupTempImages(): void
     {
         $tmpimgs = glob("testreports/imgcomp_*");
-        if (!empty($tmpimgs)) {
+        if (is_array($tmpimgs) && (count($tmpimgs) > 0)) {
             foreach ($tmpimgs as $tmpimg) {
                 unlink($tmpimg);
             }

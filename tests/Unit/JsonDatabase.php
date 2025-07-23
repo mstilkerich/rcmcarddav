@@ -100,7 +100,7 @@ class JsonDatabase extends AbstractDatabase
                 TestCase::assertIsString($col, "Indexes of column definitions must be column names");
                 TestCase::assertIsString($tcols[$col], "A column definitions must be a string");
                 $coldef = $this->parseColumnDef($tcols[$col]);
-                if (!empty($coldef["fktable"])) {
+                if ($coldef["fktable"] != "") {
                     $fktable = $coldef["fktable"];
                     $fkcol = $coldef["fkcolumn"];
                     TestCase::assertTrue(
@@ -197,7 +197,7 @@ class JsonDatabase extends AbstractDatabase
             TestCase::assertArrayHasKey($col, $row1, "compareRows: row1 lacks column $col");
             TestCase::assertArrayHasKey($col, $row2, "compareRows: row2 lacks column $col");
 
-            if (!empty($coldef["fktable"])) {
+            if ($coldef["fktable"] != "") {
                 $fktable = $coldef["fktable"];
                 $fkcol = $coldef["fkcolumn"];
                 $frow1 = $this->lookup([$fkcol => $row1[$col]], [], $fktable);
@@ -392,7 +392,7 @@ class JsonDatabase extends AbstractDatabase
     {
         $coldef = $this->parseColumnDef($this->schema[$table][$col]);
 
-        if (!empty($coldef["fktable"])) {
+        if ($coldef["fktable"] != "") {
             $this->checkKey($coldef["fktable"], $coldef["fkcolumn"], $value, false);
         } elseif ($coldef["type"] === "key") {
             $this->checkKey($table, $col, $value, $newRecord);
@@ -465,7 +465,7 @@ class JsonDatabase extends AbstractDatabase
     {
         $coldef = $this->parseColumnDef($this->schema[$table][$col]);
 
-        if (!empty($coldef["fktable"])) {
+        if ($coldef["fktable"] != "") {
             throw new \Exception("Default value for foreign key references not supported ($table.$col)");
         } elseif ($coldef["type"] === "key") {
             /** @psalm-var list<string> $usedKeys */
