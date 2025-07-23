@@ -114,7 +114,7 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: root
         options: >-
-          --health-cmd "sh -c '$(command -v mariadb-admin || command -v mysqladmin) ping"
+          --health-cmd "sh -c '$(command -v mariadb-admin || command -v mysqladmin)' ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
