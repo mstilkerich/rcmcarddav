@@ -1,0 +1,7 @@
+{
+    "require-dev": {
+        "vimeo/psalm": "~5.26.1",
+        "psalm/plugin-phpunit": "*"
+    },
+    "prefer-stable" : true
+}
