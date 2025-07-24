@@ -128,7 +128,7 @@ final class AddressbookTest extends TestCase
         $account = TestInfrastructure::$infra->makeAccount($accountCfg);
         $abook = new Addressbook("42", $account, $abookCfg);
         $davobj = $this->createStub(AddressbookCollection::class);
-        $davobj->method('downloadResource')->will($this->returnCallback([Utils::class, 'downloadResource']));
+        $davobj->method('downloadResource')->willReturnCallback([Utils::class, 'downloadResource']);
         TestInfrastructure::setPrivateProperty($abook, 'davAbook', $davobj);
 
         return $abook;

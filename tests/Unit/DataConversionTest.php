@@ -60,7 +60,7 @@ final class DataConversionTest extends TestCase
     {
         $_SESSION['user_id'] = 105;
         $abook = $this->createStub(AddressbookCollection::class);
-        $abook->method('downloadResource')->will($this->returnCallback([Utils::class, 'downloadResource']));
+        $abook->method('downloadResource')->willReturnCallback([Utils::class, 'downloadResource']);
         $this->abook = $abook;
 
         $this->db = $this->createMock(Database::class);
@@ -131,7 +131,7 @@ final class DataConversionTest extends TestCase
                 $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
-            ->will($this->returnValue([ ["typename" => "email", "subtype" => "Speciallabel"] ]));
+            ->willReturn([ ["typename" => "email", "subtype" => "Speciallabel"] ]);
         $db->expects($this->once())
             ->method("insert")
             ->with(
@@ -139,7 +139,7 @@ final class DataConversionTest extends TestCase
                 $this->equalTo(["typename", "subtype", "abook_id"]),
                 $this->equalTo([["email", "SpecialLabel", "42"]])
             )
-            ->will($this->returnValue("49"));
+            ->willReturn("49");
 
         $dc = new DataConversion("42");
         $vcard = TestInfrastructure::readVCard("tests/Unit/data/vcardImport/XAbLabel.vcf");
@@ -159,7 +159,7 @@ final class DataConversionTest extends TestCase
                 $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
-            ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
+            ->willReturn([ ["typename" => "email", "subtype" => "SpecialLabel"] ]);
 
         $dc = new DataConversion("42");
         $coltypes = $dc->getColtypes();
@@ -181,7 +181,7 @@ final class DataConversionTest extends TestCase
                 $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
-            ->will($this->returnValue([ ["typename" => "email", "subtype" => "SpecialLabel"] ]));
+            ->willReturn([ ["typename" => "email", "subtype" => "SpecialLabel"] ]);
         $db->expects($this->never())
             ->method("insert");
 
@@ -213,11 +213,11 @@ final class DataConversionTest extends TestCase
                 $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
-            ->will($this->returnValue([
+            ->willReturn([
                 ["typename" => "email", "subtype" => "SpecialLabel"],
                 ["typename" => "phone", "subtype" => "0"],
                 ["typename" => "website", "subtype" => "0"]
-            ]));
+            ]);
         $dc = new DataConversion("42");
         $vcardExpected = TestInfrastructure::readVCard($vcfFile);
         $saveData = Utils::readSaveDataFromJson($jsonFile);
@@ -242,7 +242,7 @@ final class DataConversionTest extends TestCase
                 $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
-            ->will($this->returnValue([]));
+            ->willReturn([]);
         $dc = new DataConversion("42");
         $vcardExpected = TestInfrastructure::readVCard('tests/Unit/data/singleTest/Errors.vcf');
         $saveData = Utils::readSaveDataFromJson('tests/Unit/data/singleTest/Errors.json');
@@ -277,10 +277,10 @@ final class DataConversionTest extends TestCase
                 $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
-            ->will($this->returnValue([
+            ->willReturn([
                 ["typename" => "email", "subtype" => "SpecialLabel"],
                 ["typename" => "email", "subtype" => "SpecialLabel2"]
-            ]));
+            ]);
 
         $dc = new DataConversion("42");
         $vcardOriginal = TestInfrastructure::readVCard($vcfFile);
@@ -326,7 +326,7 @@ final class DataConversionTest extends TestCase
             $cache->expects($this->once())
                   ->method("get")
                   ->with($this->equalTo($key))
-                  ->will($this->returnValue(null));
+                  ->willReturn(null);
         } else {
             $cache->expects($this->never())->method("get");
         }
@@ -348,7 +348,7 @@ final class DataConversionTest extends TestCase
                    $this->equalTo($key),
                    $this->callback($checkPhotoFn)
                )
-               ->will($this->returnValue(true));
+               ->willReturn(true);
         } else {
             $cache->expects($this->never())->method("set");
         }
@@ -387,12 +387,10 @@ final class DataConversionTest extends TestCase
             $cache->expects($this->once())
                   ->method("get")
                   ->with($this->equalTo($key))
-                  ->will(
-                      $this->returnValue([
-                          'photoPropMd5' => md5($vcard->PHOTO->serialize()),
-                          'photo' => $cachedPhotoData
-                      ])
-                  );
+                  ->willReturn([
+                      'photoPropMd5' => md5($vcard->PHOTO->serialize()),
+                      'photo' => $cachedPhotoData
+                  ]);
         } else {
             $cache->expects($this->never())->method("get");
         }
@@ -443,12 +441,10 @@ final class DataConversionTest extends TestCase
             $cache->expects($this->once())
                   ->method("get")
                   ->with($this->equalTo($key))
-                  ->will(
-                      $this->returnValue([
-                          'photoPropMd5' => md5("foo"), // will not match the current md5
-                          'photo' => $cachedPhotoData
-                      ])
-                  );
+                  ->willReturn([
+                      'photoPropMd5' => md5("foo"), // will not match the current md5
+                      'photo' => $cachedPhotoData
+                  ]);
 
             // expect that the old record is purged
             $cache->expects($this->once())
@@ -476,7 +472,7 @@ final class DataConversionTest extends TestCase
                    $this->equalTo($key),
                    $this->callback($checkPhotoFn)
                )
-               ->will($this->returnValue(true));
+               ->willReturn(true);
         } else {
             $cache->expects($this->never())->method("set");
         }
@@ -601,9 +597,9 @@ final class DataConversionTest extends TestCase
                 $this->equalTo(['typename', 'subtype']),
                 $this->equalTo('xsubtypes')
             )
-            ->will($this->returnValue([
+            ->willReturn([
                 ["typename" => "email", "subtype" => "SpecialLabel"],
-            ]));
+            ]);
 
         $dc = new DataConversion("42");
         $vcardOrig = TestInfrastructure::readVCard($vcfFile);

@@ -261,7 +261,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
     private function initStubs(): array
     {
         $rcAbook = $this->createStub(Addressbook::class);
-        $rcAbook->method('getId')->will($this->returnValue("42"));
+        $rcAbook->method('getId')->willReturn("42");
 
         $abook = $this->createStub(AddressbookCollection::class);
 

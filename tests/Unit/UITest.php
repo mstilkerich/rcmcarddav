@@ -616,7 +616,7 @@ final class UITest extends TestCase
         $discovery = $this->createMock(Discovery::class);
         $discovery->expects($this->once())
                   ->method("discoverAddressbooks")
-                  ->will($this->returnValue($abookObjs));
+                  ->willReturn($abookObjs);
         TestInfrastructure::$infra->discovery = $discovery;
     }
 
@@ -628,11 +628,11 @@ final class UITest extends TestCase
         $davobj = $this->createStub(AddressbookCollection::class);
         $urlComp = explode('/', rtrim($url, '/'));
         $baseName = $urlComp[count($urlComp) - 1];
-        $davobj->method('getName')->will($this->returnValue($name ?? $baseName));
-        $davobj->method('getBasename')->will($this->returnValue($baseName));
-        $davobj->method('getDisplayname')->will($this->returnValue($name));
-        $davobj->method('getDescription')->will($this->returnValue($desc));
-        $davobj->method('getUri')->will($this->returnValue($url));
+        $davobj->method('getName')->willReturn($name ?? $baseName);
+        $davobj->method('getBasename')->willReturn($baseName);
+        $davobj->method('getDisplayname')->willReturn($name);
+        $davobj->method('getDescription')->willReturn($desc);
+        $davobj->method('getUri')->willReturn($url);
         return $davobj;
     }
 
@@ -1376,7 +1376,7 @@ final class UITest extends TestCase
             $sync->expects($this->once())
                  ->method('synchronize')
                  ->with($this->equalTo($abookObj), $this->anything(), $this->anything(), $this->equalTo('sync@3600'))
-                 ->will($this->returnValue('sync@resynctime'));
+                 ->willReturn('sync@resynctime');
         } else {
             $sync->expects($this->never())->method('synchronize');
         }
