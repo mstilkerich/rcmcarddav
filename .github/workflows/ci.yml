@@ -36,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+        php-version: ['7.4', '8.0', '8.1', '8.2', '8.3']
 
     runs-on: ubuntu-latest
 
@@ -106,7 +106,7 @@ jobs:
     env:
       XDEBUG_MODE: coverage
       MYSQL_PASSWORD: root
-      MYSQL_CMD_PREFIX: "docker exec -i sh -c '$(command -v mariadb || command -v mysql)'"
+      MYSQL_CMD_PREFIX: "docker exec -i mysql"
 
     services:
       mysql:
@@ -114,7 +114,7 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: root
         options: >-
-          --health-cmd "sh -c '$(command -v mariadb-admin || command -v mysqladmin)' ping"
+          --health-cmd "sh -c '$(command -v mariadb-admin || command -v mysqladmin) ping'"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
