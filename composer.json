@@ -33,13 +33,17 @@
         "dealerdirect/phpcodesniffer-composer-installer": ">= 0.7.0",
         "phpunit/phpunit": "~9",
         "phpunit/phpcov": "*",
-        "vimeo/psalm": "~5.26.1",
-        "psalm/plugin-phpunit": "*",
-        "aodto/phasher": "dev-master"
+        "aodto/phasher": "dev-master",
+        "bamarni/composer-bin-plugin": "^1.8"
     },
     "extra": {
         "roundcube": {
             "min-version": "1.4.0"
+        },
+        "bamarni-bin": {
+            "bin-links": true,
+            "target-directory": "vendor-bin",
+            "forward-command": false
         }
     },
     "autoload": {
@@ -58,7 +62,8 @@
     "config": {
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true,
-            "roundcube/plugin-installer": true
+            "roundcube/plugin-installer": true,
+            "bamarni/composer-bin-plugin": true
         }
     }
 }

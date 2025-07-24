@@ -23,6 +23,9 @@ jobs:
         uses: ./.github/actions/setup
         with:
           rcube-version: ${{ matrix.rcube-version }}
+      - name: Install psalm
+        run: composer bin psalm update --no-interaction --no-progress
+        shell: bash
       - name: Check code style compliance with PSR12
         run: make stylecheck
       - name: Check code compatibility with minimum supported PHP version
@@ -36,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['7.4', '8.0', '8.1', '8.2', '8.3']
+        php-version: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
 
     runs-on: ubuntu-latest
 

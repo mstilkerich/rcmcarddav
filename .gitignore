@@ -4,6 +4,8 @@
 ./config.inc.php
 /.phpdoc
 /vendor
+/vendor-bin/**/vendor/
+/vendor-bin/**/composer.lock
 /node_modules
 composer.lock
 *.tgz
