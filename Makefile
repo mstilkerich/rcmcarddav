@@ -164,6 +164,7 @@ tests-$(1): tests/DBInteroperability/phpunit-$(1).xml tests/DBInteroperability/D
 	$$(call CREATEDB_$(1))
 	$$(call EXECDBSCRIPT_$(1),$(TESTDB_$(1)),dbmigrations/INIT-currentschema/$(1).sql)
 	$$(call DUMPTBL_$(1),$(TESTDB_$(1)),testreports/$(1)-init.sql)
+	@mkdir -p testreports/dbinterop-$(1)
 	vendor/bin/phpunit -c tests/DBInteroperability/phpunit-$(1).xml
 	@echo Performing schema comparison of initial schema to schema resulting from migrations
 	$$(call DUMPTBL_$(1),$(MIGTESTDB_$(1)),testreports/$(1)-mig.sql)
@@ -189,6 +190,7 @@ unittests: tests/Unit/phpunit.xml
 	@echo "                   EXECUTING UNIT TESTS"
 	@echo  ==========================================================
 	@echo
+	@mkdir -p testreports/unit
 	vendor/bin/phpunit -c tests/Unit/phpunit.xml
 
 .PHONY: checktestspecs
