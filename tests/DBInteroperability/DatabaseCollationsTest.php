@@ -65,7 +65,7 @@ final class DatabaseCollationsTest extends TestCase
     /**
      * @return array<string, array{string, TestDataTableDef, list<TestDataRowWithKeyRef>}>
      */
-    public function uniqueDataProviderDiffcase(): array
+    public static function uniqueDataProviderDiffcase(): array
     {
         return [
             'xsubtypes' => [
@@ -179,7 +179,7 @@ final class DatabaseCollationsTest extends TestCase
     /**
      * @return array<string, array{string, TestDataTableDef, TestDataRowWithKeyRef, list<positive-int>}>
      */
-    public function equalsDataProviderDiffcase(): array
+    public static function equalsDataProviderDiffcase(): array
     {
         return [
             'contacts' => [
@@ -241,7 +241,7 @@ final class DatabaseCollationsTest extends TestCase
     /**
      * @return array<string, array{string, TestDataTableDef, TestDataRowWithKeyRef, array<positive-int,?string>}>
      */
-    public function ilikeDataProviderDiffcase(): array
+    public static function ilikeDataProviderDiffcase(): array
     {
         return [
             'contacts' => [

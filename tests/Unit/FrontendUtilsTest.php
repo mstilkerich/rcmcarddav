@@ -55,7 +55,7 @@ final class FrontendUtilsTest extends TestCase
     /**
      * @return list<array{string,?int}>
      */
-    public function timeStringProvider(): array
+    public static function timeStringProvider(): array
     {
         return [
             [ "01:00:00", 3600 ],
@@ -94,7 +94,7 @@ final class FrontendUtilsTest extends TestCase
     /**
      * @return array<string, list{string,string,string}>
      */
-    public function encryptedPasswordsProvider(): array
+    public static function encryptedPasswordsProvider(): array
     {
         return [
             'Cleartext password' => ['', '(l3art3x7!', '(l3art3x7!'],
@@ -156,7 +156,7 @@ final class FrontendUtilsTest extends TestCase
     /**
      * @return array<string, list{string,PasswordStoreScheme,string,?string}>
      */
-    public function passwordsProvider(): array
+    public static function passwordsProvider(): array
     {
         return [
             'Cleartext password' => [

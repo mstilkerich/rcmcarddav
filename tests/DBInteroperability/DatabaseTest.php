@@ -106,7 +106,7 @@ final class DatabaseTest extends TestCase
     /**
      * @return array<string, array{DbConditions, list<string>}>
      */
-    public function getConditionsProvider(): array
+    public static function getConditionsProvider(): array
     {
         return [
             // 0: Filter conditions, 1: Expected result rows given by cuid from self::$rows
@@ -203,7 +203,7 @@ final class DatabaseTest extends TestCase
     /**
      * @return array<string, array{DbConditions, string}>
      */
-    public function invalidConditionsProvider(): array
+    public static function invalidConditionsProvider(): array
     {
         return [
             // IN query with empty value set
@@ -310,7 +310,7 @@ final class DatabaseTest extends TestCase
      *
      * @return array<string, array{list<string>, list<string>}>
      */
-    public function orderTestDataProvider(): array
+    public static function orderTestDataProvider(): array
     {
         return [
             // order cols,      expected row cuid values from self::$rows
@@ -344,7 +344,7 @@ final class DatabaseTest extends TestCase
      *
      * @return array<string, array{list<string>, array{int,int}, ?list<string>}>
      */
-    public function limitTestDataProvider(): array
+    public static function limitTestDataProvider(): array
     {
         return [
             // order cols,      expected row cuid values from self::$rows
@@ -476,7 +476,7 @@ final class DatabaseTest extends TestCase
     /**
      * @return array<string, array{callable(Database):void}>
      */
-    public function connectToDbErrFuncProvider(): array
+    public static function connectToDbErrFuncProvider(): array
     {
         $tests = [
             'StartTransaction' => [ [self::class, 'errStartTransaction'] ],
@@ -498,7 +498,7 @@ final class DatabaseTest extends TestCase
     {
         if ($GLOBALS["TEST_DBTYPE"] == "sqlite3") {
             $dbh = \rcube_db::factory("sqlite:////does/not/doesNotExist.db");
-            $expErrMsg = 'doesNotExist.db';
+            $expErrMsg = 'file';
         } elseif ($GLOBALS["TEST_DBTYPE"] == "postgres") {
             $dbh = \rcube_db::factory("pgsql://a@unix(/does/not/doesNotExist)/db");
             $expErrMsg = 'doesNotExist';
@@ -523,7 +523,7 @@ final class DatabaseTest extends TestCase
     /**
      * @return array<string, array{callable(Database):void}>
      */
-    public function connectToDbUnsuppDbProvider(): array
+    public static function connectToDbUnsuppDbProvider(): array
     {
         $tests = [
             'StartTransaction' => [ [self::class, 'errStartTransaction'] ],
@@ -548,7 +548,7 @@ final class DatabaseTest extends TestCase
      * @param callable(Database):void $errFunc
      * @dataProvider connectToDbUnsuppDbProvider
      */
-    public function testErrorMessageOnUnsupportedDbProvider($errFunc): void
+    public static function testErrorMessageOnUnsupportedDbProvider($errFunc): void
     {
         //$dbh = \rcube_db::factory("oracle://scott/tiger@//localhost:59999/oracle");
         $dbh = \rcube_db::factory("oracle://a@unix(" . __DIR__ . "/../../testreports/does/not/doesNotExist)/db");

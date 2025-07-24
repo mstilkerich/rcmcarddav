@@ -193,7 +193,7 @@ final class UITest extends TestCase
      *                             GET      ERR     Check-inputs
      * @return array<string, list{?string, ?string, list<list{string,?string,string,string, ?string}>}>
      */
-    public function accountIdProvider(): array
+    public static function accountIdProvider(): array
     {
         $lblTime = 'AccAbProps_timestr_placeholder_lbl';
         $lblDUrl = 'AccProps_discoveryurl_placeholder_lbl';
@@ -335,7 +335,7 @@ final class UITest extends TestCase
      *                             GET      ERR     Check-inputs
      * @return array<string, list{?string, ?string, list<list{string,?string,string,string,?string}>}>
      */
-    public function abookIdProvider(): array
+    public static function abookIdProvider(): array
     {
         $lblTime = 'AccAbProps_timestr_placeholder_lbl';
         return [
@@ -639,7 +639,7 @@ final class UITest extends TestCase
     /**
      * @return array<string, list{array<string,string>,?list{PsrLogLevel,string},?string}>
      */
-    public function accountSaveFormDataProvider(): array
+    public static function accountSaveFormDataProvider(): array
     {
         $basicData = [
             'accountname' => 'Updated account name',
@@ -755,7 +755,7 @@ final class UITest extends TestCase
     /**
      * @return array<string, list{array<string,string>,?list{PsrLogLevel,string},?string}>
      */
-    public function abookSaveFormDataProvider(): array
+    public static function abookSaveFormDataProvider(): array
     {
         $basicData = [
             'name' => 'Updated name %N - %D', // placeholders are not replaced when saving addressbook
@@ -867,7 +867,7 @@ final class UITest extends TestCase
     /**
      * @return array<string, list{array<string,string>,?list{PsrLogLevel,string},?string,int}>
      */
-    public function accountAddFormDataProvider(): array
+    public static function accountAddFormDataProvider(): array
     {
         $basicData = [
             'accountname' => 'New account',
@@ -975,7 +975,7 @@ final class UITest extends TestCase
     /**
      * @return array<string, list{array<string,string>,?list{PsrLogLevel,string},?string,?array}>
      */
-    public function abookToggleFormDataProvider(): array
+    public static function abookToggleFormDataProvider(): array
     {
         $epfx = 'Failure to toggle addressbook activation:';
         return [
@@ -1116,7 +1116,7 @@ final class UITest extends TestCase
     /**
      * @return array<string, list{?string,?list{PsrLogLevel,string},?string}>
      */
-    public function accountDeleteFormDataProvider(): array
+    public static function accountDeleteFormDataProvider(): array
     {
         $epfx = 'Error removing account:';
         return [
@@ -1190,7 +1190,7 @@ final class UITest extends TestCase
     /**
      * @return array<string, list{?string,?list{PsrLogLevel,string},?string}>
      */
-    public function accountRediscoverFormDataProvider(): array
+    public static function accountRediscoverFormDataProvider(): array
     {
         $epfx = 'Error in account rediscovery:';
         return [
@@ -1278,7 +1278,7 @@ final class UITest extends TestCase
     /**
      * @return array<string, list{array<string,string>,?list{PsrLogLevel,string},?string}>
      */
-    public function abookResyncFormDataProvider(): array
+    public static function abookResyncFormDataProvider(): array
     {
         $epfxS = 'Failed to sync (AbSync) addressbook:';
         $epfxC = 'Failed to sync (AbClrCache) addressbook:';

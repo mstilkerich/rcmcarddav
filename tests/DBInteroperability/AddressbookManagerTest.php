@@ -181,7 +181,7 @@ final class AddressbookManagerTest extends TestCase
     /**
      * @return array<string, array{int, bool, list<int>}>
      */
-    public function userIdProviderAcc(): array
+    public static function userIdProviderAcc(): array
     {
         return [
             'All accounts of user' => [ 0, false,  [ 0, 1, 2, 3 ] ],
@@ -215,7 +215,7 @@ final class AddressbookManagerTest extends TestCase
     /**
      * @return array<string, array{int, AbookFilter, bool, list<int>}>
      */
-    public function userIdProvider(): array
+    public static function userIdProvider(): array
     {
         return [
             'All addressbooks of user' => [0, AddressbookManager::ABF_REGULAR, false,  [ 0, 1, 2, 3, 4, 7, 8, 9, 10 ]],
@@ -257,7 +257,7 @@ final class AddressbookManagerTest extends TestCase
 
 
     /** @return array<string, array{int,bool}> */
-    public function accountIdProviderForCfgTest(): array
+    public static function accountIdProviderForCfgTest(): array
     {
         return [
             'Custom account' => [ 0, true ],
@@ -294,7 +294,7 @@ final class AddressbookManagerTest extends TestCase
     }
 
     /** @return array<string, array{int,bool}> */
-    public function abookIdProviderForCfgTest(): array
+    public static function abookIdProviderForCfgTest(): array
     {
         return [
             'Custom addressbook' => [ 0, true ],
@@ -527,7 +527,7 @@ final class AddressbookManagerTest extends TestCase
     }
 
     /** @return array<string, array{array<string, null|string|int|TestDataKeyRef>, ?string}> */
-    public function accountInsertDataProvider(): array
+    public static function accountInsertDataProvider(): array
     {
         return [
             'All properties specified' => [
@@ -677,7 +677,7 @@ final class AddressbookManagerTest extends TestCase
      *     }
      * >
      */
-    public function accountUpdateDataProvider(): array
+    public static function accountUpdateDataProvider(): array
     {
         $account0Base = array_combine(self::ACCOUNT_COLS, self::ACCOUNT_ROWS[0]);
 
@@ -800,7 +800,7 @@ final class AddressbookManagerTest extends TestCase
     }
 
     /** @return array<string, array{array<string, null|string|bool|int|TestDataKeyRef>, ?string}> */
-    public function abookInsertDataProvider(): array
+    public static function abookInsertDataProvider(): array
     {
         return [
             'All properties specified' => [
@@ -954,7 +954,7 @@ final class AddressbookManagerTest extends TestCase
      *     }
      * >
      */
-    public function abookUpdateDataProvider(): array
+    public static function abookUpdateDataProvider(): array
     {
         $abook0Base = array_combine(self::ABOOK_COLS, self::ABOOK_ROWS[0]);
 
@@ -1073,7 +1073,7 @@ final class AddressbookManagerTest extends TestCase
     /**
      * @return array<string, array{TestDataKeyRef, ?string}>
      */
-    public function accountDeleteDataProvider(): array
+    public static function accountDeleteDataProvider(): array
     {
         return [
             'Valid account of user' => [ ['carddav_accounts', 0], null ],
@@ -1120,7 +1120,7 @@ final class AddressbookManagerTest extends TestCase
     /**
      * @return array<string, array{list<int>, bool, ?string}>
      */
-    public function abookDeleteDataProvider(): array
+    public static function abookDeleteDataProvider(): array
     {
         return [
             'Valid addressbooks of user' => [ [0], false, null ],
@@ -1260,7 +1260,7 @@ final class AddressbookManagerTest extends TestCase
     }
 
     /** @return array<string, list{int,?TestDataKeyRef,AddressbookSettings,list<string>,int}> */
-    public function newAbookSettingsProvider(): array
+    public static function newAbookSettingsProvider(): array
     {
         return [
             '2 new' => [

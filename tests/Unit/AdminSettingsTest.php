@@ -55,7 +55,7 @@ final class AdminSettingsTest extends TestCase
     /**
      * @return array<string, array{string}>
      */
-    public function configFileProvider(): array
+    public static function configFileProvider(): array
     {
         $base = 'tests/Unit/data/adminSettingsTest';
 
@@ -150,7 +150,7 @@ final class AdminSettingsTest extends TestCase
      *     string
      * }>
      */
-    public function errorsInAdminConfigProvider(): array
+    public static function errorsInAdminConfigProvider(): array
     {
         $ret = [
             'Non-array prefs' => [

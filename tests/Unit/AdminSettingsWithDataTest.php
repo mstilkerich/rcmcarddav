@@ -58,7 +58,7 @@ final class AdminSettingsWithDataTest extends TestCase
     /**
      * @return array<string, list{string, list{?string,?string, ?string}}>
      */
-    public function specialAbookTestProvider(): array
+    public static function specialAbookTestProvider(): array
     {
         $base = 'tests/Unit/data/adminSettingsWithDataTest';
 

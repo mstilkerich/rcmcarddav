@@ -178,7 +178,7 @@ final class AddressbookTest extends TestCase
     /**
      * @return list<array{int,string,?string,int,int,null|0|string,?list<string>,bool,int,list<string>}>
      */
-    public function listRecordsDataProvider(): array
+    public static function listRecordsDataProvider(): array
     {
         return [
             // subset, sort_col, sort_order, page, pagesize, group, cols, reqCols, expCount, expRecords
@@ -323,7 +323,7 @@ final class AddressbookTest extends TestCase
      *     int,list<string>
      * }>
      */
-    public function searchDataProvider(): array
+    public static function searchDataProvider(): array
     {
         return [
             'Direct ID search single id' => [
@@ -614,7 +614,7 @@ final class AddressbookTest extends TestCase
     /**
      * @return array<string, array{mixed}>
      */
-    public function invalidFilterProvider(): array
+    public static function invalidFilterProvider(): array
     {
         return [
             'SQL string' => [ 'WHERE name="foo"' ],
@@ -649,7 +649,7 @@ final class AddressbookTest extends TestCase
     }
 
     /** @return array<string, array{string,bool,bool}> */
-    public function getRecordProvider(): array
+    public static function getRecordProvider(): array
     {
         return [
             'Valid ID' => [ '50', true, false ],
@@ -718,7 +718,7 @@ final class AddressbookTest extends TestCase
     /**
      * @return list<array{?string, int, list<string>}>
      */
-    public function groupFilterProvider(): array
+    public static function groupFilterProvider(): array
     {
         return [
             [ null, 0, ["506", "501", "502", "500", "503", "504"] ],
@@ -756,7 +756,7 @@ final class AddressbookTest extends TestCase
     }
 
     /** @return array<string, array{string,bool}> */
-    public function getGroupProvider(): array
+    public static function getGroupProvider(): array
     {
         return [
             'Valid ID' => [ '500', false ],
@@ -802,7 +802,7 @@ final class AddressbookTest extends TestCase
     /**
      * @return list<array{int,numeric-string,numeric-string,int}>
      */
-    public function resyncDueProvider(): array
+    public static function resyncDueProvider(): array
     {
         $now = time();
         $nowStr = (string) $now;

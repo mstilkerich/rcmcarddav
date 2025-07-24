@@ -308,7 +308,7 @@ final class DatabaseMigrationTest extends TestCase
      *
      * @return array<string, list{non-empty-list<string>}>
      */
-    public function migrationsProvider(): array
+    public static function migrationsProvider(): array
     {
         $migsavail = array_map(
             function (string $s): string {

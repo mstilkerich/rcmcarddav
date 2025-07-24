@@ -79,7 +79,7 @@ final class DataConversionTest extends TestCase
     /**
      * @return array<string, list{string, string}>
      */
-    private function vcardSamplesProvider(string $basedir): array
+    private static function vcardSamplesProvider(string $basedir): array
     {
         $vcfFiles = glob("$basedir/*.vcf");
 
@@ -96,9 +96,9 @@ final class DataConversionTest extends TestCase
     /**
      * @return array<string, list{string, string}>
      */
-    public function vcardImportSamplesProvider(): array
+    public static function vcardImportSamplesProvider(): array
     {
-        return $this->vcardSamplesProvider('tests/Unit/data/vcardImport');
+        return self::vcardSamplesProvider('tests/Unit/data/vcardImport');
     }
 
     /**
@@ -193,9 +193,9 @@ final class DataConversionTest extends TestCase
     /**
      * @return array<string, list{string, string}>
      */
-    public function vcardCreateSamplesProvider(): array
+    public static function vcardCreateSamplesProvider(): array
     {
-        return $this->vcardSamplesProvider('tests/Unit/data/vcardCreate');
+        return self::vcardSamplesProvider('tests/Unit/data/vcardCreate');
     }
 
     /**
@@ -257,9 +257,9 @@ final class DataConversionTest extends TestCase
     /**
      * @return array<string, list{string, string}>
      */
-    public function vcardUpdateSamplesProvider(): array
+    public static function vcardUpdateSamplesProvider(): array
     {
-        return $this->vcardSamplesProvider('tests/Unit/data/vcardUpdate');
+        return self::vcardSamplesProvider('tests/Unit/data/vcardUpdate');
     }
 
     /**
@@ -294,7 +294,7 @@ final class DataConversionTest extends TestCase
     /**
      * @return array<string, array{0: string, 1: bool, 2: bool}>
      */
-    public function cachePhotosSamplesProvider(): array
+    public static function cachePhotosSamplesProvider(): array
     {
         return [
             "InlinePhoto.vcf" => ["tests/Unit/data/vcardImport/InlinePhoto", false, false],
@@ -579,9 +579,9 @@ final class DataConversionTest extends TestCase
     /**
      * @return array<string, list{string, string}>
      */
-    public function vcardExportSamplesProvider(): array
+    public static function vcardExportSamplesProvider(): array
     {
-        return $this->vcardSamplesProvider('tests/Unit/data/vcardExport');
+        return self::vcardSamplesProvider('tests/Unit/data/vcardExport');
     }
 
     /**
