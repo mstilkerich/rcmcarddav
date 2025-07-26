@@ -548,9 +548,12 @@ final class DatabaseTest extends TestCase
      * @param callable(Database):void $errFunc
      * @dataProvider connectToDbUnsuppDbProvider
      */
-    public static function testErrorMessageOnUnsupportedDbProvider($errFunc): void
+    public function testErrorMessageOnUnsupportedDbProvider($errFunc): void
     {
-        //$dbh = \rcube_db::factory("oracle://scott/tiger@//localhost:59999/oracle");
+        if (!class_exists("rcube_db_oracle")) {
+            $this->markTestSkipped("From Roundcube 1.7, there are no unsupported databases anymore");
+        }
+
         $dbh = \rcube_db::factory("oracle://a@unix(" . __DIR__ . "/../../testreports/does/not/doesNotExist)/db");
         $db = new Database(TestInfrastructure::logger(), $dbh);
 
