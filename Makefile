@@ -77,7 +77,7 @@ phpcompatcheck:
 	done
 
 psalmanalysis: tests/DBInteroperability/DatabaseAccounts.php
-	vendor/bin/psalm --threads=8 --report=testreports/psalm.txt --report-show-info=true --no-diff $(PSALM_XOPTIONS)
+	vendor-bin/psalm/vendor/bin/psalm --threads=8 --report=testreports/psalm.txt --report-show-info=true --no-diff $(PSALM_XOPTIONS)
 
 # Example usage for non-HEAD version: RELEASE_VERSION=v4.1.0 make tarball
 .PHONY: tarball

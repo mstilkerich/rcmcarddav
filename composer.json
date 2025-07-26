@@ -31,7 +31,7 @@
     "require-dev": {
         "phpcompatibility/php-compatibility": "dev-develop",
         "dealerdirect/phpcodesniffer-composer-installer": ">= 0.7.0",
-        "phpunit/phpunit": "~9 || ~10",
+        "phpunit/phpunit": "~9",
         "phpunit/phpcov": "*",
         "aodto/phasher": "dev-master",
         "bamarni/composer-bin-plugin": "^1.8"
@@ -41,7 +41,7 @@
             "min-version": "1.4.0"
         },
         "bamarni-bin": {
-            "bin-links": true,
+            "bin-links": false,
             "target-directory": "vendor-bin",
             "forward-command": false
         }
