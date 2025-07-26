@@ -4,7 +4,7 @@ inputs:
   php-version:
     description: 'PHP version to use'
     required: false
-    default: '8.0'
+    default: '8.2'
   rcube-version:
     description: 'Roundcube version to use'
     required: false
