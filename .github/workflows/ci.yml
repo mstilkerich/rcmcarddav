@@ -59,6 +59,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: testreports/unit/clover.xml
+          disable_search: true
           flags: unittests
           token: ${{ secrets.CODECOV_TOKEN }}
           name: RCMCardDAV unit test coverage
@@ -80,6 +81,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: testreports/dbinterop-sqlite3/clover.xml
+          disable_search: true
           flags: dbinterop-sqlite3
           token: ${{ secrets.CODECOV_TOKEN }}
           name: RCMCardDAV SQLite3 database interoperability test coverage
@@ -139,6 +141,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: testreports/dbinterop-mysql/clover.xml
+          disable_search: true
           flags: dbinterop-mysql
           token: ${{ secrets.CODECOV_TOKEN }}
           name: RCMCardDAV MySQL database interoperability test coverage
@@ -182,6 +185,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: testreports/dbinterop-postgres/clover.xml
+          disable_search: true
           flags: dbinterop-postgres
           token: ${{ secrets.CODECOV_TOKEN }}
           name: RCMCardDAV PostgreSQL database interoperability test coverage
