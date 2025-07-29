@@ -4,5 +4,6 @@ Makefile  export-ignore
 /doc/devdoc export-ignore
 /doc/img/*.drawio export-ignore
 /tests    export-ignore
+/vendor-bin export-ignore
 *.vcf     text eol=crlf
 *.vcf.new text eol=crlf
