@@ -341,7 +341,11 @@ For presets with several addressbooks, the wanted addressbook can be identified 
 addressbook name and/or URL. The %-placeholders that are possible in a preset URL also can be used inside these regular
 expressions. In case the preset only contains one addressbook, the match settings can be omitted.
 
-`matchurl` matches on the addressbook URL as stored in RCMCardDAV and shown in the settings interface.
+`matchurl` matches on the addressbook URL as stored in RCMCardDAV and shown in the settings interface. Note that the URL
+may include URL encoded elements, particularly in case the username is an email address and part of the addressbook URL.
+You can then not use the `%u` placeholder in the regular expression as it (e.g. `user@example.com`) would not match the
+encoded form (`user%40example.com`). In many cases, it should be sufficient to match on the last URL component to
+identify the intended preset addressbook within a preset, e.g. `'matchurl' => '#/CollectedRecipients/?$#'`.
 
 `matchname` matches on the addressbook name as stored in RCMCardDAV and shown in the settings interface. When
 `matchname` is used, the `name` attribute should be added to the fixed attributes to prevent the user from changing
