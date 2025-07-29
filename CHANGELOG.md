@@ -1,10 +1,10 @@
 # Changelog for RCMCardDAV
 
-## Version 5.x.x (to 5.1.0)
+## Version 5.1.1 (to 5.1.0)
 
 - Fix migration 7: The migration replaced placeholders in the addressbook URLs with the data of the user during whose
   login the migration was executed. This would result in broken URLs in such cases.
-- Adjust interfaces for roundcube 1.7 changes (Fixes: #467)
+- Adjust interfaces for roundcube 1.7 changes (Fixes: #467, #468, and #473 (thanks @nick-oconnor))
 - VCards imported via Roundcube import function are stored to server as is (except for compatibility fixes, e.g. adding
   UID) (Fixes #470)
 
