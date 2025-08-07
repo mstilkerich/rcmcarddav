@@ -1,0 +1,120 @@
+/* Main settings pane */
+#settings-sections .cd_preferences a {
+    background-position: 6px -791px;
+}
+#settings-sections .cd_preferences.selected a {
+    background-position: 6px -766px;
+}
+
+/* CardDAV addressbook list pane */
+
+#addressbookslist
+{
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 260px;
+}
+
+#addressbookslist li input {
+    position: absolute;
+    right: 8px;
+    top: 4px;
+    margin-right: 0;
+}
+
+#addressbookslist li a {
+    padding-right: 28px;
+}
+
+.boxfooter .listbutton.carddav_AccAdd .inner {
+    background-position: 10px -1301px;
+}
+
+.boxfooter .listbutton.carddav_AccRm .inner {
+    background-position: 10px -1342px;
+}
+
+.boxfooter .listbutton.carddav_AbSync .inner {
+    background-position: -4px -2144px;
+}
+
+#addressbooks-table li.account > a,
+#addressbooks-table li.addressbook > a
+{
+    padding-left: 36px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background-image: url(images/listicons.png);
+    background-repeat: no-repeat;
+    background-position: 6px -478px;
+}
+
+#addressbooks-table li.account > a:focus,
+#addressbooks-table li.account.selected > a {
+    background-position: 6px -502px;
+}
+
+/*
+#addressbooks-table li.account.preset > a {
+    background-position: 6px -1601px;
+}
+
+#addressbooks-table li.account.preset > a:focus,
+#addressbooks-table li.account.preset.selected > a {
+    background-position: 6px -1625px;
+}
+*/
+
+#addressbooks-table li.account.preset > a {
+    background-image: url(images/listicons.png), url(images/listicons.png);
+    background-position: 6px -478px, 16px -2273px;
+}
+#addressbooks-table li.account.preset > a:focus,
+#addressbooks-table li.account.preset.selected > a {
+    background-image: url(images/listicons.png), url(images/listicons.png);
+    background-position: 6px -502px, 16px -2273px;
+}
+
+/* Addressbooks nested inside the accounts */
+#addressbooks-table li.account ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid #bbd3da;
+}
+
+#addressbooks-table li.addressbook a {
+    padding-left: 52px;  /* 36 + 1 x 16 */
+    background-position: 22px -766px;  /* 6 + 1 x 16 */
+}
+#addressbooks-table li.addressbook > a:focus,
+#addressbooks-table li.addressbook.selected > a {
+    background-position: 22px -791px;
+}
+#addressbooks-table li.addressbook div.treetoggle {
+    left: 33px;
+    top: 14px;
+}
+
+/* Account / addressbook details frame */
+#addressbook-details
+{
+    position: absolute;
+    top: 0px;
+    left: 272px;
+    right: 0px;
+    bottom: 0px;
+}
+
+form#accountdetails input[type="text"],
+form#accountdetails input[type="password"],
+form#addressbookdetails input[type="text"],
+form#addressbookdetails input[type="password"]
+{
+    width: 99%;
+}
+
+/* vim: set ts=2:sw=2:expandtab:fenc=utf8:ff=unix:tw=120 */

@@ -1,0 +1,61 @@
+<roundcube:object name="doctype" value="html5" />
+<html>
+<head>
+<roundcube:include file="/includes/links.html" />
+</head>
+<roundcube:if condition="env:extwin" /><body class="noscroll extwin"><roundcube:else /><body class="noscroll"><roundcube:endif />
+
+<roundcube:include file="/includes/header.html" />
+
+<div id="mainscreen" class="offset">
+
+<h1 class="voice"><roundcube:label name="settings" /> : <roundcube:label name="carddav.CardDAV_rclbl" /></h1>
+
+<roundcube:include file="/includes/settingstabs.html" />
+
+<div id="settings-right" role="main">
+
+<div id="addressbookslist" class="uibox listbox">
+<h2 id="addressbookslist-header" class="boxtitle">
+    <roundcube:label name="carddav.CardDAV_rclbl" />
+</h2>
+<div id="addressbookslist-content" class="scroller withfooter">
+    <roundcube:object name="addressbookslist" id="addressbooks-table" class="treelist listing" />
+</div>
+<div id="addressbookslist-footer" class="boxfooter">
+    <roundcube:if condition="!env:carddav_forbidCustomAddressbooks" />
+        <roundcube:button command="plugin.carddav-AccAdd" type="link" title="carddav.AccAdd_btntit" class="listbutton carddav_AccAdd disabled" classAct="listbutton carddav_AccAdd" innerClass="inner" label="carddav.AccAdd_btnlbl" />
+    <roundcube:endif />
+    <roundcube:button command="plugin.carddav-AccRm" type="link" title="carddav.AccRm_btntit" class="listbutton carddav_AccRm disabled" classAct="listbutton carddav_AccRm" innerClass="inner" label="carddav.AccRm_btnlbl" />
+    <roundcube:button name="addressbooksmenulink" id="addressbooksmenulink" type="link" title="carddav.AccActions_btntit" class="listbutton groupactions" onclick="return UI.toggle_popup('addressbooksmenu',event)" innerClass="inner" content="&#9881;" aria-haspopup="true" aria-expanded="false" aria-owns="addressbookoptionsmenu" />
+    <roundcube:button command="plugin.carddav-AbSync" type="link" title="carddav.AbSync_btntit" class="listbutton carddav_AbSync disabled" classAct="listbutton carddav_AbSync" innerClass="inner" label="carddav.AbSync_btnlbl" />
+</div>
+</div>
+
+<div id="addressbook-details" class="uibox contentbox">
+    <div class="iframebox">
+        <roundcube:object name="contentframe" id="preferences-frame" style="width:100%; height:100%" frameborder="0" src="env:blankpage" />
+    </div>
+</div>
+
+</div>
+
+</div>
+
+<div id="addressbooksmenu" class="popupmenu" aria-hidden="true">
+    <h3 id="aria-label-addressbookmenu" class="voice"><roundcube:label name="carddav.AccActions_menulbl_aria" /></h3>
+    <ul class="toolbarmenu" id="addressbookoptionsmenu" role="menu" aria-labelledby="aria-label-addressbookmenu">
+        <roundcube:button command="plugin.carddav-AccRedisc" type="link-menuitem" label="carddav.AccRedisc_btntit" classAct="active" />
+        <roundcube:button command="plugin.carddav-AbClrCache" type="link-menuitem" label="carddav.AbClrCache_btnlbl" classAct="active" />
+        <roundcube:container name="addressbookoptions" id="addressbookoptionsmenu" />
+    </ul>
+</div>
+<roundcube:include file="/includes/footer.html" />
+
+<script>
+    new rcube_splitter({ id:'addressbookssplitter', p1:'#addressbookslist', p2:'#addressbook-details',
+            orientation:'v', relative:true, start:266, min:180, size:12 }).init();
+</script>
+
+</body>
+</html>

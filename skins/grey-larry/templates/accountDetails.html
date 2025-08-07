@@ -1,0 +1,24 @@
+<roundcube:object name="doctype" value="html5" />
+<html>
+<head>
+<roundcube:include file="/includes/links.html" />
+</head>
+<body class="iframe">
+
+<!-- place in body to make sure it is loaded after jquery.js -->
+<script src="/this/carddav_ui.js"></script>
+
+<h1 class="boxtitle"><roundcube:label name="carddav.AccProps_rclbl" /></h1>
+
+<div class="boxcontent" id="preferences-details">
+<roundcube:object id="accountdetails" name="accountdetails" class="propform" />
+</div>
+
+<div class="footerleft formbuttons">
+	<roundcube:button command="plugin.carddav-AccSave" type="input" class="button mainaction" label="save" />
+</div>
+
+<roundcube:include file="/includes/footer.html" />
+
+</body>
+</html>
