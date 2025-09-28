@@ -89,11 +89,13 @@ tarball:
 	@grep -q "^## Version $(patsubst v%,%,$(RELEASE_VERSION))" CHANGELOG.md || { echo "No changelog entry for release $(RELEASE_VERSION)" ; exit 1; }
 	git archive --format tar --prefix carddav/ -o releases/carddav-$(RELEASE_VERSION).tar --worktree-attributes $(RELEASE_VERSION)
 	@# Fetch a clean state of all dependencies
-	composer create-project --repository='{"type":"vcs", "url":"file://$(PWD)" }' -q --no-install --no-dev --no-plugins roundcube/carddav releases/carddav $(RELEASE_VERSION)
-	cd releases/carddav && \
-		jq -s '.[0] * .[1] | del(."require-dev")' composer.json .github/configs/composer-build-release.json >composer-release.json &&\
-	    COMPOSER=composer-release.json composer update -q --no-dev --optimize-autoloader
-	tar -C releases --owner 0 --group 0 -rf releases/carddav-$(RELEASE_VERSION).tar carddav/vendor
+	CARDDAV_RELEASEDIR="$$(mktemp -d)" && \
+	  composer create-project --repository='{"type":"vcs", "url":"file://$(PWD)" }' -q --no-install --no-dev --no-plugins roundcube/carddav "$$CARDDAV_RELEASEDIR/carddav" $(RELEASE_VERSION) && \
+	  cd "$$CARDDAV_RELEASEDIR/carddav" && \
+	  jq -s '.[0] * .[1] | del(."require-dev")' composer.json .github/configs/composer-build-release.json >composer-release.json && \
+	  COMPOSER=composer-release.json composer update -q --no-dev --optimize-autoloader && \
+	  tar -C "$$CARDDAV_RELEASEDIR" --owner 0 --group 0 -rf $$OLDPWD/releases/carddav-$(RELEASE_VERSION).tar carddav/vendor && \
+	  rm -r "$$CARDDAV_RELEASEDIR"
 	@# gzip the tarball
 	gzip -v releases/carddav-$(RELEASE_VERSION).tar
 
