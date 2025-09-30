@@ -141,6 +141,7 @@ endef
 
 define DUMPTBL_postgres
 $(PG_DUMP) --no-owner -s $(foreach tbl,$(CD_TABLES),-t $(tbl)) $(1) >$(2)
+sed -i -E -e 's/\\(un)?restrict \S+/\\\1restrict ABC/' $(2)
 endef
 define DUMPTBL_mysql
 $(MYSQLDUMP) --skip-comments --skip-dump-date --no-data $(1) $(CD_TABLES) | sed 's/ AUTO_INCREMENT=[0-9]\+//g' >$(2)
