@@ -38,7 +38,7 @@ if (file_exists(dirname(__FILE__) . "/vendor/autoload.php")) {
 /**
  * @psalm-import-type SaveDataFromDC from DataConversion
  */
-// phpcs:ignore PSR1.Classes.ClassDeclaration, Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
+// phpcs:ignore PSR1.Classes.ClassDeclaration,Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
 class carddav extends rcube_plugin implements RcmInterface
 {
     /**
