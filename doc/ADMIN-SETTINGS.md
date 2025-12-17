@@ -369,4 +369,20 @@ $config['dont_override'] = ['collected_recipients', 'collected_senders', 'defaul
 When using the trusted senders addressbook, please also configure the roundcube options `show_images` and `mdn_requests`
 to define for what purpose the trusted senders are used.
 
+## Using Bearer tokens to authenticate against the Nextcloud user_oidc app
+
+If you want the user_oidc Nextcloud app to authenticate via Bearer token (ie, you are using `'password'     =>  '%b',` in 
+the rcmcarddav `config.inc.php` file) then the following needs to be set in Nextcloud Administration Settings,  
+OpenID Connect for your provider:
+
+* Check Bearer token on API and WebDAV requests
+
+You also need to enable the following configuration in your Nextcloud `config/config.php` file:
+
+```php
+  'user_oidc' => array (
+    'userinfo_bearer_validation' => true,
+  ),
+```
+
 <!-- vim: set ts=4 sw=4 expandtab fenc=utf8 ff=unix tw=120: -->
