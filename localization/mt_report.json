@@ -1,0 +1,287 @@
+{
+    "provider": "deepl",
+    "force": 1,
+    "timestamp": "2025-08-20T01:13:36+00:00",
+    "locales": [
+        {
+            "file": "localization\/ar.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/ar_SA.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/bg_BG.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/cs_CZ.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/da_DK.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/de_CH.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/de_DE.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/el_GR.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/en_CA.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/en_GB.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/es_419.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/es_AR.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/es_ES.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/et_EE.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/fi_FI.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/fr_FR.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/he_IL.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/hu_HU.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/id_ID.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/it_IT.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/ja_JP.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/ko_KR.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/lt_LT.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/lv_LV.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/nl_BE.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/nl_NL.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/nn_NO.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/pl_PL.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/pt_BR.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/pt_PT.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/ro_RO.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/ru_RU.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/sk_SK.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/sl_SI.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/sv_SE.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/tr_TR.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/uk_UA.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/vi_VN.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/zh_CN.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        },
+        {
+            "file": "localization\/zh_TW.inc",
+            "added": 0,
+            "updated": 65,
+            "skipped": 0,
+            "total": 65
+        }
+    ]
+}
