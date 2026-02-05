@@ -195,7 +195,8 @@ class Database extends AbstractDatabase
 
         // (2) Check if the carddav_migrations table is available. If not, no RCMCardDAV tables are present yet and
         // instead of performing migration we will initialize the RCMCardDAV with the current schema
-        if (in_array($dbh->table_name('carddav_migrations'), $dbh->list_tables())) {
+        $migTableUnqualified = $this->stripDbQualifiers($dbh->table_name('carddav_migrations'));
+        if (in_array($migTableUnqualified, $dbh->list_tables())) {
             // (2.a.2) Determine which migration scripts have already been executed.
             /** @var list<array{filename: string}> $migrations */
             $migrationsDone = $this->get([], ['filename'], 'migrations');
@@ -269,10 +270,19 @@ class Database extends AbstractDatabase
         // strip comments (note: . does not match newline without the s modifier)
         $queries_raw = preg_replace('/-- .*/m', '', $queries_raw);
 
+        // Postgres only: strip any qualifying name part of a [database].[schema].prefix
+        // We cannot use the qualified name in CREATE INDEX
+        $dbPrefixWithoutSchema = $this->stripDbQualifiers($dbPrefix);
+
         $queryCount = preg_match_all('/.+?;/s', $queries_raw, $queries);
         $logger->info("Found $queryCount queries in $migrationScript");
         if ($queryCount > 0) {
             foreach ($queries[0] as $query) {
+                if ($dbh->db_provider === "postgres") {
+                    // First replace name of index without the qualifying name part for postgres
+                    $query = str_replace("CREATE INDEX TABLE_PREFIX", "CREATE INDEX $dbPrefixWithoutSchema", $query);
+                }
+
                 $query = str_replace("TABLE_PREFIX", $dbPrefix, $query);
                 $dbh->query($query);
 
@@ -631,6 +641,23 @@ class Database extends AbstractDatabase
         }
 
         return $sql;
+    }
+
+    /**
+     * From a DB prefix that might include qualifiers (e.g. database.schema.prefix), strip the qualifying parts and
+     * only leave the prefix string part.
+     *
+     * @param string $dbPrefix The prefix string
+     * @return string The non-qualifying part of the prefix string
+     */
+    private function stripDbQualifiers(string $dbPrefix): string
+    {
+        $lastDotPos = strrpos($dbPrefix, '.');
+        if ($lastDotPos !== false) {
+            $dbPrefix = substr($dbPrefix, $lastDotPos + 1);
+        }
+
+        return $dbPrefix;
     }
 }
 

@@ -1,6 +1,10 @@
 # Changelog for RCMCardDAV
 
-## Version 5.1.2 (to 5.1.0)
+## Version 5.1.2 (to 5.1.2)
+- Postgres: Support tables in a schema within the Postgres database through roundcube's `db_prefix` option, for example
+  "rcschema.". (Fixes #495)
+
+## Version 5.1.2 (to 5.1.1)
 
 - Re-release of 5.1.1 the only change being that the dependencies shipped in the tarball release are updated, notably
   including carddavclient 1.4.2 with a workaround for bearer authentication with `nextcloud/user_oidc` plugin
