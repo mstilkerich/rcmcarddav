@@ -93,7 +93,9 @@ class AdminSettings
      *     List of attributes that are applicable to an addressbook. Used to filter out those attributes from the preset
      *     that are relevant for the template addressbook settings.
      */
-    private const ABOOK_ATTRS = ['name', 'active', 'refresh_time', 'use_categories', 'require_always_email'];
+    private const ABOOK_ATTRS = [
+        'name', 'active', 'readonly', 'refresh_time', 'use_categories', 'require_always_email'
+    ];
 
     /** @var Preset Default values for the preset attributes */
     private const PRESET_DEFAULTS = [

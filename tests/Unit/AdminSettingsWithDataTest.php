@@ -186,8 +186,7 @@ final class AdminSettingsWithDataTest extends TestCase
 
         $this->assertSame('%N - %D', $tmpl['name'] ?? '');
         $this->assertSame('1', $tmpl['active'] ?? '');
-        // readonly is not part of preset
-        $this->assertArrayNotHasKey('readonly', $tmpl);
+        $this->assertSame('0', $tmpl['readonly'] ?? '');
         $this->assertSame('600', $tmpl['refresh_time'] ?? '');
         $this->assertSame('0', $tmpl['use_categories'] ?? '');
         // discovered is not part of preset
