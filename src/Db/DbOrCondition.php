@@ -40,7 +40,6 @@ class DbOrCondition
      *
      * @var string Field specifier of the condition
      * @readonly
-     * @psalm-allow-private-mutation
      */
     public $fieldSpec;
 
@@ -54,7 +53,6 @@ class DbOrCondition
      *
      * @var ?string|string[] Value specifier of the condition
      * @readonly
-     * @psalm-allow-private-mutation
      */
     public $valueSpec;
 

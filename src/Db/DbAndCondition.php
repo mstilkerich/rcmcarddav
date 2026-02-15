@@ -33,8 +33,6 @@ class DbAndCondition
 {
     /**
      * @var DbOrCondition[] The list of OrConditions in this DbAndCondition
-     * @readonly
-     * @psalm-allow-private-mutation
      */
     public $orConditions = [];
 
