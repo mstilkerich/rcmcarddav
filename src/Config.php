@@ -30,6 +30,7 @@ use Exception;
 use Psr\Log\{LoggerInterface,LogLevel};
 use MStilkerich\CardDavClient\{Account,WebDavResource};
 use MStilkerich\CardDavClient\Services\{Discovery,Sync};
+use MStilkerich\CardDavClient\XmlElements\ElementNames as XmlEN;
 use MStilkerich\RCMCardDAV\Db\{Database, AbstractDatabase};
 use MStilkerich\RCMCardDAV\Frontend\{RcmInterface, AdminSettings, AddressbookManager, Utils};
 use rcube;
@@ -151,9 +152,10 @@ class Config
         return new Sync();
     }
 
-    public function makeWebDavResource(string $uri, Account $account): WebDavResource
+    public function makeWebDavResource(string $uri, Account $account, bool $knownAbook = false): WebDavResource
     {
-        return WebDavResource::createInstance($uri, $account);
+        $resType = $knownAbook ? [XmlEN::RESTYPE_ABOOK] : null;
+        return WebDavResource::createInstance($uri, $account, $resType);
     }
 
     /**

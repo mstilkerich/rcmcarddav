@@ -93,7 +93,7 @@ class Config extends \MStilkerich\RCMCardDAV\Config
         return $this->sync ?? parent::makeSyncService();
     }
 
-    public function makeWebDavResource(string $uri, Account $account): WebDavResource
+    public function makeWebDavResource(string $uri, Account $account, bool $knownAbook = false): WebDavResource
     {
         if (isset($this->webDavResources[$uri])) {
             if ($this->webDavResources[$uri] instanceof Exception) {
@@ -102,7 +102,7 @@ class Config extends \MStilkerich\RCMCardDAV\Config
 
             $res = $this->webDavResources[$uri];
         } else {
-            $res = parent::makeWebDavResource($uri, $account);
+            $res = parent::makeWebDavResource($uri, $account, $knownAbook);
         }
 
         return $res;

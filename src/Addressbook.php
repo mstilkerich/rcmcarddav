@@ -1613,7 +1613,7 @@ class Addressbook extends rcube_addressbook
             $infra = Config::inst();
             $url = $this->config["url"];
 
-            $davAbook = $infra->makeWebDavResource($url, $this->account);
+            $davAbook = $infra->makeWebDavResource($url, $this->account, true);
             if ($davAbook instanceof AddressbookCollection) {
                 $this->davAbook = $davAbook;
             } else {
