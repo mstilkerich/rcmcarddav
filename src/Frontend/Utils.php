@@ -116,6 +116,12 @@ class Utils
         $admPrefs = $infra->admPrefs();
         $scheme = $admPrefs->pwStoreScheme;
 
+        // in case the password is a placeholder, there is not much point in encrypting it and we can avoid issues
+        // resulting from password changes by storing it plaintext.
+        if ($clear === '%p' || $clear === '%b') {
+            $scheme = 'plain';
+        }
+
         if (strcasecmp($scheme, 'plain') === 0) {
             return $clear;
         }
