@@ -7,6 +7,7 @@
   (Fixes #497)
 - Improvement: Do not query CardDAV addressbook when no communication is needed (#500)
 - Fix: null `discovery_url` would not be updated in preset even if fixed
+- Fix OAuth Bearer token authentication in roundcube 1.7 (#501)
 
 ## Version 5.1.2 (to 5.1.1)
 
