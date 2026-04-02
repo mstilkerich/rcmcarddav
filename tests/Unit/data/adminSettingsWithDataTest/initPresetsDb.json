@@ -17,7 +17,7 @@
 			"accountname": "Updated Account",
 			"username": "foo",
 			"password": "bar",
-			"discovery_url": "https://carddav.example.com/",
+			"discovery_url": null,
 			"user_id": "105",
 			"last_discovered": 12345,
 			"rediscover_time": 86400,

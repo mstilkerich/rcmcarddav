@@ -442,7 +442,7 @@ class AdminSettings
         // otherwise there may be user changes that should not be destroyed
         $pa = [];
         foreach ($preset['fixed'] as $k) {
-            if (isset($preset[$k]) && isset($accountCfg[$k]) && $accountCfg[$k] != $preset[$k]) {
+            if (key_exists($k, $preset) && key_exists($k, $accountCfg) && $accountCfg[$k] !== $preset[$k]) {
                 $pa[$k] = $preset[$k];
             }
         }

@@ -10,7 +10,8 @@ $prefs['UpdatedPreset'] = [
     'discovery_url'       => 'https://carddav.example.com/',
 
     'fixed'               => [
-        'username', 'refresh_time', 'require_always_email', 'name', 'preemptive_basic_auth', 'ssl_noverify'
+        'username', 'refresh_time', 'require_always_email', 'name', 'preemptive_basic_auth', 'ssl_noverify',
+        'discovery_url'
     ],
 
     'username'            => 'foodoo',

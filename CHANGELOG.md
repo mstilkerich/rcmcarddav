@@ -6,6 +6,7 @@
 - readonly attribute for preset addressbooks was not honored for accounts for that the user had never saved settings
   (Fixes #497)
 - Improvement: Do not query CardDAV addressbook when no communication is needed (#500)
+- Fix: null `discovery_url` would not be updated in preset even if fixed
 
 ## Version 5.1.2 (to 5.1.1)
 
