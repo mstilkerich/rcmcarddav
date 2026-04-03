@@ -16,7 +16,7 @@
 			"id": 43,
 			"accountname": "Updated Account",
 			"username": "foo",
-			"password": "bar",
+			"password": "oldpw",
 			"discovery_url": null,
 			"user_id": "105",
 			"last_discovered": 12345,

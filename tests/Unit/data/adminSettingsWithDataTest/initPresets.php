@@ -3,7 +3,7 @@
 $prefs['_GLOBAL']['loglevel'] = \Psr\Log\LogLevel::DEBUG;
 $prefs['_GLOBAL']['loglevel_http'] = \Psr\Log\LogLevel::INFO;
 
-$prefs['_GLOBAL']['pwstore_scheme'] = 'plain';
+$prefs['_GLOBAL']['pwstore_scheme'] = 'base64';
 
 $prefs['UpdatedPreset'] = [
     'accountname'         => 'Updated Account',
@@ -11,7 +11,7 @@ $prefs['UpdatedPreset'] = [
 
     'fixed'               => [
         'username', 'refresh_time', 'require_always_email', 'name', 'preemptive_basic_auth', 'ssl_noverify',
-        'discovery_url'
+        'discovery_url', 'password'
     ],
 
     'username'            => 'foodoo',
@@ -51,7 +51,7 @@ $prefs['NewPreset'] = [
     'discovery_url'       => 'https://newcard.example.com/',
 
     'username'            => '%u',
-    'password'            => 'foo',
+    'password'            => '%p',
     'rediscover_time'     => '10:00',
 
     'refresh_time'        => '5:00',

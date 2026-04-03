@@ -44,6 +44,7 @@ final class AdminSettingsWithDataTest extends TestCase
     {
         $_SESSION['user_id'] = 105;
         $_SESSION['username'] = 'johndoe';
+        $_SESSION["password"] = \rcube::get_instance()->encrypt('iM4p P455w0rd');
     }
 
     public function setUp(): void
