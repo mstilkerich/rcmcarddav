@@ -8,8 +8,8 @@ work, but have not been tested.
 The latest patchlevel of roundcube is supported for all branches of roundcube still supported by the roundcube project.
 
 These currently are:
-  - Version 1.5
   - Version 1.6
+  - Version 1.7
 
 I recommend using the latest stable roundcube version, which the plugin is most tested with.
 
