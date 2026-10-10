@@ -1,22 +1,31 @@
-<phpunit colors="true" testdox="true" bootstrap="../autoload.php" verbose="true">
+<phpunit colors="true" testdox="true" bootstrap="../autoload.php" displayDetailsOnAllIssues="true">
     <php>
         <var name="TEST_TESTRUN" value="unit"/>
 
         <!-- make sure all PHP errors are reported and raise PHPunit exceptions -->
         <ini name="error_reporting" value="-1"/>
     </php>
+    <extensions>
+        <!-- allow mocking of final classes in the tests -->
+        <bootstrap class="DG\BypassFinals\PHPUnitExtension">
+            <parameter name="allowPaths" value="*/src/*"/>
+        </bootstrap>
+    </extensions>
+
     <testsuites>
         <testsuite name="unit">
             <directory>.</directory>
         </testsuite>
     </testsuites>
 
-    <coverage processUncoveredFiles="true" pathCoverage="false">
+    <source>
         <include>
             <file>../../carddav.php</file>
             <directory suffix=".php">../../src</directory>
         </include>
+    </source>
 
+    <coverage pathCoverage="false">
         <report>
             <php outputFile="../../testreports/unit/coverage.cov"/>
             <clover outputFile="../../testreports/unit/clover.xml"/>

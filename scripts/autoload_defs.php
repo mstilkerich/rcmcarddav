@@ -23,6 +23,6 @@
  */
 
 // Assume Dir is <Roundcube Install Path>/plugins/carddav/scripts
-define('INSTALL_PATH', realpath(__DIR__ . '/../../..') . '/');
+define('INSTALL_PATH', dirname(__DIR__, 3) . '/');
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120

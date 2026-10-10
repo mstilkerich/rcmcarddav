@@ -35,6 +35,7 @@ use MStilkerich\RCMCardDAV\Db\DbAndCondition;
 use MStilkerich\RCMCardDAV\Frontend\AddressbookManager;
 use MStilkerich\CardDavClient\AddressbookCollection;
 use rcube_addressbook;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * @psalm-import-type FullAccountRow from AbstractDatabase
@@ -57,12 +58,14 @@ final class AddressbookTest extends TestCase
     /** @var JsonDatabase */
     private $db;
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         $_SESSION['user_id'] = 1000;
         $_SESSION['username'] = 'user@example.com';
     }
 
+    #[\Override]
     public function setUp(): void
     {
         $this->db = new JsonDatabase();
@@ -71,6 +74,7 @@ final class AddressbookTest extends TestCase
         TestInfrastructure::$infra->setCache($cache);
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         Utils::cleanupTempImages();
@@ -206,11 +210,11 @@ final class AddressbookTest extends TestCase
     /**
      * Tests list_records()
      *
-     * @dataProvider listRecordsDataProvider
      * @param list<string> $expRecords
      * @param null|0|string $gid
      * @param ?list<string> $cols
      */
+    #[DataProvider('listRecordsDataProvider')]
     public function testListRecordsReturnsExpectedRecords(
         int $subset,
         string $sortCol,
@@ -287,11 +291,11 @@ final class AddressbookTest extends TestCase
     /**
      * Tests count()
      *
-     * @dataProvider listRecordsDataProvider
      * @param list<string> $expRecords
      * @param null|0|string $gid
      * @param ?list<string> $cols
      */
+    #[DataProvider('listRecordsDataProvider')]
     public function testCountProvidesExpectedNumberOfRecords(
         int $subset,
         string $sortCol,
@@ -535,7 +539,6 @@ final class AddressbookTest extends TestCase
     /**
      * Tests the search() function.
      *
-     * @dataProvider searchDataProvider
      * @param string|string[] $fields
      * @param string|string[] $value
      * @param null|0|string $gid
@@ -543,6 +546,7 @@ final class AddressbookTest extends TestCase
      * @param string|string[] $reqColsCl Required columns search() parameter
      * @param list<string> $expRecords
      */
+    #[DataProvider('searchDataProvider')]
     public function testSearchReturnsExpectedRecords(
         $fields,
         $value,
@@ -625,9 +629,9 @@ final class AddressbookTest extends TestCase
     /**
      * Tests that set_search_set() throws an error when given an invalid filter type.
      *
-     * @dataProvider invalidFilterProvider
      * @param mixed $filter
      */
+    #[DataProvider('invalidFilterProvider')]
     public function testSetSearchSetThrowsErrorOnInvalidFilter($filter): void
     {
         $abook = $this->createAbook();
@@ -662,9 +666,8 @@ final class AddressbookTest extends TestCase
 
     /**
      * Tests that get_record() returns expected record.
-     *
-     * @dataProvider getRecordProvider
      */
+    #[DataProvider('getRecordProvider')]
     public function testGetRecordProvidesExpectedRecord(string $id, bool $assoc, bool $expError): void
     {
         $abook = $this->createAbook();
@@ -733,9 +736,9 @@ final class AddressbookTest extends TestCase
     /**
      * Tests that groups matching the given filter are listed.
      *
-     * @dataProvider groupFilterProvider
      * @param list<string> $expRecords
      */
+    #[DataProvider('groupFilterProvider')]
     public function testListGroupsProvidesExpectedGroups(?string $filter, int $searchmode, array $expRecords): void
     {
         $abook = $this->createAbook();
@@ -767,9 +770,8 @@ final class AddressbookTest extends TestCase
 
     /**
      * Tests that get_group() returns expected record.
-     *
-     * @dataProvider getGroupProvider
      */
+    #[DataProvider('getGroupProvider')]
     public function testGetGroupProvidesExpectedRecord(string $id, bool $expError): void
     {
         $abook = $this->createAbook();
@@ -823,8 +825,8 @@ final class AddressbookTest extends TestCase
      *
      * @psalm-param numeric-string $rt
      * @psalm-param numeric-string $lu
-     * @dataProvider resyncDueProvider
      */
+    #[DataProvider('resyncDueProvider')]
     public function testCheckResyncDueProvidesExpDelta(int $now, string $rt, string $lu, int $expDue): void
     {
         $abook = $this->createAbook(['refresh_time' => $rt, 'last_updated' => $lu]);
@@ -863,7 +865,7 @@ final class AddressbookTest extends TestCase
 
         foreach ($saveData as $k => $v) {
             // strip subtype from multi-value objects
-            $kgen = preg_replace('/:.*/', '', $k);
+            $kgen = explode(':', $k, 2)[0];
             if (in_array($kgen, $cols)) {
                 if ($kgen != $k) {
                     /** @var list<string> $oldv */

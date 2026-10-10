@@ -37,15 +37,18 @@ final class DatabaseInitializationTest extends TestCase
     /** @var AbstractDatabase Database used for the schema initialization test */
     private static $db;
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         self::resetRcubeDb();
     }
 
+    #[\Override]
     public function setUp(): void
     {
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         TestInfrastructure::logger()->reset();
@@ -81,12 +84,9 @@ final class DatabaseInitializationTest extends TestCase
         $db->checkMigrations("", self::SCRIPTDIR);
 
         // After the initialization, the migrations table must contain all the available migrations
-        $migsavail = array_map(
-            function (string $s): string {
-                return basename($s);
-            },
-            glob(self::SCRIPTDIR . "/0???-*")
-        );
+        $migDirs = glob(self::SCRIPTDIR . "/0???-*");
+        $this->assertIsArray($migDirs);
+        $migsavail = array_map(basename(...), $migDirs);
         $migsDone = $this->getDoneMigrations();
         $this->assertSame($migsavail, $migsDone);
     }

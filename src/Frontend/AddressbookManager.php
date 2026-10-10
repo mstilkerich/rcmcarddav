@@ -117,7 +117,7 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  *
  * @psalm-type AbookFilter = list{int, int}
  */
-class AddressbookManager
+final class AddressbookManager
 {
     /**
      * @var AbookFilter Filter yields all addressbooks, including templates.
@@ -363,7 +363,7 @@ class AddressbookManager
     {
         // set the application-level fields from the DB-level fields
         foreach (AbstractDatabase::FLAGS_COLS['addressbooks']['fields'] as $cfgAttr => $bitPos) {
-            $abookrow[$cfgAttr] = (($abookrow['flags'] & (1 << $bitPos)) ? '1' : '0');
+            $abookrow[$cfgAttr] = (((int) $abookrow['flags'] & (1 << $bitPos)) ? '1' : '0');
         }
 
         /** @psalm-var AbookCfg $abookrow Psalm does not keep track of the type of individual array members above */
@@ -383,7 +383,7 @@ class AddressbookManager
     {
         // set the application-level fields from the DB-level fields
         foreach (AbstractDatabase::FLAGS_COLS['accounts']['fields'] as $cfgAttr => $bitPos) {
-            $row[$cfgAttr] = (($row['flags'] & (1 << $bitPos)) ? '1' : '0');
+            $row[$cfgAttr] = (((int) $row['flags'] & (1 << $bitPos)) ? '1' : '0');
         }
 
         /** @psalm-var AccountCfg $row Psalm does not keep track of the type of individual array members above */
@@ -427,7 +427,7 @@ class AddressbookManager
 
         // filter out template addressbooks
         $result = array_filter($result, function (array $v) use ($filter): bool {
-            return (($v["flags"] & $filter[0]) === $filter[1]);
+            return (((int) $v["flags"] & $filter[0]) === $filter[1]);
         });
 
         return array_column($result, 'id');
@@ -472,7 +472,7 @@ class AddressbookManager
             $this->abooksDb,
             function (array $v) use ($accountId, $filter): bool {
                 return $v["account_id"] == $accountId &&
-                    (($v["flags"] & $filter[0]) === $filter[1]) ;
+                    (((int) $v["flags"] & $filter[0]) === $filter[1]) ;
             }
         );
     }

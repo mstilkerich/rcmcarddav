@@ -70,17 +70,20 @@ final class SyncHandlerRoundcubeTest extends TestCase
     /** @var JsonDatabase */
     private $db;
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         $_SESSION['user_id'] = 105;
     }
 
+    #[\Override]
     public function setUp(): void
     {
         $this->db = new JsonDatabase();
         TestInfrastructure::init($this->db);
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         TestInfrastructure::logger()->reset();

@@ -31,21 +31,25 @@ use MStilkerich\RCMCardDAV\Db\Database;
 use MStilkerich\RCMCardDAV\Frontend\AdminSettings;
 use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 final class AdminSettingsTest extends TestCase
 {
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         // needed for URL placeholder replacements when admin settings are read
         $_SESSION['username'] = 'user@example.com';
     }
 
+    #[\Override]
     public function setUp(): void
     {
         $db = $this->createMock(Database::class);
         TestInfrastructure::init($db);
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         TestInfrastructure::logger()->reset();
@@ -67,9 +71,8 @@ final class AdminSettingsTest extends TestCase
 
     /**
      * Tests that config.inc.php file is correctly parsed.
-     *
-     * @dataProvider configFileProvider
      */
+    #[DataProvider('configFileProvider')]
     public function testConfigFileParsedCorrectly(string $cfgFileBase): void
     {
         $expPrefs = TestInfrastructure::readJsonArray("$cfgFileBase.json");
@@ -453,9 +456,8 @@ final class AdminSettingsTest extends TestCase
      * @param callable(array):array|callable(array):string $modifyPrefsFunc
      * @param callable(array):array $modifyExpResultFunc
      * @param callable(AdminSettings, RoundcubeLogger, RoundcubeLogger):void $validateFunc
-     *
-     * @dataProvider errorsInAdminConfigProvider
      */
+    #[DataProvider('errorsInAdminConfigProvider')]
     public function testErrorsInAdminConfigAreDetected(
         $modifyPrefsFunc,
         $modifyExpResultFunc,
@@ -495,6 +497,7 @@ final class AdminSettingsTest extends TestCase
 
         // check that expected error message was logged
         $logEntries = file_get_contents('testreports/adminSettingsTest_log.log');
+        $this->assertIsString($logEntries);
         $this->assertMatchesRegularExpression("/\[5 ERR\] .*$expLogMsg/", $logEntries, "expected error log not found");
     }
 

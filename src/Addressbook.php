@@ -50,7 +50,7 @@ use MStilkerich\RCMCardDAV\Frontend\AddressbookManager;
  *   name: string
  * }
  */
-class Addressbook extends rcube_addressbook
+final class Addressbook extends rcube_addressbook
 {
     /** @var string Separator character used by roundcube to encode multiple values in a single string. */
     private const SEPARATOR = ',';
@@ -114,6 +114,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return string name of this addressbook
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_name(): string
     {
@@ -132,6 +133,7 @@ class Addressbook extends rcube_addressbook
      *
      * @param mixed $filter Search params to use in listing method, obtained by get_search_set()
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function set_search_set($filter): void
     {
@@ -155,6 +157,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return list<DbAndCondition> Search properties used by this class
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_search_set()
     {
@@ -164,6 +167,7 @@ class Addressbook extends rcube_addressbook
     /**
      * Reset saved results and search parameters
      */
+    #[\Override]
     public function reset(): void
     {
         $this->result = null;
@@ -197,6 +201,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return rcube_result_set Indexed list of contact records, each a hash array
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function list_records($cols = null, $subset = 0, $nocount = false)
     {
@@ -281,6 +286,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return rcube_result_set Contact records and 'count' value
      */
+    #[\Override]
     public function search($fields, $value, $mode = 0, $select = true, $nocount = false, $required = [])
     {
         $logger = Config::inst()->logger();
@@ -374,6 +380,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return rcube_result_set Result set with values for 'count' and 'first'
      */
+    #[\Override]
     public function count(): rcube_result_set
     {
         try {
@@ -392,6 +399,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return ?rcube_result_set Current result set or NULL if nothing selected yet
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_result(): ?rcube_result_set
     {
@@ -410,6 +418,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return ($assoc is true ? (array{}|SaveDataFromDC) : rcube_result_set) Result object with all record fields
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_record($id, $assoc = false)
     {
@@ -445,6 +454,7 @@ class Addressbook extends rcube_addressbook
      * @param ?string $sort_col   Sort column
      * @param ?string $sort_order Sort order
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function set_sort_order($sort_col = null, $sort_order = null): void
     {
@@ -467,6 +477,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return string|false The created record ID on success, false on error
      */
+    #[\Override]
     public function insert($save_data, $check = false)
     {
         $infra = Config::inst();
@@ -500,12 +511,13 @@ class Addressbook extends rcube_addressbook
 
             $this->resync();
 
+            $uid = (string) VObjectUtils::getProperty($vcard, 'UID');
             /**
              * We preferably check the UID. But as some CardDAV services (i.e. Google) change the UID in the VCard to a
              * server-side one, we fall back to searching by URL if the UID search returned no results.
              * @psalm-var list<array{id: string}> $contact
              */
-            $contact = $db->get(['cuid' => (string) $vcard->UID, "abook_id" => $this->id], ['id']);
+            $contact = $db->get(['cuid' => $uid, "abook_id" => $this->id], ['id']);
             if (empty($contact)) {
                 /** @var array{id: string} $contact */
                 $contact = $db->lookup(['uri' => $uri, "abook_id" => $this->id], ['id']);
@@ -530,6 +542,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return string|bool On success if ID has been changed returns ID, otherwise True, False on error
      */
+    #[\Override]
     public function update($id, $save_cols)
     {
         $infra = Config::inst();
@@ -582,6 +595,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return int|false Number of removed records, False on failure
      */
+    #[\Override]
     public function delete($ids, $force = true)
     {
         $infra = Config::inst();
@@ -649,6 +663,7 @@ class Addressbook extends rcube_addressbook
      *
      * @param bool $with_groups Remove also groups
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function delete_all($with_groups = false): void
     {
@@ -710,6 +725,7 @@ class Addressbook extends rcube_addressbook
      *
      * @param null|int|string $group_id Database identifier of the group. 0/"0"/null to reset the group filter.
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function set_group($group_id): void
     {
@@ -741,6 +757,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return list<GroupSaveData> List of contact groups, each a hash array
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function list_groups($search = null, $mode = 0): array
     {
@@ -802,6 +819,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return ?GroupSaveData Group properties as hash array, null in case of error.
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_group($group_id): ?array
     {
@@ -834,6 +852,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return array|false False on error, array with record props in success
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function create_group($name)
     {
@@ -856,7 +875,8 @@ class Addressbook extends rcube_addressbook
 
                 $this->resync();
 
-                return $db->lookup(['cuid' => (string) $vcard->UID], ['id', 'name'], 'groups');
+                $uid = (string) VObjectUtils::getProperty($vcard, 'UID');
+                return $db->lookup(['cuid' => $uid], ['id', 'name'], 'groups');
             }
         } catch (Exception $e) {
             $logger->error("create_group($name): " . $e->getMessage());
@@ -873,6 +893,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return bool True on success, false if no data was changed
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function delete_group($group_id): bool
     {
@@ -931,6 +952,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return string|false New name on success, false if no data was changed
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function rename_group($group_id, $newname, &$newid)
     {
@@ -998,6 +1020,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return int Number of contacts added
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function add_to_group($group_id, $ids): int
     {
@@ -1109,6 +1132,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return int Number of deleted group members
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function remove_from_group($group_id, $ids): int
     {
@@ -1185,6 +1209,7 @@ class Addressbook extends rcube_addressbook
      *
      * @return array<numeric-string, string> List of assigned groups as ID=>Name pairs
      */
+    #[\Override]
     // phpcs:ignore PSR1.Methods.CamelCapsMethodName -- method name defined by rcube_addressbook class
     public function get_record_groups($id): array
     {
@@ -1666,9 +1691,10 @@ class Addressbook extends rcube_addressbook
         foreach ($contacts as $contact) {
             $vcard = $this->parseVCard($contact['vcard']);
             $groups = [];
-            if (isset($vcard->{"CATEGORIES"})) {
+            $categories = VObjectUtils::getProperty($vcard, 'CATEGORIES');
+            if (isset($categories)) {
                 /** @var list<string> $groups */
-                $groups = $vcard->CATEGORIES->getParts();
+                $groups = $categories->getParts();
             }
 
             if ($callback($groups, $contact["id"]) !== false) {

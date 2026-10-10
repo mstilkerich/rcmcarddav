@@ -39,6 +39,7 @@ use MStilkerich\RCMCardDAV\Frontend\{AddressbookManager,UI};
 use MStilkerich\RCMCardDAV\RoundcubeLogger;
 use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Tests parts of the AdminSettings class using test data in JsonDatabase.
@@ -50,19 +51,36 @@ final class UITest extends TestCase
     /** @var JsonDatabase */
     private $db;
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         $_SESSION['user_id'] = 105;
         $_SESSION['username'] = 'johndoe';
     }
 
+    #[\Override]
     public function setUp(): void
     {
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         TestInfrastructure::logger()->reset();
+    }
+
+    /**
+     * Parses the given HTML document, asserting that it is not empty and could be parsed.
+     */
+    private function parseHtml(string $html): DOMDocument
+    {
+        if ($html === '') {
+            $this->fail('HTML is empty');
+        }
+
+        $dom = new DOMDocument();
+        $this->assertTrue($dom->loadHTML($html));
+        return $dom;
     }
 
     public function testUiSettingsActionGeneratesProperSectionInfo(): void
@@ -139,8 +157,7 @@ final class UITest extends TestCase
             ],
         ];
 
-        $dom = new DOMDocument();
-        $this->assertTrue($dom->loadHTML($html));
+        $dom = $this->parseHtml($html);
         $xpath = new DOMXPath($dom);
 
         // for each account, there must be an li node with the id rcmli_acc<ID>
@@ -285,8 +302,8 @@ final class UITest extends TestCase
      *   - Account ID of different user in GET parameters (error is logged, empty string is returned)
      *
      * @param list<list{string,?string,string,string,?string}> $checkInputs
-     * @dataProvider accountIdProvider
      */
+    #[DataProvider('accountIdProvider')]
     public function testAccountDetailsFormIsProperlyCreated(?string $getID, ?string $errMsg, array $checkInputs): void
     {
         $this->db = new JsonDatabase(['tests/Unit/data/uiTest/db.json']);
@@ -312,10 +329,7 @@ final class UITest extends TestCase
 
         if (is_null($errMsg)) {
             $this->assertIsString($getID);
-            $this->assertNotEmpty($html);
-
-            $dom = new DOMDocument();
-            $this->assertTrue($dom->loadHTML($html));
+            $dom = $this->parseHtml($html);
 
             // Check form fields exist and contain the expected values
             $this->checkInput($dom, $checkInputs);
@@ -397,8 +411,8 @@ final class UITest extends TestCase
      *     returned)
      *
      * @param list<list{string,?string,string,string,?string}> $checkInputs
-     * @dataProvider abookIdProvider
      */
+    #[DataProvider('abookIdProvider')]
     public function testAddressbookDetailsFormIsProperlyCreated(
         ?string $getID,
         ?string $errMsg,
@@ -429,10 +443,7 @@ final class UITest extends TestCase
 
         if (is_null($errMsg)) {
             $this->assertIsString($getID);
-            $this->assertNotEmpty($html);
-
-            $dom = new DOMDocument();
-            $this->assertTrue($dom->loadHTML($html));
+            $dom = $this->parseHtml($html);
 
             // Check form fields exist and contain the expected values
             $this->checkInput($dom, $checkInputs);
@@ -472,7 +483,8 @@ final class UITest extends TestCase
                 $this->assertInstanceOf(DOMNodeList::class, $radioItems);
                 $this->assertGreaterThan(1, count($radioItems));
                 $valueItemFound = false;
-                foreach ($radioItems as $radioItem) {
+                for ($i = 0; $i < count($radioItems); $i++) {
+                    $radioItem = $radioItems->item($i);
                     $this->assertInstanceOf(DOMNode::class, $radioItem);
                     $this->checkAttribute($radioItem, 'type', 'radio');
 
@@ -715,10 +727,10 @@ final class UITest extends TestCase
      *   - Account ID of addressbook belonging to a hidden preset in POST parameters (error is logged, error message
      *     sent to client, no action performed)
      *
-     * @dataProvider accountSaveFormDataProvider
      * @param array<string,string> $postData
      * @param ?list{PsrLogLevel,string} $errMsgExp
      */
+    #[DataProvider('accountSaveFormDataProvider')]
     public function testAccountIsProperlySaved(
         array $postData,
         ?array $errMsgExp,
@@ -825,10 +837,10 @@ final class UITest extends TestCase
      *   - Addressbook ID belonging to a hidden preset in POST parameters (error is logged, error message sent to
      *     client, no action performed)
      *
-     * @dataProvider abookSaveFormDataProvider
      * @param array<string,string> $postData
      * @param ?list{PsrLogLevel,string} $errMsgExp
      */
+    #[DataProvider('abookSaveFormDataProvider')]
     public function testAddressbookIsProperlySaved(
         array $postData,
         ?array $errMsgExp,
@@ -920,10 +932,10 @@ final class UITest extends TestCase
      * Error cases:
      *  - Discovery URL not provided
      *
-     * @dataProvider accountAddFormDataProvider
      * @param array<string,string> $postData
      * @param ?list{PsrLogLevel,string} $errMsgExp
      */
+    #[DataProvider('accountAddFormDataProvider')]
     public function testNewAccountIsProperlyCreated(
         array $postData,
         ?array $errMsgExp,
@@ -1065,10 +1077,10 @@ final class UITest extends TestCase
      *   - Addressbook ID of an addressbook where the active attribute is fixed is sent (error is logged, error shown to
      *     client, toggle is reset on client)
      *
-     * @dataProvider abookToggleFormDataProvider
      * @param array<string,string> $postData
      * @param ?list{PsrLogLevel,string} $errMsgExp
      */
+    #[DataProvider('abookToggleFormDataProvider')]
     public function testAddressbookToggleActiveWorksProperly(
         array $postData,
         ?array $errMsgExp,
@@ -1142,9 +1154,9 @@ final class UITest extends TestCase
      *   - Account ID of addressbook belonging to a preset in parameters (error is logged, error message sent to
      *     client, no action performed)
      *
-     * @dataProvider accountDeleteFormDataProvider
      * @param ?list{PsrLogLevel,string} $errMsgExp
      */
+    #[DataProvider('accountDeleteFormDataProvider')]
     public function testAccountIsProperlyRemoved(
         ?string $accountId,
         ?array $errMsgExp,
@@ -1216,9 +1228,9 @@ final class UITest extends TestCase
      *     client, no action performed)
      *   - Rediscovery for account without rediscovery URL is requested
      *
-     * @dataProvider accountRediscoverFormDataProvider
      * @param ?list{PsrLogLevel,string} $errMsgExp
      */
+    #[DataProvider('accountRediscoverFormDataProvider')]
     public function testAccountIsProperlyRediscovered(
         ?string $accountId,
         ?array $errMsgExp,
@@ -1345,10 +1357,10 @@ final class UITest extends TestCase
      *   - ID of addressbook belonging to a hidden preset in parameters (error is logged, error message sent to
      *     client, no action performed)
      *
-     * @dataProvider AbookResyncFormDataProvider
      * @param array<string,string> $postData
      * @param ?list{PsrLogLevel,string} $errMsgExp
      */
+    #[DataProvider('AbookResyncFormDataProvider')]
     public function testAddressbookIsProperlyResynced(
         array $postData,
         ?array $errMsgExp,

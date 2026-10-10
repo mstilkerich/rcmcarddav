@@ -32,7 +32,7 @@ use MStilkerich\RCMCardDAV\Frontend\RcmInterface;
 /**
  * @psalm-import-type RcMsgType from RcmInterface
  */
-class RcmAdapterStub implements RcmInterface
+final class RcmAdapterStub implements RcmInterface
 {
     /** @var array<string,string> Simulated POST data */
     public $getInputs = [];
@@ -52,11 +52,13 @@ class RcmAdapterStub implements RcmInterface
     /** @var list<list{string,array}> */
     public $sentCommands = [];
 
+    #[\Override]
     public function locText(string $msgId, array $vars = []): string
     {
         return $msgId;
     }
 
+    #[\Override]
     public function inputValue(string $id, bool $allowHtml, int $source = \rcube_utils::INPUT_POST): ?string
     {
         if ($source === \rcube_utils::INPUT_POST) {
@@ -72,16 +74,19 @@ class RcmAdapterStub implements RcmInterface
         return null;
     }
 
+    #[\Override]
     public function showMessage(string $msg, string $msgType = 'notice', $override = true, $timeout = 0): void
     {
         $this->shownMessages[] = [ $msgType, $msg ];
     }
 
+    #[\Override]
     public function clientCommand(string $method, ...$arguments): void
     {
         $this->sentCommands[] = [ $method, $arguments ];
     }
 
+    #[\Override]
     public function addHook(string $hook, callable $callback): void
     {
         // currently this stub only supports one callback per hook
@@ -89,34 +94,42 @@ class RcmAdapterStub implements RcmInterface
         $this->hooks[$hook] = $callback;
     }
 
+    #[\Override]
     public function registerAction(string $action, callable $callback): void
     {
     }
 
+    #[\Override]
     public function addTexts(string $dir): void
     {
     }
 
+    #[\Override]
     public function includeCSS(string $cssFile): void
     {
     }
 
+    #[\Override]
     public function includeJS(string $jsFile, bool $rcInclude = false): void
     {
     }
 
+    #[\Override]
     public function addGuiObject(string $obj, string $id): void
     {
     }
 
+    #[\Override]
     public function setPageTitle(string $title): void
     {
     }
 
+    #[\Override]
     public function addTemplateObjHandler(string $name, callable $func): void
     {
     }
 
+    #[\Override]
     public function sendTemplate(string $templ, $exit = true): void
     {
         $this->sentTemplates[] = $templ;
@@ -125,6 +138,7 @@ class RcmAdapterStub implements RcmInterface
     /**
      * @param array<string,string> $attrib
      */
+    #[\Override]
     public function requestForm(array $attrib, string $content): string
     {
         $attrs = '';
@@ -135,6 +149,7 @@ class RcmAdapterStub implements RcmInterface
         return "<form $attrs>$content</form>";
     }
 
+    #[\Override]
     public function setEnv(string $name, $value, bool $addToJs = true): void
     {
     }

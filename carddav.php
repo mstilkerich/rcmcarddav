@@ -40,14 +40,14 @@ if (file_exists(dirname(__FILE__) . "/vendor/autoload.php")) {
  * @psalm-type RcAddressbookInfo = array{id: string, name: string, groups: bool, autocomplete: bool, readonly: bool}
  */
 // phpcs:ignore PSR1.Classes.ClassDeclaration,Squiz.Classes.ValidClassName -- class name(space) expected by roundcube
-class carddav extends rcube_plugin implements RcmInterface
+final class carddav extends rcube_plugin implements RcmInterface
 {
     /**
      * The version of this plugin.
      *
      * During development, it is set to the last release and added the suffix +dev.
      */
-    public const PLUGIN_VERSION = 'v5.1.4+dev';
+    public const PLUGIN_VERSION = 'v6.0.0-dev';
 
     /**
      * Information about this plugin that is queried by roundcube.
@@ -85,6 +85,7 @@ class carddav extends rcube_plugin implements RcmInterface
      *   src_uri: Direct download URL to the source code of this plugin
      *   require: List of plugins required for this one (as array of plugin names)
      */
+    #[\Override]
     public static function info(): array
     {
         return self::PLUGIN_INFO;
@@ -106,6 +107,7 @@ class carddav extends rcube_plugin implements RcmInterface
         $this->abMgr = new AddressbookManager();
     }
 
+    #[\Override]
     public function init(): void
     {
         try {
@@ -191,12 +193,14 @@ class carddav extends rcube_plugin implements RcmInterface
      *                                  ROUNDCUBE ADAPTER
      **************************************************************************************/
 
+    #[\Override]
     public function locText(string $msgId, array $vars = []): string
     {
         $locMsg = $this->gettext(["name" => $msgId, "vars" => $vars]);
         return rcube::Q($locMsg);
     }
 
+    #[\Override]
     public function inputValue(string $id, bool $allowHtml, int $source = rcube_utils::INPUT_POST): ?string
     {
         $value = rcube_utils::get_input_value($id, $source, $allowHtml);
@@ -204,6 +208,7 @@ class carddav extends rcube_plugin implements RcmInterface
         return is_string($value) ? $value : null;
     }
 
+    #[\Override]
     public function showMessage(string $msg, string $msgType = 'notice', bool $override = false, int $timeout = 0): void
     {
         $rcube = rcube::get_instance();
@@ -214,6 +219,7 @@ class carddav extends rcube_plugin implements RcmInterface
         }
     }
 
+    #[\Override]
     public function clientCommand(string $method, ...$arguments): void
     {
         $rcube = rcube::get_instance();
@@ -224,27 +230,32 @@ class carddav extends rcube_plugin implements RcmInterface
         }
     }
 
+    #[\Override]
     public function addHook(string $hook, callable $callback): void
     {
         $this->add_hook($hook, $callback);
     }
 
+    #[\Override]
     public function registerAction(string $action, callable $callback): void
     {
         $this->register_action($action, $callback);
     }
 
+    #[\Override]
     public function addTexts(string $dir): void
     {
         $this->add_texts($dir, true);
     }
 
+    #[\Override]
     public function includeCSS(string $cssFile): void
     {
         $skinPath = $this->local_skin_path();
         $this->include_stylesheet("$skinPath/$cssFile");
     }
 
+    #[\Override]
     public function includeJS(string $jsFile, bool $rcInclude = false): void
     {
         if ($rcInclude) {
@@ -257,6 +268,7 @@ class carddav extends rcube_plugin implements RcmInterface
         }
     }
 
+    #[\Override]
     public function addGuiObject(string $obj, string $id): void
     {
         $rcube = rcube::get_instance();
@@ -266,6 +278,7 @@ class carddav extends rcube_plugin implements RcmInterface
         $output->add_gui_object($obj, $id);
     }
 
+    #[\Override]
     public function setPageTitle(string $title): void
     {
         $rcube = rcube::get_instance();
@@ -275,6 +288,7 @@ class carddav extends rcube_plugin implements RcmInterface
         $output->set_pagetitle($title);
     }
 
+    #[\Override]
     public function addTemplateObjHandler(string $name, callable $func): void
     {
         $rcube = rcube::get_instance();
@@ -284,6 +298,7 @@ class carddav extends rcube_plugin implements RcmInterface
         $output->add_handler($name, $func);
     }
 
+    #[\Override]
     public function setEnv(string $name, $value, bool $addToJs = true): void
     {
         $rcube = rcube::get_instance();
@@ -293,6 +308,7 @@ class carddav extends rcube_plugin implements RcmInterface
         }
     }
 
+    #[\Override]
     public function sendTemplate(string $templ, bool $exit = true): void
     {
         $rcube = rcube::get_instance();
@@ -305,6 +321,7 @@ class carddav extends rcube_plugin implements RcmInterface
     /**
      * @param array<string,string> $attrib
      */
+    #[\Override]
     public function requestForm(array $attrib, string $content): string
     {
         $rcube = rcube::get_instance();
@@ -357,7 +374,7 @@ class carddav extends rcube_plugin implements RcmInterface
                 continue;
             }
 
-            if (($accountCfg['last_discovered'] + $accountCfg['rediscover_time']) < time()) {
+            if (((int) $accountCfg['last_discovered'] + (int) $accountCfg['rediscover_time']) < time()) {
                 try {
                     $abookTmpl = $admPrefs->getAddressbookTemplate($abMgr, $accountId);
                     $logger->info("Performing re-discovery for account $accountId");

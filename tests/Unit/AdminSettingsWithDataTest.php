@@ -31,6 +31,7 @@ use MStilkerich\CardDavClient\{AddressbookCollection,WebDavResource};
 use MStilkerich\RCMCardDAV\Frontend\AddressbookManager;
 use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Tests parts of the AdminSettings class using test data in JsonDatabase.
@@ -40,6 +41,7 @@ final class AdminSettingsWithDataTest extends TestCase
     /** @var JsonDatabase */
     private $db;
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         $_SESSION['user_id'] = 105;
@@ -47,10 +49,12 @@ final class AdminSettingsWithDataTest extends TestCase
         $_SESSION["password"] = \rcube::get_instance()->encrypt('iM4p P455w0rd');
     }
 
+    #[\Override]
     public function setUp(): void
     {
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         TestInfrastructure::logger()->reset();
@@ -89,8 +93,8 @@ final class AdminSettingsWithDataTest extends TestCase
      * @param string $admSettingsPath Path name of config.inc.php file
      * @param list{?string,?string,?string} $expIds Expected abook IDs for 0: collected_recipients,
      *                                              1: collected_senders, 2: default_addressbook
-     * @dataProvider specialAbookTestProvider
      */
+    #[DataProvider('specialAbookTestProvider')]
     public function testSpecialAddressbooksReturnedCorrectly(string $admSettingsPath, array $expIds): void
     {
         $this->db = new JsonDatabase(['tests/Unit/data/adminSettingsWithDataTest/db.json']);

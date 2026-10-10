@@ -88,7 +88,7 @@ use carddav;
  * @psalm-type ColTypeDef = array{subtypes?: list<string>, subtypealias?: array<string,string>}
  * @psalm-type ColTypeDefs = array<string,ColTypeDef>
  */
-class DataConversion
+final class DataConversion
 {
     /** @var string This is an empty VCard string to work around an incompatibility of Roundcube's export code with the
      *              DelayedPhotoLoader object that we store in the photo attribute of save_data.
@@ -350,7 +350,7 @@ class DataConversion
             $save_data["photo"] = new DelayedPhotoLoader($vcard, $davAbook);
         }
 
-        $property = $vcard->N;
+        $property = VObjectUtils::getProperty($vcard, 'N');
         if (isset($property)) {
             $attrs = [ "surname", "firstname", "middlename", "prefix", "suffix" ];
             /** @var list<string> $N */
@@ -363,7 +363,7 @@ class DataConversion
             }
         }
 
-        $property = $vcard->ORG;
+        $property = VObjectUtils::getProperty($vcard, 'ORG');
         if (isset($property)) {
             /** @var list<string> $ORG */
             $ORG = $property->getParts();
@@ -622,7 +622,7 @@ class DataConversion
             if (empty($orgParts)) {
                 $orgParts[] = "";
             }
-            $orgParts = array_merge($orgParts, preg_split('/\s*;\s*/', $save_data['department']));
+            $orgParts = array_merge($orgParts, preg_split('/\s*;\s*/', $save_data['department']) ?: []);
         }
 
         if (empty($orgParts)) {
@@ -637,25 +637,22 @@ class DataConversion
      */
     private static function setPhotoProperty(VCard $vcard, string $photoData): void
     {
-        $vcard->PHOTO = $photoData;
-        if (isset($vcard->PHOTO)) {
-            $vcard->PHOTO['ENCODING'] = 'b';
-            $vcard->PHOTO['VALUE'] = 'binary';
+        $params = [ 'ENCODING' => 'b', 'VALUE' => 'binary' ];
 
-            if (function_exists('getimagesizefromstring')) {
-                $typemap = [
-                    IMAGETYPE_JPEG => 'JPEG',
-                    IMAGETYPE_GIF  => 'GIF',
-                    IMAGETYPE_PNG  => 'PNG',
-                ];
-                $imginfo = getimagesizefromstring($photoData);
-                if ($imginfo !== false) {
-                    if (key_exists($imginfo[2], $typemap)) {
-                        $vcard->PHOTO['TYPE'] = $typemap[$imginfo[2]];
-                    }
-                }
+        if (function_exists('getimagesizefromstring')) {
+            $typemap = [
+                IMAGETYPE_JPEG => 'JPEG',
+                IMAGETYPE_GIF  => 'GIF',
+                IMAGETYPE_PNG  => 'PNG',
+            ];
+            $imginfo = getimagesizefromstring($photoData);
+            if ($imginfo !== false && key_exists($imginfo[2], $typemap)) {
+                $params['TYPE'] = $typemap[$imginfo[2]];
             }
         }
+
+        $vcard->remove('PHOTO');
+        $vcard->add('PHOTO', $photoData, $params);
     }
 
     /**
@@ -924,7 +921,7 @@ class DataConversion
         /** @var VObject\Property $p */
         foreach ($vcard->children() as $p) {
             if (isset($p->group)) {
-                if (strcasecmp($p->name, "X-ABLabel") === 0) {
+                if (strcasecmp(VObjectUtils::getName($p), "X-ABLabel") === 0) {
                     $labelProps[] = $p;
                 } else {
                     $usedGroups[strtoupper($p->group)] = true;
@@ -1019,7 +1016,7 @@ class DataConversion
     private function getAttrLabel(VCard $vcard, VObject\Property $vprop, string $attrname): string
     {
         // 1. Check if there is a property-specific handler to provide label
-        $vkey = str_replace("-", "_", strtoupper($vprop->name));
+        $vkey = str_replace("-", "_", strtoupper(VObjectUtils::getName($vprop)));
         if (method_exists($this, "getAttrLabel$vkey")) {
             /** @var string */
             return call_user_func([$this, "getAttrLabel$vkey"], $vcard, $vprop);
@@ -1033,13 +1030,9 @@ class DataConversion
 
         // 3. select a known standard label if available
         $selection = null;
-        if (
-            isset($vprop["TYPE"]) &&
-            isset($this->coltypes[$attrname]['subtypes'])
-        ) {
-            /** @var VObject\Parameter */
-            foreach ($vprop["TYPE"] as $type) {
-                $type = strtolower((string) $type);
+        if (isset($this->coltypes[$attrname]['subtypes'])) {
+            foreach (VObjectUtils::getParameterValues($vprop, 'TYPE') as $type) {
+                $type = strtolower($type);
                 $pref = array_search($type, $this->coltypes[$attrname]['subtypes'], true);
 
                 if ($pref !== false) {
@@ -1061,11 +1054,11 @@ class DataConversion
     {
         $group = $vprop->group;
         if (isset($group)) {
-            /** @var ?VObject\Property */
-            $xlabel = $vcard->{"$group.X-ABLabel"};
-            if (!empty($xlabel)) {
+            $xlabelProp = VObjectUtils::getProperty($vcard, "$group.X-ABLabel");
+            if (isset($xlabelProp)) {
                 // special labels from Apple namespace are stored in the form "_$!<Label>!$_" - extract label
-                $xlabel = preg_replace(';_\$!<(.*)>!\$_;', '$1', (string) $xlabel);
+                $xlabel = (string) $xlabelProp;
+                $xlabel = preg_replace(';_\$!<(.*)>!\$_;', '$1', $xlabel) ?? $xlabel;
 
                 // add to known types if new
                 if (!in_array($xlabel, $this->coltypes[$attrname]['subtypes'] ?? [])) {
@@ -1099,11 +1092,8 @@ class DataConversion
         // 2) check TYPE parameters for types that require a special mapping
         $setTypes = [];
 
-        if (isset($prop["TYPE"])) {
-            /** @var VObject\Parameter */
-            foreach ($prop["TYPE"] as $type) {
-                $setTypes[] = strtolower((string) $type);
-            }
+        foreach (VObjectUtils::getParameterValues($prop, 'TYPE') as $type) {
+            $setTypes[] = strtolower($type);
         }
 
         foreach (self::TEL_TYPE_TORC as $tuple) {
@@ -1145,20 +1135,16 @@ class DataConversion
         );
 
         // check X-SERVICE-TYPE parameter (seen in entries created by Apple Addressbook)
-        if (isset($prop["X-SERVICE-TYPE"])) {
-            /** @var VObject\Parameter $type */
-            foreach ($prop["X-SERVICE-TYPE"] as $type) {
-                $type = (string) $type;
-                $ltype = strtolower($type);
-                $pos = array_search($ltype, $subtypesLower, true);
+        foreach (VObjectUtils::getParameterValues($prop, 'X-SERVICE-TYPE') as $type) {
+            $ltype = strtolower($type);
+            $pos = array_search($ltype, $subtypesLower, true);
 
-                if ($pos === false) {
-                    // custom type
-                    $this->storeextrasubtype('im', $type);
-                    return $type;
-                } else {
-                    return $this->coltypes["im"]['subtypes'][$pos];
-                }
+            if ($pos === false) {
+                // custom type
+                $this->storeextrasubtype('im', $type);
+                return $type;
+            } else {
+                return $this->coltypes["im"]['subtypes'][$pos];
             }
         }
 
@@ -1174,15 +1160,12 @@ class DataConversion
         }
 
         // check TYPE parameter
-        if (isset($prop["TYPE"])) {
-            /** @var VObject\Parameter $type */
-            foreach ($prop["TYPE"] as $type) {
-                $ltype = strtolower((string) $type);
-                $ltype = $this->coltypes["im"]["subtypealias"][$ltype] ?? $ltype;
-                $pos = array_search($ltype, $subtypesLower, true);
-                if ($pos !== false) {
-                    return $this->coltypes["im"]['subtypes'][$pos];
-                }
+        foreach (VObjectUtils::getParameterValues($prop, 'TYPE') as $type) {
+            $ltype = strtolower($type);
+            $ltype = $this->coltypes["im"]["subtypealias"][$ltype] ?? $ltype;
+            $pos = array_search($ltype, $subtypesLower, true);
+            if ($pos !== false) {
+                return $this->coltypes["im"]['subtypes'][$pos];
             }
         }
 

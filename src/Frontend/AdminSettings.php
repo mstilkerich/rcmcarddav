@@ -77,7 +77,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *
  * @psalm-type SettingSpecification=array{'url'|'timestr'|'string'|'bool'|'string[]'|'skip', bool}
  */
-class AdminSettings
+final class AdminSettings
 {
     /** @var list<PasswordStoreScheme> List of supported password store schemes */
     public const PWSTORE_SCHEMES = [ 'plain', 'base64', 'des_key', 'encrypted' ];

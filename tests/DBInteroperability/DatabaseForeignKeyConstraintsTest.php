@@ -50,6 +50,7 @@ final class DatabaseForeignKeyConstraintsTest extends TestCase
     /** @var TestData */
     private static $testData;
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         // Initialize database
@@ -60,10 +61,12 @@ final class DatabaseForeignKeyConstraintsTest extends TestCase
         self::$testData->initDatabase();
     }
 
+    #[\Override]
     public function setUp(): void
     {
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         TestInfrastructure::logger()->reset();

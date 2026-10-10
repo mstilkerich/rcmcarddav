@@ -34,6 +34,7 @@ use MStilkerich\RCMCardDAV\Addressbook;
 use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
 use MStilkerich\RCMCardDAV\Frontend\AddressbookManager;
 use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * @psalm-import-type FullAccountRow from AbstractDatabase
@@ -139,6 +140,7 @@ final class AddressbookManagerTest extends TestCase
         'template' => '0',
     ];
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         // Initialize database
@@ -147,6 +149,7 @@ final class AddressbookManagerTest extends TestCase
         TestInfrastructure::init(self::$db, __DIR__ . '/data/AddressbookManagerTest/config.inc.php');
     }
 
+    #[\Override]
     public function setUp(): void
     {
         self::$testData = new TestData(TestInfrastructureDB::getDbHandle());
@@ -172,6 +175,7 @@ final class AddressbookManagerTest extends TestCase
         self::$userId = (string) $_SESSION['user_id'];
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         $_SESSION['user_id'] = self::$userId;
@@ -192,8 +196,8 @@ final class AddressbookManagerTest extends TestCase
     /**
      * Tests that the correct account IDs for a user can be retrieved.
      * @param list<int> $expAccountIdxs
-     * @dataProvider userIdProviderAcc
      */
+    #[DataProvider('userIdProviderAcc')]
     public function testAllAccountIdsCanBeRetrieved(int $userIdx, bool $presetOnly, array $expAccountIdxs): void
     {
         // set the user ID in the session
@@ -230,9 +234,8 @@ final class AddressbookManagerTest extends TestCase
      * Tests that the correct addressbook IDs for a user can be retrieved.
      * @param AbookFilter $abFilter
      * @param list<int> $expAbookIdxs
-     *
-     * @dataProvider userIdProvider
      */
+    #[DataProvider('userIdProvider')]
     public function testAddressbookIdsCanBeCorrectlyRetrieved(
         int $userIdx,
         array $abFilter,
@@ -275,9 +278,8 @@ final class AddressbookManagerTest extends TestCase
      *
      * @param bool $validId Indicates if the given account refers to a valid account of the user. If not, an exception
      *                      is expected.
-     *
-     * @dataProvider accountIdProviderForCfgTest
      */
+    #[DataProvider('accountIdProviderForCfgTest')]
     public function testAccountConfigCorrectlyProvided(int $accountIdx, bool $validId): void
     {
         $accountId = self::$testData->getRowId('carddav_accounts', $accountIdx);
@@ -315,9 +317,8 @@ final class AddressbookManagerTest extends TestCase
      *
      * @param bool $validId Indicates if the given addressbook belongs to a valid account of the user. If not, an
      *                      exception is expected.
-     *
-     * @dataProvider abookIdProviderForCfgTest
      */
+    #[DataProvider('abookIdProviderForCfgTest')]
     public function testAddressbookConfigCorrectlyProvided(int $abookIdx, bool $validId): void
     {
         $abookId = self::$testData->getRowId('carddav_addressbooks', $abookIdx);
@@ -402,9 +403,8 @@ final class AddressbookManagerTest extends TestCase
      *
      * @param bool $validId Indicates if the given addressbook belongs to a valid account of the user. If not, an
      *                      exception is expected.
-     *
-     * @dataProvider abookIdProviderForCfgTest
      */
+    #[DataProvider('abookIdProviderForCfgTest')]
     public function testAddressbookCorrectlyProvided(int $abookIdx, bool $validId): void
     {
         $abookId = self::$testData->getRowId('carddav_addressbooks', $abookIdx);
@@ -443,9 +443,8 @@ final class AddressbookManagerTest extends TestCase
      *
      * @param bool $validId Indicates if the given account refers to a valid account of the user. If not, an
      *                      exception is expected.
-     *
-     * @dataProvider accountIdProviderForCfgTest
      */
+    #[DataProvider('accountIdProviderForCfgTest')]
     public function testAddressbookConfigForAccountCorrectlyProvided(int $accountIdx, bool $validId): void
     {
         $accountId = self::$testData->getRowId('carddav_accounts', $accountIdx);
@@ -599,8 +598,8 @@ final class AddressbookManagerTest extends TestCase
      * It must not be possible to insert an account for a different user.
      *
      * @param array<string, null|string|int|TestDataKeyRef> $accSettings
-     * @dataProvider accountInsertDataProvider
      */
+    #[DataProvider('accountInsertDataProvider')]
     public function testAccountIsInsertedProperly(array $accSettings, ?string $expExceptionMsg): void
     {
         $defaults = [
@@ -755,8 +754,8 @@ final class AddressbookManagerTest extends TestCase
      * @param TestDataKeyRef $accountFkRef
      * @param array<string, null|string|int|TestDataKeyRef> $accUpd
      * @param ?FullAccountRow $accExpResult
-     * @dataProvider accountUpdateDataProvider
      */
+    #[DataProvider('accountUpdateDataProvider')]
     public function testAccountIsUpdatedProperly(
         array $accountFkRef,
         array $accUpd,
@@ -882,8 +881,8 @@ final class AddressbookManagerTest extends TestCase
      * It must not be possible to insert an addressbook for an account of a different user.
      *
      * @param array<string, null|string|int|bool|TestDataKeyRef> $abookSettings
-     * @dataProvider abookInsertDataProvider
      */
+    #[DataProvider('abookInsertDataProvider')]
     public function testAddressbookIsInsertedProperly(array $abookSettings, ?string $expExceptionMsg): void
     {
         $defaults = [
@@ -1032,8 +1031,8 @@ final class AddressbookManagerTest extends TestCase
      * @param TestDataKeyRef $abookFkRef
      * @param array<string, null|string|bool|int|TestDataKeyRef> $abookUpd
      * @param ?FullAbookRow $abookExpResult
-     * @dataProvider abookUpdateDataProvider
      */
+    #[DataProvider('abookUpdateDataProvider')]
     public function testAddressbookIsUpdatedProperly(
         array $abookFkRef,
         array $abookUpd,
@@ -1085,8 +1084,8 @@ final class AddressbookManagerTest extends TestCase
      * Tests that deletion of an account works.
      *
      * @param TestDataKeyRef $accountFkRef
-     * @dataProvider accountDeleteDataProvider
      */
+    #[DataProvider('accountDeleteDataProvider')]
     public function testAccountIsDeletedProperly(array $accountFkRef, ?string $expExceptionMsg): void
     {
         // resolve foreign key references
@@ -1144,8 +1143,8 @@ final class AddressbookManagerTest extends TestCase
      * Tests that deletion of addressbooks works.
      *
      * @param list<int> $abookFkIdxs
-     * @dataProvider abookDeleteDataProvider
      */
+    #[DataProvider('abookDeleteDataProvider')]
     public function testAddressbookIsDeletedProperly(
         array $abookFkIdxs,
         bool $cacheOnly,
@@ -1324,8 +1323,8 @@ final class AddressbookManagerTest extends TestCase
      * @param ?TestDataKeyRef $accountFkRef
      * @param AddressbookSettings $abookTmpl
      * @param list<string> $expAbookNames
-     * @dataProvider newAbookSettingsProvider
      */
+    #[DataProvider('newAbookSettingsProvider')]
     public function testAddressbooksRediscoveredCorrectly(
         int $numAbooks,
         ?array $accountFkRef,

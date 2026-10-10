@@ -26,7 +26,7 @@
 // defines INSTALL_PATH which is needed for clisetup.php
 require_once("autoload_defs.php");
 
-/** @psalm-suppress UnresolvableInclude */
+/** @psalm-suppress MissingFile The script is located inside the roundcube installation only when deployed */
 require_once INSTALL_PATH . "program/include/clisetup.php";
 
 $dbh = rcmail_utils::db();

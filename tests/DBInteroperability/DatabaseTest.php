@@ -34,6 +34,7 @@ use MStilkerich\RCMCardDAV\Db\Database;
 use MStilkerich\RCMCardDAV\Db\DatabaseException;
 use MStilkerich\RCMCardDAV\Db\DbAndCondition;
 use MStilkerich\RCMCardDAV\Db\DbOrCondition;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * @psalm-import-type DbConditions from AbstractDatabase
@@ -58,6 +59,7 @@ final class DatabaseTest extends TestCase
         [ "Max Mustermann", "max0@muster.de", "Max", "Mustermann", "vcard", "123", "uri5", "5" ],
     ];
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         // Initialize database
@@ -81,6 +83,7 @@ final class DatabaseTest extends TestCase
         unset($row);
     }
 
+    #[\Override]
     public function setUp(): void
     {
         // set a fresh DB handle to ensure we have no open transactions from a previous test
@@ -89,6 +92,7 @@ final class DatabaseTest extends TestCase
         self::$testData->setDbHandle(TestInfrastructureDB::getDbHandle());
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         self::$db->rollbackTransaction(); // in case transaction left open by a test
@@ -133,9 +137,8 @@ final class DatabaseTest extends TestCase
      *
      * @param DbConditions $conditions
      * @param list<string> $expCuids
-     *
-     * @dataProvider getConditionsProvider
      */
+    #[DataProvider('getConditionsProvider')]
     public function testDatabaseGetSelectReturnsExpectedRows($conditions, array $expCuids): void
     {
         $db = self::$db;
@@ -176,9 +179,8 @@ final class DatabaseTest extends TestCase
      *
      * @param DbConditions $conditions
      * @param list<string> $expCuids
-     *
-     * @dataProvider getConditionsProvider
      */
+    #[DataProvider('getConditionsProvider')]
     public function testDatabaseLookupReturnsExpectedRowOrError($conditions, array $expCuids): void
     {
         $db = self::$db;
@@ -222,9 +224,8 @@ final class DatabaseTest extends TestCase
      *
      * @param DbConditions $conditions
      * @param string $expExMsg Part of the expected exception message
-     *
-     * @dataProvider invalidConditionsProvider
      */
+    #[DataProvider('invalidConditionsProvider')]
     public function testDatabaseGetExceptionOnInvalidConditions($conditions, string $expExMsg): void
     {
         $db = self::$db;
@@ -325,9 +326,8 @@ final class DatabaseTest extends TestCase
      *
      * @param list<string> $orderSetting
      * @param list<string> $expOrder
-     *
-     * @dataProvider orderTestDataProvider
      */
+    #[DataProvider('orderTestDataProvider')]
     public function testDatabaseOrderOperator(array $orderSetting, array $expOrder): void
     {
         $db = self::$db;
@@ -364,9 +364,8 @@ final class DatabaseTest extends TestCase
      * @param list<string> $orderSetting
      * @param array{int,int} $limitSetting
      * @param ?list<string> $expOrder
-     *
-     * @dataProvider limitTestDataProvider
      */
+    #[DataProvider('limitTestDataProvider')]
     public function testDatabaseLimitOperator(array $orderSetting, array $limitSetting, ?array $expOrder): void
     {
         $db = self::$db;
@@ -492,13 +491,14 @@ final class DatabaseTest extends TestCase
 
     /**
      * @param callable(Database):void $errFunc
-     * @dataProvider connectToDbErrFuncProvider
      */
+    #[DataProvider('connectToDbErrFuncProvider')]
     public function testExceptionOnFailureToConnectToDb($errFunc): void
     {
         if ($GLOBALS["TEST_DBTYPE"] == "sqlite3") {
-            $dbh = \rcube_db::factory("sqlite:////does/not/doesNotExist.db");
-            $expErrMsg = 'file';
+            // use an existing directory as database file, so roundcube does not attempt to create the file
+            $dbh = \rcube_db::factory("sqlite:///" . __DIR__);
+            $expErrMsg = 'unable to open database file';
         } elseif ($GLOBALS["TEST_DBTYPE"] == "postgres") {
             $dbh = \rcube_db::factory("pgsql://a@unix(/does/not/doesNotExist)/db");
             $expErrMsg = 'doesNotExist';
@@ -546,8 +546,8 @@ final class DatabaseTest extends TestCase
      * DBMS-specific SQL. These operations are expected log log an error message, which is verified by this test.
      *
      * @param callable(Database):void $errFunc
-     * @dataProvider connectToDbUnsuppDbProvider
      */
+    #[DataProvider('connectToDbUnsuppDbProvider')]
     public function testErrorMessageOnUnsupportedDbProvider($errFunc): void
     {
         if (!class_exists("rcube_db_oracle")) {

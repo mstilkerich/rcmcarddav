@@ -6,12 +6,18 @@
     findUnusedPsalmSuppress="true"
     findUnusedCode="false"
     findUnusedBaselineEntry="true"
+    sealAllProperties="false"
+    docblockPropertyTypesSealProperties="false"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xmlns="https://getpsalm.org/schema/config"
     xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
     >
 <!--
     checkForThrowsInGlobalScope="true"
+
+    sealAllProperties / docblockPropertyTypesSealProperties: sabre/vobject provides access to the properties of a
+    component via magic properties (e.g. $vcard->UID), which psalm 6 would otherwise report as undefined. The
+    codebase itself does not use magic properties.
 -->
     <projectFiles>
         <directory name="src/"/>

@@ -1,44 +1,44 @@
 {
     "name": "roundcube/carddav",
     "type": "roundcube-plugin",
-    "description": "CardDAV adapter for connecting to CardDAV-enabled addressbooks",
-    "keywords": ["addressbook","carddav","contacts","owncloud","davical"],
-    "homepage": "https://www.benjamin-schieder.de/carddav.html",
+    "description": "Use CardDAV addressbooks in Roundcube",
+    "keywords": ["addressbook","carddav","contacts"],
+    "homepage": "https://github.com/mstilkerich/rcmcarddav",
     "license": "GPL-2.0-or-later",
     "authors": [
-        {
-            "name": "Benjamin Schieder",
-            "email": "carddav@wegwerf.anderdonau.de",
-            "homepage": "https://www.benjamin.schieder.de/",
-            "role": "Developer"
-        },
         {
             "name": "Michael Stilkerich",
             "email": "michael@stilkerich.eu",
             "role": "Developer"
+        },
+        {
+            "name": "Benjamin Schieder",
+            "email": "carddav@wegwerf.anderdonau.de",
+            "role": "Developer"
         }
     ],
     "require": {
-        "php": ">=7.4.0",
+        "php": "^8.2",
         "ext-gd": "*",
         "ext-json": "*",
         "ext-pdo": "*",
-        "sabre/vobject": "^3.3.5 || ^4.0.0, !=4.5.2",
-        "roundcube/plugin-installer": "^0.3.0",
-        "psr/log": "^1.0 || ^2.0 || ^3.0",
-        "mstilkerich/carddavclient": "^1.4.0"
+        "sabre/vobject": "^4.5 || ^5.0, !=4.5.2",
+        "roundcube/plugin-installer": "^0.3.1",
+        "psr/log": "^2.0 || ^3.0",
+        "mstilkerich/carddavclient": "^1.4.0 || ^2.0.0"
     },
     "require-dev": {
         "phpcompatibility/php-compatibility": "dev-develop",
-        "dealerdirect/phpcodesniffer-composer-installer": ">= 0.7.0",
-        "phpunit/phpunit": "~9",
-        "phpunit/phpcov": "*",
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "phpunit/phpunit": "^11.5",
+        "phpunit/phpcov": "^10.0",
         "aodto/phasher": "dev-master",
-        "bamarni/composer-bin-plugin": "^1.8"
+        "bamarni/composer-bin-plugin": "^1.8",
+        "dg/bypass-finals": "^1.9"
     },
     "extra": {
         "roundcube": {
-            "min-version": "1.4.0"
+            "min-version": "1.6.0"
         },
         "bamarni-bin": {
             "bin-links": false,
@@ -56,7 +56,8 @@
         "psr-4": {
             "MStilkerich\\Tests\\RCMCardDAV\\": "tests/"
         },
-        "classmap": ["roundcubemail/program/"]
+        "classmap": ["roundcubemail/program/"],
+        "exclude-from-classmap": ["vendor/roundcube/roundcubemail/"]
     },
     "prefer-stable" : true,
     "config": {

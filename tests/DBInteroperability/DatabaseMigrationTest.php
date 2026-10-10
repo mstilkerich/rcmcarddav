@@ -33,6 +33,7 @@ use MStilkerich\RCMCardDAV\Db\Database;
 use MStilkerich\RCMCardDAV\Db\DatabaseException;
 use MStilkerich\RCMCardDAV\Db\DbAndCondition;
 use MStilkerich\RCMCardDAV\Db\DbOrCondition;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * @psalm-import-type TestDataRow from TestData
@@ -59,6 +60,7 @@ final class DatabaseMigrationTest extends TestCase
     /** @var AbstractDatabase Database used for the schema migration test */
     private static $db;
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         self::resetRcubeDb();
@@ -69,10 +71,12 @@ final class DatabaseMigrationTest extends TestCase
         self::$testData->setCacheKeyPrefix('DatabaseMigrationTest');
     }
 
+    #[\Override]
     public function setUp(): void
     {
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         TestInfrastructure::logger()->reset();
@@ -310,12 +314,9 @@ final class DatabaseMigrationTest extends TestCase
      */
     public static function migrationsProvider(): array
     {
-        $migsavail = array_map(
-            function (string $s): string {
-                return basename($s);
-            },
-            glob(self::SCRIPTDIR . "/0???-*")
-        );
+        $migDirs = glob(self::SCRIPTDIR . "/0???-*");
+        self::assertIsArray($migDirs);
+        $migsavail = array_map(basename(...), $migDirs);
 
         $result = [];
         $miglist = [];
@@ -337,8 +338,8 @@ final class DatabaseMigrationTest extends TestCase
      *
      * @param non-empty-list<string> $migs List of migrations. The last in the list shall be performed by the test, the
      *                                     others are expected to already have been performed.
-     * @dataProvider migrationsProvider
      */
+    #[DataProvider('migrationsProvider')]
     public function testSchemaMigrationWorks(array $migs): void
     {
         $db = self::$db;
@@ -468,7 +469,7 @@ final class DatabaseMigrationTest extends TestCase
 
         foreach ($checkRowsSpec as $specIdx => &$tblSpec) {
             [ 'table' => $tbl, 'cols' => $cols, 'rows' => $rows ] = $tblSpec;
-            $tblshort = preg_replace('/^carddav_/', '', $tbl);
+            $tblshort = self::stripTablePrefix($tbl);
 
             // get the records contained in the DB and normalize them in representation and order
             $records = $db->get([], [], $tblshort);
@@ -521,7 +522,7 @@ final class DatabaseMigrationTest extends TestCase
 
         [ $dtbl, $didx ] = $fkRef;
         $prefix = $fkRef[2] ?? $mig;
-        $dtblshort = preg_replace('/^carddav_/', '', $dtbl);
+        $dtblshort = self::stripTablePrefix($dtbl);
 
         if ($prefix == '<checkRows>') {
             $this->assertArrayHasKey($dtbl, $tblToIndex);
@@ -556,6 +557,7 @@ final class DatabaseMigrationTest extends TestCase
         // delete the script of the upcoming migration (last in the passed array)
         $mig = $migs[count($migs) - 1];
         $scriptFiles = glob("$migScriptDir/$mig/*.*");
+        $this->assertIsArray($scriptFiles);
         foreach ($scriptFiles as $scriptFile) {
             $this->assertTrue(unlink($scriptFile), "Failed to unlink $scriptFile");
         }
@@ -583,6 +585,7 @@ final class DatabaseMigrationTest extends TestCase
         // delete the script of the upcoming migration (last in the passed array)
         $mig = $migs[count($migs) - 1];
         $scriptFiles = glob("$migScriptDir/$mig/*.sql");
+        $this->assertIsArray($scriptFiles);
         $this->assertNotEmpty($scriptFiles);
         foreach ($scriptFiles as $scriptFile) {
             $this->assertIsInt(file_put_contents($scriptFile, 'SELECT * from InvalidTable;'));
@@ -598,6 +601,14 @@ final class DatabaseMigrationTest extends TestCase
 
         // restore valid state
         $this->prepareMigScriptDir($migScriptDir, $migs);
+    }
+
+    /**
+     * Strips the carddav_ prefix from a table name, as expected by the database interface.
+     */
+    private static function stripTablePrefix(string $tbl): string
+    {
+        return str_starts_with($tbl, 'carddav_') ? substr($tbl, strlen('carddav_')) : $tbl;
     }
 }
 

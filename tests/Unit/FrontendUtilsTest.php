@@ -31,22 +31,26 @@ use MStilkerich\RCMCardDAV\Db\Database;
 use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\RCMCardDAV\Frontend\{AdminSettings,Utils};
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * @psalm-import-type PasswordStoreScheme from AdminSettings
  */
 final class FrontendUtilsTest extends TestCase
 {
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
     }
 
+    #[\Override]
     public function setUp(): void
     {
         $db = $this->createMock(Database::class);
         TestInfrastructure::init($db);
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         TestInfrastructure::logger()->reset();
@@ -77,9 +81,8 @@ final class FrontendUtilsTest extends TestCase
 
     /**
      * Tests that parseTimeParameter() converts time strings properly.
-     *
-     * @dataProvider timeStringProvider
      */
+    #[DataProvider('timeStringProvider')]
     public function testTimeParameterParsedCorrectly(string $timestr, ?int $seconds): void
     {
         if (isset($seconds)) {
@@ -132,9 +135,7 @@ final class FrontendUtilsTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider encryptedPasswordsProvider
-     */
+    #[DataProvider('encryptedPasswordsProvider')]
     public function testPasswordCorrectlyDecrypted(string $cipherMethod, string $enc, string $expClear): void
     {
         $rcconfig = \rcube::get_instance()->config;
@@ -206,8 +207,8 @@ final class FrontendUtilsTest extends TestCase
 
     /**
      * @param PasswordStoreScheme $scheme
-     * @dataProvider passwordsProvider
      */
+    #[DataProvider('passwordsProvider')]
     public function testPasswordCorrectlyEncrypted(
         string $cipherMethod,
         string $scheme,
@@ -238,7 +239,7 @@ final class FrontendUtilsTest extends TestCase
         // carddav_des_key must be cleared if set
         $this->assertNull($rcconfig->get("carddav_des_key"));
 
-        if (strlen($prefix) > 0) {
+        if ($prefix !== '') {
             $this->assertStringStartsWith($prefix, $cipher);
         }
 

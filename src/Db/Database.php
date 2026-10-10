@@ -43,7 +43,7 @@ use Psr\Log\LoggerInterface;
  * @psalm-import-type DbGetOptions from AbstractDatabase
  * @psalm-import-type DbGetResult from AbstractDatabase
  */
-class Database extends AbstractDatabase
+final class Database extends AbstractDatabase
 {
     /** @var string[] DBTABLES_WITHOUT_ID List of table names that have no single ID column. */
     private const DBTABLES_WITHOUT_ID = ['group_user'];
@@ -73,6 +73,7 @@ class Database extends AbstractDatabase
         }
     }
 
+    #[\Override]
     public function startTransaction(bool $readonly = true): void
     {
         $dbh = $this->dbHandle;
@@ -122,6 +123,7 @@ class Database extends AbstractDatabase
         }
     }
 
+    #[\Override]
     public function endTransaction(): void
     {
         $dbh = $this->dbHandle;
@@ -139,6 +141,7 @@ class Database extends AbstractDatabase
         }
     }
 
+    #[\Override]
     public function rollbackTransaction(): void
     {
         $dbh = $this->dbHandle;
@@ -166,6 +169,7 @@ class Database extends AbstractDatabase
      * better way to handle errors. Throwing an exception would result in Roundcube not being usable at all for the user
      * in case of errors.
      */
+    #[\Override]
     public function checkMigrations(string $dbPrefix, string $scriptDir): void
     {
         $dbh = $this->dbHandle;
@@ -186,8 +190,14 @@ class Database extends AbstractDatabase
         }
 
         // (1) Determine which migration scripts are available, in alphabetical ascending order
+        $scriptDirEntries = scandir($scriptDir, SCANDIR_SORT_ASCENDING);
+        if ($scriptDirEntries === false) {
+            $logger->critical("Cannot read migration scripts directory $scriptDir");
+            return;
+        }
+
         $migrationsAvailable = [];
-        foreach (scandir($scriptDir, SCANDIR_SORT_ASCENDING) as $migrationDir) {
+        foreach ($scriptDirEntries as $migrationDir) {
             if (preg_match("/^\d{4}-/", $migrationDir)) {
                 $migrationsAvailable[] = $migrationDir;
             }
@@ -269,6 +279,10 @@ class Database extends AbstractDatabase
 
         // strip comments (note: . does not match newline without the s modifier)
         $queries_raw = preg_replace('/-- .*/m', '', $queries_raw);
+        if ($queries_raw === null) {
+            $logger->error("Failed to strip comments from migration script: $migrationScript - aborting");
+            return false;
+        }
 
         // Postgres only: strip any qualifying name part of a [database].[schema].prefix
         // We cannot use the qualified name in CREATE INDEX
@@ -296,6 +310,7 @@ class Database extends AbstractDatabase
         return true;
     }
 
+    #[\Override]
     public function insert(string $table, array $cols, array $rows): string
     {
         $dbh = $this->dbHandle;
@@ -345,6 +360,7 @@ class Database extends AbstractDatabase
         return $dbid;
     }
 
+    #[\Override]
     public function update(
         $conditions,
         array $cols,
@@ -376,6 +392,7 @@ class Database extends AbstractDatabase
         return $dbh->affected_rows($sql_result);
     }
 
+    #[\Override]
     public function get($conditions, array $cols = [], string $table = 'contacts', array $options = []): array
     {
         $sql_result = $this->internalGet($conditions, $cols, $table, $options);
@@ -387,6 +404,7 @@ class Database extends AbstractDatabase
         return $ret;
     }
 
+    #[\Override]
     public function lookup($conditions, array $cols = [], string $table = 'contacts'): array
     {
         $sql_result = $this->internalGet($conditions, $cols, $table);
@@ -524,6 +542,7 @@ class Database extends AbstractDatabase
         return $col;
     }
 
+    #[\Override]
     public function delete($conditions, string $table = 'contacts'): int
     {
         $dbh = $this->dbHandle;

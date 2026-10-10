@@ -50,7 +50,7 @@ use MStilkerich\CardDavClient\AddressbookCollection;
  *
  * @psalm-type PhotoCacheObject array{photoPropMd5: string, photo: string}
  */
-class DelayedPhotoLoader
+final class DelayedPhotoLoader
 {
     /**
      * @var int MAX_PHOTO_SIZE Maximum size of a photo dimension in pixels.
@@ -116,18 +116,18 @@ class DelayedPhotoLoader
     private function computePhotoFromProperty(): string
     {
         $vcard = $this->vcard;
-        $photoProp = $vcard->PHOTO;
+        $photoProp = VObjectUtils::getProperty($vcard, 'PHOTO');
         if (!isset($photoProp)) {
             return "";
         }
 
         // First we determine whether the photo needs processing (download/crop)
-        $cropProp = $photoProp['X-ABCROP-RECTANGLE'];
+        $cropProp = VObjectUtils::getParameter($photoProp, 'X-ABCROP-RECTANGLE');
 
         // check if photo needs to be downloaded
         $photoUri = null;
-        $kind = $photoProp['VALUE'];
-        if (($kind instanceof VObject\Parameter) && strcasecmp('uri', (string) $kind) == 0) {
+        $kind = VObjectUtils::getParameter($photoProp, 'VALUE');
+        if (isset($kind) && strcasecmp('uri', (string) $kind) == 0) {
             if (preg_match('#^([[:alpha:]][[:alnum:]]*)://#', (string) $photoProp, $matches)) {
                 $scheme = strtolower($matches[1]);
                 if ($scheme === 'http' || $scheme === 'https') {
@@ -144,7 +144,7 @@ class DelayedPhotoLoader
 
         // true if the photo must be processed (downloaded/cropped) and the result should be cached
         // Photo that are stored inline in the VCard and provided as is will not be put in the cache
-        $cachePhoto = ($cropProp instanceof VObject\Parameter) || isset($photoUri);
+        $cachePhoto = isset($cropProp) || isset($photoUri);
 
         // check roundcube cache
         if ($cachePhoto) {
@@ -162,7 +162,7 @@ class DelayedPhotoLoader
         }
 
         // crop photo if needed
-        if (isset($photoData) && ($cropProp instanceof VObject\Parameter)) {
+        if (isset($photoData) && isset($cropProp)) {
             $photoData = $this->xabcropphoto($photoData, $cropProp) ?? $photoData;
         }
 
@@ -255,7 +255,7 @@ class DelayedPhotoLoader
      */
     private function determineCacheKey(): string
     {
-        $uid = (string) $this->vcard->UID;
+        $uid = (string) VObjectUtils::getProperty($this->vcard, 'UID');
 
         if (!isset($_SESSION['user_id'])) {
             $infra = Config::inst();
@@ -329,7 +329,7 @@ class DelayedPhotoLoader
             ob_end_clean();
         }
 
-        return $croppedPhoto;
+        return ($croppedPhoto === false) ? null : $croppedPhoto;
     }
 }
 

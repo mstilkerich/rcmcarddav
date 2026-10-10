@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+        php-version: ['8.2', '8.3', '8.4', '8.5']
 
     runs-on: ubuntu-latest
 
@@ -91,20 +91,13 @@ jobs:
       fail-fast: false
       matrix:
         mysql-version:
-          - 'mysql:5.6'
-          - 'mysql:5.7'
-          - 'mysql:8'
-          - 'mariadb:10.2'
-          - 'mariadb:10.3'
-          - 'mariadb:10.4'
-          - 'mariadb:10.5'
-          - 'mariadb:10.6'
-          - 'mariadb:10.7'
-          - 'mariadb:10.8'
-          - 'mariadb:10.9'
-          - 'mariadb:10.10'
+          - 'mysql:8.4'
+          - 'mysql:9.7'
+          - 'mysql:26'
           - 'mariadb:10.11'
           - 'mariadb:11'
+          - 'mariadb:12'
+          - 'mariadb:13'
 
     runs-on: ubuntu-latest
 
@@ -150,7 +143,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgres-version: ['9', '10', '11', '12', '13', '14', '15', '16', '17']
+        postgres-version: ['15', '16', '17', '18']
 
     runs-on: ubuntu-latest
 

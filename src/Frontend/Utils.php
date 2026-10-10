@@ -35,7 +35,7 @@ use MStilkerich\RCMCardDAV\Config;
  *
  * @psalm-import-type PasswordStoreScheme from AdminSettings
  */
-class Utils
+final class Utils
 {
     public static function replacePlaceholdersUsername(string $username, bool $quoteRegExp = false): string
     {

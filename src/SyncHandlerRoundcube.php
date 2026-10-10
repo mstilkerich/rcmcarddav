@@ -44,7 +44,7 @@ use carddav;
  * @psalm-type CardGroupDbInfo = array{id: string, uri: string, etag: string} DB data on a VCard-type group
  * @psalm-type ReceivedGroupInfo = array{vcard: VCard, etag: string, uri: string} Data of a retrieved group card
  */
-class SyncHandlerRoundcube implements SyncHandler
+final class SyncHandlerRoundcube implements SyncHandler
 {
     /** @var bool hadErrors If true, errors that did not cause the sync to be aborted occurred. */
     public $hadErrors = false;
@@ -128,6 +128,7 @@ class SyncHandlerRoundcube implements SyncHandler
      * @param string $etag ETag of the card as given
      * @param ?VCard $card The card as a Sabre VCard object. Null if the address data could not be retrieved/parsed.
      */
+    #[\Override]
     public function addressObjectChanged(string $uri, string $etag, ?VCard $card): void
     {
         $logger = Config::inst()->logger();
@@ -139,7 +140,8 @@ class SyncHandlerRoundcube implements SyncHandler
             return;
         }
 
-        if (strcasecmp((string) $card->{"X-ADDRESSBOOKSERVER-KIND"}, "group") === 0) {
+        $kind = (string) VObjectUtils::getProperty($card, 'X-ADDRESSBOOKSERVER-KIND');
+        if (strcasecmp($kind, "group") === 0) {
             $this->grpCardsToUpdate[] = [ "vcard" => $card, "etag" => $etag, "uri" => $uri ];
         } else {
             $this->updateContactCard($uri, $etag, $card);
@@ -167,6 +169,7 @@ class SyncHandlerRoundcube implements SyncHandler
      *
      * @param string $uri URI of the card
      */
+    #[\Override]
     public function addressObjectDeleted(string $uri): void
     {
         $infra = Config::inst();
@@ -218,6 +221,7 @@ class SyncHandlerRoundcube implements SyncHandler
      *
      * @return array<string,string> Maps card URIs to ETags
      */
+    #[\Override]
     public function getExistingVCardETags(): array
     {
         return array_column(
@@ -234,6 +238,7 @@ class SyncHandlerRoundcube implements SyncHandler
      * delayed actions, namely the processing of changed group vcards and deletion of CATEGORIES-type groups that became
      * empty during this sync.
      */
+    #[\Override]
     public function finalizeSync(): void
     {
         $infra = Config::inst();
@@ -286,9 +291,10 @@ class SyncHandlerRoundcube implements SyncHandler
 
         // Determine CATEGORIES-type group ID (and create if needed) of the user
         $categories = [];
-        if (isset($card->CATEGORIES)) {
+        $categoriesProp = VObjectUtils::getProperty($card, 'CATEGORIES');
+        if (isset($categoriesProp)) {
             /** @var list<string> */
-            $categories = $card->CATEGORIES->getParts();
+            $categories = $categoriesProp->getParts();
             // remove all whitespace categories
             Addressbook::stringsAddRemove($categories);
         }

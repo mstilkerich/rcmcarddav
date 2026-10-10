@@ -28,7 +28,6 @@ include_once __DIR__ . '/../vendor/autoload.php';
 require_once("autoload_defs.php");
 
 // setup environment for roundcube - this is taken from the roundcube unit tests
-/** @psalm-suppress UnresolvableInclude */
 require_once(INSTALL_PATH . 'program/include/iniset.php');
 
 // vim: ts=4:sw=4:expandtab:fenc=utf8:ff=unix:tw=120

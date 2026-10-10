@@ -12,6 +12,7 @@ composer.lock
 .*.swp
 /testreports
 /tests/DBInteroperability/DatabaseAccounts.php
+/tests/DBInteroperability/phpunit-*.xml
 /doc/api/
 /.phpdoc/
 /roundcubemail

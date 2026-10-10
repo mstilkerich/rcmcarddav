@@ -29,7 +29,7 @@ namespace MStilkerich\Tests\RCMCardDAV;
 use Psr\Log\{AbstractLogger,LogLevel,LoggerInterface};
 use PHPUnit\Framework\TestCase;
 
-class TestLogger extends AbstractLogger
+final class TestLogger extends AbstractLogger
 {
     /**
      * @var int[] Assigns each log level a numerical severity value.
@@ -99,6 +99,7 @@ class TestLogger extends AbstractLogger
      * @param array $context
      * @return void
      */
+    #[\Override]
     public function log($level, $message, array $context = array()): void
     {
         TestCase::assertIsString($level);

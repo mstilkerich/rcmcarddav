@@ -29,6 +29,7 @@ namespace MStilkerich\Tests\RCMCardDAV\DBInteroperability;
 use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 use PHPUnit\Framework\TestCase;
 use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * @psalm-import-type TestDataTableDef from TestData
@@ -43,6 +44,7 @@ final class DatabaseCollationsTest extends TestCase
     /** @var TestData */
     private static $testData;
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         $dbsettings = TestInfrastructureDB::dbSettings();
@@ -53,10 +55,12 @@ final class DatabaseCollationsTest extends TestCase
         self::$testData->initDatabase();
     }
 
+    #[\Override]
     public function setUp(): void
     {
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         TestInfrastructure::logger()->reset();
@@ -158,9 +162,8 @@ final class DatabaseCollationsTest extends TestCase
      * @param string $tbl Name of the table
      * @param TestDataTableDef $cols List of column names of the table
      * @param list<TestDataRowWithKeyRef> $datarows List of data rows matching the columns in $cols
-     *
-     * @dataProvider uniqueDataProviderDiffcase
      */
+    #[DataProvider('uniqueDataProviderDiffcase')]
     public function testUniqueConstraintCaseSensitive(string $tbl, array $cols, array $datarows): void
     {
         $db = self::$db;
@@ -210,9 +213,8 @@ final class DatabaseCollationsTest extends TestCase
      * @param TestDataTableDef $cols List of column names of the table
      * @param TestDataRowWithKeyRef $row The data row
      * @param list<positive-int> $uccols List of column indexes to uppercase in 2nd record
-     *
-     * @dataProvider equalsDataProviderDiffcase
      */
+    #[DataProvider('equalsDataProviderDiffcase')]
     public function testEqualsOperatorIsCaseSensitive(string $tbl, array $cols, array $row, array $uccols): void
     {
         $db = self::$db;
@@ -274,9 +276,8 @@ final class DatabaseCollationsTest extends TestCase
      * @param TestDataRowWithKeyRef $row The data row
      * @param array<positive-int,?string> $uccols indexes of columns to uppercase in 2nd record and ILIKE patterns (null
      *                                            to only uppercase)
-     *
-     * @dataProvider ilikeDataProviderDiffcase
      */
+    #[DataProvider('ilikeDataProviderDiffcase')]
     public function testIlikeSelectorIsCaseInsensitive(string $tbl, array $cols, array $row, array $uccols): void
     {
         $db = self::$db;

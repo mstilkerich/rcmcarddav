@@ -36,7 +36,7 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
 use MStilkerich\RCMCardDAV\Frontend\AdminSettings;
 use rcube_cache;
 
-class Config extends \MStilkerich\RCMCardDAV\Config
+final class Config extends \MStilkerich\RCMCardDAV\Config
 {
     /** @var ?Discovery Instance of the discovery service to be returned - normally null, but can be set by tests */
     public $discovery;
@@ -70,6 +70,7 @@ class Config extends \MStilkerich\RCMCardDAV\Config
         $this->db = $db;
     }
 
+    #[\Override]
     public function cache(): rcube_cache
     {
         TestCase::assertNotNull($this->cache);
@@ -83,16 +84,19 @@ class Config extends \MStilkerich\RCMCardDAV\Config
         return $this->rc;
     }
 
+    #[\Override]
     public function makeDiscoveryService(): Discovery
     {
         return $this->discovery ?? parent::makeDiscoveryService();
     }
 
+    #[\Override]
     public function makeSyncService(): Sync
     {
         return $this->sync ?? parent::makeSyncService();
     }
 
+    #[\Override]
     public function makeWebDavResource(string $uri, Account $account, bool $knownAbook = false): WebDavResource
     {
         if (isset($this->webDavResources[$uri])) {

@@ -52,8 +52,9 @@ use MStilkerich\RCMCardDAV\Db\DBMigrationInterface;
  *     presetname: ?string
  * }
  */
-class Migration0018 implements DBMigrationInterface
+final class Migration0018 implements DBMigrationInterface
 {
+    #[\Override]
     public function migrate(rcube_db $dbh, LoggerInterface $logger): bool
     {
         $account_table = $dbh->table_name("carddav_accounts");
@@ -133,7 +134,7 @@ class Migration0018 implements DBMigrationInterface
                     // case we use the name of the first addressbook as account name, user can rename later.
                     $replacementCount = 0;
                     $accountName = preg_replace("/ \(.*\)/", "", $abook0["name"], 1, $replacementCount);
-                    if ($replacementCount > 0) {
+                    if (isset($accountName) && $replacementCount > 0) {
                         $accountNameQuoted = preg_quote($accountName);
                         foreach ($abookRows as $idx => $abookRow) {
                             $abookRows[$idx]["name"] = preg_replace(
@@ -197,8 +198,9 @@ class Migration0018 implements DBMigrationInterface
     private static function parentUrl(string $url): string
     {
         $urlComp = \Sabre\Uri\parse($url);
-        [ $parent ] = \Sabre\Uri\split($urlComp["path"] ?? "");
-        $urlComp["path"] = (string) $parent;
+        // split() returns the parent path and the last path segment
+        $pathComponents = \Sabre\Uri\split($urlComp["path"] ?? "");
+        $urlComp["path"] = (string) ($pathComponents[0] ?? "");
         $parentUrl = \Sabre\Uri\build($urlComp);
         if ($parentUrl[-1] != '/') {
             $parentUrl .= '/';

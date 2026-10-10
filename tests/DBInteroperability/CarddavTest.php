@@ -50,6 +50,7 @@ final class CarddavTest extends TestCase
     /** @var TestData */
     private static $testData;
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         // Set a session password so that encryption/decryption of password with scheme "encrypted" works
@@ -69,10 +70,12 @@ final class CarddavTest extends TestCase
         self::$testData->initDatabase();
     }
 
+    #[\Override]
     public function setUp(): void
     {
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         TestInfrastructure::logger()->reset();

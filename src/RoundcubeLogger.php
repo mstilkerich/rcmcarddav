@@ -33,7 +33,7 @@ use rcube;
 /**
  * @psalm-type PsrLogLevel = LogLevel::*
  */
-class RoundcubeLogger extends AbstractLogger
+final class RoundcubeLogger extends AbstractLogger
 {
     /**
      * @var array<PsrLogLevel, int> Assigns each log level a numerical severity value.
@@ -109,6 +109,7 @@ class RoundcubeLogger extends AbstractLogger
      * @param array $context
      * @return void
      */
+    #[\Override]
     public function log($level, $message, array $context = array()): void
     {
         if (is_string($level) && isset(self::LOGLEVELS[$level])) {
@@ -132,11 +133,14 @@ class RoundcubeLogger extends AbstractLogger
     private function redactMessage(string $message): string
     {
         // Authorization header
-        return preg_replace(
+        $redactedMessage = preg_replace(
             "/^Authorization: .*$/m",
             "Authorization: --- REDACTED BY " . self::class . " ---",
             $message
         );
+
+        // in case of an error, drop the entire message as it may contain sensitive data
+        return $redactedMessage ?? "--- MESSAGE REDACTED BY " . self::class . " (redaction failed) ---";
     }
 }
 

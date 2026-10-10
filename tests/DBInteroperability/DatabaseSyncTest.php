@@ -40,6 +40,7 @@ final class DatabaseSyncTest extends TestCase
     /** @var resource */
     private $commSock;
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
         $dbsettings = TestInfrastructureDB::dbSettings();
@@ -48,12 +49,15 @@ final class DatabaseSyncTest extends TestCase
         TestInfrastructure::init(self::$db);
     }
 
+    #[\Override]
     public function setUp(): void
     {
-        $this->sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
-        $this->assertTrue(is_array($this->sockets), "Socket creation failed");
+        $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+        $this->assertIsArray($sockets, "Socket creation failed");
+        $this->sockets = $sockets;
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         fclose($this->sockets[0]);

@@ -18,12 +18,12 @@ RCMCardDAV may work with older versions of roundcube, but is not supported.
 ## Databases
 
 RCMCardDAV supports the following databases in the listed minimum versions:
-  - PostgreSQL 10.12
-  - MySQL 5.7.30
-  - MariaDB 10.1
-  - SQLite 3.22
+  - PostgreSQL 15
+  - MySQL 8.4
+  - MariaDB 10.11
+  - SQLite 3.45
 
-Generally, I aim to support the database versions available in the latest two Ubuntu LTS releases. Currently, these are
-Ubuntu 22.04 and 20.04.
+Generally, I aim to support the database versions available in the latest two Ubuntu LTS releases. Older database
+versions may work, but are not supported.
 
 Roundcube supports additional commercial databases, which are not supported because there is no way to test them.

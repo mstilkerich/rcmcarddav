@@ -1,5 +1,9 @@
 # Changelog for RCMCardDAV
 
+## Version 6.0.0 (to 5.1.4)
+- Upgrade minimum dependencies (PHP 8.2 or higher is now required, other requirements refer to composer.json)
+- Upgrade minimum supported roundcube version to 1.6 also in composer.json
+
 ## Version 5.1.4 (to 5.1.3)
 - Update Russian localization (#506 thanks @neijrr)
 - Fix: case-insensitive comparision of OAUTH token type (#501 thanks @Dadadah)

@@ -47,7 +47,7 @@ use MStilkerich\RCMCardDAV\Db\{AbstractDatabase,DbAndCondition,DbOrCondition};
  *
  * @psalm-import-type DbConditions from AbstractDatabase
  */
-class JsonDatabase extends AbstractDatabase
+final class JsonDatabase extends AbstractDatabase
 {
     /** @var bool $inTransaction Indicates whether we are currently inside a transaction */
     private $inTransaction = false;
@@ -265,6 +265,7 @@ class JsonDatabase extends AbstractDatabase
         }
     }
 
+    #[\Override]
     public function startTransaction(bool $readonly = true): void
     {
         if ($this->inTransaction) {
@@ -274,6 +275,7 @@ class JsonDatabase extends AbstractDatabase
         }
     }
 
+    #[\Override]
     public function endTransaction(): void
     {
         if ($this->inTransaction) {
@@ -283,16 +285,19 @@ class JsonDatabase extends AbstractDatabase
         }
     }
 
+    #[\Override]
     public function rollbackTransaction(): void
     {
         $this->inTransaction = false;
     }
 
+    #[\Override]
     public function checkMigrations(string $dbPrefix, string $scriptDir): void
     {
         throw new \Exception("checkMigrations() is not implemented");
     }
 
+    #[\Override]
     public function insert(string $table, array $cols, array $rows): string
     {
         // check parameters
@@ -326,6 +331,7 @@ class JsonDatabase extends AbstractDatabase
         return $dbid;
     }
 
+    #[\Override]
     public function update(
         $conditions,
         array $cols,
@@ -352,6 +358,7 @@ class JsonDatabase extends AbstractDatabase
         return $rowsAffected;
     }
 
+    #[\Override]
     public function delete($conditions, string $table = 'contacts'): int
     {
         // check parameters
@@ -484,6 +491,7 @@ class JsonDatabase extends AbstractDatabase
         return $defaultValue;
     }
 
+    #[\Override]
     public function lookup($conditions, array $cols = [], string $table = 'contacts'): array
     {
         $rows = $this->get($conditions, $cols, $table);
@@ -496,6 +504,7 @@ class JsonDatabase extends AbstractDatabase
         return $rows[0];
     }
 
+    #[\Override]
     public function get($conditions, array $cols = [], string $table = 'contacts', array $options = []): array
     {
         TestCase::assertArrayHasKey($table, $this->data, "Get for unknown table $table");

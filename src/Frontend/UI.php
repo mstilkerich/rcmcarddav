@@ -76,7 +76,7 @@ use MStilkerich\RCMCardDAV\Config;
  * @psalm-type FieldSetSpec = array{label: string, class: string, fields: list<FieldSpec>}
  * @psalm-type FormSpec = list<FieldSetSpec>
  */
-class UI
+final class UI
 {
     /**
      * HTML input attributes for a timestr attribute.

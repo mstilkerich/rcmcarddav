@@ -89,7 +89,9 @@ final class TestInfrastructure
     public static function readVCard(string $vcfFile): VCard
     {
         TestCase::assertFileIsReadable($vcfFile);
-        $vcard = VObject\Reader::read(fopen($vcfFile, 'r'));
+        $vcfData = file_get_contents($vcfFile);
+        TestCase::assertIsString($vcfData);
+        $vcard = VObject\Reader::read($vcfData);
         TestCase::assertInstanceOf(VCard::class, $vcard);
         return $vcard;
     }
@@ -227,7 +229,6 @@ final class TestInfrastructure
     {
         $class = get_class($obj);
         $prop = new \ReflectionProperty($class, $propName);
-        $prop->setAccessible(true);
         $prop->setValue($obj, $value);
     }
 
@@ -239,7 +240,6 @@ final class TestInfrastructure
     {
         $class = get_class($obj);
         $prop = new \ReflectionProperty($class, $propName);
-        $prop->setAccessible(true);
         return $prop->getValue($obj);
     }
 

@@ -5,7 +5,7 @@
 
 ## Requirements
 
-RCMCardDAV 5.x requires at least PHP 7.4. Dependencies are managed by composer, if you are interested in a list, see the
+RCMCardDAV 6.x requires at least PHP 8.2. Dependencies are managed by composer, if you are interested in a list, see the
 [composer.json](composer.json) file.
 
 The supported versions of roundcube and supported databases can be found in
@@ -27,6 +27,10 @@ A (hopefully growing) documentation for various topics is found in the [doc](doc
 Generally (even for patch releases), when upgrading RCMCardDAV, log off from roundcube before performing the upgrade,
 and login again after the upgrade has been performed. During login, a potentially necessary database schema upgrade is
 performed, therefore the login step is important to finish the upgrade.
+
+### Upgrading from 5.x
+
+- Except for meeting updated dependency requirements, there are no extra steps other than the standard upgrade steps
 
 ### Upgrading from 4.x
 

@@ -29,7 +29,7 @@ namespace MStilkerich\RCMCardDAV\Db;
 /**
  * Represents one OR-condition to be used for queries in AbstractDatabase operations as part of an AND-condition.
  */
-class DbOrCondition
+final class DbOrCondition
 {
     /**
      * The field specifier is the name of a database column.

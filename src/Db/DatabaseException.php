@@ -31,6 +31,6 @@ use Exception;
 /**
  * Exception subclass for errors in database operations reported by the database.
  */
-class DatabaseException extends Exception
+final class DatabaseException extends Exception
 {
 }

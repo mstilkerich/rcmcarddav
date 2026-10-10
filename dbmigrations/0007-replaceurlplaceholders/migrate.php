@@ -35,8 +35,9 @@ use MStilkerich\RCMCardDAV\Db\DBMigrationInterface;
 /**
  * Replaces all placeholder in the URL fields of addressbooks in the database.
  */
-class Migration0007 implements DBMigrationInterface
+final class Migration0007 implements DBMigrationInterface
 {
+    #[\Override]
     public function migrate(rcube_db $dbh, LoggerInterface $logger): bool
     {
         $users_table = $dbh->table_name("users");

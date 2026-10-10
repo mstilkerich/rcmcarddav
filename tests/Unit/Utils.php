@@ -36,7 +36,7 @@ use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
 /**
  * @psalm-import-type SaveData from DataConversion
  */
-class Utils
+final class Utils
 {
     /**
      * Can be used as emulation of WebDavResource::downloadResource in stubs.
@@ -47,7 +47,9 @@ class Utils
         if (preg_match(',^http://localhost/(.+),', $uri, $matches) && isset($matches[1])) {
             $filename = "tests/Unit/data/srv/$matches[1]";
             TestCase::assertFileIsReadable($filename);
-            return [ 'body' => file_get_contents($filename) ];
+            $body = file_get_contents($filename);
+            TestCase::assertIsString($body, "Cannot read $filename");
+            return [ 'body' => $body ];
         }
         throw new \Exception("URI $uri not known to stub");
     }
@@ -140,8 +142,12 @@ class Utils
         TestCase::assertSame($pExp[2], $pRc[2], "Image type of PHOTO differs");
 
         // store to temporary files for comparison
-        $expFile = tempnam("testreports", "imgcomp_") . image_type_to_extension($pExp[2]);
-        $rcFile = tempnam("testreports", "imgcomp_") . image_type_to_extension($pRc[2]);
+        $expFileBase = tempnam("testreports", "imgcomp_");
+        $rcFileBase = tempnam("testreports", "imgcomp_");
+        TestCase::assertIsString($expFileBase, "Cannot create temporary file");
+        TestCase::assertIsString($rcFileBase, "Cannot create temporary file");
+        $expFile = $expFileBase . image_type_to_extension($pExp[2]);
+        $rcFile = $rcFileBase . image_type_to_extension($pRc[2]);
 
         TestCase::assertNotFalse(file_put_contents($expFile, $pExpStr), "Cannot write $expFile");
         TestCase::assertNotFalse(file_put_contents($rcFile, $pRcStr), "Cannot write $rcFile");

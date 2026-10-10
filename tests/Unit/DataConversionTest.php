@@ -33,8 +33,9 @@ use MStilkerich\Tests\RCMCardDAV\{TestInfrastructure,TestLogger};
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 use MStilkerich\CardDavClient\{Account,AddressbookCollection};
-use MStilkerich\RCMCardDAV\{DataConversion,DelayedPhotoLoader,DelayedVCardExporter};
+use MStilkerich\RCMCardDAV\{DataConversion,DelayedPhotoLoader,DelayedVCardExporter,VObjectUtils};
 use MStilkerich\RCMCardDAV\Db\Database;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * XXX temporary workaround for vimeo/psalm#8980
@@ -52,10 +53,12 @@ final class DataConversionTest extends TestCase
     /** @var AddressbookCollection */
     private $abook;
 
+    #[\Override]
     public static function setUpBeforeClass(): void
     {
     }
 
+    #[\Override]
     public function setUp(): void
     {
         $_SESSION['user_id'] = 105;
@@ -70,6 +73,7 @@ final class DataConversionTest extends TestCase
         TestInfrastructure::$infra->setCache($this->cache);
     }
 
+    #[\Override]
     public function tearDown(): void
     {
         Utils::cleanupTempImages();
@@ -82,6 +86,7 @@ final class DataConversionTest extends TestCase
     private static function vcardSamplesProvider(string $basedir): array
     {
         $vcfFiles = glob("$basedir/*.vcf");
+        self::assertIsArray($vcfFiles);
 
         $result = [];
         foreach ($vcfFiles as $vcfFile) {
@@ -103,9 +108,8 @@ final class DataConversionTest extends TestCase
 
     /**
      * Tests the conversion of VCards to roundcube's internal address data representation.
-     *
-     * @dataProvider vcardImportSamplesProvider
      */
+    #[DataProvider('vcardImportSamplesProvider')]
     public function testCorrectConversionOfVcardToRoundcube(string $vcfFile, string $jsonFile): void
     {
         $logger = TestInfrastructure::logger();
@@ -200,9 +204,8 @@ final class DataConversionTest extends TestCase
 
     /**
      * Tests that a new VCard is created from Roundcube data properly.
-     *
-     * @dataProvider vcardCreateSamplesProvider
      */
+    #[DataProvider('vcardCreateSamplesProvider')]
     public function testCorrectCreationOfVcardFromRoundcube(string $vcfFile, string $jsonFile): void
     {
         $db = $this->db;
@@ -264,9 +267,8 @@ final class DataConversionTest extends TestCase
 
     /**
      * Tests that an existing VCard is updated from Roundcube data properly.
-     *
-     * @dataProvider vcardUpdateSamplesProvider
      */
+    #[DataProvider('vcardUpdateSamplesProvider')]
     public function testCorrectUpdateOfVcardFromRoundcube(string $vcfFile, string $jsonFile): void
     {
         $db = $this->db;
@@ -306,9 +308,8 @@ final class DataConversionTest extends TestCase
 
     /**
      * Tests whether a PHOTO is stored/not stored to the roundcube cache as expected.
-     *
-     * @dataProvider cachePhotosSamplesProvider
      */
+    #[DataProvider('cachePhotosSamplesProvider')]
     public function testNewPhotoIsStoredToCacheIfNeeded(string $basename, bool $getExp, bool $storeExp): void
     {
         $logger = TestInfrastructure::logger();
@@ -317,7 +318,7 @@ final class DataConversionTest extends TestCase
         $vcard = TestInfrastructure::readVCard("$basename.vcf");
         $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
 
-        $key = "photo_105_" . md5((string) $vcard->UID);
+        $key = "photo_105_" . md5((string) VObjectUtils::getProperty($vcard, 'UID'));
         $saveDataExpected = Utils::readSaveDataFromJson("$basename.json");
 
         // photo should be stored to cache if not already stored in vcard in the final form
@@ -365,9 +366,8 @@ final class DataConversionTest extends TestCase
 
     /**
      * Tests that a photo is retrieved from the roundcube cache if available, skipping processing.
-     *
-     * @dataProvider cachePhotosSamplesProvider
      */
+    #[DataProvider('cachePhotosSamplesProvider')]
     public function testPhotoIsUsedFromCacheIfAvailable(string $basename, bool $getExp, bool $storeExp): void
     {
         $cache = $this->cache;
@@ -379,7 +379,7 @@ final class DataConversionTest extends TestCase
         $vcard = TestInfrastructure::readVCard("$basename.vcf");
         $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
 
-        $key = "photo_105_" . md5((string) $vcard->UID);
+        $key = "photo_105_" . md5((string) VObjectUtils::getProperty($vcard, 'UID'));
         $saveDataExpected = Utils::readSaveDataFromJson("$basename.json");
 
         if ($getExp) {
@@ -418,9 +418,8 @@ final class DataConversionTest extends TestCase
 
     /**
      * Tests that an outdated photo in the cache is replaced by a newly processed one.
-     *
-     * @dataProvider cachePhotosSamplesProvider
      */
+    #[DataProvider('cachePhotosSamplesProvider')]
     public function testOutdatedPhotoIsReplacedInCache(string $basename, bool $getExp, bool $storeExp): void
     {
         $logger = TestInfrastructure::logger();
@@ -433,7 +432,7 @@ final class DataConversionTest extends TestCase
         $vcard = TestInfrastructure::readVCard("$basename.vcf");
         $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
 
-        $key = "photo_105_" . md5((string) $vcard->UID);
+        $key = "photo_105_" . md5((string) VObjectUtils::getProperty($vcard, 'UID'));
         $saveDataExpected = Utils::readSaveDataFromJson("$basename.json");
 
         if ($getExp) {
@@ -523,8 +522,9 @@ final class DataConversionTest extends TestCase
         $logger = TestInfrastructure::logger();
 
         $vcard = TestInfrastructure::readVCard("tests/Unit/data/vcardImport/UriPhoto.vcf");
-        $this->assertNotNull($vcard->PHOTO);
-        $vcard->PHOTO->setValue('ftp://localhost/raven.jpg');
+        $photo = VObjectUtils::getProperty($vcard, 'PHOTO');
+        $this->assertNotNull($photo);
+        $photo->setValue('ftp://localhost/raven.jpg');
         $proxy = new DelayedPhotoLoader($vcard, $this->abook);
 
         $this->assertEquals("", $proxy);
@@ -582,10 +582,8 @@ final class DataConversionTest extends TestCase
 
     /**
      * Tests that a VCard converted to roundcube can be properly exported as vcard again.
-     *
-     *
-     * @dataProvider vcardExportSamplesProvider
      */
+    #[DataProvider('vcardExportSamplesProvider')]
     public function testCorrectExportOfVcardFromRoundcube(string $vcfFile, string $_jsonFileNotExisting): void
     {
         $logger = TestInfrastructure::logger();
@@ -684,7 +682,7 @@ final class DataConversionTest extends TestCase
     {
         $res = [];
         foreach ($nodes as $n) {
-            $res[$n->name][] = $n;
+            $res[VObjectUtils::getName($n)][] = $n;
         }
 
         return $res;
