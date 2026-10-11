@@ -82,6 +82,13 @@ final class DatabaseForeignKeyConstraintsTest extends TestCase
      */
     public function testDeletionOfUserDeletesTheirCarddavObjectsByForeignKeyConstraints(): void
     {
+        // TEMPORARY: Remove this check once MySQL Bug #121367 is fixed (https://bugs.mysql.com/bug.php?id=121367).
+        // With foreign keys enforced in the SQL layer (MySQL 9.6+, innodb_native_foreign_keys=OFF), a cascaded
+        // delete only cascades further for the first child row, leaving orphaned rows behind.
+        if ($this->mysqlHasSqlLayerForeignKeys()) {
+            $this->markTestSkipped("MySQL Bug #121367: nested ON DELETE CASCADE broken with SQL-layer foreign keys");
+        }
+
         $db = self::$db;
 
         // first assert that all our carddav tables contain some data in the test data set
@@ -96,6 +103,25 @@ final class DatabaseForeignKeyConstraintsTest extends TestCase
         foreach (self::TABLES as $tbl) {
             $this->assertEmpty($db->get([], [], $tbl), "Table $tbl contains data after deleting all users");
         }
+    }
+
+    /**
+     * TEMPORARY: Remove once MySQL Bug #121367 is fixed.
+     *
+     * Checks whether the database is a MySQL server that enforces foreign keys in the SQL layer. MySQL before 9.6 and
+     * MariaDB do not have the innodb_native_foreign_keys variable and always use InnoDB's native foreign keys.
+     */
+    private function mysqlHasSqlLayerForeignKeys(): bool
+    {
+        TestCase::assertIsString($GLOBALS["TEST_DBTYPE"]);
+        if ($GLOBALS["TEST_DBTYPE"] != "mysql") {
+            return false;
+        }
+
+        $dbh = TestInfrastructureDB::getDbHandle();
+        $res = $dbh->query("SHOW VARIABLES LIKE 'innodb_native_foreign_keys'");
+        $row = $dbh->fetch_assoc($res);
+        return is_array($row) && strtoupper((string) $row['Value']) === 'OFF';
     }
 }
 
