@@ -122,13 +122,13 @@ $(call EXECDBSCRIPT_postgres,$(INITTESTDB_postgres),$(ROUNDCUBEDIR)/SQL/postgres
 endef
 define CREATEDB_mysql
 $(MYSQL) --show-warnings -e 'DROP DATABASE IF EXISTS $(TESTDB_mysql);'
-$(MYSQL) --show-warnings -e 'CREATE DATABASE $(TESTDB_mysql) /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;'
+$(MYSQL) --show-warnings -e 'CREATE DATABASE $(TESTDB_mysql) /*!40101 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */;'
 $(call EXECDBSCRIPT_mysql,$(TESTDB_mysql),$(ROUNDCUBEDIR)/SQL/mysql.initial.sql)
 $(MYSQL) --show-warnings -e 'DROP DATABASE IF EXISTS $(MIGTESTDB_mysql);'
-$(MYSQL) --show-warnings -e 'CREATE DATABASE $(MIGTESTDB_mysql) /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;'
+$(MYSQL) --show-warnings -e 'CREATE DATABASE $(MIGTESTDB_mysql) /*!40101 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */;'
 $(call EXECDBSCRIPT_mysql,$(MIGTESTDB_mysql),$(ROUNDCUBEDIR)/SQL/mysql.initial.sql)
 $(MYSQL) --show-warnings -e 'DROP DATABASE IF EXISTS $(INITTESTDB_mysql);'
-$(MYSQL) --show-warnings -e 'CREATE DATABASE $(INITTESTDB_mysql) /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;'
+$(MYSQL) --show-warnings -e 'CREATE DATABASE $(INITTESTDB_mysql) /*!40101 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */;'
 $(call EXECDBSCRIPT_mysql,$(INITTESTDB_mysql),$(ROUNDCUBEDIR)/SQL/mysql.initial.sql)
 endef
 define CREATEDB_sqlite3
