@@ -41,7 +41,7 @@ RELEASE_VERSION ?= $(shell git tag --points-at HEAD)
 MYSQLCMD := $(shell $(MYSQL_CMD_PREFIX) sh -c 'find /usr/bin -name mariadb -o -name mysql | head -n 1')
 MYSQLDUMPCMD := $(shell $(MYSQL_CMD_PREFIX) sh -c 'find /usr/bin -name mariadb-dump -o -name mysqldump | head -n 1')
 MYSQL     := $(MYSQL_CMD_PREFIX) $(MYSQLCMD) -u root -p"$$MYSQL_PASSWORD"
-MYSQLDUMP := $(MYSQL_CMD_PREFIX) $(MYSQLDUMP) -u root -p"$$MYSQL_PASSWORD"
+MYSQLDUMP := $(MYSQL_CMD_PREFIX) $(MYSQLDUMPCMD) -u root -p"$$MYSQL_PASSWORD"
 
 # POSTGRES_CMD_PREFIX can be used to run the command inside a docker container
 # For simplicity, we assume an isolated test database that we can directly access as the postgres user with no sensitive password
