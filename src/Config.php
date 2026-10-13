@@ -196,6 +196,11 @@ class Config
 
         $httpOptions['preemptive_basic_auth'] = (bool) ($accountCfg['preemptive_basic_auth'] ?? false);
         $httpOptions['verify'] = !((bool) ($accountCfg['ssl_noverify'] ?? false));
+        if ($accountCfg['ssl_client_password']) {
+            $httpOptions['ssl_key'] = array($accountCfg['ssl_client_keyfile'], $accountCfg['ssl_client_password']);
+        } else {
+            $httpOptions['ssl_key'] = $accountCfg['ssl_client_keyfile'];
+        }
 
         $discUrl  = Utils::replacePlaceholdersUrl($accountCfg['discovery_url'] ?? '');
         return new Account($discUrl, $httpOptions);

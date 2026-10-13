@@ -64,6 +64,8 @@ $labels = Array(
 	'AdvancedOpt_seclbl' => 'Advanced options',
 	'AccProps_preemptive_basic_auth_lbl' => 'Send HTTP Basic authentication data to server with every request',
 	'AccProps_ssl_noverify_lbl' => 'Disable SSL certificate verification',
+	'AccProps_ssl_client_keyfile_lbl' => 'Path to the client private key to use for mutual TLS',
+	'AccProps_ssl_client_password_lbl' => 'Password for the client private key to use for mutual TLS',
 
 	// Addressbook details page
 	'AbProps_rclbl' => 'Addressbook properties',
