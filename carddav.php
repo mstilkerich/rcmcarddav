@@ -47,7 +47,7 @@ class carddav extends rcube_plugin implements RcmInterface
      *
      * During development, it is set to the last release and added the suffix +dev.
      */
-    public const PLUGIN_VERSION = 'v5.1.4+dev';
+    public const PLUGIN_VERSION = 'v5.1.5';
 
     /**
      * Information about this plugin that is queried by roundcube.
