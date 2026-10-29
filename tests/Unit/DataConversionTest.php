@@ -411,6 +411,47 @@ final class DataConversionTest extends TestCase
     }
 
     /**
+     * @return array<string, list{string}>
+     */
+    public static function uriPhotoSamplesProvider(): array
+    {
+        return [
+            "UriPhotoCrop.vcf" => ["tests/Unit/data/vcardImport/UriPhotoCrop"],
+            "UriPhoto.vcf" => ["tests/Unit/data/vcardImport/UriPhoto"],
+        ];
+    }
+
+    /**
+     * Tests that downloaded data that is not an image is neither provided as photo nor stored to the cache.
+     *
+     * @dataProvider uriPhotoSamplesProvider
+     */
+    public function testDownloadedNonImageDataIsRejected(string $basename): void
+    {
+        $logger = TestInfrastructure::logger();
+
+        $abook = $this->createStub(AddressbookCollection::class);
+        $abook->method('downloadResource')->willReturn(['body' => '{"AccessKeyId": "secret"}']);
+
+        $this->cache->expects($this->once())->method("get")->willReturn(null);
+        $this->cache->expects($this->never())->method("set");
+
+        $vcard = TestInfrastructure::readVCard("$basename.vcf");
+        $this->assertInstanceOf(VObject\Property::class, $vcard->PHOTO);
+
+        $dc = new DataConversion("42", true);
+        $saveData = $dc->toRoundcube($vcard, $abook);
+        $this->assertTrue(isset($saveData['photo']));
+        $this->assertSame("", (string) $saveData["photo"]);
+
+        $logger->expectMessage(
+            'warning',
+            'downloadPhoto: Attempt to download photo from http://localhost/raven.jpg failed: '
+            . 'Downloaded data is not an image'
+        );
+    }
+
+    /**
      * Tests that a photo is retrieved from the roundcube cache if available, skipping processing.
      *
      * @dataProvider cachePhotosSamplesProvider

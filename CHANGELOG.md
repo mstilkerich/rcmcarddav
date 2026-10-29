@@ -16,6 +16,9 @@
 - Security: Require carddavclient 1.5.0, which sends the account credentials only to the origin (scheme, host and
   port) of the addressbook. Previous versions also sent them to other hosts with matching last two domain name labels
   or IP address octets.
+- Security: Downloaded photos are only accepted if the data is recognized as an image (by PHP's
+  `getimagesizefromstring()`). Other data, e.g. responses of internal services when photo download is enabled, is no
+  longer passed on to the user.
 - Fix: Show roundcube's placeholder image instead of an empty image for contacts whose photo is not available, e.g.
   because photo download is disabled or the download failed
 

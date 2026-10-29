@@ -196,7 +196,14 @@ class DelayedPhotoLoader
     {
         try {
             $response = $this->davAbook->downloadResource($uri);
-            return $response['body'];
+            $photoData = $response['body'];
+
+            // The photo is passed on to the user, so make sure we do not pass on anything but image data
+            if (@getimagesizefromstring($photoData) === false) {
+                throw new Exception("Downloaded data is not an image");
+            }
+
+            return $photoData;
         } catch (Exception $e) {
             $logger = Config::inst()->logger();
             $logger->warning("downloadPhoto: Attempt to download photo from $uri failed: " . $e->getMessage());
