@@ -198,8 +198,12 @@ class DelayedPhotoLoader
             $response = $this->davAbook->downloadResource($uri);
             $photoData = $response['body'];
 
-            // The photo is passed on to the user, so make sure we do not pass on anything but image data
-            if (@getimagesizefromstring($photoData) === false) {
+            // The photo is passed on to the user, so make sure we do not pass on anything but image data. Only accept
+            // common image types, as getimagesizefromstring() recognizes some formats (e.g. WBMP, XBM) by weak checks
+            // that arbitrary data may pass.
+            $imgInfo = @getimagesizefromstring($photoData);
+            $imgTypes = [ IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF, IMAGETYPE_WEBP ];
+            if ($imgInfo === false || !in_array($imgInfo[2], $imgTypes, true)) {
                 throw new Exception("Downloaded data is not an image");
             }
 
