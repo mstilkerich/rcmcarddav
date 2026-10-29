@@ -13,9 +13,10 @@
         iCloud hosts photos (gateway.icloud.com) is different from that of the addressbook (pXXX-contacts.icloud.com).
         With the also recently introduced constraints in the carddavclient library 1.5.0, this will not work without an
         explicit allow policy anymore, which is not yet implemented in rcmcarddav.
-- Security: Require carddavclient 1.5.0, which sends the account credentials only to the origin (scheme, host and
+- Security: Require carddavclient 1.5.1, which sends the account credentials only to the origin (scheme, host and
   port) of the addressbook. Previous versions also sent them to other hosts with matching last two domain name labels
-  or IP address octets.
+  or IP address octets. Furthermore, error messages no longer include the body of HTTP responses, which were shown to
+  the user and could reveal the responses of internal services, e.g. after a redirect by the CardDAV server.
 - Security: Downloaded photos are only accepted if the data is recognized as an image (by PHP's
   `getimagesizefromstring()`). Other data, e.g. responses of internal services when photo download is enabled, is no
   longer passed on to the user.
