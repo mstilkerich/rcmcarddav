@@ -3,6 +3,7 @@
 // use non-default values for all of these
 $prefs['_GLOBAL']['fixed'] = 1;
 $prefs['_GLOBAL']['hide_preferences'] = "enable";
+$prefs['_GLOBAL']['download_photos'] = true;
 $prefs['_GLOBAL']['pwstore_scheme'] = 'plain';
 
 $prefs['_GLOBAL']['loglevel'] = \Psr\Log\LogLevel::DEBUG;

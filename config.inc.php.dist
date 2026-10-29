@@ -19,6 +19,10 @@
 // When enabled, this option hides the 'CardDAV' section inside Preferences.
 // $prefs['_GLOBAL']['hide_preferences'] = true;
 
+// Allow the server to download photos referenced by URI in a VCard, e.g. used by iCloud (default: false)
+// Read the security note in doc/ADMIN-SETTINGS.md before enabling this option.
+// $prefs['_GLOBAL']['download_photos'] = true;
+
 // Scheme for storing the CardDAV passwords, in order from least to best security.
 // Options: plain, base64, des_key, encrypted (default)
 // $prefs['_GLOBAL']['pwstore_scheme'] = 'encrypted';
