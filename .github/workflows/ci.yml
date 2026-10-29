@@ -6,6 +6,7 @@ on:
     branches:
       - master
       - v4
+      - v5
 
 jobs:
   staticanalyses:
