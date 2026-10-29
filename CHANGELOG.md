@@ -12,6 +12,9 @@
         iCloud hosts photos (gateway.icloud.com) is different from that of the addressbook (pXXX-contacts.icloud.com).
         With the also recently introduced constraints in the carddavclient library 1.5.0, this will not work without an
         explicit allow policy anymore, which is not yet implemented in rcmcarddav.
+- Security: Require carddavclient 1.5.0, which sends the account credentials only to the origin (scheme, host and
+  port) of the addressbook. Previous versions also sent them to other hosts with matching last two domain name labels
+  or IP address octets.
 - Fix: Show roundcube's placeholder image instead of an empty image for contacts whose photo is not available, e.g.
   because photo download is disabled or the download failed
 
