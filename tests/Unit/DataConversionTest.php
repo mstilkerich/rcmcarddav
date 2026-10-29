@@ -411,27 +411,43 @@ final class DataConversionTest extends TestCase
     }
 
     /**
-     * @return array<string, list{string}>
+     * @return array<string, list{string, string}>
      */
-    public static function uriPhotoSamplesProvider(): array
+    public static function nonImageDownloadSamplesProvider(): array
     {
-        return [
-            "UriPhotoCrop.vcf" => ["tests/Unit/data/vcardImport/UriPhotoCrop"],
-            "UriPhoto.vcf" => ["tests/Unit/data/vcardImport/UriPhoto"],
+        $vcfs = [
+            "UriPhotoCrop.vcf" => "tests/Unit/data/vcardImport/UriPhotoCrop",
+            "UriPhoto.vcf" => "tests/Unit/data/vcardImport/UriPhoto",
         ];
+
+        // the WBMP and XBM samples are recognized by getimagesizefromstring(), but not accepted as image types
+        $bodies = [
+            "JSON" => '{"AccessKeyId": "secret"}',
+            "WBMP" => "\0\0\x10\x10secret",
+            "XBM" => "#define a_width 8\n#define a_height 8\nsecret",
+        ];
+
+        $result = [];
+        foreach ($vcfs as $vcfName => $basename) {
+            foreach ($bodies as $bodyName => $body) {
+                $result["$vcfName, $bodyName"] = [ $basename, $body ];
+            }
+        }
+
+        return $result;
     }
 
     /**
      * Tests that downloaded data that is not an image is neither provided as photo nor stored to the cache.
      *
-     * @dataProvider uriPhotoSamplesProvider
+     * @dataProvider nonImageDownloadSamplesProvider
      */
-    public function testDownloadedNonImageDataIsRejected(string $basename): void
+    public function testDownloadedNonImageDataIsRejected(string $basename, string $body): void
     {
         $logger = TestInfrastructure::logger();
 
         $abook = $this->createStub(AddressbookCollection::class);
-        $abook->method('downloadResource')->willReturn(['body' => '{"AccessKeyId": "secret"}']);
+        $abook->method('downloadResource')->willReturn(['body' => $body]);
 
         $this->cache->expects($this->once())->method("get")->willReturn(null);
         $this->cache->expects($this->never())->method("set");
