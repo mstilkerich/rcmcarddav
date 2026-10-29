@@ -1,6 +1,7 @@
 # Changelog for RCMCardDAV
 
 ## Version 5.1.5 (to 5.1.4)
+- This release fixes some security issues, details below. Thanks and credits to Milan Hoppe for reporting these.
 - Security: Photos referenced by URI in a VCard (e.g., used by iCloud) are no longer downloaded by default, as the
   download was not restricted to particular hosts. This allowed anybody able to place a VCard in a user's addressbook
   to make the roundcube server send requests to arbitrary hosts, including internal ones, and retrieve the response as
