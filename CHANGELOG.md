@@ -1,5 +1,14 @@
 # Changelog for RCMCardDAV
 
+## Version 5.1.5 (to 5.1.4)
+- Security: Photos referenced by URI in a VCard (e.g., used by iCloud) are no longer downloaded by default, as the
+  download was not restricted to particular hosts. This allowed anybody able to place a VCard in a user's addressbook
+  to make the roundcube server send requests to arbitrary hosts, including internal ones, and retrieve the response as
+  contact photo. The download can be enabled with the new global admin setting `download_photos`, which should only
+  be done if all users and CardDAV servers are trusted. See [ADMIN-SETTINGS](doc/ADMIN-SETTINGS.md) for details.
+  Note: More fine-grained controls that allow enabling photo download in a restricted way are planned for a future
+  release.
+
 ## Version 5.1.4 (to 5.1.3)
 - Update Russian localization (#506 thanks @neijrr)
 - Fix: case-insensitive comparision of OAUTH token type (#501 thanks @Dadadah)

@@ -268,7 +268,7 @@ final class SyncHandlerRoundcubeTest extends TestCase
         $cache = $this->createMock(\rcube_cache::class);
         TestInfrastructure::$infra->setCache($cache);
 
-        $dc = new DataConversion("42");
+        $dc = new DataConversion("42", true);
         return [ $dc, $abook, $rcAbook ];
     }
 }

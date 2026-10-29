@@ -182,6 +182,12 @@ class AdminSettings
     public $hidePreferences;
 
     /**
+     * @var bool Global preference "download_photos"
+     * @readonly
+     */
+    public $downloadPhotos;
+
+    /**
      * @var array<SpecialAbookType,SpecialAbookMatch> Match settings for special addressbooks
      */
     private $specialAbookMatchers = [];
@@ -233,6 +239,7 @@ class AdminSettings
 
         $this->forbidCustomAddressbooks = (bool) ($gprefs['fixed'] ?? false);
         $this->hidePreferences = (bool) ($gprefs['hide_preferences'] ?? false);
+        $this->downloadPhotos = (($gprefs['download_photos'] ?? false) === true);
 
         foreach (['loglevel' => $logger, 'loglevel_http' => $httpLogger] as $setting => $cfgdLogger) {
             if (($cfgdLogger instanceof RoundcubeLogger) && isset($gprefs[$setting])) {

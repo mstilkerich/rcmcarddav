@@ -276,6 +276,31 @@ final class AdminSettingsWithDataTest extends TestCase
     }
 
     /**
+     * @return array<string, list{string, string}>
+     */
+    public static function downloadPhotosProvider(): array
+    {
+        return [
+            'Default config' => [ 'config.inc.php.dist', '0' ],
+            'Photo download enabled' => [ 'tests/Unit/data/adminSettingsTest/fullconfig.inc.php', '1' ],
+        ];
+    }
+
+    /**
+     * Tests that the download_photos setting of addressbooks follows the global admin setting.
+     *
+     * @dataProvider downloadPhotosProvider
+     */
+    public function testDownloadPhotosOfAddressbookFollowsAdminSetting(string $admSettingsPath, string $expValue): void
+    {
+        $this->db = new JsonDatabase(['tests/Unit/data/adminSettingsWithDataTest/db.json']);
+        TestInfrastructure::init($this->db, $admSettingsPath);
+
+        $abMgr = new AddressbookManager();
+        $this->assertSame($expValue, $abMgr->getAddressbookConfig('42')['download_photos']);
+    }
+
+    /**
      * Creates an AddressbookCollection stub that implements getUri() and getName().
      */
     private function makeAbookCollStub(?string $name, string $url, ?string $desc): AddressbookCollection

@@ -72,7 +72,8 @@ use MStilkerich\RCMCardDAV\Db\AbstractDatabase;
  *     discovered: Int1,
  *     readonly: Int1,
  *     require_always_email: Int1,
- *     template: Int1
+ *     template: Int1,
+ *     download_photos: Int1
  * }
  *
  * XXX temporary workaround for vimeo/psalm#8984 - This should be defined in UI.php instead
@@ -365,6 +366,10 @@ class AddressbookManager
         foreach (AbstractDatabase::FLAGS_COLS['addressbooks']['fields'] as $cfgAttr => $bitPos) {
             $abookrow[$cfgAttr] = (($abookrow['flags'] & (1 << $bitPos)) ? '1' : '0');
         }
+
+        // XXX temporary; we don't want a dependency on AdminSettings here. This is planned to become an addressbook
+        // flag retrieved from the database in the future, then this will no longer be needed.
+        $abookrow['download_photos'] = Config::inst()->admPrefs()->downloadPhotos ? '1' : '0';
 
         /** @psalm-var AbookCfg $abookrow Psalm does not keep track of the type of individual array members above */
         return $abookrow;

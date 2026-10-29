@@ -92,6 +92,7 @@ final class AdminSettingsTest extends TestCase
         $this->assertSame($expPrefs['pwStoreScheme'], $admPrefs->pwStoreScheme);
         $this->assertSame($expPrefs['forbidCustomAddressbooks'], $admPrefs->forbidCustomAddressbooks);
         $this->assertSame($expPrefs['hidePreferences'], $admPrefs->hidePreferences);
+        $this->assertSame($expPrefs['downloadPhotos'], $admPrefs->downloadPhotos);
 
         $this->assertSame($expPrefs["presets"], TestInfrastructure::getPrivateProperty($admPrefs, 'presets'));
         $this->assertSame(
@@ -162,6 +163,7 @@ final class AdminSettingsTest extends TestCase
                         'pwStoreScheme' => 'encrypted',
                         'forbidCustomAddressbooks' => false,
                         'hidePreferences' => false,
+                        'downloadPhotos' => false,
                         'presets' => [],
                     ];
                 },
@@ -488,6 +490,7 @@ final class AdminSettingsTest extends TestCase
         $this->assertSame($expPrefs['pwStoreScheme'], $admPrefs->pwStoreScheme);
         $this->assertSame($expPrefs['forbidCustomAddressbooks'], $admPrefs->forbidCustomAddressbooks);
         $this->assertSame($expPrefs['hidePreferences'], $admPrefs->hidePreferences);
+        $this->assertSame($expPrefs['downloadPhotos'], $admPrefs->downloadPhotos);
         $this->assertSame($expPrefs["presets"], TestInfrastructure::getPrivateProperty($admPrefs, 'presets'));
 
         // extra validation function

@@ -372,6 +372,15 @@ final class AddressbookManagerTest extends TestCase
     }
 
     /**
+     * Adds to an addressbook config the settings that are determined by the admin settings.
+     */
+    private function addAbookAdminCfg(array $abookCfg): array
+    {
+        $abookCfg['download_photos'] = TestInfrastructure::$infra->admPrefs()->downloadPhotos ? '1' : '0';
+        return $abookCfg;
+    }
+
+    /**
      * Transforms the application-level flag fields to a flags value in an associative array.
      *
      * @param DbGetResult $row
@@ -495,7 +504,7 @@ final class AddressbookManagerTest extends TestCase
                     // insert the id field
                     $abookId = self::$testData->getRowId('carddav_addressbooks', $idx);
                     $row['id'] = $abookId;
-                    $testDataAbooksById[$abookId] = $row;
+                    $testDataAbooksById[$abookId] = $this->addAbookAdminCfg($row);
                 }
             }
 
@@ -939,6 +948,7 @@ final class AddressbookManagerTest extends TestCase
 
         // check that the addressbook can also be retrieved using getAddressbookConfig
         $expCfg = $this->addAppFlags(intval($expDbRow['flags']), self::ABOOK_FLAGS, $expDbRow);
+        $expCfg = $this->addAbookAdminCfg($expCfg);
         $abookCfg = $abMgr->getAddressbookConfig($abookId);
         $this->assertEquals($expCfg, $abookCfg, "New addressbook config not returned as expected");
     }
@@ -1066,6 +1076,7 @@ final class AddressbookManagerTest extends TestCase
 
         // check that the updated addressbook can also be retrieved using getAddressbookConfig
         $expCfg = $this->addAppFlags(intval($abookExpResult['flags']), self::ABOOK_FLAGS, $abookExpResult);
+        $expCfg = $this->addAbookAdminCfg($expCfg);
         $abookCfg = $abMgr->getAddressbookConfig($abookId);
         $this->assertEquals($expCfg, $abookCfg, "New addressbook config not returned as expected");
     }

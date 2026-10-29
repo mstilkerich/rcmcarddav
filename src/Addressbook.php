@@ -99,7 +99,7 @@ class Addressbook extends rcube_addressbook
         $this->date_cols = ['birthday', 'anniversary'];
         $this->id       = $dbid;
 
-        $this->dataConverter = new DataConversion($dbid);
+        $this->dataConverter = new DataConversion($dbid, $config['download_photos'] === '1');
         $this->coltypes = $this->dataConverter->getColtypes();
 
         $this->ready = true;

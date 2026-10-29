@@ -88,6 +88,7 @@ final class AddressbookTest extends TestCase
             $flags = intval($abookRow['flags']);
             $abookRow[$attr] = ($flags & (1 << $bitPos)) ? '1' : '0';
         }
+        $abookRow['download_photos'] = '1';
 
         return $abookRow;
     }

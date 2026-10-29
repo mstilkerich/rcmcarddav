@@ -67,12 +67,20 @@ class DelayedPhotoLoader
     /** @var AddressbookCollection $davAbook Access to the CardDAV addressbook */
     private $davAbook;
 
+    /**
+     * @var bool $allowDownload True if photos referenced by URI may be downloaded
+     * @readonly
+     */
+    private $allowDownload;
+
     public function __construct(
         VCard $vcard,
-        AddressbookCollection $davAbook
+        AddressbookCollection $davAbook,
+        bool $allowDownload
     ) {
         $this->vcard = $vcard;
         $this->davAbook = $davAbook;
+        $this->allowDownload = $allowDownload;
     }
 
     /**
@@ -140,6 +148,12 @@ class DelayedPhotoLoader
                     throw new \Exception($msg);
                 }
             }
+        }
+
+        // This check must happen before the cache lookup to also suppress photos downloaded before it was disabled.
+        if (isset($photoUri) && !$this->allowDownload) {
+            Config::inst()->logger()->debug("Ignoring PHOTO URI $photoUri as photo download is disabled");
+            return "";
         }
 
         // true if the photo must be processed (downloaded/cropped) and the result should be cached

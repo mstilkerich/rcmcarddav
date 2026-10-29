@@ -260,8 +260,17 @@ class DataConversion
     /** @var array<string,list<string>> $xlabels custom labels defined in the addressbook */
     private $xlabels = [];
 
-    /** @var string $abookId Database ID of the Addressbook this converter is associated with */
+    /**
+     * @var string $abookId Database ID of the Addressbook this converter is associated with
+     * @readonly
+     */
     private $abookId;
+
+    /**
+     * @var bool $allowPhotoDownload True if photos referenced by URI in a VCard may be downloaded
+     * @readonly
+     */
+    private $allowPhotoDownload;
 
     /**
      * Constructs a data conversion instance.
@@ -274,10 +283,12 @@ class DataConversion
      * dependencies are injected with the constructor to allow for testing of this class using stub versions.
      *
      * @param string $abookId The database ID of the addressbook the data conversion object is bound to.
+     * @param bool $allowPhotoDownload True if photos referenced by URI in a VCard may be downloaded.
      */
-    public function __construct(string $abookId)
+    public function __construct(string $abookId, bool $allowPhotoDownload)
     {
         $this->abookId = $abookId;
+        $this->allowPhotoDownload = $allowPhotoDownload;
 
         $this->addextrasubtypes();
     }
@@ -347,7 +358,7 @@ class DataConversion
 
         // Set a proxy for photo computation / retrieval on demand
         if (key_exists('photo', $save_data) && isset($vcard->PHOTO)) {
-            $save_data["photo"] = new DelayedPhotoLoader($vcard, $davAbook);
+            $save_data["photo"] = new DelayedPhotoLoader($vcard, $davAbook, $this->allowPhotoDownload);
         }
 
         $property = $vcard->N;

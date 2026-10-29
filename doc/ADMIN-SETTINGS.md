@@ -44,6 +44,17 @@ The administrator can limit the feature set offered by the plugin for ordinary u
    cannot change addressbook settings, use the global `fixed` option to avoid creation of custom addressbooks, and the
    `fixed` attribute in the presets to make all fields fixed. These restrictions are also enforced on the server side.)
 
+- `$prefs['_GLOBAL']['download_photos']`: If true, photos referenced by URI in a VCard are downloaded by the server
+   (Default: false)
+   VCards may reference separately stored photos via URI. Some CardDAV servers, notably iCloud, store contact photos
+   separately and only include a URI of the photo in the VCard. If this option is disabled, such photos are not
+   displayed. Photos stored inline in the VCard are not affected.
+   __Security note__: The photo URI is not restricted to particular hosts. Anybody who can place a VCard in an
+   addressbook of a user (the user themselves, including via custom addressbooks, other users of a shared addressbook,
+   or the CardDAV server) can make the roundcube server send HTTP GET requests to arbitrary hosts, including hosts in
+   the internal network or cloud metadata services, and retrieve the response as contact photo. Only enable this option
+   if you trust all of these parties.
+
 ## Password storing scheme
 
 The plugin needs to store the user's CardDAV passwords in the roundcube database, except for the special case where the
@@ -371,8 +382,8 @@ to define for what purpose the trusted senders are used.
 
 ## Using Bearer tokens to authenticate against the Nextcloud user_oidc app
 
-If you want the user_oidc Nextcloud app to authenticate via Bearer token (ie, you are using `'password'     =>  '%b',` in 
-the rcmcarddav `config.inc.php` file) then the following needs to be set in Nextcloud Administration Settings,  
+If you want the user_oidc Nextcloud app to authenticate via Bearer token (ie, you are using `'password'     =>  '%b',` in
+the rcmcarddav `config.inc.php` file) then the following needs to be set in Nextcloud Administration Settings,
 OpenID Connect for your provider:
 
 * Check Bearer token on API and WebDAV requests

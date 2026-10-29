@@ -4,6 +4,7 @@
 	"pwStoreScheme": "plain",
 	"forbidCustomAddressbooks": true,
 	"hidePreferences": true,
+	"downloadPhotos": true,
 	"specialAbookMatchers": {
 		"collected_recipients": {
 			"preset": "Preset1",
