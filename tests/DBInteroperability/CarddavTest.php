@@ -28,7 +28,8 @@ namespace MStilkerich\Tests\RCMCardDAV\DBInteroperability;
 
 use MStilkerich\CardDavClient\{Account,AddressbookCollection,WebDavResource,WebDavCollection};
 use MStilkerich\CardDavClient\Services\Discovery;
-use MStilkerich\Tests\RCMCardDAV\TestInfrastructure;
+use MStilkerich\RCMCardDAV\DelayedPhotoLoader;
+use MStilkerich\Tests\RCMCardDAV\{RcmAdapterStub,TestInfrastructure};
 use PHPUnit\Framework\TestCase;
 use carddav;
 
@@ -96,6 +97,72 @@ final class CarddavTest extends TestCase
             $this->assertFalse($res["sources"][$id]["readonly"]);
             $this->assertTrue($res["sources"][$id]["autocomplete"]);
             $this->assertTrue($res["sources"][$id]["groups"]);
+        }
+    }
+
+    /**
+     * @return array<string, list{?string, bool, ?string, bool}>
+     */
+    public static function contactPhotoProvider(): array
+    {
+        return [
+            'URI photo, download disabled' => [ 'UriPhoto', false, 'placeholder.png', true ],
+            'URI photo, download disabled, no placeholder' => [ 'UriPhoto', false, null, false ],
+            'URI photo, download failed' => [ 'InvalidUriPhoto', true, 'placeholder.png', true ],
+            'Inline photo' => [ 'InlinePhoto', false, 'placeholder.png', false ],
+            'Photo of other addressbook' => [ null, false, 'placeholder.png', false ],
+        ];
+    }
+
+    /**
+     * Tests that the contact_photo hook provides the placeholder image if the photo of a contact is not available.
+     *
+     * @param ?string $vcf Base name of the VCard file in vcardImport; null to simulate a non-carddav contact
+     * @param bool $allowDownload Whether photo download is allowed for the photo loader
+     * @param ?string $placeholder The photo placeholder in the roundcube output environment
+     * @param bool $expPlaceholder Whether the placeholder URL is expected to be set
+     *
+     * @dataProvider contactPhotoProvider
+     */
+    public function testPlaceholderProvidedForUnavailablePhoto(
+        ?string $vcf,
+        bool $allowDownload,
+        ?string $placeholder,
+        bool $expPlaceholder
+    ): void {
+        $_SESSION['user_id'] = 105;
+
+        TestInfrastructure::init(TestInfrastructure::$infra->db());
+        TestInfrastructure::$infra->setCache($this->createStub(\rcube_cache::class));
+        $rcStub = TestInfrastructure::$infra->rc();
+        $this->assertInstanceOf(RcmAdapterStub::class, $rcStub);
+        if (isset($placeholder)) {
+            $rcStub->outputEnv['photo_placeholder'] = $placeholder;
+        }
+
+        if (isset($vcf)) {
+            $vcard = TestInfrastructure::readVCard("tests/Unit/data/vcardImport/$vcf.vcf");
+            $davAbook = $this->createStub(AddressbookCollection::class);
+            $davAbook->method('downloadResource')->willThrowException(new \Exception('download failed'));
+            $photo = new DelayedPhotoLoader($vcard, $davAbook, $allowDownload);
+        } else {
+            $photo = '';
+        }
+
+        $plugin = new carddav(\rcube_plugin_api::get_instance());
+        $p = $plugin->contactPhoto(['record' => ['photo' => $photo], 'data' => $photo]);
+
+        if ($allowDownload) {
+            TestInfrastructure::logger()->expectMessage(
+                'warning',
+                'downloadPhoto: Attempt to download photo from http://localhost/doesNotExist.jpg failed'
+            );
+        }
+
+        if ($expPlaceholder) {
+            $this->assertSame($placeholder, $p['url'] ?? null);
+        } else {
+            $this->assertArrayNotHasKey('url', $p);
         }
     }
 }

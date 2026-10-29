@@ -52,6 +52,9 @@ class RcmAdapterStub implements RcmInterface
     /** @var list<list{string,array}> */
     public $sentCommands = [];
 
+    /** @var array<string,string> Simulated environment of the roundcube output */
+    public $outputEnv = [];
+
     public function locText(string $msgId, array $vars = []): string
     {
         return $msgId;
@@ -80,6 +83,11 @@ class RcmAdapterStub implements RcmInterface
     public function clientCommand(string $method, ...$arguments): void
     {
         $this->sentCommands[] = [ $method, $arguments ];
+    }
+
+    public function getOutputEnv(string $name): ?string
+    {
+        return $this->outputEnv[$name] ?? null;
     }
 
     public function addHook(string $hook, callable $callback): void
