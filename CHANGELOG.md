@@ -12,6 +12,8 @@
         iCloud hosts photos (gateway.icloud.com) is different from that of the addressbook (pXXX-contacts.icloud.com).
         With the also recently introduced constraints in the carddavclientlib 1.5.0, this will not work without an
         explicit allow policy anymore, which is not yet implemented in rcmcarddav.
+- Fix: Show roundcube's placeholder image instead of an empty image for contacts whose photo is not available, e.g.
+  because photo download is disabled or the download failed
 
 ## Version 5.1.4 (to 5.1.3)
 - Update Russian localization (#506 thanks @neijrr)

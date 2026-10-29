@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-use MStilkerich\RCMCardDAV\{Config, DataConversion};
+use MStilkerich\RCMCardDAV\{Config, DataConversion, DelayedPhotoLoader};
 use MStilkerich\RCMCardDAV\Frontend\{AddressbookManager,RcmInterface,UI};
 use Sabre\VObject\Component\VCard;
 
@@ -160,6 +160,7 @@ class carddav extends rcube_plugin implements RcmInterface
         $rc->addHook('addressbooks_list', [$this, 'listAddressbooks']);
         $rc->addHook('addressbook_get', [$this, 'getAddressbook']);
         $rc->addHook('addressbook_export', [$this, 'exportVCards']);
+        $rc->addHook('contact_photo', [$this, 'contactPhoto']);
         // if preferences are configured as hidden by the admin, don't register the hooks handling preferences
         $admPrefs = $infra->admPrefs();
         if (!$admPrefs->hidePreferences && $rcTask == "settings") {
@@ -222,6 +223,20 @@ class carddav extends rcube_plugin implements RcmInterface
         if ($output instanceof rcmail_output) {
             $output->command($method, ...$arguments);
         }
+    }
+
+    public function getOutputEnv(string $name): ?string
+    {
+        $rcube = rcube::get_instance();
+        $output = $rcube->output;
+
+        if ($output instanceof rcube_output) {
+            /** @psalm-var mixed $value */
+            $value = $output->get_env($name);
+            return is_string($value) ? $value : null;
+        }
+
+        return null;
     }
 
     public function addHook(string $hook, callable $callback): void
@@ -449,6 +464,40 @@ class carddav extends rcube_plugin implements RcmInterface
             }
         } catch (Exception $e) {
             $logger->error("Error loading carddav addressbook $abookId: {$e->getMessage()}");
+        }
+
+        return $p;
+    }
+
+    /**
+     * Hook called by roundcube when rendering the photo of a contact.
+     *
+     * If the photo of a contact is not available (e.g., download of a photo referenced by URI is disabled or failed),
+     * the photo loader yields an empty string. Roundcube considers the photo present nevertheless and would display an
+     * empty image. In this case, we provide the URL of the placeholder image instead. Removing the photo from the
+     * contact data is no option, because roundcube would then delete the photo when the contact is saved.
+     *
+     * The placeholder image is only available when rendering the contact, not when roundcube serves the photo with
+     * the photo action. Nothing is done in the latter case.
+     *
+     * @param array $p The passed array contains the keys:
+     *     record: The contact record (save_data), may be null
+     *     url: URL of the photo, may be set by plugins
+     * @psalm-param array{
+     *     record?: ?array{photo?: string|DelayedPhotoLoader},
+     *     data?: mixed, attrib?: array, email?: ?string, url?: string
+     * } $p
+     * @return array Returns the passed array, with url set to the placeholder image if the photo is not available.
+     */
+    public function contactPhoto(array $p): array
+    {
+        $photo = $p['record']['photo'] ?? null;
+
+        if (($photo instanceof DelayedPhotoLoader) && ((string) $photo === "")) {
+            $placeholder = Config::inst()->rc()->getOutputEnv('photo_placeholder');
+            if (isset($placeholder)) {
+                $p['url'] = $placeholder;
+            }
         }
 
         return $p;

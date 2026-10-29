@@ -75,6 +75,14 @@ interface RcmInterface
     public function clientCommand(string $method, ...$arguments): void;
 
     /**
+     * Returns the value of a string-valued environment variable of the roundcube output.
+     *
+     * @param string $name Name of the environment variable
+     * @return ?string The value of the variable, null if not set or not a string.
+     */
+    public function getOutputEnv(string $name): ?string;
+
+    /**
      * Installs a roundcube hook function.
      */
     public function addHook(string $hook, callable $callback): void;
