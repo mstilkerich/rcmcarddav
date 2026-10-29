@@ -230,7 +230,7 @@ class carddav extends rcube_plugin implements RcmInterface
         $rcube = rcube::get_instance();
         $output = $rcube->output;
 
-        if ($output instanceof rcube_output) {
+        if ($output instanceof rcmail_output) {
             /** @psalm-var mixed $value */
             $value = $output->get_env($name);
             return is_string($value) ? $value : null;
