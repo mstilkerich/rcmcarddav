@@ -1505,6 +1505,10 @@ final class Addressbook extends rcube_addressbook
         } else {
             $andCond = new DbAndCondition();
 
+            // If all searched fields are database columns, the database query below already fully determines the
+            // result, and no post search filter is needed at all.
+            $allFieldsAreDbColumns = empty(array_diff((array) $fields, $this->table_cols));
+
             // search given fields
             foreach ((array) $fields as $col) {
                 if (in_array($col, $this->table_cols)) { // table column
@@ -1516,7 +1520,9 @@ final class Addressbook extends rcube_addressbook
                 // Note: because a match against any column is sufficient, we must add all columns to the post search
                 // filter. Otherwise, cards that match at DB columns but none of the vcard columns would be discarded by
                 // the post search filter
-                $postSearchFilter[] = [$col, mb_strtolower($value)];
+                if (!$allFieldsAreDbColumns) {
+                    $postSearchFilter[] = [$col, mb_strtolower($value)];
+                }
             }
 
             $conditions[] = $andCond;
