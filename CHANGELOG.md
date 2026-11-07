@@ -3,6 +3,11 @@
 ## Version 6.0.0 (to 5.1.5)
 - Upgrade minimum dependencies (PHP 8.2 or higher is now required, other requirements refer to composer.json)
 - Upgrade minimum supported roundcube version to 1.6 also in composer.json
+- Upgrade minimum supported database versions to PostgreSQL 15, MySQL 8.4, MariaDB 10.11 and SQLite 3.45 (see
+  [SUPPORTED_ENVIRONMENT](doc/SUPPORTED_ENVIRONMENT.md))
+- Support sabre/vobject 5 and carddavclient 2
+- Improvement: Faster autocomplete and other searches that only cover fields stored as database columns (#509 thanks
+  @chvaja)
 
 ## Version 5.1.5 (to 5.1.4)
 - This release fixes some security issues, details below. Thanks and credits to Milan Hoppe for reporting these.
