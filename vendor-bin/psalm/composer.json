@@ -1,6 +1,6 @@
 {
     "require-dev": {
-        "vimeo/psalm": "^6.0",
+        "vimeo/psalm": "^7",
         "psalm/plugin-phpunit": "*"
     },
     "prefer-stable" : true

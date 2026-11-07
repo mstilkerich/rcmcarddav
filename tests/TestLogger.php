@@ -26,7 +26,7 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\RCMCardDAV;
 
-use Psr\Log\{AbstractLogger,LogLevel,LoggerInterface};
+use Psr\Log\{AbstractLogger,LogLevel,LoggerInterface,InvalidArgumentException};
 use PHPUnit\Framework\TestCase;
 
 final class TestLogger extends AbstractLogger
@@ -98,12 +98,14 @@ final class TestLogger extends AbstractLogger
      * @param string $message
      * @param array $context
      * @return void
+     * @psalm-capabilities read-props|write-this-props|write-props|read-globals|write-globals|io|time
      */
     #[\Override]
     public function log($level, $message, array $context = array()): void
     {
-        TestCase::assertIsString($level);
-        TestCase::assertNotNull(self::LOGLEVELS[$level]);
+        if (!is_string($level) || !isset(self::LOGLEVELS[$level])) {
+            throw new InvalidArgumentException("Unknown loglevel " . print_r($level, true));
+        }
 
         $levelNumeric = self::LOGLEVELS[$level];
         $levelShort = self::LOGLEVELS_SHORT[$level];

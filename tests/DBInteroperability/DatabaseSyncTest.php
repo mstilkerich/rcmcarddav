@@ -60,8 +60,10 @@ final class DatabaseSyncTest extends TestCase
     #[\Override]
     public function tearDown(): void
     {
-        fclose($this->sockets[0]);
-        fclose($this->sockets[1]);
+        foreach ($this->sockets as $socket) {
+            fclose($socket);
+        }
+        $this->sockets = [];
         self::$db->delete(["%filename" => "UNITTEST-SYNC%"], "migrations");
 
         TestInfrastructure::logger()->reset();

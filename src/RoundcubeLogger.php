@@ -108,6 +108,7 @@ final class RoundcubeLogger extends AbstractLogger
      * @param string $message
      * @param array $context
      * @return void
+     * @psalm-capabilities read-props|write-this-props|write-props|read-globals|write-globals|io|time
      */
     #[\Override]
     public function log($level, $message, array $context = array()): void
@@ -123,6 +124,8 @@ final class RoundcubeLogger extends AbstractLogger
                 $levelNumeric = self::LOGLEVELS[$level];
                 $levelShort = self::LOGLEVELS_SHORT[$level];
                 $message = "[$levelNumeric $levelShort] $message";
+                // rcube is not annotated with capabilities and therefore considered impure by psalm
+                /** @psalm-suppress ImpureMethodCall */
                 rcube::write_log($this->logfile, $message);
             }
         } else {
