@@ -439,9 +439,8 @@ final class DataConversionTest extends TestCase
 
     /**
      * Tests that downloaded data that is not an image is neither provided as photo nor stored to the cache.
-     *
-     * @dataProvider nonImageDownloadSamplesProvider
      */
+    #[DataProvider('nonImageDownloadSamplesProvider')]
     public function testDownloadedNonImageDataIsRejected(string $basename, string $body): void
     {
         $logger = TestInfrastructure::logger();
