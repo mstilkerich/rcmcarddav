@@ -1,8 +1,31 @@
 # Changelog for RCMCardDAV
 
-## Version 6.0.0 (to 5.1.4)
+## Version 6.0.0 (to 5.1.5)
 - Upgrade minimum dependencies (PHP 8.2 or higher is now required, other requirements refer to composer.json)
 - Upgrade minimum supported roundcube version to 1.6 also in composer.json
+
+## Version 5.1.5 (to 5.1.4)
+- This release fixes some security issues, details below. Thanks and credits to Milan Hoppe for reporting these.
+- Security: Photos referenced by URI in a VCard (e.g., used by iCloud) are no longer downloaded by default, as the
+  download was not restricted to particular hosts. This allowed anybody able to place a VCard in a user's addressbook
+  to make the roundcube server send requests to arbitrary hosts, including internal ones, and retrieve the response as
+  contact photo. The download can be enabled with the new global admin setting `download_photos`, which should only
+  be done if all users and CardDAV servers are trusted. See [ADMIN-SETTINGS](doc/ADMIN-SETTINGS.md) for details.
+  Note: More fine-grained controls that allow enabling photo download in a restricted way are planned for a future
+  release.
+  Note: At this point it will not work with iCloud even if you enable the photos, because the origin of the URL where
+        iCloud hosts photos (gateway.icloud.com) is different from that of the addressbook (pXXX-contacts.icloud.com).
+        With the also recently introduced constraints in the carddavclient library 1.5.0, this will not work without an
+        explicit allow policy anymore, which is not yet implemented in rcmcarddav.
+- Security: Require carddavclient 1.5.1, which sends the account credentials only to the origin (scheme, host and
+  port) of the addressbook. Previous versions also sent them to other hosts with matching last two domain name labels
+  or IP address octets. Furthermore, error messages no longer include the body of HTTP responses, which were shown to
+  the user and could reveal the responses of internal services, e.g. after a redirect by the CardDAV server.
+- Security: Downloaded photos are only accepted if the data is recognized as an image (by PHP's
+  `getimagesizefromstring()`). Other data, e.g. responses of internal services when photo download is enabled, is no
+  longer passed on to the user.
+- Fix: Show roundcube's placeholder image instead of an empty image for contacts whose photo is not available, e.g.
+  because photo download is disabled or the download failed
 
 ## Version 5.1.4 (to 5.1.3)
 - Update Russian localization (#506 thanks @neijrr)
