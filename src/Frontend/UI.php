@@ -142,6 +142,8 @@ final class UI
                     [ 'AccProps_rediscover_time_lbl', 'rediscover_time', 'timestr', '86400', self::TIMESTR_IATTRS ],
                     [ 'AccProps_preemptive_basic_auth_lbl', 'preemptive_basic_auth', 'checkbox', '0' ],
                     [ 'AccProps_ssl_noverify_lbl', 'ssl_noverify', 'checkbox', '0' ],
+                    [ 'AccProps_ssl_client_keyfile_lbl', 'ssl_client_keyfile', 'text', '0' ],
+                    [ 'AccProps_ssl_client_password_lbl', 'ssl_client_password', 'password', '0' ],
                 ]
             ],
             [
@@ -190,6 +192,8 @@ final class UI
                 'fields' => [
                     [ 'AccProps_preemptive_basic_auth_lbl', 'preemptive_basic_auth', 'checkbox', '0' ],
                     [ 'AccProps_ssl_noverify_lbl', 'ssl_noverify', 'checkbox', '0' ],
+                    [ 'AccProps_ssl_client_keyfile_lbl', 'ssl_client_keyfile', 'text', '0' ],
+                    [ 'AccProps_ssl_client_password_lbl', 'ssl_client_password', 'password', '0' ],
                 ]
             ],
         ],
