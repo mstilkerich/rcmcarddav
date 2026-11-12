@@ -49,11 +49,85 @@ The administrator can limit the feature set offered by the plugin for ordinary u
    VCards may reference separately stored photos via URI. Some CardDAV servers, notably iCloud, store contact photos
    separately and only include a URI of the photo in the VCard. If this option is disabled, such photos are not
    displayed. Photos stored inline in the VCard are not affected.
-   __Security note__: The photo URI is not restricted to particular hosts. Anybody who can place a VCard in an
-   addressbook of a user (the user themselves, including via custom addressbooks, other users of a shared addressbook,
-   or the CardDAV server) can make the roundcube server send HTTP GET requests to arbitrary hosts, including hosts in
-   the internal network or cloud metadata services, and retrieve the response as contact photo. Only enable this option
-   if you trust all of these parties.
+   __Security note__: The photo URI is not restricted to particular hosts, except that internal hosts are subject to
+   the restrictions described in [Access to internal servers](#access-to-internal-servers). Anybody who can place a
+   VCard in an addressbook of a user (the user themselves, including via custom addressbooks, other users of a shared
+   addressbook, or the CardDAV server) can make the roundcube server send HTTP GET requests to arbitrary other hosts,
+   and retrieve the response as contact photo if it is an image. Only enable this option if you trust all of these
+   parties.
+
+## Access to internal servers
+
+Users can add custom addressbooks with a server address of their choice, and CardDAV servers can refer the plugin to
+other servers (e.g. by redirects, during the discovery of addressbooks, or by photo URIs in VCards). To prevent that
+this is used to access services that are only reachable from the roundcube server, the plugin refuses connections to
+internal addresses. Hostnames are checked by the addresses they resolve to. The following addresses are considered
+internal, as determined by the private and reserved address ranges known to PHP:
+
+- Loopback addresses, i.e. the roundcube server itself (`127.0.0.0/8`, `::1`, typically `localhost`)
+- Private network addresses (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, IPv6 unique local addresses `fc00::/7`)
+- Link-local addresses (`169.254.0.0/16`, `fe80::/10`), including those used by cloud metadata services
+- Other reserved addresses (`0.0.0.0/8`, `240.0.0.0/4`, `::`)
+
+Other special-purpose address ranges are not considered internal by this version, for example the shared address space
+`100.64.0.0/10` used for carrier-grade NAT and by some VPN and cloud services. If services in such a range must be
+protected, add the range to [`denied_hosts`](#refusing-connections-to-additional-hosts).
+
+If your CardDAV server has an internal address, you need to permit access to it:
+
+- The servers configured in a [preset](#preconfigured-carddav-accounts-and-addressbooks-presets) are permitted automatically for the accounts
+  of that preset. This covers the host and port of the preset's `discovery_url` and of the URLs of its
+  `extra_addressbooks`. Accounts added by users cannot make use of this.
+- Other internal servers must be listed in `$prefs['_GLOBAL']['allowed_internal_hosts']`. The servers listed there are
+  permitted for all accounts, including those added by users. This is also needed for a preset if the addressbooks
+  are located on a different host or port than the configured URLs, e.g. because the server at the `discovery_url`
+  redirects to another server.
+
+`$prefs['_GLOBAL']['allowed_internal_hosts']` is an array of strings (Default: empty) of the following forms:
+
+- A hostname (`dav.example.internal`): Permits connections to this hostname, regardless of the addresses it resolves
+  to.
+- A domain suffix with a leading dot (`.example.internal`): Like before, for all hostnames within the domain (not
+  including `example.internal` itself).
+- An IP address (`192.168.1.5`, `fd00::5`): Permits connections to this address, including by hostnames that resolve to
+  it.
+- A network in CIDR notation (`10.1.0.0/16`, `fd00:1234::/32`): Like before, for all addresses of the network.
+
+Each entry can be followed by a port (`dav.example.internal:8443`, `192.168.1.5:443`) to permit connections to this
+port only. An IPv6 address or network must be enclosed in brackets in this case (`[fd00::5]:8443`). It is recommended
+to include the port, particularly for hosts that provide other services not meant to be accessible to the users.
+
+```php
+$prefs['_GLOBAL']['allowed_internal_hosts'] = ['dav.example.internal:443', '192.168.1.5:8443', '10.1.0.0/16'];
+```
+
+Notes:
+
+- For hostnames, the plugin binds the connection to the checked addresses to prevent that a different address is used
+  for the actual connection. This requires the PHP curl extension. Without it, the addresses are checked only.
+- If the roundcube server uses a proxy for outgoing HTTP connections, the proxy resolves the hostnames and must enforce
+  such restrictions.
+- Services that are reachable via public addresses are not affected by these restrictions, even if they run on the
+  roundcube server or in your network. Use `denied_hosts` (see below) to refuse connections to such services.
+
+### Refusing connections to additional hosts
+
+`$prefs['_GLOBAL']['denied_hosts']` is an array of strings (Default: empty) of the same forms as described for
+`allowed_internal_hosts`. The hosts listed there are treated like internal addresses, i.e., connections to them are
+refused. This can be used for services with public addresses that the roundcube server can access but the users should
+not be able to, for example because access to them is granted based on the address of the client.
+
+- An IP address or network refuses connections to these addresses, including by hostnames that resolve to them.
+- A hostname or domain suffix refuses connections to these hostnames, regardless of the addresses they resolve to. Note
+  that this does not cover other hostnames resolving to the same addresses, so prefer IP addresses or networks.
+
+Entries in `allowed_internal_hosts` and the servers of presets take precedence. An address must be permitted by an IP
+address or network entry, a hostname by a hostname or domain suffix entry. This allows, for example, to refuse a
+network but permit individual servers therein.
+
+```php
+$prefs['_GLOBAL']['denied_hosts'] = ['203.0.113.10', '198.51.100.0/24', 'intranet.example.com'];
+```
 
 ## Password storing scheme
 

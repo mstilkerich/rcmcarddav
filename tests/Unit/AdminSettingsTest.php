@@ -26,6 +26,8 @@ declare(strict_types=1);
 
 namespace MStilkerich\Tests\RCMCardDAV\Unit;
 
+use MStilkerich\CardDavClient\Account;
+use MStilkerich\RCMCardDAV\Config;
 use MStilkerich\RCMCardDAV\RoundcubeLogger;
 use MStilkerich\RCMCardDAV\Db\Database;
 use MStilkerich\RCMCardDAV\Frontend\AdminSettings;
@@ -93,6 +95,8 @@ final class AdminSettingsTest extends TestCase
         $this->assertSame($expPrefs['forbidCustomAddressbooks'], $admPrefs->forbidCustomAddressbooks);
         $this->assertSame($expPrefs['hidePreferences'], $admPrefs->hidePreferences);
         $this->assertSame($expPrefs['downloadPhotos'], $admPrefs->downloadPhotos);
+        $this->assertSame($expPrefs['allowedInternalHosts'], $admPrefs->allowedInternalHosts);
+        $this->assertSame($expPrefs['deniedHosts'], $admPrefs->deniedHosts);
 
         $this->assertSame($expPrefs["presets"], TestInfrastructure::getPrivateProperty($admPrefs, 'presets'));
         $this->assertSame(
@@ -164,6 +168,8 @@ final class AdminSettingsTest extends TestCase
                         'forbidCustomAddressbooks' => false,
                         'hidePreferences' => false,
                         'downloadPhotos' => false,
+                        'allowedInternalHosts' => [],
+                        'deniedHosts' => [],
                         'presets' => [],
                     ];
                 },
@@ -491,6 +497,8 @@ final class AdminSettingsTest extends TestCase
         $this->assertSame($expPrefs['forbidCustomAddressbooks'], $admPrefs->forbidCustomAddressbooks);
         $this->assertSame($expPrefs['hidePreferences'], $admPrefs->hidePreferences);
         $this->assertSame($expPrefs['downloadPhotos'], $admPrefs->downloadPhotos);
+        $this->assertSame($expPrefs['allowedInternalHosts'], $admPrefs->allowedInternalHosts);
+        $this->assertSame($expPrefs['deniedHosts'], $admPrefs->deniedHosts);
         $this->assertSame($expPrefs["presets"], TestInfrastructure::getPrivateProperty($admPrefs, 'presets'));
 
         // extra validation function
@@ -499,6 +507,141 @@ final class AdminSettingsTest extends TestCase
         // check that expected error message was logged
         $logEntries = file_get_contents('testreports/adminSettingsTest_log.log');
         $this->assertMatchesRegularExpression("/\[5 ERR\] .*$expLogMsg/", $logEntries, "expected error log not found");
+    }
+
+    /**
+     * Tests that the allowed internal hosts for an account include the servers of its preset.
+     */
+    public function testAllowedInternalHostsIncludeServersOfPreset(): void
+    {
+        $loggerMock = $this->createMock(RoundcubeLogger::class);
+        $admPrefs = new AdminSettings('tests/Unit/data/adminSettingsTest/fullconfig.inc.php', $loggerMock, $loggerMock);
+        $global = [ 'dav.example.internal', '192.168.1.5:8443' ];
+
+        // user-defined account, unknown preset, preset without URLs
+        $this->assertSame($global, $admPrefs->getAllowedInternalHosts(null));
+        $this->assertSame($global, $admPrefs->getAllowedInternalHosts('Unknown'));
+        $this->assertSame($global, $admPrefs->getAllowedInternalHosts('Minimal'));
+
+        // preset with discovery URL lacking scheme and extra addressbooks on same server
+        $expHosts = array_merge($global, [ 'cdav.example.com:443' ]);
+        $this->assertSame($expHosts, $admPrefs->getAllowedInternalHosts('Preset1'));
+
+        // preset with extra addressbooks only
+        $expHosts = array_merge($global, [ 'cdavshared.example.com:443' ]);
+        $this->assertSame($expHosts, $admPrefs->getAllowedInternalHosts('OnlyShared'));
+    }
+
+    /**
+     * Tests that the server entries derived from the URLs of a preset contain the proper host and port.
+     */
+    public function testAllowedInternalHostsOfPresetContainHostAndPort(): void
+    {
+        $prefs = [
+            '_GLOBAL' => [ 'allowed_internal_hosts' => [ '10.0.0.0/8', 5, '10.0.0.0/8', '10.0.0.0/33' ] ],
+            'Http' => [
+                'discovery_url' => 'http://localhost/dav/%u',
+                'extra_addressbooks' => [
+                    [ 'url' => 'http://localhost:8080/shared/book' ],
+                    [ 'url' => 'https://LOCALHOST/shared/book' ],
+                ],
+            ],
+            'Ip' => [
+                'discovery_url' => '192.168.1.5:8443',
+                'extra_addressbooks' => [
+                    [ 'url' => 'https://[fd00::5]/shared/book' ],
+                    [ 'url' => 'https://[fd00::5]:8443/shared/book' ],
+                ],
+            ],
+            'Placeholder' => [ 'discovery_url' => 'https://dav.%d:8443/%l' ],
+        ];
+
+        $tmpfile = tempnam("testreports", "adminSettingsTest_");
+        $this->assertIsString($tmpfile);
+        file_put_contents($tmpfile, "<?php\n\$prefs = " . var_export($prefs, true) . ';');
+
+        $logger = TestInfrastructure::logger();
+        $admPrefs = new AdminSettings($tmpfile, $logger, $logger);
+        $logger->expectMessage('error', 'Entries of allowed_internal_hosts in config.inc.php must be strings');
+        $logger->expectMessage('error', 'Ignoring invalid entry of allowed_internal_hosts in config.inc.php');
+
+        $this->assertSame([ '10.0.0.0/8' ], $admPrefs->getAllowedInternalHosts(null));
+        $this->assertSame(
+            [ '10.0.0.0/8', 'localhost:8080', 'LOCALHOST:443', 'localhost:80' ],
+            $admPrefs->getAllowedInternalHosts('Http')
+        );
+        $this->assertSame(
+            [ '10.0.0.0/8', '[fd00::5]:443', '[fd00::5]:8443', '192.168.1.5:8443' ],
+            $admPrefs->getAllowedInternalHosts('Ip')
+        );
+        $this->assertSame(
+            [ '10.0.0.0/8', 'dav.example.com:8443' ],
+            $admPrefs->getAllowedInternalHosts('Placeholder')
+        );
+    }
+
+    /**
+     * Tests that an invalid allowed_internal_hosts setting is reported and results in no hosts being allowed.
+     */
+    public function testInvalidAllowedInternalHostsSettingIsIgnored(): void
+    {
+        $tmpfile = tempnam("testreports", "adminSettingsTest_");
+        $this->assertIsString($tmpfile);
+        $cfg = "<?php\n\$prefs['_GLOBAL']['allowed_internal_hosts'] = 'localhost';\n"
+            . "\$prefs['_GLOBAL']['denied_hosts'] = 'localhost';\n";
+        file_put_contents($tmpfile, $cfg);
+
+        $logger = TestInfrastructure::logger();
+        $admPrefs = new AdminSettings($tmpfile, $logger, $logger);
+        $logger->expectMessage('error', 'Setting allowed_internal_hosts in config.inc.php must be an array');
+        $logger->expectMessage('error', 'Setting denied_hosts in config.inc.php must be an array');
+        $this->assertSame([], $admPrefs->getAllowedInternalHosts(null));
+        $this->assertSame([], $admPrefs->deniedHosts);
+    }
+
+    /**
+     * Tests that accounts are restricted to the allowed internal hosts, including those of the preset for accounts
+     * belonging to a preset.
+     */
+    public function testAccountsAreRestrictedToAllowedInternalHosts(): void
+    {
+        $db = $this->createMock(Database::class);
+        TestInfrastructure::init($db, 'tests/Unit/data/adminSettingsTest/fullconfig.inc.php');
+        $accountCfg = [ 'username' => 'u', 'password' => 'p', 'discovery_url' => 'http://localhost' ];
+
+        // user-defined account
+        $account = Config::makeAccount($accountCfg);
+        $callback = $this->getAllowHostCallback($account);
+        $this->assertTrue($callback('public.example.com', 443, [ '93.184.216.34' ]));
+        $this->assertFalse($callback('localhost', 80, [ '127.0.0.1' ]));
+        $this->assertTrue($callback('dav.example.internal', 443, [ '10.0.0.5' ]));
+        $this->assertTrue($callback('192.168.1.5', 8443, [ '192.168.1.5' ]));
+        $this->assertFalse($callback('192.168.1.5', 443, [ '192.168.1.5' ]));
+        $this->assertFalse($callback('cdavshared.example.com', 443, [ '10.0.0.6' ]));
+        $this->assertFalse($callback('203.0.113.10', 443, [ '203.0.113.10' ]));
+        $this->assertFalse($callback('intranet.example.com', 443, [ '93.184.216.34' ]));
+
+        // account of a preset may additionally access the servers of the preset
+        $account = Config::makeAccount($accountCfg + [ 'presetname' => 'OnlyShared' ]);
+        $callback = $this->getAllowHostCallback($account);
+        $this->assertFalse($callback('localhost', 80, [ '127.0.0.1' ]));
+        $this->assertTrue($callback('dav.example.internal', 443, [ '10.0.0.5' ]));
+        $this->assertTrue($callback('cdavshared.example.com', 443, [ '10.0.0.6' ]));
+        $this->assertFalse($callback('cdavshared.example.com', 8443, [ '10.0.0.6' ]));
+    }
+
+    /**
+     * Extracts the allow_host_callback from the HTTP options of an Account.
+     *
+     * @return callable(string, int, list<string>): bool
+     */
+    private function getAllowHostCallback(Account $account): callable
+    {
+        /** @var array{allow_host_callback?: callable(string, int, list<string>): bool} */
+        $httpOptions = TestInfrastructure::getPrivateProperty($account, 'httpOptions');
+        $callback = $httpOptions['allow_host_callback'] ?? null;
+        $this->assertNotNull($callback);
+        return $callback;
     }
 
     /**

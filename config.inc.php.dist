@@ -23,6 +23,16 @@
 // Read the security note in doc/ADMIN-SETTINGS.md before enabling this option.
 // $prefs['_GLOBAL']['download_photos'] = true;
 
+// Internal hosts (e.g. loopback or private addresses) that connections are permitted to (default: none)
+// Servers configured in a preset below are permitted for that preset without listing them here.
+// Entries are hostnames, domain suffixes, IP addresses or networks, optionally followed by a port.
+// See doc/ADMIN-SETTINGS.md for details.
+// $prefs['_GLOBAL']['allowed_internal_hosts'] = ['dav.example.internal', '192.168.1.5:8443', '10.1.0.0/16'];
+
+// Additional hosts that connections are refused to like for internal hosts, e.g. public addresses of this server
+// (default: none). Same form as allowed_internal_hosts.
+// $prefs['_GLOBAL']['denied_hosts'] = ['203.0.113.10', 'intranet.example.com'];
+
 // Scheme for storing the CardDAV passwords, in order from least to best security.
 // Options: plain, base64, des_key, encrypted (default)
 // $prefs['_GLOBAL']['pwstore_scheme'] = 'encrypted';

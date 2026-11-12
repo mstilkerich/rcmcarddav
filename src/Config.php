@@ -197,6 +197,13 @@ class Config
         $httpOptions['preemptive_basic_auth'] = (bool) ($accountCfg['preemptive_basic_auth'] ?? false);
         $httpOptions['verify'] = !((bool) ($accountCfg['ssl_noverify'] ?? false));
 
+        // Connections to internal addresses are only permitted to the hosts allowed by the admin. For accounts of a
+        // preset, this includes the servers the admin configured in the preset.
+        $admPrefs = self::inst()->admPrefs();
+        $allowedHosts = $admPrefs->getAllowedInternalHosts($accountCfg['presetname'] ?? null);
+        $hostPolicy = new HostPolicy($allowedHosts, $admPrefs->deniedHosts);
+        $httpOptions['allow_host_callback'] = [ $hostPolicy, 'isPermitted' ];
+
         $discUrl  = Utils::replacePlaceholdersUrl($accountCfg['discovery_url'] ?? '');
         return new Account($discUrl, $httpOptions);
     }

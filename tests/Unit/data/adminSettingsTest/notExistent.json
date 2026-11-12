@@ -3,6 +3,8 @@
 	"forbidCustomAddressbooks": false,
 	"hidePreferences": false,
 	"downloadPhotos": false,
+	"allowedInternalHosts": [],
+	"deniedHosts": [],
 	"presets": [],
 	"specialAbookMatchers": []
 }

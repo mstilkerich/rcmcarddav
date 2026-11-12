@@ -28,7 +28,7 @@ namespace MStilkerich\RCMCardDAV\Frontend;
 
 use Exception;
 use Psr\Log\LoggerInterface;
-use MStilkerich\RCMCardDAV\{Config, RoundcubeLogger};
+use MStilkerich\RCMCardDAV\{Config, HostPolicy, RoundcubeLogger};
 use MStilkerich\CardDavClient\AddressbookCollection;
 
 /**
@@ -188,6 +188,18 @@ class AdminSettings
     public $downloadPhotos;
 
     /**
+     * @var list<string> Global preference "allowed_internal_hosts"
+     * @readonly
+     */
+    public $allowedInternalHosts = [];
+
+    /**
+     * @var list<string> Global preference "denied_hosts"
+     * @readonly
+     */
+    public $deniedHosts = [];
+
+    /**
      * @var array<SpecialAbookType,SpecialAbookMatch> Match settings for special addressbooks
      */
     private $specialAbookMatchers = [];
@@ -240,6 +252,9 @@ class AdminSettings
         $this->forbidCustomAddressbooks = (bool) ($gprefs['fixed'] ?? false);
         $this->hidePreferences = (bool) ($gprefs['hide_preferences'] ?? false);
         $this->downloadPhotos = (($gprefs['download_photos'] ?? false) === true);
+
+        $this->allowedInternalHosts = self::parseHostList($gprefs, 'allowed_internal_hosts', $logger);
+        $this->deniedHosts = self::parseHostList($gprefs, 'denied_hosts', $logger);
 
         foreach (['loglevel' => $logger, 'loglevel_http' => $httpLogger] as $setting => $cfgdLogger) {
             if (($cfgdLogger instanceof RoundcubeLogger) && isset($gprefs[$setting])) {
@@ -323,6 +338,79 @@ class AdminSettings
 
         unset($preset['extra_addressbooks']);
         return $preset;
+    }
+
+    /**
+     * Extracts a global preference that is a list of hosts.
+     *
+     * @param array $gprefs The global preferences
+     * @param string $setting The name of the preference
+     * @return list<string> The entries of the list. Empty if the preference is not set or not an array.
+     */
+    private static function parseHostList(array $gprefs, string $setting, LoggerInterface $logger): array
+    {
+        $hosts = [];
+
+        if (isset($gprefs[$setting])) {
+            if (is_array($gprefs[$setting])) {
+                /** @psalm-var mixed $host */
+                foreach ($gprefs[$setting] as $host) {
+                    if (!is_string($host)) {
+                        $logger->error("Entries of $setting in config.inc.php must be strings");
+                    } elseif (HostPolicy::parseEntry($host) === null) {
+                        $logger->error("Ignoring invalid entry of $setting in config.inc.php: $host");
+                    } else {
+                        $hosts[] = $host;
+                    }
+                }
+            } else {
+                $logger->error("Setting $setting in config.inc.php must be an array");
+            }
+        }
+
+        return $hosts;
+    }
+
+    /**
+     * Provides the internal hosts that connections are permitted to for an account.
+     *
+     * This includes the hosts from the global preference allowed_internal_hosts. For an account of a preset, it
+     * additionally includes the servers (host and port) of the URLs configured by the admin for the preset, i.e. the
+     * discovery URL and the URLs of the extra addressbooks. Therefore, servers the admin configured in a preset can be
+     * used by the accounts of the preset without the need to also list them in allowed_internal_hosts.
+     *
+     * @param ?string $presetName Name of the preset the account belongs to, null for a user-defined account.
+     * @return list<string> The entries in the form expected by {@see HostPolicy}.
+     */
+    public function getAllowedInternalHosts(?string $presetName): array
+    {
+        $hosts = $this->allowedInternalHosts;
+
+        if (isset($presetName) && isset($this->presets[$presetName])) {
+            $preset = $this->presets[$presetName];
+            $urls = array_keys($preset['extra_addressbooks'] ?? []);
+            if (isset($preset['discovery_url'])) {
+                $urls[] = $preset['discovery_url'];
+            }
+
+            foreach ($urls as $url) {
+                // The URL may lack the scheme, https is the default in this case
+                if (!preg_match(';^[a-z][a-z0-9+.-]*://;i', $url)) {
+                    $url = "https://$url";
+                }
+
+                $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+                $host = parse_url($url, PHP_URL_HOST);
+                $port = parse_url($url, PHP_URL_PORT) ?? ($scheme === 'http' ? 80 : 443);
+
+                // IPv6 addresses are enclosed in brackets in the URL as required for the entry including a port
+                if (is_string($host) && strlen($host) > 0) {
+                    $hosts[] = "$host:$port";
+                }
+            }
+        }
+
+        return array_values(array_unique($hosts));
     }
 
     /**
