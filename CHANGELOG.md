@@ -1,13 +1,35 @@
 # Changelog for RCMCardDAV
 
-## Version 6.0.0 (to 5.1.5)
+## Version 6.0.0 (to 5.2.0)
 - Upgrade minimum dependencies (PHP 8.2 or higher is now required, other requirements refer to composer.json)
 - Upgrade minimum supported roundcube version to 1.6 also in composer.json
 - Upgrade minimum supported database versions to PostgreSQL 15, MySQL 8.4, MariaDB 10.11 and SQLite 3.45 (see
   [SUPPORTED_ENVIRONMENT](doc/SUPPORTED_ENVIRONMENT.md))
-- Support sabre/vobject 5 and carddavclient 2
+- Support sabre/vobject 5
+- Require carddavclient 2
+- Access to internal servers: More address ranges are considered internal, namely all addresses that are not globally
+  reachable according to the IANA registries of special-purpose addresses (e.g. the shared address space
+  `100.64.0.0/10`). Servers in these ranges must be permitted using the admin setting `allowed_internal_hosts` unless
+  they are configured in a preset. See [ADMIN-SETTINGS](doc/ADMIN-SETTINGS.md#access-to-internal-servers) for details.
 - Improvement: Faster autocomplete and other searches that only cover fields stored as database columns (#509 thanks
   @chvaja)
+
+## Version 5.2.0 (to 5.1.5)
+- Security: Connections to internal addresses (addresses of the roundcube server itself like `localhost`, private
+  network addresses, link-local addresses including cloud metadata services, and other reserved addresses) are refused
+  by default. Previously, users could make the roundcube server send requests to internal services by adding a custom
+  addressbook for an internal address, a hostname resolving to an internal address, or a server redirecting to an
+  internal address. The same applies to photo URIs if `download_photos` is enabled. Requires carddavclient 1.6.0.
+  __Action may be required if you use a CardDAV server with an internal address__:
+  - Servers configured in a preset (`discovery_url` and URLs of `extra_addressbooks`) continue to work for that
+    preset without changes, unless the addressbooks are located on a different host or port than these URLs.
+  - Other internal servers, particularly those used in addressbooks added by the users themselves, must be permitted
+    using the new global admin setting `allowed_internal_hosts`.
+
+  See [ADMIN-SETTINGS](doc/ADMIN-SETTINGS.md#access-to-internal-servers) for details.
+- New global admin setting `denied_hosts` to refuse connections to additional hosts, e.g. services with public
+  addresses that users should not be able to access via the roundcube server, or address ranges used internally that
+  are not covered by the default restrictions.
 
 ## Version 5.1.5 (to 5.1.4)
 - This release fixes some security issues, details below. Thanks and credits to Milan Hoppe for reporting these.

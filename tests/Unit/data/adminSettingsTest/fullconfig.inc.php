@@ -5,6 +5,8 @@ $prefs['_GLOBAL']['fixed'] = 1;
 $prefs['_GLOBAL']['hide_preferences'] = "enable";
 $prefs['_GLOBAL']['download_photos'] = true;
 $prefs['_GLOBAL']['pwstore_scheme'] = 'plain';
+$prefs['_GLOBAL']['allowed_internal_hosts'] = ['dav.example.internal', '192.168.1.5:8443'];
+$prefs['_GLOBAL']['denied_hosts'] = ['203.0.113.10', 'intranet.example.com'];
 
 $prefs['_GLOBAL']['loglevel'] = \Psr\Log\LogLevel::DEBUG;
 $prefs['_GLOBAL']['loglevel_http'] = \Psr\Log\LogLevel::INFO;
