@@ -488,7 +488,6 @@ final class Addressbook extends rcube_addressbook
 
             /** @psalm-var SaveData $save_data */
             $logger->info("insert(" . ($save_data["name"] ?? "no name") . ", $check)");
-            /** @psalm-var SaveData $save_data XXX temporary vimeo/psalm#8980 workaround */
 
 
             // If this save_data was produced by rcmcarddav, we can directly use the original vcard
@@ -552,7 +551,6 @@ final class Addressbook extends rcube_addressbook
         /** @var SaveData $save_cols */
         try {
             $logger->info("update(" . ($save_cols["name"] ?? "no name") . ", ID=$id)");
-            /** @psalm-var SaveData $save_cols XXX temporary vimeo/psalm#8980 workaround */
             $db = $infra->db();
 
             /**
@@ -1614,7 +1612,7 @@ final class Addressbook extends rcube_addressbook
             $found = false;
             /** @var VObject\Property $member */
             foreach (($vcard->{'X-ADDRESSBOOKSERVER-MEMBER'} ?? []) as $member) {
-                if ($member == $search_for) {
+                if ((string) $member === $search_for) {
                     $vcard->remove($member);
                     $found = true;
                     // we don't break here - just in case the member is listed several times in the VCard
@@ -1676,7 +1674,7 @@ final class Addressbook extends rcube_addressbook
      * changed VCard to the server.
      *
      * @param list<string> $contact_ids A list of contact database IDs for that CATEGORIES should be adapted
-     * @param callable(list<string>, string) $callback
+     * @param callable(list<string> &$groups, string $contact_id): bool $callback
      *                           A callback function, that performs the adjustment of the CATEGORIES values. It is
      *                           called for each contact with two parameters: The first is an array of the values of the
      *                           CATEGORIES property, which should be taken by reference and modified in place. The

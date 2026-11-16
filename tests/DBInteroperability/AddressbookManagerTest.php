@@ -1259,7 +1259,7 @@ final class AddressbookManagerTest extends TestCase
 
         // Call the test method
         $abMgr = new AddressbookManager();
-        $this->assertEquals($expDuration, $abMgr->resyncAddressbook($abook));
+        $this->assertSame($expDuration, $abMgr->resyncAddressbook($abook));
 
         // now the database should have a last_updated value 5 minutes in the future, plus the refresh time
         [ 'last_updated' => $lastUpdated] = self::$db->lookup($abookId, ['last_updated'], 'addressbooks');

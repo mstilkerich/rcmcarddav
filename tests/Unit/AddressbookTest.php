@@ -148,12 +148,12 @@ final class AddressbookTest extends TestCase
         $abook = $this->createAbook();
 
         $this->assertSame('id', $abook->primary_key);
-        $this->assertSame(true, $abook->groups);
-        $this->assertSame(true, $abook->export_groups);
-        $this->assertSame(false, $abook->readonly);
-        $this->assertSame(false, $abook->searchonly);
-        $this->assertSame(false, $abook->undelete);
-        $this->assertSame(true, $abook->ready);
+        $this->assertTrue($abook->groups);
+        $this->assertTrue($abook->export_groups);
+        $this->assertFalse($abook->readonly);
+        $this->assertFalse($abook->searchonly);
+        $this->assertFalse($abook->undelete);
+        $this->assertTrue($abook->ready);
         $this->assertSame('name', $abook->sort_col);
         $this->assertSame('ASC', $abook->sort_order);
         $this->assertSame(['birthday', 'anniversary'], $abook->date_cols);
@@ -177,7 +177,7 @@ final class AddressbookTest extends TestCase
         $account = TestInfrastructure::$infra->makeAccount($accountCfg);
 
         $roAbook = new Addressbook("42", $account, $abookCfg);
-        $this->assertSame(true, $roAbook->readonly);
+        $this->assertTrue($roAbook->readonly);
     }
 
     /**
@@ -590,7 +590,7 @@ final class AddressbookTest extends TestCase
             $this->assertFalse($rset->searchonly);
 
             if ($nocount) {
-                $this->assertSame(count($rset->records), $rset->count);
+                $this->assertCount($rset->count, $rset->records);
             } else {
                 $this->assertSame($expCount, $rset->count);
             }

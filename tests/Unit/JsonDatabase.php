@@ -146,13 +146,11 @@ final class JsonDatabase extends AbstractDatabase
                     $cols[] = $col;
                     if (isset($row[$col])) {
                         if (is_array($row[$col])) {
-                            [ $type, $param ] = $row[$col];
-                            if ($type === "file") {
-                                TestCase::assertIsString($param, "Parameter to file reference must be filename");
-                                $vals[] = TestInfrastructure::readFileRelative($param, $dataFile);
-                            } else {
-                                throw new \Exception("Unknown data input type $type with param $param");
-                            }
+                            $spec = $row[$col];
+                            TestCase::assertCount(2, $spec, "Data input spec must be [type, param]");
+                            TestCase::assertSame("file", $spec[0], "Unknown data input type");
+                            TestCase::assertIsString($spec[1], "Parameter to file reference must be filename");
+                            $vals[] = TestInfrastructure::readFileRelative($spec[1], $dataFile);
                         } else {
                             $vals[] = (string) $row[$col];
                         }
@@ -340,7 +338,7 @@ final class JsonDatabase extends AbstractDatabase
     ): int {
         // check parameters
         TestCase::assertArrayHasKey($table, $this->data, "Update for unknown table $table");
-        TestCase::assertSame(count($cols), count($vals), __METHOD__ . " called with non-matching cols/vals");
+        TestCase::assertCount(count($cols), $vals, __METHOD__ . " called with non-matching cols/vals");
 
         $rowsAffected = 0;
         foreach ($this->data[$table] as &$row) {
@@ -537,10 +535,6 @@ final class JsonDatabase extends AbstractDatabase
                 usort(
                     $filteredRows,
                     function (array $a, array $b) use ($orderDef): int {
-                        /**
-                         * @var JsonDbRow $a
-                         * @var JsonDbRow $b
-                         */
                         $res = 0;
                         foreach ($orderDef as $od) {
                             [ $col, $orderAsc ] = $od;

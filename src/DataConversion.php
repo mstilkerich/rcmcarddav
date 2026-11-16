@@ -501,14 +501,11 @@ final class DataConversion
     {
         $isGroup = (($save_data['kind'] ?? "") === "group");
 
-        /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
 
         if (!isset($save_data["name"]) || strlen($save_data["name"]) == 0) {
-            /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
             if (!$isGroup) {
                 $save_data["showas"] = $this->determineShowAs($save_data);
             }
-            /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
             $save_data["name"] = $this->composeDisplayname($save_data);
         }
 
@@ -543,7 +540,6 @@ final class DataConversion
             $vcard->N = $nAttr;
         }
 
-        /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
         $this->setOrgProperty($save_data, $vcard);
         $this->setSingleValueProperties($save_data, $vcard);
         $this->setMultiValueProperties($save_data, $vcard);
@@ -624,7 +620,6 @@ final class DataConversion
             $orgParts[] = $save_data['organization'];
         }
 
-        /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
 
         if (isset($save_data['department']) && strlen($save_data['department']) > 0) {
             // the first element of ORG corresponds to organization, if that field is not filled but organization is
@@ -1292,10 +1287,8 @@ final class DataConversion
     {
         $showAs = $save_data['showas'] ?? "";
 
-        /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
         if (strcasecmp($showAs, 'COMPANY') == 0) {
             $org = $save_data['organization'] ?? '';
-            /** @psalm-var SaveData $save_data XXX temporary workaround for vimeo/psalm#8980 */
 
             if (strlen($org) > 0) {
                 return $org;

@@ -298,7 +298,6 @@ final class AdminSettings
                             $matchexpr = $matchSettings[$matchType];
                             $matchexpr = Utils::replacePlaceholdersUrl($matchexpr, true);
                             if (strlen($matchexpr) > 0) {
-                                /** @psalm-var non-empty-string $matchexpr */
                                 $matchSettings2[$matchType] = $matchexpr;
                             }
                         }
@@ -578,7 +577,6 @@ final class AdminSettings
                         $account = Config::makeAccount($accountCfg);
                         $abook = $infra->makeWebDavResource($abookCfg['url'], $account);
                         if ($abook instanceof AddressbookCollection) {
-                            /** @psalm-var Preset $preset */
                             $preset['name'] = $abMgr->replacePlaceholdersAbookName(
                                 $preset['name'],
                                 $accountCfg,
@@ -589,7 +587,6 @@ final class AdminSettings
                         }
                     }
 
-                    /** @psalm-var Preset $preset */
                     if ($abookCfg[$k] != $preset[$k]) {
                         $pa[$k] = $preset[$k];
                     }

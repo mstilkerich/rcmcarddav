@@ -709,9 +709,6 @@ final class DataConversionTest extends TestCase
         $vcardOrig = $saveData["_carddav_vcard"] ?? null;
         $this->assertInstanceOf(VCard::class, $vcardOrig);
 
-        /**
-         * @psalm-var SaveDataFromDC $saveData XXX temporary workaround for vimeo/psalm#8980
-         */
         $vcfExported = DataConversion::exportVCard($vcardOrig, $saveData);
         $this->assertPhotoDownloadWarning($logger, $vcfFile);
         $vcardExported = VObject\Reader::read($vcfExported);
